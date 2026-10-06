@@ -16,6 +16,7 @@ import jasper.repository.UserRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.orm.jpa.JpaSystemException;
 import org.springframework.stereotype.Component;
@@ -52,14 +53,21 @@ public class IngestUser {
 	@Autowired
 	PlatformTransactionManager transactionManager;
 
+	@Value("#{environment.matchesProfiles('archive')}")
+	boolean archive;
+
 	// Exposed for testing
 	Clock ensureUniqueModifiedClock = Clock.systemUTC();
 
 	@Timed(value = "jasper.user", histogram = true)
 	public void create(User user) {
 		if (isDeletorTag(user.getTag())) {
-			if (userRepository.existsByQualifiedTag(deletedTag(user.getQualifiedTag()))) throw new AlreadyExistsException();
-		} else {
+			var deleted = deletedTag(user.getQualifiedTag());
+			if (archive
+				? userRepository.existsLiveByQualifiedTag(deleted, user.getQualifiedTag())
+				: userRepository.existsByQualifiedTag(deleted)) throw new AlreadyExistsException();
+		} else if (!archive) {
+			// In archive mode the delete notice is kept as an older version
 			delete(deletorTag(user.getQualifiedTag()));
 		}
 		ensureCreateUniqueModified(user);
@@ -88,12 +96,16 @@ public class IngestUser {
 			}
 			throw e;
 		}
-		if (isDeletorTag(user.getTag())) {
+		// In archive mode delete notices are stored as versions and never remove rows
+		if (!archive && isDeletorTag(user.getTag())) {
 			delete(deletedTag(user.getQualifiedTag()));
 		}
 		messages.updateUser(user);
 	}
 
+	/**
+	 * Hard delete. In archive mode this removes every version.
+	 */
 	@Timed(value = "jasper.user", histogram = true)
 	public void delete(String qualifiedTag) {
 		userRepository.deleteByQualifiedTag(qualifiedTag);

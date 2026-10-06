@@ -16,6 +16,7 @@ import jasper.repository.TemplateRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.orm.jpa.JpaSystemException;
 import org.springframework.stereotype.Component;
@@ -54,14 +55,21 @@ public class IngestTemplate {
 	@Autowired
 	PlatformTransactionManager transactionManager;
 
+	@Value("#{environment.matchesProfiles('archive')}")
+	boolean archive;
+
 	// Exposed for testing
 	Clock ensureUniqueModifiedClock = Clock.systemUTC();
 
 	@Timed(value = "jasper.template", histogram = true)
 	public void create(Template template) {
 		if (isDeletorTag(template.getTag())) {
-			if (templateRepository.existsByQualifiedTag(deletedTag(template.getQualifiedTag()))) throw new AlreadyExistsException();
-		} else {
+			var deleted = deletedTag(template.getQualifiedTag());
+			if (archive
+				? templateRepository.existsLiveByQualifiedTag(deleted, template.getQualifiedTag())
+				: templateRepository.existsByQualifiedTag(deleted)) throw new AlreadyExistsException();
+		} else if (!archive) {
+			// In archive mode the delete notice is kept as an older version
 			delete(deletorTag(template.getQualifiedTag()));
 		}
 		validate.template(template.getOrigin(), template);
@@ -93,12 +101,16 @@ public class IngestTemplate {
 			}
 			throw e;
 		}
-		if (isDeletorTag(template.getTag())) {
+		// In archive mode delete notices are stored as versions and never remove rows
+		if (!archive && isDeletorTag(template.getTag())) {
 			delete(deletedTag(template.getQualifiedTag()));
 		}
 		messages.updateTemplate(template);
 	}
 
+	/**
+	 * Hard delete. In archive mode this removes every version.
+	 */
 	@Timed(value = "jasper.template", histogram = true)
 	public void delete(String qualifiedTag) {
 		templateRepository.deleteByQualifiedTag(qualifiedTag);

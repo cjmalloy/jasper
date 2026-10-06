@@ -141,6 +141,17 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 			AND ref.modified <= :olderThan""")
 	void deleteByOriginAndModifiedLessThanEqual(String origin, Instant olderThan);
 
+	/**
+	 * Hard delete a Ref. In archive mode this removes every version.
+	 */
+	@Transactional
+	@Modifying(clearAutomatically = true, flushAutomatically = true)
+	@Query("""
+		DELETE FROM Ref ref
+		WHERE ref.url = :url
+			AND ref.origin = :origin""")
+	void deleteByUrlAndOrigin(String url, String origin);
+
 	@Query("""
 		FROM Ref ref
 		WHERE ref.url = :url

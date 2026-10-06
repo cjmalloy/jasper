@@ -16,6 +16,7 @@ import jasper.repository.ExtRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.orm.jpa.JpaSystemException;
 import org.springframework.stereotype.Component;
@@ -54,14 +55,21 @@ public class IngestExt {
 	@Autowired
 	PlatformTransactionManager transactionManager;
 
+	@Value("#{environment.matchesProfiles('archive')}")
+	boolean archive;
+
 	// Exposed for testing
 	Clock ensureUniqueModifiedClock = Clock.systemUTC();
 
 	@Timed(value = "jasper.ext", histogram = true)
 	public void create(Ext ext) {
 		if (isDeletorTag(ext.getTag())) {
-			if (extRepository.existsByQualifiedTag(deletedTag(ext.getQualifiedTag()))) throw new AlreadyExistsException();
-		} else {
+			var deleted = deletedTag(ext.getQualifiedTag());
+			if (archive
+				? extRepository.existsLiveByQualifiedTag(deleted, ext.getQualifiedTag())
+				: extRepository.existsByQualifiedTag(deleted)) throw new AlreadyExistsException();
+		} else if (!archive) {
+			// In archive mode the delete notice is kept as an older version
 			delete(deletorTag(ext.getQualifiedTag()));
 		}
 		validate.ext(ext.getOrigin(), ext);
@@ -81,14 +89,20 @@ public class IngestExt {
 	public void push(String rootOrigin, Ext ext, boolean validation, boolean stripInvalidTemplates) {
 		if (validation) validate.ext(rootOrigin, ext, stripInvalidTemplates);
 		pushUniqueModified(ext);
-		if (isDeletorTag(ext.getTag())) {
-			delete(deletedTag(ext.getQualifiedTag()));
-		} else {
-			delete(deletorTag(ext.getQualifiedTag()));
+		// In archive mode delete notices are stored as versions and never remove rows
+		if (!archive) {
+			if (isDeletorTag(ext.getTag())) {
+				delete(deletedTag(ext.getQualifiedTag()));
+			} else {
+				delete(deletorTag(ext.getQualifiedTag()));
+			}
 		}
 		messages.updateExt(ext);
 	}
 
+	/**
+	 * Hard delete. In archive mode this removes every version.
+	 */
 	@Timed(value = "jasper.ext", histogram = true)
 	public void delete(String qualifiedTag) {
 		extRepository.deleteByQualifiedTag(qualifiedTag);

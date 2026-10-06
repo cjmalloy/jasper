@@ -156,8 +156,8 @@ public class Ingest {
 		var maybeExisting = refRepository.findOneByUrlAndOrigin(url, origin);
 		if (maybeExisting.isEmpty()) return;
 		messages.deleteRef(maybeExisting.get());
-		// Only removes the exact row, which is the latest version in archive mode
-		refRepository.delete(maybeExisting.get());
+		// Hard delete. In archive mode this removes every version, delete notices are stored as versions instead
+		refRepository.deleteByUrlAndOrigin(url, origin);
 		meta.sources(rootOrigin, null, maybeExisting.get());
 	}
 

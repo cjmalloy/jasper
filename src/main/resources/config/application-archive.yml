@@ -9,6 +9,8 @@
 #   copies from other origins.
 # - Tag delete notices do not hide older versions of Exts, Users,
 #   Plugins or Templates. As a workaround, save a blanked newer version.
+# - Delete notices are stored as new versions and never remove rows.
+#   An explicit (hard) delete removes every version.
 # - Do not serve SSH (tunnels) or user logins from an archive server,
 #   since older user versions, including old authorized keys and roles,
 #   may be returned.

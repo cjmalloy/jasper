@@ -747,7 +747,10 @@ non-archive mode requires manually deleting old versions and restoring the origi
    date as a new version, and a regular server pulling from an archive receives every version in modified
    order, keeping the latest.
  * Older versions of Refs are marked obsolete, the same as obsolete copies of a Ref from other origins.
-   Lookups by URL and origin return the latest version. Deleting a Ref only removes the latest version.
+   Lookups by URL and origin return the latest version.
+ * Delete notices (`plugin/deleted` Refs and deletor tags) are stored as new versions and never remove rows,
+   so replicating a delete keeps the history. Re-creating a deleted item adds another version.
+ * An explicit (hard) delete removes every version. It is a local admin action and is not replicated.
  * Tag delete notices do not hide older versions of Exts, Users, Plugins or Templates, and read API results
    may include older versions. As a workaround, save a blanked newer version.
  * Do not serve SSH (tunnels) or user logins from an archive server, since older user versions, including
