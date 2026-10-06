@@ -73,13 +73,11 @@ public class Ingest {
 
 	@Timed(value = "jasper.ref", histogram = true)
 	public void create(String rootOrigin, Ref ref) {
-		// In archive mode the primary key includes modified, so check the current version
-		if (archive && current(ref.getUrl(), ref.getOrigin()).isPresent()) throw new AlreadyExistsException();
 		ref.setCreated(Instant.now());
 		validate.ref(rootOrigin, ref);
 		rng.update(rootOrigin, ref, null);
 		meta.ref(rootOrigin, ref);
-		ensureCreateUniqueModified(ref);
+		ensureCreateUniqueModified(ref, true);
 		meta.sources(rootOrigin, ref, null, true);
 		messages.updateRef(ref);
 	}
@@ -208,11 +206,23 @@ public class Ingest {
 	}
 
 	void ensureCreateUniqueModified(Ref ref) {
+		ensureCreateUniqueModified(ref, false);
+	}
+
+	/**
+	 * @param create in archive mode, fail if a current version exists
+	 */
+	void ensureCreateUniqueModified(Ref ref, boolean create) {
 		var count = 0;
 		while (true) {
 			try {
 				count++;
 				new TransactionTemplate(transactionManager).execute(status -> {
+					if (archive) {
+						// The primary key includes modified, so lock and check the current version before appending
+						Archive.lock(em, "ref", ref.getUrl(), ref.getOrigin());
+						if (create && current(ref.getUrl(), ref.getOrigin()).isPresent()) throw new AlreadyExistsException();
+					}
 					ref.setModified(Instant.now(ensureUniqueModifiedClock));
 					em.persist(ref);
 					em.flush();

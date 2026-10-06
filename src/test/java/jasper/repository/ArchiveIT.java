@@ -843,6 +843,10 @@ public class ArchiveIT {
 	}
 
 	int concurrentUpdates(Runnable update) throws Exception {
+		return concurrent(ModifiedException.class, update);
+	}
+
+	int concurrent(Class<? extends RuntimeException> expected, Runnable update) throws Exception {
 		var threads = 8;
 		var start = new CountDownLatch(1);
 		var succeeded = new AtomicInteger();
@@ -854,7 +858,8 @@ public class ArchiveIT {
 					try {
 						update.run();
 						succeeded.incrementAndGet();
-					} catch (ModifiedException e) {
+					} catch (RuntimeException e) {
+						if (!expected.isInstance(e)) throw e;
 						failed.incrementAndGet();
 					}
 					return null;
@@ -885,6 +890,58 @@ public class ArchiveIT {
 			.isEqualTo(1);
 		assertThat(VersionKind.countTag(extRepository, "test", ""))
 			.isEqualTo(2);
+	}
+
+	@Test
+	void testConcurrentRefCreates() throws Exception {
+		assertThat(concurrent(AlreadyExistsException.class, () -> ingest.create("", ref("", "First", null))))
+			.isEqualTo(1);
+		assertThat(refRepository.count())
+			.isEqualTo(1);
+	}
+
+	@Test
+	void testConcurrentExtCreates() throws Exception {
+		assertThat(concurrent(AlreadyExistsException.class, () -> ingestExt.create(ext("test", null, "First"))))
+			.isEqualTo(1);
+		assertThat(VersionKind.countTag(extRepository, "test", ""))
+			.isEqualTo(1);
+	}
+
+	@Test
+	void testConcurrentUserCreates() throws Exception {
+		assertThat(concurrent(AlreadyExistsException.class, () -> {
+			var user = new User();
+			user.setTag("+user/test");
+			user.setRole("ROLE_USER");
+			ingestUser.create(user);
+		})).isEqualTo(1);
+		assertThat(VersionKind.countTag(userRepository, "+user/test", ""))
+			.isEqualTo(1);
+	}
+
+	@Test
+	void testConcurrentPluginCreates() throws Exception {
+		assertThat(concurrent(AlreadyExistsException.class, () -> {
+			var plugin = new Plugin();
+			plugin.setTag("plugin/test");
+			plugin.setName("Test");
+			ingestPlugin.create(plugin);
+		})).isEqualTo(1);
+		assertThat(VersionKind.countTag(pluginRepository, "plugin/test", ""))
+			.isEqualTo(1);
+	}
+
+	@Test
+	void testConcurrentTemplateCreates() throws Exception {
+		assertThat(concurrent(AlreadyExistsException.class, () -> {
+			var template = new Template();
+			template.setTag("test");
+			template.setName("Test");
+			ingestTemplate.create(template);
+		})).isEqualTo(1);
+		assertThat(VersionKind.countTag(templateRepository, "test", ""))
+			.isEqualTo(1);
 	}
 
 	@Test

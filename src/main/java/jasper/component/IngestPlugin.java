@@ -68,17 +68,16 @@ public class IngestPlugin {
 
 	@Timed(value = "jasper.plugin", histogram = true)
 	public void create(Plugin plugin) {
-		if (archive) {
-			// The primary key includes modified, so check the current version
-			if (current(plugin.getQualifiedTag()).isPresent()) throw new AlreadyExistsException();
-			if (isDeletorTag(plugin.getTag()) && current(deletedTag(plugin.getQualifiedTag())).isPresent()) throw new AlreadyExistsException();
-		} else if (isDeletorTag(plugin.getTag())) {
-			if (pluginRepository.existsByQualifiedTag(deletedTag(plugin.getQualifiedTag()))) throw new AlreadyExistsException();
-		} else {
-			delete(deletorTag(plugin.getQualifiedTag()));
+		// In archive mode the current version is checked when appending
+		if (!archive) {
+			if (isDeletorTag(plugin.getTag())) {
+				if (pluginRepository.existsByQualifiedTag(deletedTag(plugin.getQualifiedTag()))) throw new AlreadyExistsException();
+			} else {
+				delete(deletorTag(plugin.getQualifiedTag()));
+			}
 		}
 		validate.plugin(plugin.getOrigin(), plugin);
-		ensureCreateUniqueModified(plugin);
+		ensureCreateUniqueModified(plugin, true);
 		messages.updatePlugin(plugin);
 	}
 
@@ -156,12 +155,27 @@ public class IngestPlugin {
 	}
 
 	void ensureCreateUniqueModified(Plugin plugin) {
+		ensureCreateUniqueModified(plugin, false);
+	}
+
+	/**
+	 * @param create in archive mode, fail if a current version exists
+	 */
+	void ensureCreateUniqueModified(Plugin plugin, boolean create) {
 		var count = 0;
 		while (true) {
 			try {
 				count++;
 				TransactionTemplate transactionTemplate = new TransactionTemplate(transactionManager);
 				transactionTemplate.execute(status -> {
+					if (archive) {
+						// The primary key includes modified, so lock and check the current version before appending
+						// A deletor tag also locks and checks the tag it deletes, always locked first
+						if (isDeletorTag(plugin.getTag())) Archive.lock(em, "plugin", deletedTag(plugin.getTag()), plugin.getOrigin());
+						Archive.lock(em, "plugin", plugin.getTag(), plugin.getOrigin());
+						if (create && current(plugin.getQualifiedTag()).isPresent()) throw new AlreadyExistsException();
+						if (create && isDeletorTag(plugin.getTag()) && current(deletedTag(plugin.getQualifiedTag())).isPresent()) throw new AlreadyExistsException();
+					}
 					plugin.setModified(Instant.now(ensureUniqueModifiedClock));
 					em.persist(plugin);
 					em.flush();

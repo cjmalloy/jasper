@@ -66,16 +66,15 @@ public class IngestUser {
 
 	@Timed(value = "jasper.user", histogram = true)
 	public void create(User user) {
-		if (archive) {
-			// The primary key includes modified, so check the current version
-			if (current(user.getQualifiedTag()).isPresent()) throw new AlreadyExistsException();
-			if (isDeletorTag(user.getTag()) && current(deletedTag(user.getQualifiedTag())).isPresent()) throw new AlreadyExistsException();
-		} else if (isDeletorTag(user.getTag())) {
-			if (userRepository.existsByQualifiedTag(deletedTag(user.getQualifiedTag()))) throw new AlreadyExistsException();
-		} else {
-			delete(deletorTag(user.getQualifiedTag()));
+		// In archive mode the current version is checked when appending
+		if (!archive) {
+			if (isDeletorTag(user.getTag())) {
+				if (userRepository.existsByQualifiedTag(deletedTag(user.getQualifiedTag()))) throw new AlreadyExistsException();
+			} else {
+				delete(deletorTag(user.getQualifiedTag()));
+			}
 		}
-		ensureCreateUniqueModified(user);
+		ensureCreateUniqueModified(user, true);
 		messages.updateUser(user);
 	}
 
@@ -152,12 +151,27 @@ public class IngestUser {
 	}
 
 	void ensureCreateUniqueModified(User user) {
+		ensureCreateUniqueModified(user, false);
+	}
+
+	/**
+	 * @param create in archive mode, fail if a current version exists
+	 */
+	void ensureCreateUniqueModified(User user, boolean create) {
 		var count = 0;
 		while (true) {
 			try {
 				count++;
 				TransactionTemplate transactionTemplate = new TransactionTemplate(transactionManager);
 				transactionTemplate.execute(status -> {
+					if (archive) {
+						// The primary key includes modified, so lock and check the current version before appending
+						// A deletor tag also locks and checks the tag it deletes, always locked first
+						if (isDeletorTag(user.getTag())) Archive.lock(em, "users", deletedTag(user.getTag()), user.getOrigin());
+						Archive.lock(em, "users", user.getTag(), user.getOrigin());
+						if (create && current(user.getQualifiedTag()).isPresent()) throw new AlreadyExistsException();
+						if (create && isDeletorTag(user.getTag()) && current(deletedTag(user.getQualifiedTag())).isPresent()) throw new AlreadyExistsException();
+					}
 					user.setModified(Instant.now(ensureUniqueModifiedClock));
 					em.persist(user);
 					em.flush();

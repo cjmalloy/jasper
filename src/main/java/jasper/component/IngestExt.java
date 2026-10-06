@@ -68,17 +68,16 @@ public class IngestExt {
 
 	@Timed(value = "jasper.ext", histogram = true)
 	public void create(Ext ext) {
-		if (archive) {
-			// The primary key includes modified, so check the current version
-			if (current(ext.getQualifiedTag()).isPresent()) throw new AlreadyExistsException();
-			if (isDeletorTag(ext.getTag()) && current(deletedTag(ext.getQualifiedTag())).isPresent()) throw new AlreadyExistsException();
-		} else if (isDeletorTag(ext.getTag())) {
-			if (extRepository.existsByQualifiedTag(deletedTag(ext.getQualifiedTag()))) throw new AlreadyExistsException();
-		} else {
-			delete(deletorTag(ext.getQualifiedTag()));
+		// In archive mode the current version is checked when appending
+		if (!archive) {
+			if (isDeletorTag(ext.getTag())) {
+				if (extRepository.existsByQualifiedTag(deletedTag(ext.getQualifiedTag()))) throw new AlreadyExistsException();
+			} else {
+				delete(deletorTag(ext.getQualifiedTag()));
+			}
 		}
 		validate.ext(ext.getOrigin(), ext);
-		ensureCreateUniqueModified(ext);
+		ensureCreateUniqueModified(ext, true);
 		messages.updateExt(ext);
 	}
 
@@ -146,12 +145,27 @@ public class IngestExt {
 	}
 
 	void ensureCreateUniqueModified(Ext ext) {
+		ensureCreateUniqueModified(ext, false);
+	}
+
+	/**
+	 * @param create in archive mode, fail if a current version exists
+	 */
+	void ensureCreateUniqueModified(Ext ext, boolean create) {
 		var count = 0;
 		while (true) {
 			try {
 				count++;
 				TransactionTemplate transactionTemplate = new TransactionTemplate(transactionManager);
 				transactionTemplate.execute(status -> {
+					if (archive) {
+						// The primary key includes modified, so lock and check the current version before appending
+						// A deletor tag also locks and checks the tag it deletes, always locked first
+						if (isDeletorTag(ext.getTag())) Archive.lock(em, "ext", deletedTag(ext.getTag()), ext.getOrigin());
+						Archive.lock(em, "ext", ext.getTag(), ext.getOrigin());
+						if (create && current(ext.getQualifiedTag()).isPresent()) throw new AlreadyExistsException();
+						if (create && isDeletorTag(ext.getTag()) && current(deletedTag(ext.getQualifiedTag())).isPresent()) throw new AlreadyExistsException();
+					}
 					ext.setModified(Instant.now(ensureUniqueModifiedClock));
 					em.persist(ext);
 					em.flush();

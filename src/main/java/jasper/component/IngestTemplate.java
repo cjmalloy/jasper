@@ -68,17 +68,16 @@ public class IngestTemplate {
 
 	@Timed(value = "jasper.template", histogram = true)
 	public void create(Template template) {
-		if (archive) {
-			// The primary key includes modified, so check the current version
-			if (current(template.getQualifiedTag()).isPresent()) throw new AlreadyExistsException();
-			if (isDeletorTag(template.getTag()) && current(deletedTag(template.getQualifiedTag())).isPresent()) throw new AlreadyExistsException();
-		} else if (isDeletorTag(template.getTag())) {
-			if (templateRepository.existsByQualifiedTag(deletedTag(template.getQualifiedTag()))) throw new AlreadyExistsException();
-		} else {
-			delete(deletorTag(template.getQualifiedTag()));
+		// In archive mode the current version is checked when appending
+		if (!archive) {
+			if (isDeletorTag(template.getTag())) {
+				if (templateRepository.existsByQualifiedTag(deletedTag(template.getQualifiedTag()))) throw new AlreadyExistsException();
+			} else {
+				delete(deletorTag(template.getQualifiedTag()));
+			}
 		}
 		validate.template(template.getOrigin(), template);
-		ensureCreateUniqueModified(template);
+		ensureCreateUniqueModified(template, true);
 		messages.updateTemplate(template);
 	}
 
@@ -156,12 +155,27 @@ public class IngestTemplate {
 	}
 
 	void ensureCreateUniqueModified(Template template) {
+		ensureCreateUniqueModified(template, false);
+	}
+
+	/**
+	 * @param create in archive mode, fail if a current version exists
+	 */
+	void ensureCreateUniqueModified(Template template, boolean create) {
 		var count = 0;
 		while (true) {
 			try {
 				count++;
 				TransactionTemplate transactionTemplate = new TransactionTemplate(transactionManager);
 				transactionTemplate.execute(status -> {
+					if (archive) {
+						// The primary key includes modified, so lock and check the current version before appending
+						// A deletor tag also locks and checks the tag it deletes, always locked first
+						if (isDeletorTag(template.getTag())) Archive.lock(em, "template", deletedTag(template.getTag()), template.getOrigin());
+						Archive.lock(em, "template", template.getTag(), template.getOrigin());
+						if (create && current(template.getQualifiedTag()).isPresent()) throw new AlreadyExistsException();
+						if (create && isDeletorTag(template.getTag()) && current(deletedTag(template.getQualifiedTag())).isPresent()) throw new AlreadyExistsException();
+					}
 					template.setModified(Instant.now(ensureUniqueModifiedClock));
 					em.persist(template);
 					em.flush();
