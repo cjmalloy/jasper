@@ -1,15 +1,20 @@
 # ===================================================================
 # Spring Boot configuration for the "archive" profile.
 #
-# Keeps every previous version of Refs, Exts, Users, Plugins and
-# Templates in append-only *_archive tables (ref_archive, ext_archive,
-# users_archive, plugin_archive, template_archive). The live tables
-# are unchanged, so the application behaves exactly as without this
-# profile. Disabling the profile stops archiving but keeps the archive
-# tables. Only supported on PostgreSQL.
+# Keeps every version of Refs, Exts, Users, Plugins and Templates by
+# adding the modified date to the primary key. Lookups return the
+# latest version.
+#
+# WARNING: Enabling this profile is a one-way migration. The primary
+# keys are changed on startup, and switching back to non-archive mode
+# requires manually removing old versions and restoring the original
+# primary keys. Only supported on PostgreSQL.
 # ===================================================================
 
 spring:
+  jpa:
+    mapping-resources:
+      - config/archive-orm.xml
   liquibase:
     parameters:
       archive: true

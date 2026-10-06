@@ -7,6 +7,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 
+import java.time.Instant;
 import java.util.ArrayList;
 
 import static jasper.repository.spec.SortSpec.createJsonbSortExpression;
@@ -20,6 +21,21 @@ public class UserSpec {
 		return (root, query, cb) ->
 			cb.isNotNull(
 				root.get("authorizedKeys"));
+	}
+
+	/**
+	 * Only the latest version of each user. In archive mode multiple versions may exist.
+	 */
+	public static Specification<User> isLatest() {
+		return (root, query, cb) -> {
+			var sub = query.subquery(Instant.class);
+			var latest = sub.from(User.class);
+			sub.select(cb.greatest(latest.<Instant>get("modified")))
+				.where(
+					cb.equal(latest.get("tag"), root.get("tag")),
+					cb.equal(latest.get("origin"), root.get("origin")));
+			return cb.equal(root.get("modified"), sub);
+		};
 	}
 
 	/**
