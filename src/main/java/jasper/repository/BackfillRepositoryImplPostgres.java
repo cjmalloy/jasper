@@ -2,6 +2,7 @@ package jasper.repository;
 
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
@@ -13,6 +14,9 @@ public class BackfillRepositoryImplPostgres implements BackfillRepository {
 
 	@PersistenceContext
 	private EntityManager em;
+
+	@Value("#{environment.matchesProfiles('archive')}")
+	boolean archive;
 
 	/**
 	 * Responses are filtered by their obsolete flag. Responses with missing
@@ -39,8 +43,8 @@ public class BackfillRepositoryImplPostgres implements BackfillRepository {
 				'obsolete', EXISTS (SELECT 1 from ref n WHERE n.url = r.url AND n.modified > r.modified AND (:origin = '' OR n.origin = :origin OR n.origin LIKE concat(:origin, '.%'))),
 				'cascade', CASE WHEN jsonb_array_length(COALESCE(r.sources, '[]')) > 0 THEN true END
 			))
-			WHERE EXISTS (SELECT * from rows WHERE r.url = rows.url AND r.origin = rows.origin AND r.modified = rows.modified)
-			""";
+			WHERE EXISTS (SELECT * from rows WHERE r.url = rows.url AND r.origin = rows.origin
+			""" + (archive ? " AND r.modified = rows.modified)" : ")");
 		em.flush();
 		int updated = em.createNativeQuery(sql)
 			.setParameter("origin", origin)

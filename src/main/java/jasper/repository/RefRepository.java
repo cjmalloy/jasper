@@ -253,7 +253,18 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 	// Latest wins: metadata is server-generated and recomputed by cascade/regen.
 	// Concurrent delta writes (addResponse/removePlugins on a stale copy) can lose
 	// an update; the next cascade/regen recompute fixes it.
-	// Matches the modified date so only one version is updated in archive mode.
+	@Modifying
+	@Transactional
+	@Query("""
+		UPDATE Ref r
+		SET r.metadata = :metadata
+		WHERE r.url = :url
+			AND r.origin = :origin""")
+	int updateMetadata(String url, String origin, Metadata metadata);
+
+	/**
+	 * Archive mode version of {@link #updateMetadata}: only updates a single version.
+	 */
 	@Modifying
 	@Transactional
 	@Query("""
@@ -262,8 +273,20 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 		WHERE r.url = :url
 			AND r.origin = :origin
 			AND r.modified = :modified""")
-	int updateMetadata(String url, String origin, Instant modified, Metadata metadata);
+	int updateMetadataVersion(String url, String origin, Instant modified, Metadata metadata);
 
+	@Modifying
+	@Transactional
+	@Query("""
+		UPDATE Ref r
+		SET r.metadata = jsonb_set(COALESCE(r.metadata, cast_to_jsonb('{}')), '{cascade}', cast_to_jsonb('true'), true)
+		WHERE r.url = :url
+			AND r.origin = :origin""")
+	int markCascade(String url, String origin);
+
+	/**
+	 * Archive mode version of {@link #markCascade}: only updates a single version.
+	 */
 	@Modifying
 	@Transactional
 	@Query("""
@@ -272,7 +295,7 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 		WHERE r.url = :url
 			AND r.origin = :origin
 			AND r.modified = :modified""")
-	int markCascade(String url, String origin, Instant modified);
+	int markCascadeVersion(String url, String origin, Instant modified);
 
 	@Modifying
 	@Transactional

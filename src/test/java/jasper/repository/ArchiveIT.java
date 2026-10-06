@@ -218,7 +218,7 @@ public class ArchiveIT {
 		var before = version("", now).getMetadata();
 
 		older.getMetadata().setResponses(new ArrayList<>(List.of("https://www.example.com/response")));
-		assertThat(refRepository.updateMetadata(URL, "", older.getModified(), older.getMetadata()))
+		assertThat(refRepository.updateMetadataVersion(URL, "", older.getModified(), older.getMetadata()))
 			.isEqualTo(1);
 
 		assertThat(version("", now.minusSeconds(10)).getMetadata())
@@ -234,7 +234,7 @@ public class ArchiveIT {
 		push("", "First", now.minusSeconds(10));
 		push("", "Second", now);
 
-		assertThat(refRepository.markCascade(URL, "", now))
+		assertThat(refRepository.markCascadeVersion(URL, "", now))
 			.isEqualTo(1);
 
 		assertThat(version("", now).getMetadata().isCascade())

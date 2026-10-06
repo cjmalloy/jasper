@@ -10,6 +10,7 @@ import jasper.repository.RefRepositoryCustom;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataAccessException;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Component;
@@ -51,6 +52,9 @@ public class Meta {
 
 	@Autowired
 	ConfigCache configs;
+
+	@Value("#{environment.matchesProfiles('archive')}")
+	boolean archive;
 
 	private record UserUrlResponse(String tag, List<String> responses) { }
 
@@ -151,7 +155,7 @@ public class Meta {
 		source.getMetadata().setRegen(regen);
 		source.getMetadata().setCascade(cascade);
 		try {
-			refRepository.updateMetadata(source.getUrl(), source.getOrigin(), source.getModified(), source.getMetadata());
+			updateMetadata(source, source.getMetadata());
 			messages.updateMetadata(source);
 		} catch (DataAccessException e) {
 			logger.error("Error updating source metadata for {} {}", ref.getOrigin(), ref.getUrl(), e);
@@ -182,7 +186,7 @@ public class Meta {
 					latest.getMetadata().setModified(existing.getMetadata().getModified());
 				}
 				regen(rootOrigin, latest);
-				refRepository.updateMetadata(latest.getUrl(), latest.getOrigin(), latest.getModified(), latest.getMetadata());
+				updateMetadata(latest, latest.getMetadata());
 				messages.updateMetadata(latest);
 			} else {
 				try (var stream = refRepository.findRemovedSources(existing.getUrl(), rootOrigin)) {
@@ -235,7 +239,7 @@ public class Meta {
 				ref.getUrl());
 			source.setMetadata(metadata);
 			try {
-				refRepository.updateMetadata(source.getUrl(), source.getOrigin(), source.getModified(), metadata);
+				updateMetadata(source, metadata);
 				messages.updateMetadata(source);
 			} catch (DataAccessException e) {
 logger.error("{} Error updating source metadata for ({}) {}", rootOrigin, ref.getOrigin(), ref.getUrl(), e);
@@ -265,7 +269,11 @@ logger.error("{} Error updating source metadata for ({}) {}", rootOrigin, ref.ge
 		}
 		if (cascade) {
 			ref.getMetadata().setCascade(true);
-			refRepository.markCascade(ref.getUrl(), ref.getOrigin(), ref.getModified());
+			if (archive) {
+				refRepository.markCascadeVersion(ref.getUrl(), ref.getOrigin(), ref.getModified());
+			} else {
+				refRepository.markCascade(ref.getUrl(), ref.getOrigin());
+			}
 		}
 	}
 
@@ -282,12 +290,22 @@ logger.error("{} Error updating source metadata for ({}) {}", rootOrigin, ref.ge
 		}
 		source.setMetadata(metadata);
 		try {
-			refRepository.updateMetadata(source.getUrl(), source.getOrigin(), source.getModified(), metadata);
+			updateMetadata(source, metadata);
 			messages.updateMetadata(source);
 		} catch (DataAccessException e) {
 			logger.error("{} Error updating source metadata for {} {}",
 				rootOrigin, source.getOrigin(), source.getUrl(), e);
 		}
+	}
+
+	/**
+	 * Write only the metadata of a Ref. In archive mode only the given version is updated,
+	 * otherwise latest wins.
+	 */
+	public int updateMetadata(Ref ref, Metadata metadata) {
+		return archive
+			? refRepository.updateMetadataVersion(ref.getUrl(), ref.getOrigin(), ref.getModified(), metadata)
+			: refRepository.updateMetadata(ref.getUrl(), ref.getOrigin(), metadata);
 	}
 
 	/**
