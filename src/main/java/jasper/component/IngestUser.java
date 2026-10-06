@@ -141,6 +141,7 @@ public class IngestUser {
 			var deletor = isDeletorTag(qualifiedTag) ? qualifiedTag : deletorTag(qualifiedTag);
 			userRepository.deleteByQualifiedTagAndModifiedLessThanEqual(tag, startedAt);
 			userRepository.deleteByQualifiedTagAndModifiedLessThanEqual(deletor, startedAt);
+			messages.invalidateUser(tag);
 			return;
 		}
 		var tombstone = new User();

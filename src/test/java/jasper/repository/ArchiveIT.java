@@ -793,6 +793,28 @@ public class ArchiveIT {
 	}
 
 	@Test
+	void testPruningUserDeletorInvalidatesCachedUser() {
+		var user = new User();
+		user.setTag("+user/auth");
+		user.setRole("ROLE_ADMIN");
+		user.setModified(now.minusSeconds(10));
+		ingestUser.push(user);
+		var deletor = new User();
+		deletor.setTag("+user/auth/deleted");
+		deletor.setModified(now);
+		ingestUser.push(deletor);
+
+		assertThat(configCache.getUser("+user/auth"))
+			.extracting(User::getRole)
+			.isEqualTo("ROLE_ADMIN");
+
+		ingestUser.delete("+user/auth/deleted");
+
+		assertThat(configCache.getUser("+user/auth"))
+			.isNull();
+	}
+
+	@Test
 	void testAuthUserLookupUsesLatestVersion() {
 		var older = new User();
 		older.setTag("+user/auth");

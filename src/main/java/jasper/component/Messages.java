@@ -57,6 +57,9 @@ public class Messages {
 	MessageChannel userTxChannel;
 
 	@Autowired
+	MessageChannel userRxChannel;
+
+	@Autowired
 	MessageChannel extTxChannel;
 
 	@Autowired
@@ -140,6 +143,12 @@ public class Messages {
 		var tag = localTag(qualifiedTag);
 		var origin = tagOrigin(qualifiedTag);
 		sendAndRetry(() -> userTxChannel.send(createMessage(deleteNotice(tag, origin, UserDto.class), tagHeaders(origin, tag))));
+	}
+
+	public void invalidateUser(String qualifiedTag) {
+		var tag = localTag(qualifiedTag);
+		var origin = tagOrigin(qualifiedTag);
+		userRxChannel.send(createMessage(deleteNotice(tag, origin, UserDto.class), tagHeaders(origin, tag)));
 	}
 
 	@Async
