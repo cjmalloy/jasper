@@ -278,4 +278,22 @@ class RefControllerIT {
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.content[0].url").value("http://repl-web"));
 	}
+
+	@Test
+	void testPageWithMalformedQueryShouldFail() throws Exception {
+		for (var query : List.of("!", "a:!", "!|a", "!:a", "()", "a:()", "!()", "(a", "a)")) {
+			mockMvc
+				.perform(get("/api/v1/ref/page")
+					.param("query", query))
+				.andExpect(status().isBadRequest());
+		}
+	}
+
+	@Test
+	void testPageWithNegatedGroupQuery() throws Exception {
+		mockMvc
+			.perform(get("/api/v1/ref/page")
+				.param("query", "!(a|b):!(!c)"))
+			.andExpect(status().isOk());
+	}
 }
