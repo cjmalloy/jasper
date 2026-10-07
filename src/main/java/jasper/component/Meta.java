@@ -21,6 +21,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 
+import static jasper.domain.Metadata.timestamp;
 import static jasper.domain.proj.Tag.matchesTemplate;
 import static jasper.domain.proj.Tag.userUrl;
 import static jasper.repository.spec.OriginSpec.isUnderOrigin;
@@ -118,7 +119,7 @@ public class Meta {
 	 * Update the newReaction timestamp of the sources of a Ref without rebuilding counts.
 	 */
 	private void reaction(String rootOrigin, Ref ref) {
-		var timestamp = now().toString();
+		var timestamp = timestamp(now());
 		var sources = (ref.getSources() == null ? List.<String>of() : ref.getSources())
 			.stream()
 			.limit(SYNC_SOURCES)
@@ -216,7 +217,7 @@ public class Meta {
 		try {
 			if (current != null && !Instant.parse(current).isBefore(time)) return current;
 		} catch (DateTimeParseException ignored) { }
-		return time.toString();
+		return timestamp(time);
 	}
 
 	@Timed(value = "jasper.meta", histogram = true)
@@ -263,7 +264,7 @@ public class Meta {
 		}
 
 		// Update sources
-		var timestamp = now().toString();
+		var timestamp = timestamp(now());
 		var newResponse = existing == null && !userUrl(ref.getUrl());
 		var sources = (ref.getSources() == null ? List.<String>of() : ref.getSources())
 			.stream()

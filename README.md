@@ -146,6 +146,9 @@ Metadata dates useful for sorting:
   user urls (`tag:/user?url=...`).
 - `metadata->newReaction`: updated whenever any response is created or updated, including user urls.
 
+`newResponse` and `newReaction` are always written with 9 fractional digits so that sorting them
+as text gives chronological order.
+
 ## Modding
 Jasper allows extensive modification with server reuse. Since changes are done by creating
 Plugin and Template entities, server restarts are not required.  
@@ -201,8 +204,8 @@ Refs are the main data model in Jasper. A Ref defines a URL to a remote resource
     "internalResponses": 0,
     "plugins": {},
     "modified": "2022-06-18T12:07:04.404272Z",
-    "newResponse": "2022-06-18T12:07:04.404272Z",
-    "newReaction": "2022-06-18T12:07:04.404272Z"
+    "newResponse": "2022-06-18T12:07:04.404272000Z",
+    "newReaction": "2022-06-18T12:07:04.404272000Z"
   },
   "published": "2022-06-18T12:00:07Z",
   "created": "2022-06-18T12:07:04.404272Z",

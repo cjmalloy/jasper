@@ -13,6 +13,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -258,6 +259,16 @@ public class MetaIT {
 	}
 
 	@Test
+	void testTimestampSortsChronologically() {
+		var earlier = Metadata.timestamp(Instant.parse("2026-01-01T00:00:00.100Z"));
+		var later = Metadata.timestamp(Instant.parse("2026-01-01T00:00:00.100001Z"));
+
+		assertThat(earlier).isEqualTo("2026-01-01T00:00:00.100000000Z");
+		assertThat(later).isGreaterThan(earlier);
+		assertThat(Instant.parse(later)).isEqualTo(Instant.parse("2026-01-01T00:00:00.100001Z"));
+	}
+
+	@Test
 	void testCreateResponseSetsNewResponseAndNewReaction() {
 		saveSource(URL + "a");
 		var child = saveChild(URL + "a");
@@ -302,8 +313,8 @@ public class MetaIT {
 
 		cascade.cascadeRef("", child);
 
-		assertThat(metadata(URL + "c").getNewResponse()).isEqualTo(child.getCreated().toString());
-		assertThat(metadata(URL + "c").getNewReaction()).isEqualTo(child.getModified().toString());
+		assertThat(metadata(URL + "c").getNewResponse()).isEqualTo(Metadata.timestamp(child.getCreated()));
+		assertThat(metadata(URL + "c").getNewReaction()).isEqualTo(Metadata.timestamp(child.getModified()));
 	}
 
 	@Test
@@ -316,7 +327,7 @@ public class MetaIT {
 		cascade.cascadeRef("", child);
 
 		assertThat(metadata(URL + "c").getNewResponse()).isNull();
-		assertThat(metadata(URL + "c").getNewReaction()).isEqualTo(child.getModified().toString());
+		assertThat(metadata(URL + "c").getNewReaction()).isEqualTo(Metadata.timestamp(child.getModified()));
 	}
 
 	@Test
@@ -332,7 +343,7 @@ public class MetaIT {
 		cascade.cascadeRef("", child);
 
 		assertThat(metadata(URL + "c").getNewResponse()).isNull();
-		assertThat(metadata(URL + "c").getNewReaction()).isEqualTo(child.getModified().toString());
+		assertThat(metadata(URL + "c").getNewReaction()).isEqualTo(Metadata.timestamp(child.getModified()));
 	}
 
 	@Test
