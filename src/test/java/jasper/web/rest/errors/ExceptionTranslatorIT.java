@@ -10,6 +10,7 @@ import jasper.errors.InvalidPatchException;
 import jasper.errors.InvalidPluginException;
 import jasper.errors.InvalidPluginUserUrlException;
 import jasper.errors.InvalidPushException;
+import jasper.errors.InvalidQueryException;
 import jasper.errors.InvalidTemplateException;
 import jasper.errors.InvalidTunnelException;
 import jasper.errors.InvalidUserProfileException;
@@ -100,6 +101,7 @@ class ExceptionTranslatorIT {
 			Arguments.of(InvalidPluginException.class, "invalid-plugin", HttpStatus.BAD_REQUEST, ERR_INVALID_PLUGIN, PLUGIN_VALIDATION_TYPE, "plugin/test: age: expected uint32"),
 			Arguments.of(InvalidPluginUserUrlException.class, "invalid-user-url", HttpStatus.BAD_REQUEST, ERR_INVALID_USER_URL, PLUGIN_VALIDATION_TYPE, "plugin/user: requires exactly one source"),
 			Arguments.of(InvalidPushException.class, "invalid-push", HttpStatus.BAD_REQUEST, ERR_INVALID_PUSH, CONSTRAINT_VIOLATION_TYPE, "Push contains invalid data."),
+			Arguments.of(InvalidQueryException.class, "invalid-query", HttpStatus.BAD_REQUEST, ERR_INVALID_QUERY, REQUEST_ERROR_TYPE, "Invalid query \"a|\": unexpected end of query"),
 			Arguments.of(InvalidTemplateException.class, "invalid-template", HttpStatus.BAD_REQUEST, ERR_INVALID_TEMPLATE, TEMPLATE_VALIDATION_TYPE, "_config/test: config is not allowed without a template schema"),
 			Arguments.of(InvalidTunnelException.class, "invalid-tunnel", HttpStatus.BAD_REQUEST, ERR_INVALID_TUNNEL, PROTOCOL_ERROR_TYPE, "Invalid tunnel host"),
 			Arguments.of(InvalidUserProfileException.class, "invalid-user-profile", HttpStatus.BAD_REQUEST, ERR_INVALID_USER_PROFILE, USER_ERROR_TYPE, "Invalid user profile"),

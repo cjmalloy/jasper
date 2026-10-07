@@ -15,6 +15,7 @@ public final class ErrorConstants {
 	public static final String ERR_TYPE_MISMATCH = "error.typeMismatch";
 	public static final String ERR_METHOD_NOT_SUPPORTED = "error.methodNotSupported";
 	public static final String ERR_MEDIA_TYPE_NOT_SUPPORTED = "error.mediaTypeNotSupported";
+	public static final String ERR_INVALID_QUERY = "error.invalidQuery";
 	public static final String ERR_INVALID_PATCH = "error.invalidPatch";
 	public static final String ERR_INVALID_PUSH = "error.invalidPush";
 	public static final String ERR_INVALID_PLUGIN = "error.invalidPlugin";
