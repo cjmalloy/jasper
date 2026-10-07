@@ -105,7 +105,10 @@ Valid operators in a query are:
 3. `!` not
 4. `()` groups
 
-Note: In the current implementation, groups may not be nested.
+Groups may be nested up to 64 levels deep, and may be negated with `!`. A negated group
+matches anything the group does not match, so `!(a|b)` is the same as `!a:!b`, and
+`!(a:b)` is the same as `!a|!b`. Double negations cancel out, so `!!(a)` and `!(!a)`
+are the same as `a`.
 
 Example queries:
  * `science`: All Refs that include the `science` tag
@@ -116,6 +119,8 @@ Example queries:
 also the `funny` tag. This would match a ref with `['science', 'funny']`, `['math', 'funny']`,
 but would not match `['science', 'math']`
  * `science:funny|math:funny`: Extended form of previous query. Would produce the exact same results.
+ * `science:!(funny|politics)`: All Refs that have the `science` tag but have neither the `funny`
+tag nor the `politics` tag. Same as `science:!funny:!politics`.
  * `music:people/murray`: All Refs that have the `music` tag and `people/murray` tag. It would also
 match Refs with `['music', 'people/murray/anne']` or `['music', 'people/murray/bill']`
 

@@ -32,6 +32,8 @@ import static jasper.domain.proj.HasTags.hasMatchingTag;
 import static jasper.domain.proj.HasTags.hasPluginResponse;
 import static jasper.util.Logging.getMessage;
 import static org.apache.commons.collections4.CollectionUtils.isEmpty;
+import static java.util.stream.Collectors.joining;
+import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.springframework.data.domain.Sort.by;
 
@@ -86,7 +88,9 @@ public class Async {
 	 */
 	String trackingQuery() {
 		if (tags.isEmpty()) return null;
-		return "!+plugin/error:(" + String.join("|", configs.root().getScriptSelectors()) + ")";
+		return "!+plugin/error:(" + configs.root().getScriptSelectors().stream()
+			.map(s -> isBlank(s) ? "@" : s) // Blank selector is the default origin
+			.collect(joining("|")) + ")";
 	}
 
 	@ServiceActivator(inputChannel = "refRxChannel")
