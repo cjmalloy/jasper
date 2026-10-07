@@ -100,15 +100,16 @@ public class Ref implements HasTags {
 
 	/**
 	 * Has a plugin response in the same origin as this Ref.
-	 * Falls back to counts from all origins if local counts have not been generated.
+	 * Falls back to counts from all origins if remote counts have not been generated.
 	 */
 	public boolean hasPluginResponse(String tag) {
 		if (metadata == null) return false;
-		var plugins = metadata.getLocalPlugins() != null ? metadata.getLocalPlugins() : metadata.getPlugins();
+		var plugins = metadata.getPlugins();
 		if (plugins == null) return false;
+		var remotePlugins = metadata.getRemotePlugins();
 		return plugins.entrySet().stream()
 			.filter(e -> matchesTag(tag, e.getKey()))
-			.anyMatch(e -> e.getValue() != null && e.getValue() > 0);
+			.anyMatch(e -> e.getValue() != null && e.getValue() - (remotePlugins == null ? 0 : remotePlugins.getOrDefault(e.getKey(), 0L)) > 0);
 	}
 
 	public void setOrigin(String value) {

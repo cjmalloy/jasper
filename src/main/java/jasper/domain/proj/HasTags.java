@@ -68,7 +68,7 @@ public interface HasTags extends Cursor {
 
 	/**
 	 * Has a plugin response in the same origin as this Ref.
-	 * Falls back to counts from all origins if local counts have not been generated.
+	 * Falls back to counts from all origins if remote counts have not been generated.
 	 */
 	static boolean hasPluginResponse(RefDto ref, String tag) {
 		if (ref.getMetadata() == null) return false;

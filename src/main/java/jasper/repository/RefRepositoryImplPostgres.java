@@ -57,6 +57,7 @@ public class RefRepositoryImplPostgres implements RefRepositoryCustom {
 			WHERE r.url != :url
 				AND r.sources @> jsonb_build_array(:url)
 				AND t.tag ~ '^[_+]?plugin(/|$)'
+				AND COALESCE(jsonb_object_field_text(r.metadata, 'obsolete'), 'false') != 'true'
 				AND r.origin = :origin
 			GROUP BY t.tag
 			""", Object[].class)

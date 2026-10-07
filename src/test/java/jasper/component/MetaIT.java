@@ -805,7 +805,7 @@ public class MetaIT {
 			.containsEntry("+plugin/user/run", List.of("tag:/user/tester@remote?url=" + URL));
 		assertThat(parent.hasPluginResponse("+plugin/user/run")).isFalse();
 		assertThat(parent.getMetadata().getPlugins()).containsEntry("+plugin/user/run", 1L);
-		assertThat(parent.getMetadata().getLocalPlugins()).doesNotContainKey("+plugin/user/run");
+		assertThat(parent.getMetadata().getRemotePlugins()).containsEntry("+plugin/user/run", 1L);
 	}
 
 	@Test
@@ -818,7 +818,7 @@ public class MetaIT {
 		assertThat(parent.getMetadata().getUserUrls())
 			.containsEntry("+plugin/user/run", List.of("tag:/user/tester?url=" + URL));
 		assertThat(parent.hasPluginResponse("+plugin/user/run")).isTrue();
-		assertThat(parent.getMetadata().getLocalPlugins()).containsEntry("+plugin/user/run", 1L);
+		assertThat(parent.getMetadata().getRemotePlugins()).doesNotContainKey("+plugin/user/run");
 	}
 
 	@Test
@@ -846,7 +846,7 @@ public class MetaIT {
 				"tag:/user/tester?url=" + URL,
 				"tag:/user/tester@remote?url=" + URL);
 		assertThat(source.hasPluginResponse("+plugin/user/run")).isTrue();
-		assertThat(source.getMetadata().getLocalPlugins()).containsEntry("+plugin/user/run", 1L);
+		assertThat(source.getMetadata().getRemotePlugins()).doesNotContainKey("+plugin/user/run");
 	}
 
 	Ref comment(String url, String origin) {
@@ -859,7 +859,7 @@ public class MetaIT {
 	}
 
 	@Test
-	void testLocalPluginsOnlyCountSameOrigin() {
+	void testRemotePluginsOnlyCountOtherOrigins() {
 		saveSource(URL);
 
 		meta.sources("", comment("comment:1", ""), null);
@@ -867,7 +867,6 @@ public class MetaIT {
 
 		var parent = refRepository.findOneByUrlAndOrigin(URL, "").orElseThrow();
 		assertThat(parent.getMetadata().getPlugins()).containsEntry("plugin/comment", 2L);
-		assertThat(parent.getMetadata().getLocalPlugins()).containsEntry("plugin/comment", 1L);
 		assertThat(parent.getMetadata().getRemotePlugins()).containsEntry("plugin/comment", 1L);
 		assertThat(parent.getMetadata().isRegen()).isFalse();
 	}
@@ -880,13 +879,12 @@ public class MetaIT {
 
 		var parent = refRepository.findOneByUrlAndOrigin(URL, "").orElseThrow();
 		assertThat(parent.getMetadata().getPlugins()).containsEntry("plugin/comment", 1L);
-		assertThat(parent.getMetadata().getLocalPlugins()).isEmpty();
 		assertThat(parent.getMetadata().getRemotePlugins()).containsEntry("plugin/comment", 1L);
 		assertThat(parent.hasPluginResponse("plugin/comment")).isFalse();
 	}
 
 	@Test
-	void testRemoveLocalPlugins() {
+	void testRemovePluginsKeepsRemote() {
 		saveSource(URL);
 		var local = comment("comment:1", "");
 		meta.sources("", local, null);
@@ -899,12 +897,12 @@ public class MetaIT {
 
 		var parent = refRepository.findOneByUrlAndOrigin(URL, "").orElseThrow();
 		assertThat(parent.getMetadata().getPlugins()).containsEntry("plugin/comment", 1L);
-		assertThat(parent.getMetadata().getLocalPlugins()).doesNotContainKey("plugin/comment");
+		assertThat(parent.getMetadata().getRemotePlugins()).containsEntry("plugin/comment", 1L);
 		assertThat(parent.hasPluginResponse("plugin/comment")).isFalse();
 	}
 
 	@Test
-	void testRegenLocalPlugins() {
+	void testRegenRemotePlugins() {
 		var source = saveSource(URL);
 		refRepository.save(comment("comment:1", ""));
 		refRepository.save(comment("comment:2", "@remote"));
@@ -912,23 +910,23 @@ public class MetaIT {
 		meta.ref("", source);
 
 		assertThat(source.getMetadata().getPlugins()).containsEntry("plugin/comment", 2L);
-		assertThat(source.getMetadata().getLocalPlugins()).containsEntry("plugin/comment", 1L);
+		assertThat(source.getMetadata().getRemotePlugins()).containsEntry("plugin/comment", 1L);
 		assertThat(source.hasPluginResponse("plugin/comment")).isTrue();
 	}
 
 	@Test
-	void testMissingLocalPluginsFallsBackAndRegens() {
+	void testMissingRemotePluginsFallsBackAndRegens() {
 		saveSourceWithPlugin(URL, "comment:0");
 
 		var parent = refRepository.findOneByUrlAndOrigin(URL, "").orElseThrow();
-		assertThat(parent.getMetadata().getLocalPlugins()).isNull();
+		assertThat(parent.getMetadata().getRemotePlugins()).isNull();
 		assertThat(parent.hasPluginResponse("plugin/comment")).isTrue();
 
 		meta.sources("", comment("comment:1", "@remote"), null);
 
 		parent = refRepository.findOneByUrlAndOrigin(URL, "").orElseThrow();
 		assertThat(parent.getMetadata().getPlugins()).containsEntry("plugin/comment", 2L);
-		assertThat(parent.getMetadata().getLocalPlugins()).isNull();
+		assertThat(parent.getMetadata().getRemotePlugins()).isNull();
 		assertThat(parent.getMetadata().isRegen()).isTrue();
 	}
 }

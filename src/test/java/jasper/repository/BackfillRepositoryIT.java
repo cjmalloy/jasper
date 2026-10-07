@@ -185,7 +185,7 @@ public class BackfillRepositoryIT {
 
 	@Test
 	@DisabledOnSqlite
-	void testBackfillMetadata_LocalPlugins() {
+	void testBackfillMetadata_RemotePlugins() {
 		var plugin = new Plugin();
 		plugin.setTag("plugin/comment");
 		plugin.setOrigin("");
@@ -227,12 +227,12 @@ public class BackfillRepositoryIT {
 
 		var loaded = refRepository.findOneByUrlAndOrigin(remoteOnly.getUrl(), remoteOnly.getOrigin()).get();
 		assertThat(loaded.getMetadata().getPlugins()).containsEntry("plugin/comment", 1L);
-		assertThat(loaded.getMetadata().getLocalPlugins()).isEmpty();
+		assertThat(loaded.getMetadata().getRemotePlugins()).containsEntry("plugin/comment", 1L);
 		assertThat(loaded.hasPluginResponse("plugin/comment")).isFalse();
 
 		loaded = refRepository.findOneByUrlAndOrigin(parent.getUrl(), parent.getOrigin()).get();
 		assertThat(loaded.getMetadata().getPlugins()).containsEntry("plugin/comment", 2L);
-		assertThat(loaded.getMetadata().getLocalPlugins()).containsEntry("plugin/comment", 1L);
+		assertThat(loaded.getMetadata().getRemotePlugins()).containsEntry("plugin/comment", 1L);
 		assertThat(loaded.hasPluginResponse("plugin/comment")).isTrue();
 	}
 
