@@ -856,8 +856,12 @@ of the main data model and keeps our queries join free.
 Jasper generates the following metadata in Refs:
  * List of responses: This is an inverse lookup of the Ref sources. Excludes any Refs with the internal tag.
  * List of internal responses: This is an inverse lookup of the Ref sources that include the internal tag.
- * List of plugin responses: A list of responses with that plugin.
- * List of user plugin responses: A list of responses with that plugin.
+ * Plugin response counts: The number of responses with each plugin, from all origins under the root origin.
+ * Local plugin response counts: The number of responses with each plugin from the same origin as the Ref.
+   Use these to ignore replicated responses (e.g. logs or run markers), and the plugin response counts to
+   include them (e.g. comments).
+ * List of user plugin responses: User URLs of responses with that plugin. User URLs are qualified with the
+   origin of the response (e.g. `tag:/user/alice@remote?url=...`), so users only see their own.
  * Obsolete: flag set if another origin contains the newest version of this Ref
 
 Metadata is never transferred during replication. A simplified version is sent over the client API, with

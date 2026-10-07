@@ -49,6 +49,23 @@ public class RefRepositoryImplPostgres implements RefRepositoryCustom {
 	}
 
 	@Override
+	public List<Object[]> countLocalPluginTagsInResponses(String url, String origin) {
+		return em.createNativeQuery("""
+			SELECT t.tag, COUNT(DISTINCT r.url)
+			FROM ref r
+				CROSS JOIN LATERAL jsonb_array_elements_text(COALESCE(r.metadata->'expandedTags', r.tags)) AS t(tag)
+			WHERE r.url != :url
+				AND r.sources @> jsonb_build_array(:url)
+				AND t.tag ~ '^[_+]?plugin(/|$)'
+				AND r.origin = :origin
+			GROUP BY t.tag
+			""", Object[].class)
+			.setParameter("url", url)
+			.setParameter("origin", origin)
+			.getResultList();
+	}
+
+	@Override
 	public List<String> findAllUserPluginTagsInResponses(String url, String origin) {
 		return em.createNativeQuery("""
 			SELECT DISTINCT t.tag

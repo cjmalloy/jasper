@@ -29,15 +29,11 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
-import java.util.stream.Stream;
 
 import static jasper.component.Meta.expandTags;
 import static jasper.config.JacksonConfiguration.om;
 import static jasper.domain.proj.Tag.TAG_LEN;
 import static jasper.domain.proj.Tag.matchesTag;
-import static jasper.domain.proj.Tag.tagOrigin;
-import static jasper.domain.proj.Tag.tagUrl;
-import static jasper.domain.proj.Tag.urlToTag;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 
 @Entity
@@ -102,24 +98,17 @@ public class Ref implements HasTags {
 	@Column(updatable = false, insertable = false)
 	private String textsearchEn;
 
+	/**
+	 * Has a plugin response in the same origin as this Ref.
+	 * Falls back to counts from all origins if local counts have not been generated.
+	 */
 	public boolean hasPluginResponse(String tag) {
 		if (metadata == null) return false;
-		if (metadata.getPlugins() == null) return false;
-		return metadata.getPlugins().keySet().stream()
-			.filter(t -> matchesTag(tag, t))
-			.anyMatch(t -> metadata.getPlugins().get(t) > 0);
-	}
-
-	/**
-	 * Has a user plugin response from a user URL in the same origin as this Ref.
-	 */
-	public boolean hasUserPluginResponse(String tag) {
-		if (metadata == null) return false;
-		if (metadata.getUserUrls() == null) return false;
-		return metadata.getUserUrls().entrySet().stream()
+		var plugins = metadata.getLocalPlugins() != null ? metadata.getLocalPlugins() : metadata.getPlugins();
+		if (plugins == null) return false;
+		return plugins.entrySet().stream()
 			.filter(e -> matchesTag(tag, e.getKey()))
-			.flatMap(e -> e.getValue() == null ? Stream.empty() : e.getValue().stream())
-			.anyMatch(url -> url != null && tagUrl(url) && tagOrigin(urlToTag(url)).equals(getOrigin()));
+			.anyMatch(e -> e.getValue() != null && e.getValue() > 0);
 	}
 
 	public void setOrigin(String value) {
@@ -258,15 +247,6 @@ public class Ref implements HasTags {
 		if (plugins == null) return null;
 		if (!plugins.has(tag)) return null;
         return om().convertValue(plugins.get(tag), toValueType);
-	}
-
-	@JsonIgnore
-	public long getPluginResponses(String tag) {
-		if (metadata == null) return 0;
-		if (metadata.getPlugins() == null) return 0;
-		if (!metadata.getPlugins().containsKey(tag)) return 0;
-		if (metadata.getPlugins().get(tag) == null) return 0;
-		return metadata.getPlugins().get(tag);
 	}
 
 	@JsonIgnore

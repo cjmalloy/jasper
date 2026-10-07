@@ -16,7 +16,8 @@ public class BackfillRepositoryImplPostgres implements BackfillRepository {
 
 	/**
 	 * Responses are filtered by their obsolete flag. Responses with missing
-	 * metadata are assumed to be obsolete.
+	 * metadata are assumed to be obsolete. Local plugin counts only include
+	 * responses in the same origin and are not filtered.
 	 */
 	@Override
 	public int backfillMetadata(String origin, int batchSize) {
@@ -36,6 +37,10 @@ public class BackfillRepositoryImplPostgres implements BackfillRepository {
 					p.tag,
 					(SELECT NULLIF(COUNT(DISTINCT pre.url), 0) FROM ref pre WHERE (pre.sources @> jsonb_build_array(r.url)) AND (:origin = '' OR pre.origin = :origin OR pre.origin LIKE concat(:origin, '.%')) AND pre.metadata IS NOT NULL AND COALESCE(pre.metadata->>'obsolete', 'false') IN ('false', '0') AND jsonb_exists(COALESCE(pre.metadata->'expandedTags', pre.tags), p.tag) = true)
 				) FROM plugin p WHERE p.origin = :origin)),
+				'localPlugins', COALESCE(jsonb_strip_nulls((SELECT jsonb_object_agg(
+					p.tag,
+					(SELECT NULLIF(COUNT(DISTINCT lpre.url), 0) FROM ref lpre WHERE (lpre.sources @> jsonb_build_array(r.url)) AND lpre.url != r.url AND lpre.origin = r.origin AND jsonb_exists(COALESCE(lpre.metadata->'expandedTags', lpre.tags), p.tag) = true)
+				) FROM plugin p WHERE p.origin = :origin)), CAST('{}' AS jsonb)),
 				'obsolete', EXISTS (SELECT 1 from ref n WHERE n.url = r.url AND n.modified > r.modified AND (:origin = '' OR n.origin = :origin OR n.origin LIKE concat(:origin, '.%'))),
 				'cascade', CASE WHEN jsonb_array_length(COALESCE(r.sources, '[]')) > 0 THEN true END
 			))

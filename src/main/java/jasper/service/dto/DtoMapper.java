@@ -78,18 +78,24 @@ public abstract class DtoMapper {
 
 	@AfterMapping
 	protected void filterMetadata(@MappingTarget MetadataDto metadata) {
-		if (metadata.getPlugins() == null) return;
-		var filteredPlugins = new HashMap<String, Integer>();
-		metadata.getPlugins().entrySet().iterator().forEachRemaining(e -> {
-			if (auth.canReadTag(e.getKey() + auth.getOrigin())) {
-				filteredPlugins.put(e.getKey(), e.getValue());
-			}
-		});
-		if (filteredPlugins.isEmpty()) {
+		metadata.setLocalPlugins(filterPlugins(metadata.getLocalPlugins()));
+		var filteredPlugins = filterPlugins(metadata.getPlugins());
+		if (filteredPlugins == null || filteredPlugins.isEmpty()) {
 			metadata.setPlugins(null);
 		} else {
 			metadata.setPlugins(filteredPlugins);
 		}
+	}
+
+	private Map<String, Integer> filterPlugins(Map<String, Integer> plugins) {
+		if (plugins == null) return null;
+		var filteredPlugins = new HashMap<String, Integer>();
+		plugins.forEach((tag, count) -> {
+			if (auth.canReadTag(tag + auth.getOrigin())) {
+				filteredPlugins.put(tag, count);
+			}
+		});
+		return filteredPlugins;
 	}
 
 	@AfterMapping

@@ -185,6 +185,59 @@ public class BackfillRepositoryIT {
 
 	@Test
 	@DisabledOnSqlite
+	void testBackfillMetadata_LocalPlugins() {
+		var plugin = new Plugin();
+		plugin.setTag("plugin/comment");
+		plugin.setOrigin("");
+		pluginRepository.save(plugin);
+
+		var remoteOnly = new Ref();
+		remoteOnly.setUrl("http://example.com/remoteOnly");
+		remoteOnly.setOrigin("");
+		remoteOnly.setMetadata(null);
+		refRepository.save(remoteOnly);
+
+		var parent = new Ref();
+		parent.setUrl("http://example.com/parent");
+		parent.setOrigin("");
+		parent.setMetadata(null);
+		refRepository.save(parent);
+
+		var remote = new Ref();
+		remote.setUrl("http://example.com/remote");
+		remote.setOrigin("@other");
+		remote.setSources(List.of("http://example.com/parent", "http://example.com/remoteOnly"));
+		remote.setTags(List.of("plugin/comment"));
+		remote.setMetadata(Metadata.builder()
+			.expandedTags(List.of("plugin/comment", "plugin"))
+			.build());
+		refRepository.save(remote);
+
+		var local = new Ref();
+		local.setUrl("http://example.com/local");
+		local.setOrigin("");
+		local.setSources(List.of("http://example.com/parent"));
+		local.setTags(List.of("plugin/comment"));
+		local.setMetadata(Metadata.builder()
+			.expandedTags(List.of("plugin/comment", "plugin"))
+			.build());
+		refRepository.save(local);
+
+		backfillRepository.backfillMetadata("", 10);
+
+		var loaded = refRepository.findOneByUrlAndOrigin(remoteOnly.getUrl(), remoteOnly.getOrigin()).get();
+		assertThat(loaded.getMetadata().getPlugins()).containsEntry("plugin/comment", 1L);
+		assertThat(loaded.getMetadata().getLocalPlugins()).isEmpty();
+		assertThat(loaded.hasPluginResponse("plugin/comment")).isFalse();
+
+		loaded = refRepository.findOneByUrlAndOrigin(parent.getUrl(), parent.getOrigin()).get();
+		assertThat(loaded.getMetadata().getPlugins()).containsEntry("plugin/comment", 2L);
+		assertThat(loaded.getMetadata().getLocalPlugins()).containsEntry("plugin/comment", 1L);
+		assertThat(loaded.hasPluginResponse("plugin/comment")).isTrue();
+	}
+
+	@Test
+	@DisabledOnSqlite
 	void testBackfillMetadata_AssumesUnbackfilledResponsesObsolete() {
 		var plugin = new Plugin();
 		plugin.setTag("plugin/comment");

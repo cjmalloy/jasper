@@ -9,6 +9,7 @@ import java.time.Instant;
 import java.util.Map;
 
 import static com.fasterxml.jackson.annotation.JsonInclude.Include.NON_EMPTY;
+import static com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL;
 
 @Getter
 @Setter
@@ -18,5 +19,7 @@ public class MetadataUpdateDto implements Serializable {
 	private int responses;
 	private int internalResponses;
 	private Map<String, Integer> plugins;
+	@JsonInclude(NON_NULL)
+	private Map<String, Integer> localPlugins;
 	private boolean obsolete;
 }

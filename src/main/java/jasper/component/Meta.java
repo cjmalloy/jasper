@@ -76,6 +76,9 @@ public class Meta {
 			.plugins(refRepositoryCustom.countPluginTagsInResponses(ref.getUrl(), rootOrigin)
 				.stream()
 				.collect(toMap(r -> (String) r[0], r -> ((Number) r[1]).longValue())))
+			.localPlugins(refRepositoryCustom.countLocalPluginTagsInResponses(ref.getUrl(), ref.getOrigin())
+				.stream()
+				.collect(toMap(r -> (String) r[0], r -> ((Number) r[1]).longValue())))
 			.build()
 		);
 	}
@@ -220,6 +223,7 @@ public class Meta {
 					.responses(new ArrayList<>())
 					.internalResponses(new ArrayList<>())
 					.plugins(new HashMap<>())
+					.localPlugins(new HashMap<>())
 					.build();
 			}
 			if (ref.hasTag("internal")) {
@@ -231,12 +235,14 @@ public class Meta {
 				metadata.removePlugins(existing.getExpandedTags().stream()
 						.filter(tag -> matchesTemplate("plugin", tag))
 						.toList(),
-					qualifiedUserUrl(existing.getUrl(), existing.getOrigin()));
+					qualifiedUserUrl(existing.getUrl(), existing.getOrigin()),
+					existing.getOrigin().equals(source.getOrigin()));
 			}
 			metadata.addPlugins(ref.getExpandedTags().stream()
 				.filter(tag -> matchesTemplate("plugin", tag))
 				.toList(),
-				qualifiedUserUrl(ref.getUrl(), ref.getOrigin()));
+				qualifiedUserUrl(ref.getUrl(), ref.getOrigin()),
+				ref.getOrigin().equals(source.getOrigin()));
 			source.setMetadata(metadata);
 			try {
 				refRepository.updateMetadata(source.getUrl(), source.getOrigin(), metadata);
@@ -282,7 +288,8 @@ logger.error("{} Error updating source metadata for ({}) {}", rootOrigin, ref.ge
 			metadata.removePlugins(existing.getExpandedTags().stream()
 					.filter(tag -> matchesTemplate("plugin", tag))
 					.toList(),
-				qualifiedUserUrl(url, existing.getOrigin()));
+				qualifiedUserUrl(url, existing.getOrigin()),
+				existing.getOrigin().equals(source.getOrigin()));
 		}
 		source.setMetadata(metadata);
 		try {
