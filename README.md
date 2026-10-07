@@ -5,7 +5,7 @@ Knowledge Management Server
 [![Coverage](https://img.shields.io/endpoint?url=https://cjmalloy.github.io/jasper/reports/latest-junit/coverage-badge.json)](https://cjmalloy.github.io/jasper/reports/latest-junit/coverage/)
 [![Gatling](https://github.com/cjmalloy/jasper/actions/workflows/gatling.yml/badge.svg)](https://cjmalloy.github.io/jasper/reports/latest-gatling/)
 [![Dependabot](https://img.shields.io/endpoint?url=https://cjmalloy.github.io/jasper/reports/dependabot-badge.json)](https://github.com/cjmalloy/jasper/security/dependabot)
-[![OpenAPI](https://img.shields.io/badge/OpenAPI-1.4.0-brightgreen)](https://editor.swagger.io/?url=https://raw.githubusercontent.com/cjmalloy/jasper/refs/heads/master/src/main/resources/swagger/api.yml)
+[![OpenAPI](https://img.shields.io/badge/OpenAPI-1.4.1-brightgreen)](https://editor.swagger.io/?url=https://raw.githubusercontent.com/cjmalloy/jasper/refs/heads/master/src/main/resources/swagger/api.yml)
 [![Artifact Hub](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/jasper)](https://artifacthub.io/packages/helm/jasper/jasper)
 
 ## Quickstart
