@@ -48,7 +48,8 @@ public class RefRepositoryImplPostgres implements RefRepositoryCustom {
 			WHERE r.url != :url
 				AND r.sources @> jsonb_build_array(:url)
 				AND t.tag ~ '^[_+]?plugin(/|$)'
-				AND (r.url ~ '^tag:/[_+]?user([/?]|$)' OR COALESCE(jsonb_object_field_text(r.metadata, 'obsolete'), 'false') != 'true')
+				AND ((r.url ~ '^tag:/[_+]?user([/?]|$)' AND NOT EXISTS (SELECT 1 FROM ref n WHERE n.url = r.url AND n.origin = r.origin AND n.modified > r.modified))
+					OR COALESCE(jsonb_object_field_text(r.metadata, 'obsolete'), 'false') != 'true')
 				AND %s
 			GROUP BY t.tag
 			""".formatted(distinct, originFilter), Object[].class)

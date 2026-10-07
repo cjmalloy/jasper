@@ -187,10 +187,11 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 		WHERE r.url != :url
 			AND jsonb_exists(r.sources, :url) = true
 			AND jsonb_exists(COALESCE(jsonb_object_field(r.metadata, 'expandedTags'), r.tags), :tag) = true
-			AND (r.url IN ('tag:/user', 'tag:/+user', 'tag:/_user')
-				OR r.url LIKE 'tag:/user/%' OR r.url LIKE 'tag:/user?%'
-				OR r.url LIKE 'tag:/+user/%' OR r.url LIKE 'tag:/+user?%'
-				OR r.url LIKE 'tag:/\\_user/%' ESCAPE '\\' OR r.url LIKE 'tag:/\\_user?%' ESCAPE '\\'
+			AND ((r.url IN ('tag:/user', 'tag:/+user', 'tag:/_user')
+					OR r.url LIKE 'tag:/user/%' OR r.url LIKE 'tag:/user?%'
+					OR r.url LIKE 'tag:/+user/%' OR r.url LIKE 'tag:/+user?%'
+					OR r.url LIKE 'tag:/\\_user/%' ESCAPE '\\' OR r.url LIKE 'tag:/\\_user?%' ESCAPE '\\')
+				AND NOT EXISTS (SELECT 1 FROM Ref n WHERE n.url = r.url AND n.origin = r.origin AND n.modified > r.modified)
 				OR COALESCE(jsonb_object_field_text(r.metadata, 'obsolete'), 'false') != 'true')
 			AND (:origin = '' OR r.origin = :origin OR r.origin LIKE concat(:origin, '.%'))""")
 	List<RefId> findAllResponseIdsWithTag(String url, String origin, String tag);

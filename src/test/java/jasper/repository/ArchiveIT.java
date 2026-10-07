@@ -9,6 +9,7 @@ import jasper.component.IngestPlugin;
 import jasper.component.IngestTemplate;
 import jasper.component.IngestUser;
 import jasper.component.Messages;
+import jasper.component.Meta;
 import jasper.domain.Ext;
 import jasper.domain.Plugin;
 import jasper.domain.Ref;
@@ -125,6 +126,9 @@ public class ArchiveIT {
 
 	@Autowired
 	ConfigCache configCache;
+
+	@Autowired
+	Meta meta;
 
 	@MockitoSpyBean
 	Messages messages;
@@ -358,6 +362,59 @@ public class ArchiveIT {
 			.isTrue();
 		assertThat(version("", old).getMetadata().isObsolete())
 			.isFalse();
+	}
+
+	void pushVote(Instant modified, String ...tags) {
+		var vote = new Ref();
+		vote.setUrl("tag:/+user/tester?url=" + URL);
+		vote.setOrigin("");
+		vote.setSources(new ArrayList<>(List.of(URL)));
+		vote.setTags(new ArrayList<>(List.of(tags)));
+		vote.setModified(modified);
+		ingest.push("", vote, false, false);
+	}
+
+	@Test
+	void testRegenSkipsOlderUserUrlVersions() {
+		push("", "Target", now.minusSeconds(20));
+		pushVote(now.minusSeconds(10), "plugin/user/vote/up");
+		pushVote(now, "plugin/user/vote/down");
+
+		var target = version("", now.minusSeconds(20));
+		meta.ref("", target);
+
+		assertThat(target.getMetadata().getPlugins())
+			.containsEntry("plugin/user/vote/down", 1L)
+			.doesNotContainKey("plugin/user/vote/up");
+		assertThat(target.getMetadata().getRemotePlugins())
+			.containsEntry("plugin/user/vote/down", 1L)
+			.doesNotContainKey("plugin/user/vote/up");
+		assertThat(target.getMetadata().getUserUrls())
+			.doesNotContainKey("plugin/user/vote/up");
+		assertThat(target.getMetadata().getUserUrls().get("plugin/user/vote/down"))
+			.containsExactly("tag:/+user/tester?url=" + URL);
+	}
+
+	@Test
+	void testBackfillSkipsOlderUserUrlVersions() {
+		// An old modified date skips metadata generation on push and flags the Ref for regen
+		var old = now.minus(1, ChronoUnit.DAYS);
+		push("", "Target", old);
+		pushVote(now.minusSeconds(10), "plugin/user/vote/up");
+		pushVote(now, "plugin/user/vote/down");
+
+		assertThat(backfillRepository.backfillMetadata("", 10))
+			.isEqualTo(1);
+
+		var target = version("", old);
+		assertThat(target.getMetadata().getPlugins())
+			.containsEntry("plugin/user/vote/down", 1L)
+			.doesNotContainKey("plugin/user/vote/up");
+		assertThat(target.getMetadata().getRemotePlugins())
+			.containsEntry("plugin/user/vote/down", 1L)
+			.doesNotContainKey("plugin/user/vote/up");
+		assertThat(target.getMetadata().getUserUrls().get("plugin/user/vote/down"))
+			.containsExactly("tag:/+user/tester?url=" + URL);
 	}
 
 	@Test
