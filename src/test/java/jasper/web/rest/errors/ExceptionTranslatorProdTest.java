@@ -1,6 +1,7 @@
 package jasper.web.rest.errors;
 
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -79,8 +80,8 @@ class ExceptionTranslatorProdTest {
 			// Package names are hidden
 			Arguments.of("bad-request-with-package", 400, ErrorConstants.ERR_INVALID_TUNNEL, UNEXPECTED),
 			// Plugin and template validation details stay visible
-			Arguments.of("invalid-plugin", 400, ErrorConstants.ERR_INVALID_PLUGIN, "Invalid plugin/test: [age] plugin."),
-			Arguments.of("invalid-template", 400, ErrorConstants.ERR_INVALID_TEMPLATE, "Invalid _config/test template."),
+			Arguments.of("invalid-plugin", 400, ErrorConstants.ERR_INVALID_PLUGIN, "plugin/test: age: expected uint32"),
+			Arguments.of("invalid-template", 400, ErrorConstants.ERR_INVALID_TEMPLATE, "_config/test: config is not allowed without a template schema"),
 			// URLs are not package names
 			Arguments.of("not-found", 404, ErrorConstants.ERR_NOT_FOUND, "Ref https://www.example.com/")
 		);
@@ -95,5 +96,21 @@ class ExceptionTranslatorProdTest {
 			.andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON))
 			.andExpect(jsonPath("$.message").value(code))
 			.andExpect(jsonPath("$.detail").value(detail));
+	}
+
+	@Test
+	void testValidationErrorsVisible() throws Exception {
+		mockMvc
+			.perform(get(BASE + "invalid-plugin"))
+			.andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.tag").value("plugin/test"))
+			.andExpect(jsonPath("$.reason").value("schema"))
+			.andExpect(jsonPath("$.errors[0].path").value("/age"))
+			.andExpect(jsonPath("$.errors[0].code").value("type"));
+		mockMvc
+			.perform(get(BASE + "invalid-user-url"))
+			.andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.reason").value("userUrl.sources"))
+			.andExpect(jsonPath("$.detail").value("plugin/user: requires exactly one source"));
 	}
 }

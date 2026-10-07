@@ -31,6 +31,10 @@ use `type` to look up the category on this page, and show `detail` to users.
 | `message`     | Stable error code. Use this for translations and client logic. Falls back to `error.http.<status>` for unmapped exceptions.        |
 | `path`        | Request path that caused the error.                                                                                                |
 | `fieldErrors` | Only for `error.validation`: list of `objectName`, `field` and `message` for each invalid field.                                   |
+| `tag`         | Only for [plugin](#plugin) and [template](#template) errors: the Plugin or Template tag that failed validation.                    |
+| `reason`      | Only for [plugin](#plugin) and [template](#template) errors: why validation failed. See [Validation reasons](#validation-reasons). |
+| `errors`      | Only for [plugin](#plugin) and [template](#template) errors: list of [field errors](#field-errors), at most 50.                    |
+| `truncated`   | Only for [plugin](#plugin) and [template](#template) errors: `true` if more than 50 field errors were found.                       |
 
 When an exception wraps another exception, the outermost exception with a mapping in the cause chain
 determines the code and category. For example, a wrapped `ConcurrencyFailureException` still
@@ -68,20 +72,145 @@ The request was well formed but violates a constraint.
 
 ## Plugin
 
-Plugin data does not match the Plugin schema. `detail` describes which field failed.
+Plugin data on a Ref does not match the Plugin schema, or is not allowed. Plugin errors include
+`tag`, `reason`, `errors` and `truncated` so clients can highlight exactly which field failed.
+`detail` is a one line summary for display.
 
 | Code                   | Status | Exception                       | Meaning                                                              | Client action                                       |
 |------------------------|--------|---------------------------------|----------------------------------------------------------------------|-----------------------------------------------------|
-| `error.invalidPlugin`  | 400    | `InvalidPluginException`        | Plugin data is not allowed, is missing its tag, or fails validation. | Fix the plugin data using the field in `detail`.    |
+| `error.invalidPlugin`  | 400    | `InvalidPluginException`        | Plugin data is not allowed, is missing its tag, or fails validation. | Fix the plugin data using `reason` and `errors`.    |
 | `error.invalidUserUrl` | 400    | `InvalidPluginUserUrlException` | A `plugin/user` Ref does not have a valid user URL and source.       | Use the user URL for the source and a user tag.     |
+
+Example: `{ "plugin/test": { "age": "thirty" } }` for a Plugin with the schema
+`{ "properties": { "name": { "type": "string" }, "age": { "type": "uint32" } } }`:
+
+```json
+{
+  "type": "https://cjmalloy.github.io/jasper/docs/errors.html#plugin",
+  "title": "Bad Request",
+  "status": 400,
+  "detail": "plugin/test: age: expected uint32; name: required",
+  "message": "error.invalidPlugin",
+  "path": "/api/v1/ref",
+  "tag": "plugin/test",
+  "reason": "schema",
+  "errors": [
+    { "path": "/age", "schemaPath": "/properties/age/type", "code": "type", "expected": "uint32", "message": "age: expected uint32" },
+    { "path": "/name", "schemaPath": "/properties/name", "code": "missing", "expected": "string", "message": "name: required" }
+  ],
+  "truncated": false
+}
+```
+
+Example: a `plugin/user` Ref without a source:
+
+```json
+{
+  "type": "https://cjmalloy.github.io/jasper/docs/errors.html#plugin",
+  "title": "Bad Request",
+  "status": 400,
+  "detail": "plugin/user: requires exactly one source",
+  "message": "error.invalidUserUrl",
+  "path": "/api/v1/ref",
+  "tag": "plugin/user",
+  "reason": "userUrl.sources",
+  "errors": [],
+  "truncated": false
+}
+```
+
+### Field errors
+
+Each entry in `errors` describes one field. Submitted values are never echoed back.
+
+| Field        | Description                                                                                                              |
+|--------------|--------------------------------------------------------------------------------------------------------------------------|
+| `path`       | [JSON Pointer](https://www.rfc-editor.org/rfc/rfc6901) into the submitted plugin data or config, e.g. `/age` or `/a/b/0`. |
+| `schemaPath` | JSON Pointer into the [JTD](https://jsontypedef.com/) schema, e.g. `/properties/age/type`. `null` for `config` errors.   |
+| `code`       | Kind of failure, see below.                                                                                              |
+| `expected`   | What the schema expects, if known: a JTD type such as `uint32`, `object` or `array`, or the comma separated allowed values. |
+| `message`    | Short readable message, e.g. `age: expected uint32`, `name: required` or `extra: not allowed`.                           |
+
+| Code            | Meaning                                                                              | `expected`                          |
+|-----------------|--------------------------------------------------------------------------------------|-------------------------------------|
+| `missing`       | A required property is absent. `path` points to the missing property.                | Type of the missing property        |
+| `unexpected`    | A property is not in the schema.                                                     |                                     |
+| `type`          | The value has the wrong type.                                                        | JTD type, e.g. `uint32` or `object` |
+| `enum`          | The value is not one of the allowed values.                                          | Allowed values, e.g. `a, b`         |
+| `elements`      | An array was expected.                                                               | `array`                             |
+| `values`        | An object of values was expected.                                                    | `object`                            |
+| `discriminator` | The discriminator property is missing, not a string, or not one of the mapping keys. | Mapping keys                        |
+| `nullable`      | The value is `null` but the schema is not nullable.                                  | Expected type                       |
+| `invalid`       | Only for `config` errors: the value could not be read.                               |                                     |
+
+### Validation reasons
+
+`reason` explains why a plugin or template failed validation:
+
+| Reason            | Meaning                                                                                                 | `errors`          |
+|-------------------|---------------------------------------------------------------------------------------------------------|-------------------|
+| `schema`          | The data does not match the schema.                                                                     | One per field     |
+| `untagged`        | Plugin data was sent without its tag.                                                                   | Empty             |
+| `schemaless`      | Plugin data or Ext config was sent for a Plugin or Template without a schema.                           | Empty             |
+| `maxDepth`        | The data is nested deeper than the maximum schema depth (32).                                           | Empty             |
+| `invalidDefaults` | The Plugin or Template defaults fail its own schema. This is a server config bug, not a user error.     | Defaults errors   |
+| `userUrl.sources` | Only `error.invalidUserUrl`: a `plugin/user` Ref must have exactly one source.                          | Empty             |
+| `userUrl.userTag` | Only `error.invalidUserUrl`: a `plugin/user` Ref must have a user tag.                                  | Empty             |
+| `userUrl.prefix`  | Only `error.invalidUserUrl`: the Ref URL must start with the user URL for the source and user tag.      | Empty             |
+| `config`          | Only `error.invalidTemplate`: `_config/server` or `_config/security` config could not be read.          | The bad field     |
+
+Plugin and template errors are shown in full in every profile, including `prod`.
 
 ## Template
 
-Template config does not match the Template schema. `detail` describes which field failed.
+Ext config does not match the Template schema, or Template config for `_config/server` or
+`_config/security` could not be read. Template errors use the same `tag`, `reason`, `errors` and
+`truncated` fields as [plugin](#plugin) errors, with the same [field errors](#field-errors) and
+[validation reasons](#validation-reasons).
 
 | Code                    | Status | Exception                  | Meaning                                        | Client action                                    |
 |-------------------------|--------|----------------------------|------------------------------------------------|--------------------------------------------------|
-| `error.invalidTemplate` | 400    | `InvalidTemplateException` | Template config fails validation.              | Fix the config using the field in `detail`.      |
+| `error.invalidTemplate` | 400    | `InvalidTemplateException` | Template config fails validation.              | Fix the config using `reason` and `errors`.      |
+
+Example: an Ext with the config `{ "kind": "c" }` for a Template with the schema
+`{ "properties": { "age": { "type": "uint32" } }, "optionalProperties": { "kind": { "enum": ["a", "b"] } } }`:
+
+```json
+{
+  "type": "https://cjmalloy.github.io/jasper/docs/errors.html#template",
+  "title": "Bad Request",
+  "status": 400,
+  "detail": "test: age: required; kind: expected one of a, b",
+  "message": "error.invalidTemplate",
+  "path": "/api/v1/ext",
+  "tag": "test",
+  "reason": "schema",
+  "errors": [
+    { "path": "/age", "schemaPath": "/properties/age", "code": "missing", "expected": "uint32", "message": "age: required" },
+    { "path": "/kind", "schemaPath": "/optionalProperties/kind/enum", "code": "enum", "expected": "a, b", "message": "kind: expected one of a, b" }
+  ],
+  "truncated": false
+}
+```
+
+Example: `_config/server` with `{ "maxSources": "many" }`:
+
+```json
+{
+  "type": "https://cjmalloy.github.io/jasper/docs/errors.html#template",
+  "title": "Bad Request",
+  "status": 400,
+  "detail": "_config/server: maxSources: expected int",
+  "message": "error.invalidTemplate",
+  "path": "/api/v1/template",
+  "tag": "_config/server",
+  "reason": "config",
+  "errors": [
+    { "path": "/maxSources", "schemaPath": null, "code": "type", "expected": "int", "message": "maxSources: expected int" }
+  ],
+  "truncated": false
+}
+```
 
 ## Access
 
@@ -206,3 +335,9 @@ Compared to the previous release (`master` before this change):
 * `DataIntegrityViolationException` and `DuplicateKeyException` return 409 instead of 500.
 * `AuthenticationException` subclasses other than `BadCredentialsException` return 401 instead of 500.
 * `title` falls back to the HTTP reason phrase instead of an empty string when `@ResponseStatus` has no reason.
+* Plugin and template errors no longer put the raw validator output in `detail`
+  (e.g. `plugin/test: [ValidationError(...)]`). `detail` is now a one line summary such as
+  `plugin/test: age: expected uint32; name: required`, and the structured `tag`, `reason`, `errors`
+  and `truncated` fields were added.
+* `error.invalidUserUrl` and `error.invalidTemplate` details now include the reason, e.g.
+  `plugin/user: requires exactly one source` instead of `Invalid User Url for plugin plugin/user`.

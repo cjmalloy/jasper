@@ -97,10 +97,10 @@ class ExceptionTranslatorIT {
 			Arguments.of(DuplicateTagException.class, "duplicate-tag", HttpStatus.CONFLICT, ERR_DUPLICATE_TAG, DUPLICATE_KEY_TYPE, "Duplicate tag +user/test"),
 			Arguments.of(FreshLoginException.class, "fresh-login", HttpStatus.FORBIDDEN, ERR_FRESH_LOGIN, USER_ERROR_TYPE, "Requires reauthorization. Please log again to access."),
 			Arguments.of(InvalidPatchException.class, "invalid-patch", HttpStatus.BAD_REQUEST, ERR_INVALID_PATCH, CONSTRAINT_VIOLATION_TYPE, "Missing path"),
-			Arguments.of(InvalidPluginException.class, "invalid-plugin", HttpStatus.BAD_REQUEST, ERR_INVALID_PLUGIN, PLUGIN_VALIDATION_TYPE, "Invalid plugin/test: [age] plugin."),
-			Arguments.of(InvalidPluginUserUrlException.class, "invalid-user-url", HttpStatus.BAD_REQUEST, ERR_INVALID_USER_URL, PLUGIN_VALIDATION_TYPE, "Invalid User Url for plugin plugin/user"),
+			Arguments.of(InvalidPluginException.class, "invalid-plugin", HttpStatus.BAD_REQUEST, ERR_INVALID_PLUGIN, PLUGIN_VALIDATION_TYPE, "plugin/test: age: expected uint32"),
+			Arguments.of(InvalidPluginUserUrlException.class, "invalid-user-url", HttpStatus.BAD_REQUEST, ERR_INVALID_USER_URL, PLUGIN_VALIDATION_TYPE, "plugin/user: requires exactly one source"),
 			Arguments.of(InvalidPushException.class, "invalid-push", HttpStatus.BAD_REQUEST, ERR_INVALID_PUSH, CONSTRAINT_VIOLATION_TYPE, "Push contains invalid data."),
-			Arguments.of(InvalidTemplateException.class, "invalid-template", HttpStatus.BAD_REQUEST, ERR_INVALID_TEMPLATE, TEMPLATE_VALIDATION_TYPE, "Invalid _config/test template."),
+			Arguments.of(InvalidTemplateException.class, "invalid-template", HttpStatus.BAD_REQUEST, ERR_INVALID_TEMPLATE, TEMPLATE_VALIDATION_TYPE, "_config/test: config is not allowed without a template schema"),
 			Arguments.of(InvalidTunnelException.class, "invalid-tunnel", HttpStatus.BAD_REQUEST, ERR_INVALID_TUNNEL, PROTOCOL_ERROR_TYPE, "Invalid tunnel host"),
 			Arguments.of(InvalidUserProfileException.class, "invalid-user-profile", HttpStatus.BAD_REQUEST, ERR_INVALID_USER_PROFILE, USER_ERROR_TYPE, "Invalid user profile"),
 			Arguments.of(MaxSourcesException.class, "max-sources", HttpStatus.BAD_REQUEST, ERR_MAX_SOURCES, SIZE_ERROR_TYPE, "Max count is set to 1000. Ref contains 1001 sources."),
@@ -151,6 +151,31 @@ class ExceptionTranslatorIT {
 			HttpMediaTypeNotSupportedException.class
 		).collect(Collectors.toSet()));
 		assertThat(tested).containsExactlyInAnyOrderElementsOf(ExceptionTranslator.ERROR_MAPPINGS.keySet());
+	}
+
+	@Test
+	void testInvalidPluginStructuredErrors() throws Exception {
+		mockMvc
+			.perform(get(BASE + "invalid-plugin"))
+			.andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.tag").value("plugin/test"))
+			.andExpect(jsonPath("$.reason").value("schema"))
+			.andExpect(jsonPath("$.truncated").value(false))
+			.andExpect(jsonPath("$.errors[0].path").value("/age"))
+			.andExpect(jsonPath("$.errors[0].schemaPath").value("/properties/age/type"))
+			.andExpect(jsonPath("$.errors[0].code").value("type"))
+			.andExpect(jsonPath("$.errors[0].expected").value("uint32"))
+			.andExpect(jsonPath("$.errors[0].message").value("age: expected uint32"));
+	}
+
+	@Test
+	void testInvalidUserUrlReason() throws Exception {
+		mockMvc
+			.perform(get(BASE + "invalid-user-url"))
+			.andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.tag").value("plugin/user"))
+			.andExpect(jsonPath("$.reason").value("userUrl.sources"))
+			.andExpect(jsonPath("$.errors").isEmpty());
 	}
 
 	@Test

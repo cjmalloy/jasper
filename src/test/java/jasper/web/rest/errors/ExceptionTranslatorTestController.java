@@ -6,6 +6,7 @@ import jasper.errors.AlreadyExistsException;
 import jasper.errors.DeactivateSelfException;
 import jasper.errors.DuplicateModifiedDateException;
 import jasper.errors.DuplicateTagException;
+import jasper.errors.FieldError;
 import jasper.errors.FreshLoginException;
 import jasper.errors.InvalidPatchException;
 import jasper.errors.InvalidPluginException;
@@ -27,6 +28,7 @@ import jasper.errors.ScriptException;
 import jasper.errors.TooLargeException;
 import jasper.errors.UntrustedScriptException;
 import jasper.errors.UserTagInUseException;
+import jasper.errors.ValidationErrors;
 import org.springframework.dao.ConcurrencyFailureException;
 import org.springframework.dao.DataAccessResourceFailureException;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -48,6 +50,7 @@ import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.time.Instant;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/exception-translator-test")
@@ -167,12 +170,13 @@ public class ExceptionTranslatorTestController {
 
 	@GetMapping("/invalid-plugin")
 	public void invalidPlugin() {
-		throw new InvalidPluginException("plugin/test: [age]");
+		throw new InvalidPluginException("plugin/test", ValidationErrors.SCHEMA, List.of(
+			new FieldError("/age", "/properties/age/type", "type", "uint32", "age: expected uint32")));
 	}
 
 	@GetMapping("/invalid-user-url")
 	public void invalidUserUrl() {
-		throw new InvalidPluginUserUrlException("plugin/user");
+		throw new InvalidPluginUserUrlException("plugin/user", ValidationErrors.USER_URL_SOURCES, "requires exactly one source");
 	}
 
 	@GetMapping("/invalid-push")
@@ -182,7 +186,7 @@ public class ExceptionTranslatorTestController {
 
 	@GetMapping("/invalid-template")
 	public void invalidTemplate() {
-		throw new InvalidTemplateException("_config/test");
+		throw new InvalidTemplateException("_config/test", ValidationErrors.SCHEMALESS, "config is not allowed without a template schema");
 	}
 
 	@GetMapping("/invalid-tunnel")

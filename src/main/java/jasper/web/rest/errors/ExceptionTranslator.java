@@ -26,6 +26,7 @@ import jasper.errors.ScriptException;
 import jasper.errors.TooLargeException;
 import jasper.errors.UntrustedScriptException;
 import jasper.errors.UserTagInUseException;
+import jasper.errors.ValidationErrors;
 import jasper.web.rest.errors.ProblemDetailWithCause.ProblemDetailWithCauseBuilder;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.core.env.Environment;
@@ -83,6 +84,10 @@ public class ExceptionTranslator extends ResponseEntityExceptionHandler {
 	private static final String FIELD_ERRORS_KEY = "fieldErrors";
 	private static final String MESSAGE_KEY = "message";
 	private static final String PATH_KEY = "path";
+	private static final String TAG_KEY = "tag";
+	private static final String REASON_KEY = "reason";
+	private static final String ERRORS_KEY = "errors";
+	private static final String TRUNCATED_KEY = "truncated";
 	private static final Pattern PACKAGE_NAME = Pattern.compile("(?<![\\w.])(jasper|org|java|jakarta|javax|com|io|net|liquibase)\\.[a-zA-Z_]");
 
 	/**
@@ -169,12 +174,16 @@ public class ExceptionTranslator extends ResponseEntityExceptionHandler {
 		return Optional.empty();
 	}
 
-	private static boolean causedBy(Throwable err, Class<? extends Throwable> type) {
+	private static <T> Optional<T> findCause(Throwable err, Class<T> type) {
 		var seen = Collections.newSetFromMap(new IdentityHashMap<Throwable, Boolean>());
 		for (var t = err; t != null && seen.add(t); t = t.getCause()) {
-			if (type.isInstance(t)) return true;
+			if (type.isInstance(t)) return Optional.of(type.cast(t));
 		}
-		return false;
+		return Optional.empty();
+	}
+
+	private static boolean causedBy(Throwable err, Class<?> type) {
+		return findCause(err, type).isPresent();
 	}
 
 	private final Environment env;
@@ -247,6 +256,13 @@ public class ExceptionTranslator extends ResponseEntityExceptionHandler {
 				(problemProperties == null || !problemProperties.containsKey(FIELD_ERRORS_KEY))
 		) problem.setProperty(FIELD_ERRORS_KEY, getFieldErrors(fieldException));
 
+		findCause(err, ValidationErrors.class).ifPresent(v -> {
+			problem.setProperty(TAG_KEY, v.getTag());
+			problem.setProperty(REASON_KEY, v.getReason());
+			problem.setProperty(ERRORS_KEY, v.getErrors());
+			problem.setProperty(TRUNCATED_KEY, v.isTruncated());
+		});
+
 		return problem;
 	}
 
@@ -306,13 +322,14 @@ public class ExceptionTranslator extends ResponseEntityExceptionHandler {
 	}
 
 	private String getCustomizedErrorDetails(Throwable err, int status) {
+		// Plugin and template validation summaries are user-facing and never contain submitted values
+		var validation = findCause(err, ValidationErrors.class);
+		if (validation.isPresent()) return ((Throwable) validation.get()).getMessage();
 		var detail = err.getCause() != null ? err.getCause().getMessage() : err.getMessage();
 		if (Arrays.asList(env.getActiveProfiles()).contains("prod")) {
 			if (causedBy(err, HttpMessageConversionException.class)) return "Unable to convert http message";
 			if (causedBy(err, DataAccessException.class)) return "Failure during data access";
 			if (status >= 500) return "Unexpected runtime exception";
-			// Plugin and template validation details are needed to fix the request
-			if (causedBy(err, InvalidPluginException.class) || causedBy(err, InvalidTemplateException.class)) return detail;
 			if (containsPackageName(detail)) return "Unexpected runtime exception";
 		}
 		return detail;
