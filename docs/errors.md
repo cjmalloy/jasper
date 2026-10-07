@@ -59,6 +59,7 @@ The HTTP request itself could not be processed.
 | `error.typeMismatch`         | 400    | `MethodArgumentTypeMismatchException`                                      | A parameter could not be converted to the required type. | Fix the parameter value named in `detail`.         |
 | `error.methodNotSupported`   | 405    | `HttpRequestMethodNotSupportedException`                                   | The HTTP method is not supported for this path.          | Use a method from the `Allow` header.              |
 | `error.mediaTypeNotSupported`| 415    | `HttpMediaTypeNotSupportedException`                                       | The `Content-Type` is not supported.                     | Use a supported `Content-Type`, usually JSON.      |
+| `error.invalidQuery`        | 400    | `InvalidQueryException`                                                    | The tag query could not be parsed.                       | Fix the query syntax described in `detail`.        |
 
 ## Constraint
 
