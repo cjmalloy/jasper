@@ -102,8 +102,35 @@ public class Meta {
 
 	@Timed(value = "jasper.meta", histogram = true)
 	public void responseSource(String rootOrigin, Ref ref, Ref existing) {
-		if (ref != null && existing != null && existing.getTags() != null && existing.getTags().equals(ref.getTags())) return;
+		if (ref != null && existing != null && existing.getTags() != null && existing.getTags().equals(ref.getTags())) {
+			reaction(rootOrigin, ref);
+			return;
+		}
 		sources(rootOrigin, ref, existing);
+	}
+
+	/**
+	 * Update the newReaction timestamp of the sources of a Ref without rebuilding counts.
+	 */
+	private void reaction(String rootOrigin, Ref ref) {
+		var timestamp = now().toString();
+		var sources = (ref.getSources() == null ? List.<String>of() : ref.getSources())
+			.stream()
+			.limit(SYNC_SOURCES)
+			.filter(s -> !s.equals(ref.getUrl()))
+			.distinct()
+			.toList();
+		if (!sources.isEmpty()) for (var source : refRepository.findAll(isUrls(sources).and(isNotObsolete()).and(isUnderOrigin(rootOrigin)))) {
+			if (source.getMetadata() == null) continue;
+			detach(source);
+			source.getMetadata().setNewReaction(timestamp);
+			try {
+				refRepository.updateMetadata(source.getUrl(), source.getOrigin(), source.getMetadata());
+				messages.updateMetadata(source);
+			} catch (DataAccessException e) {
+				logger.error("{} Error updating source metadata for ({}) {}", rootOrigin, ref.getOrigin(), ref.getUrl(), e);
+			}
+		}
 	}
 
 	public static List<String> expandTags(List<String> tags) {

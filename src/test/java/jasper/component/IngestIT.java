@@ -538,6 +538,40 @@ public class IngestIT {
 	}
 
 	@Test
+	void testUpdateResponseWithSameTagsSetsSourceNewReaction() {
+		var source = new Ref();
+		source.setUrl(OTHER_URL);
+		source.setTitle("Source");
+		source.setMetadata(Metadata.builder()
+			.modified("2026-01-01T00:00:00Z")
+			.responses(new ArrayList<>(List.of(URL)))
+			.build());
+		refRepository.save(source);
+		var existing = new Ref();
+		existing.setUrl(URL);
+		existing.setTitle("First");
+		existing.setSources(List.of(OTHER_URL));
+		existing.setTags(List.of("test/tag"));
+		refRepository.save(existing);
+		var ref = new Ref();
+		ref.setUrl(URL);
+		ref.setTitle("Second");
+		ref.setSources(List.of(OTHER_URL));
+		ref.setTags(List.of("test/tag"));
+		ref.setModified(existing.getModified());
+
+		ingest.updateResponse("", ref);
+
+		var fetched = refRepository.findOneByUrlAndOrigin(OTHER_URL, "").get();
+		assertThat(fetched.getMetadata().getNewReaction())
+			.isNotNull();
+		assertThat(fetched.getMetadata().getNewResponse())
+			.isNull();
+		assertThat(fetched.getMetadata().getResponses())
+			.containsExactly(URL);
+	}
+
+	@Test
 	void testUpdateResponseThrowsNotFoundExceptionWhenRefDoesNotExist() {
 		var ref = new Ref();
 		ref.setUrl(URL);
