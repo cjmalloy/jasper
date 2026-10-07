@@ -1,3 +1,7 @@
+---
+layout: default
+---
+
 # Errors
 
 Every error returned by the Jasper API is a
