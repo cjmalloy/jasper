@@ -863,6 +863,8 @@ Jasper generates the following metadata in Refs:
    root origin. Use these to include replicated responses (e.g. comments).
  * List of user plugin responses: User URLs of responses with that plugin. User URLs are qualified with the
    origin of the response (e.g. `tag:/user/alice@remote?url=...`), so users only see their own.
+   The current user is always matched in the origin they are logged in to, so the `userResponse` and
+   `noUserResponse` filters (which take plugin tags) only match responses from that user in that origin.
  * Obsolete: flag set if another origin contains the newest version of this Ref
 
 Metadata is never transferred during replication. A simplified version is sent over the client API, with

@@ -1,7 +1,6 @@
 package jasper.repository.filter;
 
 import jasper.domain.Ref;
-import jasper.repository.spec.QualifiedTag;
 import lombok.Builder;
 import lombok.Getter;
 import org.slf4j.Logger;
@@ -55,11 +54,13 @@ public class RefFilter implements Query {
 	private Instant responseBefore;
 	private Instant responseAfter;
 
-	public Specification<Ref> spec(QualifiedTag user) {
-		if (user != null) {
-			this.user = user.tag;
-			this.userOrigin = user.origin;
-		}
+	/**
+	 * @param user the user tag without origin, or null if not logged in
+	 * @param userOrigin the concrete origin the user is logged in to
+	 */
+	public Specification<Ref> spec(String user, String userOrigin) {
+		this.user = user;
+		this.userOrigin = userOrigin;
 		return spec();
 	}
 

@@ -101,7 +101,7 @@ public abstract class DtoMapper {
 	protected void userUrlsMetadata(Metadata source, @MappingTarget MetadataDto target) {
 		if (source.getUserUrls() == null) return;
 		if (auth.getUserTag() == null) return;
-		var prefix = userUrlPrefix(auth.getUserTag().tag, auth.getUserTag().origin);
+		var prefix = userUrlPrefix(auth.getUserTag().tag, auth.getOrigin());
 		target.setUserUrls(source.getUserUrls().entrySet().stream()
 			// TODO: how is null getting in here
 			.filter(e -> e.getValue().stream().anyMatch(url -> url != null && url.startsWith(prefix)))

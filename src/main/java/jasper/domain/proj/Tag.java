@@ -43,13 +43,23 @@ public interface Tag extends Cursor {
 
 	// User tags are only unique within an origin
 	static String userUrlPrefix(String user, String origin) {
-		return "tag:/" + publicTag(user) + (isBlank(origin) ? "" : origin) + "?url=";
+		return "tag:/" + publicTag(user) + concreteOrigin(origin) + "?url=";
 	}
 
 	static String qualifiedUserUrl(String url, String origin) {
-		if (isBlank(origin)) return url;
+		origin = concreteOrigin(origin);
+		if (origin.isEmpty()) return url;
 		if (!url.contains("?")) return url + origin;
 		return url.substring(0, url.indexOf("?")) + origin + url.substring(url.indexOf("?"));
+	}
+
+	/**
+	 * User URLs are qualified with the concrete origin of the user, never a selector such as "@*".
+	 */
+	private static String concreteOrigin(String origin) {
+		if (isBlank(origin) || origin.equals("@")) return "";
+		if (!origin.matches(HasOrigin.REGEX)) throw new IllegalArgumentException("Not a concrete origin: " + origin);
+		return origin;
 	}
 
 	static boolean tagUrl(String url) {
