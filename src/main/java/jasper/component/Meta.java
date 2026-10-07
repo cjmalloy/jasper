@@ -14,6 +14,7 @@ import org.springframework.dao.DataAccessException;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Component;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
@@ -39,6 +40,7 @@ public class Meta {
 	 * Number of sources already updated synchronously on cascade-queued Refs.
 	 */
 	public static final int SYNC_SOURCES = 2;
+	private static final Duration NEW_TOLERANCE = Duration.ofMillis(5);
 
 	@Autowired
 	RefRepository refRepository;
@@ -188,7 +190,7 @@ public class Meta {
 		}
 		if (ref.getSources() != null && ref.getSources().contains(source.getUrl())) {
 			source.getMetadata().setNewReaction(latest(source.getMetadata().getNewReaction(), ref.getModified()));
-			if (!userUrl(ref.getUrl())) source.getMetadata().setNewResponse(latest(source.getMetadata().getNewResponse(), ref.getCreated()));
+			if (!userUrl(ref.getUrl()) && isNew(ref)) source.getMetadata().setNewResponse(latest(source.getMetadata().getNewResponse(), ref.getCreated()));
 		}
 		try {
 			refRepository.updateMetadata(source.getUrl(), source.getOrigin(), source.getMetadata());
@@ -196,6 +198,14 @@ public class Meta {
 		} catch (DataAccessException e) {
 			logger.error("Error updating source metadata for {} {}", ref.getOrigin(), ref.getUrl(), e);
 		}
+	}
+
+	/**
+	 * A Ref is new if it has not been modified since it was created.
+	 */
+	private static boolean isNew(Ref ref) {
+		if (ref.getCreated() == null || ref.getModified() == null) return false;
+		return Duration.between(ref.getCreated(), ref.getModified()).abs().compareTo(NEW_TOLERANCE) <= 0;
 	}
 
 	/**

@@ -307,6 +307,19 @@ public class MetaIT {
 	}
 
 	@Test
+	void testCascadeEditedResponseOnlySetsNewReaction() {
+		for (var s : List.of("a", "b", "c")) saveSource(URL + s);
+		var child = saveChild(URL + "a", URL + "b", URL + "c");
+		child.setModified(child.getCreated().plusSeconds(60));
+		child = refRepository.save(child);
+
+		cascade.cascadeRef("", child);
+
+		assertThat(metadata(URL + "c").getNewResponse()).isNull();
+		assertThat(metadata(URL + "c").getNewReaction()).isEqualTo(child.getModified().toString());
+	}
+
+	@Test
 	void testCascadeUserUrlOnlySetsNewReaction() {
 		for (var s : List.of("a", "b", "c")) saveSource(URL + s);
 		var child = new Ref();
