@@ -206,9 +206,7 @@ public class IngestPlugin {
 				TransactionTemplate transactionTemplate = new TransactionTemplate(transactionManager);
 				transactionTemplate.execute(status -> {
 					if (archive) {
-						// Append a new version instead of overwriting the current one
-						// Appending does not conflict with the current version, so lock before checking the cursor
-						Archive.lock(em, "plugin", plugin.getTag(), plugin.getOrigin());
+						// Insert a new version instead of updating the current one
 						if (pluginRepository.findOneByQualifiedTag(plugin.getQualifiedTag())
 							.filter(e -> e.getModified().equals(cursor))
 							.isEmpty()) throw new ModifiedException("Plugin");
