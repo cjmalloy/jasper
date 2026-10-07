@@ -750,6 +750,9 @@ non-archive mode requires manually deleting old versions and restoring the origi
    Lookups by URL and origin return the latest version.
  * Every write adds a new version. Pushes and pulls are stored exactly as received, including deletor tags
    and `plugin/delete` Refs, and never remove rows.
+ * Local writes are dated after the newest version in their origin, even if a pushed version is dated later
+   than the local clock, so they always become the current version. Silent Ref writes add a version dated
+   1µs after the Ref's newest version, so they move the origin cursor as little as possible.
  * A blank version (only the key and dates set) is a tombstone. A Ref tagged `plugin/delete` is also a
    tombstone. If the current version is a tombstone, single lookups treat the item as deleted. This includes
    items that were created blank.

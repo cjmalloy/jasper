@@ -8,7 +8,10 @@ import jasper.domain.Ref;
 import jasper.domain.Template;
 import jasper.domain.User;
 
+import java.time.Instant;
 import java.util.Collection;
+
+import static java.time.temporal.ChronoUnit.MICROS;
 
 import static org.apache.commons.lang3.StringUtils.isEmpty;
 
@@ -72,6 +75,16 @@ public final class Archive {
 		em.createNativeQuery("SELECT 1 FROM pg_advisory_xact_lock(hashtextextended(:key, 0))")
 			.setParameter("key", table + "\n" + origin + "\n" + key)
 			.getSingleResult();
+	}
+
+	/**
+	 * Modified date for a local write while holding {@link #lock}. Pushed versions may be newer than
+	 * the local clock, so a local version must sort after the origin cursor to become current.
+	 * Postgres stores microseconds.
+	 */
+	public static Instant nextModified(Instant now, Instant cursor) {
+		if (cursor == null || now.truncatedTo(MICROS).isAfter(cursor)) return now;
+		return cursor.truncatedTo(MICROS).plus(1, MICROS);
 	}
 
 	private static boolean empty(Collection<?> c) {

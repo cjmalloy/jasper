@@ -8,6 +8,10 @@
 # - Older versions of Refs are marked obsolete, the same as obsolete
 #   copies from other origins.
 # - Every write adds a new version. Pushes and pulls never remove rows.
+# - Local writes are dated after the newest version in their origin,
+#   even if a pushed version is dated later than the local clock.
+#   Silent Ref writes add a version dated 1 microsecond after the Ref's newest
+#   version, so they move the origin cursor as little as possible.
 # - A blank version (or a plugin/delete Ref) is a tombstone. Single
 #   lookups treat an item whose current version is a tombstone as
 #   deleted, including items that were created blank.

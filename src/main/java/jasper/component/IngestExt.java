@@ -35,6 +35,7 @@ import static jasper.component.Replicator.isDeletorTag;
 import static jasper.domain.proj.Tag.localTag;
 import static jasper.domain.proj.Tag.tagOrigin;
 import static jasper.util.Archive.isBlank;
+import static jasper.util.Archive.nextModified;
 import static jasper.util.DbConstraint.isPkViolation;
 import static jasper.util.DbConstraint.isUniqueModifiedOriginViolation;
 
@@ -165,8 +166,10 @@ public class IngestExt {
 						Archive.lock(em, "ext", ext.getTag(), ext.getOrigin());
 						if (create && current(ext.getQualifiedTag()).isPresent()) throw new AlreadyExistsException();
 						if (create && isDeletorTag(ext.getTag()) && current(deletedTag(ext.getQualifiedTag())).isPresent()) throw new AlreadyExistsException();
+						ext.setModified(nextModified(Instant.now(ensureUniqueModifiedClock), extRepository.getCursor(ext.getOrigin())));
+					} else {
+						ext.setModified(Instant.now(ensureUniqueModifiedClock));
 					}
-					ext.setModified(Instant.now(ensureUniqueModifiedClock));
 					em.persist(ext);
 					em.flush();
 					return null;
@@ -192,7 +195,6 @@ public class IngestExt {
 				count++;
 				TransactionTemplate transactionTemplate = new TransactionTemplate(transactionManager);
 				transactionTemplate.execute(status -> {
-					ext.setModified(Instant.now(ensureUniqueModifiedClock));
 					if (archive) {
 						// Append a new version instead of overwriting the current one
 						// Appending does not conflict with the current version, so lock before checking the cursor
@@ -200,10 +202,12 @@ public class IngestExt {
 						if (extRepository.findOneByQualifiedTag(ext.getQualifiedTag())
 							.filter(e -> e.getModified().equals(cursor))
 							.isEmpty()) throw new ModifiedException("Ext");
+						ext.setModified(nextModified(Instant.now(ensureUniqueModifiedClock), extRepository.getCursor(ext.getOrigin())));
 						em.persist(ext);
 						em.flush();
 						return null;
 					}
+					ext.setModified(Instant.now(ensureUniqueModifiedClock));
 					var updated = extRepository.optimisticUpdate(
 						cursor,
 						ext.getTag(),

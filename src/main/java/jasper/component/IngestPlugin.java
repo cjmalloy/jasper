@@ -35,6 +35,7 @@ import static jasper.component.Replicator.isDeletorTag;
 import static jasper.domain.proj.Tag.localTag;
 import static jasper.domain.proj.Tag.tagOrigin;
 import static jasper.util.Archive.isBlank;
+import static jasper.util.Archive.nextModified;
 import static jasper.util.DbConstraint.isPkViolation;
 import static jasper.util.DbConstraint.isUniqueModifiedOriginViolation;
 
@@ -175,8 +176,10 @@ public class IngestPlugin {
 						Archive.lock(em, "plugin", plugin.getTag(), plugin.getOrigin());
 						if (create && current(plugin.getQualifiedTag()).isPresent()) throw new AlreadyExistsException();
 						if (create && isDeletorTag(plugin.getTag()) && current(deletedTag(plugin.getQualifiedTag())).isPresent()) throw new AlreadyExistsException();
+						plugin.setModified(nextModified(Instant.now(ensureUniqueModifiedClock), pluginRepository.getCursor(plugin.getOrigin())));
+					} else {
+						plugin.setModified(Instant.now(ensureUniqueModifiedClock));
 					}
-					plugin.setModified(Instant.now(ensureUniqueModifiedClock));
 					em.persist(plugin);
 					em.flush();
 					return null;
@@ -202,7 +205,6 @@ public class IngestPlugin {
 				count++;
 				TransactionTemplate transactionTemplate = new TransactionTemplate(transactionManager);
 				transactionTemplate.execute(status -> {
-					plugin.setModified(Instant.now(ensureUniqueModifiedClock));
 					if (archive) {
 						// Append a new version instead of overwriting the current one
 						// Appending does not conflict with the current version, so lock before checking the cursor
@@ -210,10 +212,12 @@ public class IngestPlugin {
 						if (pluginRepository.findOneByQualifiedTag(plugin.getQualifiedTag())
 							.filter(e -> e.getModified().equals(cursor))
 							.isEmpty()) throw new ModifiedException("Plugin");
+						plugin.setModified(nextModified(Instant.now(ensureUniqueModifiedClock), pluginRepository.getCursor(plugin.getOrigin())));
 						em.persist(plugin);
 						em.flush();
 						return null;
 					}
+					plugin.setModified(Instant.now(ensureUniqueModifiedClock));
 					var updated = pluginRepository.optimisticUpdate(
 						cursor,
 						plugin.getTag(),

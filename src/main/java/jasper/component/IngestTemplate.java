@@ -35,6 +35,7 @@ import static jasper.component.Replicator.isDeletorTag;
 import static jasper.domain.proj.Tag.localTag;
 import static jasper.domain.proj.Tag.tagOrigin;
 import static jasper.util.Archive.isBlank;
+import static jasper.util.Archive.nextModified;
 import static jasper.util.DbConstraint.isPkViolation;
 import static jasper.util.DbConstraint.isUniqueModifiedOriginViolation;
 
@@ -175,8 +176,10 @@ public class IngestTemplate {
 						Archive.lock(em, "template", template.getTag(), template.getOrigin());
 						if (create && current(template.getQualifiedTag()).isPresent()) throw new AlreadyExistsException();
 						if (create && isDeletorTag(template.getTag()) && current(deletedTag(template.getQualifiedTag())).isPresent()) throw new AlreadyExistsException();
+						template.setModified(nextModified(Instant.now(ensureUniqueModifiedClock), templateRepository.getCursor(template.getOrigin())));
+					} else {
+						template.setModified(Instant.now(ensureUniqueModifiedClock));
 					}
-					template.setModified(Instant.now(ensureUniqueModifiedClock));
 					em.persist(template);
 					em.flush();
 					return null;
@@ -202,7 +205,6 @@ public class IngestTemplate {
 				count++;
 				TransactionTemplate transactionTemplate = new TransactionTemplate(transactionManager);
 				transactionTemplate.execute(status -> {
-					template.setModified(Instant.now(ensureUniqueModifiedClock));
 					if (archive) {
 						// Append a new version instead of overwriting the current one
 						// Appending does not conflict with the current version, so lock before checking the cursor
@@ -210,10 +212,12 @@ public class IngestTemplate {
 						if (templateRepository.findOneByQualifiedTag(template.getQualifiedTag())
 							.filter(e -> e.getModified().equals(cursor))
 							.isEmpty()) throw new ModifiedException("Template");
+						template.setModified(nextModified(Instant.now(ensureUniqueModifiedClock), templateRepository.getCursor(template.getOrigin())));
 						em.persist(template);
 						em.flush();
 						return null;
 					}
+					template.setModified(Instant.now(ensureUniqueModifiedClock));
 					var updated = templateRepository.optimisticUpdate(
 						cursor,
 						template.getTag(),

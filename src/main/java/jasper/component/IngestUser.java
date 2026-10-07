@@ -35,6 +35,7 @@ import static jasper.component.Replicator.isDeletorTag;
 import static jasper.domain.proj.Tag.localTag;
 import static jasper.domain.proj.Tag.tagOrigin;
 import static jasper.util.Archive.isBlank;
+import static jasper.util.Archive.nextModified;
 import static jasper.util.DbConstraint.isPkViolation;
 import static jasper.util.DbConstraint.isUniqueModifiedOriginViolation;
 
@@ -171,8 +172,10 @@ public class IngestUser {
 						Archive.lock(em, "users", user.getTag(), user.getOrigin());
 						if (create && current(user.getQualifiedTag()).isPresent()) throw new AlreadyExistsException();
 						if (create && isDeletorTag(user.getTag()) && current(deletedTag(user.getQualifiedTag())).isPresent()) throw new AlreadyExistsException();
+						user.setModified(nextModified(Instant.now(ensureUniqueModifiedClock), userRepository.getCursor(user.getOrigin())));
+					} else {
+						user.setModified(Instant.now(ensureUniqueModifiedClock));
 					}
-					user.setModified(Instant.now(ensureUniqueModifiedClock));
 					em.persist(user);
 					em.flush();
 					return null;
@@ -198,7 +201,6 @@ public class IngestUser {
 				count++;
 				TransactionTemplate transactionTemplate = new TransactionTemplate(transactionManager);
 				transactionTemplate.execute(status -> {
-					user.setModified(Instant.now(ensureUniqueModifiedClock));
 					if (archive) {
 						// Append a new version instead of overwriting the current one
 						// Appending does not conflict with the current version, so lock before checking the cursor
@@ -206,10 +208,12 @@ public class IngestUser {
 						if (userRepository.findOneByQualifiedTag(user.getQualifiedTag())
 							.filter(e -> e.getModified().equals(cursor))
 							.isEmpty()) throw new ModifiedException("User");
+						user.setModified(nextModified(Instant.now(ensureUniqueModifiedClock), userRepository.getCursor(user.getOrigin())));
 						em.persist(user);
 						em.flush();
 						return null;
 					}
+					user.setModified(Instant.now(ensureUniqueModifiedClock));
 					var updated = userRepository.optimisticUpdate(
 						cursor,
 						user.getTag(),

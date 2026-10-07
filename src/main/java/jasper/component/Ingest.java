@@ -34,6 +34,7 @@ import java.util.Optional;
 
 import static jasper.component.Meta.expandTags;
 import static jasper.util.Archive.isBlank;
+import static jasper.util.Archive.nextModified;
 import static jasper.util.DbConstraint.isPkViolation;
 import static jasper.util.DbConstraint.isUniqueModifiedOriginViolation;
 
@@ -222,8 +223,10 @@ public class Ingest {
 						// The primary key includes modified, so lock and check the current version before appending
 						Archive.lock(em, "ref", ref.getUrl(), ref.getOrigin());
 						if (create && current(ref.getUrl(), ref.getOrigin()).isPresent()) throw new AlreadyExistsException();
+						ref.setModified(nextModified(Instant.now(ensureUniqueModifiedClock), refRepository.getCursor(ref.getOrigin())));
+					} else {
+						ref.setModified(Instant.now(ensureUniqueModifiedClock));
 					}
-					ref.setModified(Instant.now(ensureUniqueModifiedClock));
 					em.persist(ref);
 					em.flush();
 					return null;
@@ -247,7 +250,22 @@ public class Ingest {
 		while (true) {
 			try {
 				count++;
+				var offset = count;
 				new TransactionTemplate(transactionManager).execute(status -> {
+					if (archive) {
+						// Append a new version right after the newest one instead of overwriting it,
+						// so the origin cursor moves as little as possible
+						Archive.lock(em, "ref", ref.getUrl(), ref.getOrigin());
+						if (em.contains(ref)) em.detach(ref);
+						var newest = refRepository.findOneByUrlAndOrigin(ref.getUrl(), ref.getOrigin());
+						if (newest.isPresent()) {
+							ref.setCreated(newest.get().getCreated());
+							ref.setModified(newest.get().getModified().truncatedTo(ChronoUnit.MICROS).plus(offset, ChronoUnit.MICROS));
+						}
+						em.persist(ref);
+						em.flush();
+						return null;
+					}
 					refRepository.saveAndFlush(ref);
 					return null;
 				});
@@ -255,6 +273,7 @@ public class Ingest {
 			} catch (DataIntegrityViolationException | PersistenceException | JpaSystemException e) {
 				if (!isUniqueModifiedOriginViolation(e, "ref")) throw e;
 				if (count > props.getIngestMaxRetry()) {
+					if (archive) throw new DuplicateModifiedDateException();
 					count = 0;
 					cursor = cursor.minusNanos((long) (1000 * Math.random()));
 					ref.setModified(cursor);
@@ -272,7 +291,6 @@ public class Ingest {
 			try {
 				count++;
 				new TransactionTemplate(transactionManager).execute(status -> {
-					ref.setModified(Instant.now(ensureUniqueModifiedClock));
 					if (archive) {
 						// Append a new version instead of overwriting the current one
 						// Appending does not conflict with the current version, so lock before checking the cursor
@@ -280,11 +298,13 @@ public class Ingest {
 						var current = refRepository.findOneByUrlAndOrigin(ref.getUrl(), ref.getOrigin())
 							.filter(r -> r.getModified().equals(cursor))
 							.orElseThrow(() -> new ModifiedException("Ref"));
+						ref.setModified(nextModified(Instant.now(ensureUniqueModifiedClock), refRepository.getCursor(ref.getOrigin())));
 						ref.setCreated(current.getCreated());
 						em.persist(ref);
 						em.flush();
 						return null;
 					}
+					ref.setModified(Instant.now(ensureUniqueModifiedClock));
 					var updated = refRepository.optimisticUpdate(
 						cursor,
 						ref.getUrl(),

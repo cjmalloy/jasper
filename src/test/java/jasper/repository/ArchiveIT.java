@@ -999,4 +999,67 @@ public class ArchiveIT {
 			.extracting(User::getRole)
 			.isEqualTo("ROLE_USER");
 	}
+
+	@ParameterizedTest(name = "{0}")
+	@MethodSource("kinds")
+	void testDeleteAndRecreateAfterFuturePush(VersionKind kind) {
+		kind.push("", now.plusSeconds(60), "Future");
+
+		kind.delete("");
+
+		assertThat(kind.current(""))
+			.isEmpty();
+
+		kind.create("", "Restored");
+
+		assertThat(kind.current(""))
+			.isPresent();
+		assertThat(kind.latestTitle(""))
+			.contains("Restored");
+		assertThat(kind.versions(""))
+			.hasSize(3)
+			.allSatisfy(m -> assertThat(m).isAfterOrEqualTo(now.plusSeconds(60)));
+	}
+
+	@Test
+	void testUpdateAfterFuturePush() {
+		push("", "Future", now.plusSeconds(60));
+
+		ingest.update("", ref("", "Second", now.plusSeconds(60)));
+
+		assertThat(ingest.current(URL, ""))
+			.get()
+			.satisfies(r -> assertThat(r.getTitle()).isEqualTo("Second"))
+			.satisfies(r -> assertThat(r.getModified()).isAfter(now.plusSeconds(60)));
+	}
+
+	@Test
+	void testExtUpdateAfterFuturePush() {
+		ingestExt.push("", ext("test", now.plusSeconds(60), "Future"), false, false);
+
+		ingestExt.update(ext("test", now.plusSeconds(60), "Second"));
+
+		assertThat(ingestExt.current("test"))
+			.get()
+			.satisfies(e -> assertThat(e.getName()).isEqualTo("Second"))
+			.satisfies(e -> assertThat(e.getModified()).isAfter(now.plusSeconds(60)));
+	}
+
+	@Test
+	void testSilentAppendsVersion() {
+		push("", "First", now.minusSeconds(10));
+		var existing = refRepository.findOneByUrlAndOrigin(URL, "").orElseThrow();
+		existing.setTitle("Silent");
+
+		ingest.silent("", existing);
+
+		assertThat(refRepository.count())
+			.isEqualTo(2);
+		assertThat(version("", now.minusSeconds(10)).getTitle())
+			.isEqualTo("First");
+		assertThat(ingest.current(URL, ""))
+			.get()
+			.satisfies(r -> assertThat(r.getTitle()).isEqualTo("Silent"))
+			.satisfies(r -> assertThat(r.getModified()).isEqualTo(now.minusSeconds(10).plus(1, ChronoUnit.MICROS)));
+	}
 }
