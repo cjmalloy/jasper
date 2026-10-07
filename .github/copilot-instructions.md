@@ -206,6 +206,12 @@ jasper/
 **Replicated origins:**
 - Pulled origins only get silent, backdated plugin data writes (`Tagger.silentPlugin`); logs stamped `now` go to the origin owning the `+plugin/origin` Ref (`Tagger.attachLogs`). See "Logs and errors on replicated origins" in `README.md`.
 
+## Truncated PR comments
+
+PR comments shown in the task prompt are often cut off (e.g. ending in `...`). Never guess the rest and never ask the author to re-post. ALWAYS fetch the full text before acting:
+- `github-mcp-server-pull_request_read` with `method: get_comments` (PR conversation) or `get_review_comments` (inline review threads), `owner: cjmalloy`, `repo: jasper`, `pullNumber: <PR>`.
+- The output is usually large and gets saved to a file: filter it by comment id with `jq -r '.[] | select(.id==<id>) | .body' <file>`.
+
 ## Code drift check
 
 When a branch has more than one commit, ALWAYS check for drift before finishing: a change made then undone in a later commit can leave stray edits (imports, renames, reordering, whitespace, helper code).
