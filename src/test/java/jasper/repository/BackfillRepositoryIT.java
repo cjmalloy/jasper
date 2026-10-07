@@ -403,6 +403,34 @@ public class BackfillRepositoryIT {
 
 	@Test
 	@DisabledOnSqlite
+	void testBackfillMetadata_EmptyPluginTable() {
+		var parent = new Ref();
+		parent.setUrl("http://example.com/parent");
+		parent.setOrigin("");
+		parent.setMetadata(null);
+		refRepository.save(parent);
+
+		for (var origin : List.of("", "@other")) {
+			var response = new Ref();
+			response.setUrl("http://example.com/response");
+			response.setOrigin(origin);
+			response.setSources(List.of("http://example.com/parent"));
+			response.setTags(List.of("plugin/comment"));
+			response.setMetadata(Metadata.builder()
+				.expandedTags(List.of("plugin/comment", "plugin"))
+				.build());
+			refRepository.save(response);
+		}
+
+		backfillRepository.backfillMetadata("", 10);
+
+		var loaded = refRepository.findOneByUrlAndOrigin(parent.getUrl(), parent.getOrigin()).get();
+		assertThat(loaded.getMetadata().getPlugins()).containsEntry("plugin/comment", 1L);
+		assertThat(loaded.getMetadata().getRemotePlugins()).containsEntry("plugin/comment", 2L);
+	}
+
+	@Test
+	@DisabledOnSqlite
 	void testBackfillMetadata_CascadesRefsWithSources() {
 		var parent = new Ref();
 		parent.setUrl("http://example.com/parent");
