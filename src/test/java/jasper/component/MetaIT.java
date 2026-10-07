@@ -13,6 +13,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -255,6 +256,135 @@ public class MetaIT {
 		assertThat(metadata(URL + "a").getResponses()).containsExactly(URL + "child");
 		assertThat(metadata(URL + "b").getResponses()).containsExactly(URL + "child");
 		assertThat(metadata(URL + "child").getResponses()).isNullOrEmpty();
+	}
+
+	@Test
+	void testTimestampSortsChronologically() {
+		var earlier = Metadata.timestamp(Instant.parse("2026-01-01T00:00:00.100Z"));
+		var later = Metadata.timestamp(Instant.parse("2026-01-01T00:00:00.100001Z"));
+
+		assertThat(earlier).isEqualTo("2026-01-01T00:00:00.100000000Z");
+		assertThat(later).isGreaterThan(earlier);
+		assertThat(Instant.parse(later)).isEqualTo(Instant.parse("2026-01-01T00:00:00.100001Z"));
+	}
+
+	@Test
+	void testCreateResponseSetsNewResponseAndNewReaction() {
+		saveSource(URL + "a");
+		var child = saveChild(URL + "a");
+
+		meta.sources("", child, null);
+
+		assertThat(metadata(URL + "a").getNewResponse()).isNotNull();
+		assertThat(metadata(URL + "a").getNewReaction()).isEqualTo(metadata(URL + "a").getNewResponse());
+	}
+
+	@Test
+	void testCreateUserUrlResponseOnlySetsNewReaction() {
+		saveSource(URL + "a");
+		var child = new Ref();
+		child.setUrl("tag:/+user/tester?url=" + URL + "a");
+		child.setSources(List.of(URL + "a"));
+		child.setTags(List.of("+user/tester", "plugin/user/vote/up"));
+		child.setMetadata(Metadata.builder().build());
+		child = refRepository.save(child);
+
+		meta.sources("", child, null);
+
+		assertThat(metadata(URL + "a").getNewResponse()).isNull();
+		assertThat(metadata(URL + "a").getNewReaction()).isNotNull();
+	}
+
+	@Test
+	void testUpdateResponseOnlySetsNewReaction() {
+		saveSource(URL + "a", URL + "child");
+		var child = saveChild(URL + "a");
+
+		meta.sources("", child, existingChild(List.of("+user/tester"), URL + "a"));
+
+		assertThat(metadata(URL + "a").getNewResponse()).isNull();
+		assertThat(metadata(URL + "a").getNewReaction()).isNotNull();
+	}
+
+	@Test
+	void testCascadeSetsNewResponseAndNewReaction() {
+		for (var s : List.of("a", "b", "c")) saveSource(URL + s);
+		var child = saveChild(URL + "a", URL + "b", URL + "c");
+
+		cascade.cascadeRef("", child);
+
+		assertThat(metadata(URL + "c").getNewResponse()).isEqualTo(Metadata.timestamp(child.getCreated()));
+		assertThat(metadata(URL + "c").getNewReaction()).isEqualTo(Metadata.timestamp(child.getModified()));
+	}
+
+	@Test
+	void testCascadeEditedResponseOnlySetsNewReaction() {
+		for (var s : List.of("a", "b", "c")) saveSource(URL + s);
+		var child = saveChild(URL + "a", URL + "b", URL + "c");
+		child.setModified(child.getCreated().plusSeconds(60));
+		child = refRepository.save(child);
+
+		cascade.cascadeRef("", child);
+
+		assertThat(metadata(URL + "c").getNewResponse()).isNull();
+		assertThat(metadata(URL + "c").getNewReaction()).isEqualTo(Metadata.timestamp(child.getModified()));
+	}
+
+	@Test
+	void testCascadeUserUrlOnlySetsNewReaction() {
+		for (var s : List.of("a", "b", "c")) saveSource(URL + s);
+		var child = new Ref();
+		child.setUrl("tag:/+user/tester?url=" + URL + "a");
+		child.setSources(List.of(URL + "a", URL + "b", URL + "c"));
+		child.setTags(List.of("+user/tester", "plugin/user/vote/up"));
+		child.setMetadata(Metadata.builder().build());
+		child = refRepository.save(child);
+
+		cascade.cascadeRef("", child);
+
+		assertThat(metadata(URL + "c").getNewResponse()).isNull();
+		assertThat(metadata(URL + "c").getNewReaction()).isEqualTo(Metadata.timestamp(child.getModified()));
+	}
+
+	@Test
+	void testCascadeDoesNotMoveNewReactionBackwards() {
+		for (var s : List.of("a", "b")) saveSource(URL + s);
+		var source = saveSource(URL + "c");
+		source.getMetadata().setNewResponse("2999-01-01T00:00:00Z");
+		source.getMetadata().setNewReaction("2999-01-01T00:00:00Z");
+		refRepository.save(source);
+		var child = saveChild(URL + "a", URL + "b", URL + "c");
+
+		cascade.cascadeRef("", child);
+
+		assertThat(metadata(URL + "c").getNewResponse()).isEqualTo("2999-01-01T00:00:00Z");
+		assertThat(metadata(URL + "c").getNewReaction()).isEqualTo("2999-01-01T00:00:00Z");
+	}
+
+	@Test
+	void testCascadeRemovedSourceDoesNotSetNewReaction() {
+		saveSource(URL + "a");
+		saveSource(URL + "x", URL + "child");
+		var child = saveChild(URL + "a");
+
+		cascade.cascadeRef("", child);
+
+		assertThat(metadata(URL + "x").getResponses()).isNullOrEmpty();
+		assertThat(metadata(URL + "x").getNewReaction()).isNull();
+		assertThat(metadata(URL + "x").getNewResponse()).isNull();
+	}
+
+	@Test
+	void testRegenPreservesNewResponseAndNewReaction() {
+		var ref = saveSource(URL + "a");
+		ref.getMetadata().setNewResponse("2026-01-02T00:00:00Z");
+		ref.getMetadata().setNewReaction("2026-01-03T00:00:00Z");
+
+		meta.regen("", ref);
+
+		assertThat(ref.getMetadata().getModified()).isEqualTo("2026-01-01T00:00:00Z");
+		assertThat(ref.getMetadata().getNewResponse()).isEqualTo("2026-01-02T00:00:00Z");
+		assertThat(ref.getMetadata().getNewReaction()).isEqualTo("2026-01-03T00:00:00Z");
 	}
 
 	@Test

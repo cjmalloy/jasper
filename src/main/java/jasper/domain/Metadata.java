@@ -9,6 +9,7 @@ import lombok.Setter;
 
 import java.io.Serializable;
 import java.time.Instant;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -17,6 +18,7 @@ import java.util.Map;
 import static com.fasterxml.jackson.annotation.JsonInclude.Include.NON_DEFAULT;
 import static com.fasterxml.jackson.annotation.JsonInclude.Include.NON_EMPTY;
 import static jasper.domain.proj.Tag.matchesTemplate;
+import static java.time.ZoneOffset.UTC;
 
 @Getter
 @Setter
@@ -26,8 +28,21 @@ import static jasper.domain.proj.Tag.matchesTemplate;
 @JsonInclude(NON_EMPTY)
 public class Metadata implements Serializable {
 
+	/**
+	 * Fixed-width timestamp format so lexical order matches chronological order when sorting.
+	 */
+	private static final DateTimeFormatter TIMESTAMP = DateTimeFormatter.ofPattern("uuuu-MM-dd'T'HH:mm:ss.SSSSSSSSS'Z'").withZone(UTC);
+
 	@Builder.Default
 	private String modified = Instant.now().toString();
+	/**
+	 * Last time a new response was created, ignoring user urls.
+	 */
+	private String newResponse;
+	/**
+	 * Last time any response was created or updated, including user urls.
+	 */
+	private String newReaction;
 	private List<String> expandedTags;
 	private List<String> responses;
 	private List<String> internalResponses;
@@ -132,5 +147,12 @@ public class Metadata implements Serializable {
 			modified = Instant.now().toString();
 			internalResponses.remove(url);
 		}
+	}
+
+	/**
+	 * Format an instant as a fixed-width timestamp for newResponse and newReaction.
+	 */
+	public static String timestamp(Instant instant) {
+		return TIMESTAMP.format(instant);
 	}
 }
