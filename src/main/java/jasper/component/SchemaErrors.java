@@ -91,6 +91,8 @@ public final class SchemaErrors {
 				case "discriminator" -> {
 					code = "discriminator";
 					expected = keys(node.getMapping());
+					var value = at(instance, path);
+					if (value != null && value.isObject() && !value.has(node.getDiscriminator())) path.add(node.getDiscriminator());
 					i++;
 				}
 				case "type" -> {
