@@ -117,6 +117,7 @@ public class Meta {
 
 	/**
 	 * Update the newReaction timestamp of the sources of a Ref without rebuilding counts.
+	 * Sources past {@link #SYNC_SOURCES} are updated by the cascade.
 	 */
 	private void reaction(String rootOrigin, Ref ref) {
 		var timestamp = timestamp(now());
@@ -136,6 +137,10 @@ public class Meta {
 			} catch (DataAccessException e) {
 				logger.error("{} Error updating source metadata for ({}) {}", rootOrigin, ref.getOrigin(), ref.getUrl(), e);
 			}
+		}
+		if (ref.getSources() != null && ref.getSources().size() > SYNC_SOURCES) {
+			ref.getMetadata().setCascade(true);
+			refRepository.markCascade(ref.getUrl(), ref.getOrigin());
 		}
 	}
 
