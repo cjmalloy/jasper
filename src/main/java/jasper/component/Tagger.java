@@ -22,11 +22,14 @@ import static jasper.domain.proj.Tag.capturesDownwards;
 import static jasper.domain.proj.Tag.urlForTag;
 import static java.time.Instant.now;
 import static java.util.Arrays.asList;
+import static org.apache.commons.lang3.exception.ExceptionUtils.getStackTrace;
+import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 @Service
 public class Tagger {
 	private static final Logger logger = LoggerFactory.getLogger(Tagger.class);
+	static final int INIT_PLUGIN_RETRIES = 5;
 
 	@Autowired
 	ConfigCache configs;
@@ -132,6 +135,43 @@ public class Tagger {
 		}
 	}
 
+	/**
+	 * Set a plugin only if the Ref does not have it yet, and add the source if missing.
+	 * Concurrent callers never overwrite each other, so all of them get the Ref with the plugin that won.
+	 */
+	Ref initPlugin(String source, String url, String origin, String tag, Object plugin, String ...tags) {
+		for (var attempt = 0; attempt < INIT_PLUGIN_RETRIES; attempt++) {
+			var maybeRef = refRepository.findOneByUrlAndOrigin(url, origin);
+			if (configs.getRemote(origin) != null) return maybeRef.orElse(null);
+			if (maybeRef.isEmpty()) {
+				var ref = from(url, origin, tags).setPlugin(tag, plugin).addSource(source);
+				ref.addTag("internal");
+				try {
+					ingest.create(origin, ref);
+				} catch (AlreadyExistsException e) {
+					continue;
+				}
+				return ref;
+			}
+			var ref = maybeRef.get();
+			var hasSource = isBlank(source) || ref.getSources() != null && ref.getSources().contains(source);
+			if (ref.hasPlugin(tag) && hasSource) return ref;
+			if (!ref.hasPlugin(tag)) {
+				ref.setPlugin(tag, plugin);
+				ref.addTags(asList(tags));
+			}
+			if (!hasSource) ref.addSource(source);
+			try {
+				ingest.update(origin, ref);
+			} catch (ModifiedException e) {
+				continue;
+			}
+			return ref;
+		}
+		logger.warn("{} Gave up initializing {} on {} after {} conflicts", origin, tag, url, INIT_PLUGIN_RETRIES);
+		return refRepository.findOneByUrlAndOrigin(url, origin).orElse(null);
+	}
+
 	Ref plugin(boolean retry, String url, String origin, String title, String tag, Object plugin, String ...tags) {
 		var maybeRef = refRepository.findOneByUrlAndOrigin(url, origin);
 		if (configs.getRemote(origin) != null) return maybeRef.orElse(null);
@@ -195,6 +235,25 @@ public class Tagger {
 		}
 		ref.setTags(tags);
 		ingest.create(origin, ref);
+	}
+
+	/**
+	 * If the Ref is tagged +plugin/debug, log the caller stack trace and
+	 * reply to the Ref with a +plugin/log so the user can see it.
+	 */
+	public void debug(Ref ref, String msg) {
+		if (ref == null || !ref.hasTag("+plugin/debug")) return;
+		var logs = msg + " " + ref.getUrl() + "\n\n" +
+			"tags: `" + ref.getTags() + "`\n\n" +
+			"plugins: `" + ref.getPlugins() + "`\n\n" +
+			"```\n" + getStackTrace(new Throwable("+plugin/debug stack trace")) + "```";
+		logger.debug("{} +plugin/debug {}", ref.getOrigin(), logs);
+		try {
+			var remote = configs.getRemote(ref.getOrigin());
+			attachLogs(remote == null ? ref.getOrigin() : remote.getOrigin(), ref, "+plugin/debug " + msg, logs);
+		} catch (Exception e) {
+			logger.warn("{} +plugin/debug Could not attach logs to {}", ref.getOrigin(), ref.getUrl(), e);
+		}
 	}
 
 	@Async

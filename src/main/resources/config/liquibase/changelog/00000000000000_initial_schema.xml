@@ -52,6 +52,8 @@
 			CREATE INDEX ref_expanded_tags_index ON ref USING GIN((metadata->'expandedTags'));
 			CREATE INDEX ref_sources_index ON ref USING GIN(sources);
 			CREATE INDEX ref_alternate_urls_index ON ref USING GIN(alternate_urls);
+			CREATE INDEX ref_responses_index ON ref USING GIN ((metadata->'responses'));
+			CREATE INDEX ref_internal_responses_index ON ref USING GIN ((metadata->'internalResponses'));
 			ALTER TABLE ref
 				ADD COLUMN textsearch_en tsvector
 					GENERATED ALWAYS AS (setweight(to_tsvector('english', coalesce(title, '')),'A') ||
@@ -155,4 +157,9 @@
 		<addUniqueConstraint tableName="template" columnNames="modified, origin" />
 
 	</changeSet>
+
+	<changeSet author="chris" id="00000000000002" dbms="postgresql">
+		<sql>CREATE OR REPLACE FUNCTION instr(text, text) RETURNS integer AS $$ SELECT strpos($1, $2) $$ LANGUAGE SQL IMMUTABLE;</sql>
+	</changeSet>
+
 </databaseChangeLog>

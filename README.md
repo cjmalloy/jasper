@@ -2,8 +2,10 @@
 Knowledge Management Server
 
 [![Build & Test](https://github.com/cjmalloy/jasper/actions/workflows/test.yml/badge.svg)](https://cjmalloy.github.io/jasper/reports/latest-junit/)
+[![Coverage](https://img.shields.io/endpoint?url=https://cjmalloy.github.io/jasper/reports/latest-junit/coverage-badge.json)](https://cjmalloy.github.io/jasper/reports/latest-junit/coverage/)
 [![Gatling](https://github.com/cjmalloy/jasper/actions/workflows/gatling.yml/badge.svg)](https://cjmalloy.github.io/jasper/reports/latest-gatling/)
-[![OpenAPI](https://img.shields.io/badge/OpenAPI-1.3.6-brightgreen)](https://editor.swagger.io/?url=https://raw.githubusercontent.com/cjmalloy/jasper/refs/heads/master/src/main/resources/swagger/api.yml)
+[![Dependabot](https://img.shields.io/endpoint?url=https://cjmalloy.github.io/jasper/reports/dependabot-badge.json)](https://github.com/cjmalloy/jasper/security/dependabot)
+[![OpenAPI](https://img.shields.io/badge/OpenAPI-1.3.7-brightgreen)](https://editor.swagger.io/?url=https://raw.githubusercontent.com/cjmalloy/jasper/refs/heads/master/src/main/resources/swagger/api.yml)
 [![Artifact Hub](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/jasper)](https://artifacthub.io/packages/helm/jasper/jasper)
 
 ## Quickstart
@@ -12,25 +14,28 @@ the [quickstart](https://github.com/cjmalloy/jasper-ui/blob/master/quickstart/do
 docker compose file. See [Jasper App](https://github.com/cjmalloy/jasper-app) for an installable
 electron wrapper.
 
-## Knowledge Management
-Jasper is an open source knowledge management (KM) system. A KM system is similar to a Content Management
-System (CMS), but it does not store any content. Instead, a KM stores links to content. This means
-that adding a KM to your internal tools is quick and easy. It will create an overlay database, 
-which is a small and fast index of all your content sources. Extend functionality with custom plugins,
-or embed existing dashboard panels directly to create your central business intelligence dashboard.
-
 See [Jasper-UI](https://github.com/cjmalloy/jasper-ui) for documentation on the reference client.
 
-### Centralized Business Intelligence
-Dumping all department-level data into a central data lake to perform analytics on is a massive undertaking
-with dubious potential benefit. Instead, empower departments to run their own analytics and formalize the
-reporting format to allow centralized aggregation.
+## Knowledge Management
+Jasper is an open source knowledge management system. It provides a generic set of tools for dealing
+with knowledge management style problems. Knowledge management type problems include:
+* Business Intelligence
+* Scientific Research
+* Journalism
+* Web Forums
+* Wiki (Encyclopedia)
+* Task Management
+* Libraries
+* Customer Support
+* Collaborative Writing
+* Personal Knowledge Management
+* E-mail
 
-Build a Business Intelligence (BI) dashboard without building a data lake. Business departments can use
-both a push or pull model to publish their analytics, reports, results, KPIs, graphs, metrics, or alerts.
-Jasper standardises the transport, storage, searching, indexing, and retrieval of data while allowing you
-to use your existing data structures and formats. Stitch together department-level resources to create
-a central overview that explicitly describes dependencies.
+Jasper can be configured to host all these products, individually or in combination.
+Run it as an app or a website and connect them together to build a networked system.
+Prevent data loss by having full or partial replication of data across the network.
+Safely ingest external data sources with one-way replication.
+Enforce conformity with a flexible data model, or simply collate unstructured reports.
 
 ### Security
 Jasper uses Tag Based Access Control (TBAC) to assign fine grained access controls to any object in the
@@ -38,7 +43,7 @@ system. This system is simple and powerful, such that the entire security specif
 in a [small, readable file](https://github.com/cjmalloy/jasper/blob/master/src/main/java/jasper/security/Auth.java).
 
 ### Build your own client
-Connect to Jasper with a custom client to give users a streamlined user experience (UX). Frontend
+Connect to Jasper with a custom client to give users a streamlined user experience. Frontend
 developers can create a bespoke interface without needing to make any server side changes. Create custom
 plugins and templates and ensure data shape with [JTD](https://jsontypedef.com/docs/jtd-in-5-minutes/)
 schemas. Fork [the reference client](https://github.com/cjmalloy/jasper-ui) or use the
@@ -65,10 +70,9 @@ For comments, [Jasper-UI](https://github.com/cjmalloy/jasper-ui) uses a `comment
 [Wiki Page Name](https://en.wikipedia.org/wiki/Wikipedia:Page_name) (i.e. `wiki:John_Cena`).
 
 Like the [OSI model](https://en.wikipedia.org/wiki/OSI_model), Jasper's data model is defined in layers:
-1. **Identity Layer** - Structure and Persistence of entities
-2. **Indexing Layer** - Defining optional fields used to query, sort, filter, and transport
-3. **Validation Layer** - plugins and templates are validated
-4. **Modding Layer** - custom plugins, templates, and clients
+1. **Identity Layer** - persistence of individual entities
+2. **Indexing Layer** - query and transport of entities
+3. **Application Layer** - custom modifications
 
 ## Tagging
 Jasper support hierarchical tagging of Refs. Tags are not entities, they are strings with
@@ -148,7 +152,7 @@ custom data that can be stored in a ref, Templates may be created which allow cu
 stored in Ext entities and similarly validated according to their schema.
 
 See [Jasper-UI](https://github.com/cjmalloy/jasper-ui) for examples of Plugins and Templates, such as:
-* `plugin/thumbanail`: [This plugin](https://github.com/cjmalloy/jasper-ui/blob/master/src/app/mods/thumbnail.ts)
+* `plugin/thumbnail`: [This plugin](https://github.com/cjmalloy/jasper-ui/blob/master/src/app/mods/thumbnail.ts)
 allows a Ref to include a URL to a thumbnail image.
 * `user` Template: 
 [This template](https://github.com/cjmalloy/jasper-ui/blob/master/src/app/mods/user.ts)
@@ -202,7 +206,7 @@ Implementations may also make the modified date part of the composite primary ke
 **Tags:** A list of tags used to categorise this Ref. All tags must match the regex `[_+]?[a-z0-9]+([./][a-z0-9]+)*`  
 **Sources:** A list of URLs which are sources for this Ref. These may or may not have a corresponding Ref
 entity. If a source URL does correspond to a Ref, the published date of the source must predate the
-published date of this Ref.  
+published date of this Ref. This only applies when both Refs are non-internal. Internal Refs may cite any source.  
 **Alternate URLs:** Alternate URLs which should be considered synonymous with the URL of this Ref. This
 should be used as part of a uniqueness check when ingesting Refs.  
 **Plugins:** A JSON object with plugin tags as fields and arbitrary JSON data defined by each respective
@@ -210,7 +214,8 @@ plugin. Must be valid according to each plugin's schema.
 **Metadata:** Optional data generated by the server for this resource. Includes response links (inverse
 source lookup).  
 **Published:** The published date of this resource. Default to create date if not known. This date must
-be later than the published date of all sources.  
+be later than the published date of all sources. Internal Refs, and internal sources or responses, are
+not checked.  
 **Created:** Created date of this Ref.  
 **Modified:** Last modified date of this Ref. If this is the same as the created date no modification
 has occurred. Does not update if Metadata is modified.  
@@ -314,7 +319,7 @@ Implementations may also make the modified date part of the composite primary ke
 **Origin:** The Origin this Plugin was replicated from, or the empty string for local.  
 **Name:** The display name of this Ext. Used to customise the page title for the Tag page.  
 **Config:** Arbitrary JSON.  
-**Defaults:** Default plugin data if creating a new Ref with empty plugin data.  
+**Defaults:** Default plugin data if creating a new Ref with empty plugin data. May be any JSON value (object, array, or scalar).  
 **Schema:** Json Type Def (JTD) schema used to validate plugin data in Ref.  
 **Modified:** Last modified date of this Plugin.  
 
@@ -520,6 +525,7 @@ It supports the following configuration options:
 | `JASPER_BACKUP_BUFFER_SIZE`                         | Size of buffer in bytes used to cache JSON in RAM before flushing to disk during backup.                                       | `1000000`                                                                                                                                                                                                     |
 | `JASPER_RESTORE_BATCH_SIZE`                         | Number of entities to restore in each transaction.                                                                             | `500`                                                                                                                                                                                                         |
 | `JASPER_BACKFILL_BATCH_SIZE`                        | Number of entities to generate Metadata for in each transaction when backfilling.                                              | `100`                                                                                                                                                                                                         |
+| `JASPER_CASCADE_BATCH_SIZE`                         | Number of Refs marked for cascade to update source Metadata for in each run.                                                   | `100`                                                                                                                                                                                                         |
 | `JASPER_CLEAR_CACHE_COOLDOWN_SEC`                   | Number of seconds to throttle clearing the config cache.                                                                       | `2`                                                                                                                                                                                                           |
 | `JASPER_PUSH_COOLDOWN_SEC`                          | Number of seconds to throttle pushing after modification.                                                                      | `1`                                                                                                                                                                                                           |
 | `JASPER_STORAGE`                                    | Path to the folder to use for storage. Used by the backup system.                                                              | `/var/lib/jasper`                                                                                                                                                                                             |
@@ -549,6 +555,9 @@ It supports the following configuration options:
 | `JASPER_OVERRIDE_SERVER_MAX_CONCURRENT_SCRIPTS`     | Override the server maximum concurrent script executions.                                                                      | `100_000`                                                                                                                                                                                                     |
 | `JASPER_OVERRIDE_SERVER_MAX_CONCURRENT_REPLICATION` | Override the server maximum concurrent replication push/pull operations.                                                       | `3`                                                                                                                                                                                                           |
 | `JASPER_OVERRIDE_SERVER_MAX_CONCURRENT_FETCH`       | Override the server maximum concurrent fetch operations (scraping).                                                            | `10`                                                                                                                                                                                                          |
+| `JASPER_OVERRIDE_SERVER_STORAGE`                    | Override the server default storage provider (`local`, `gcs` or `s3`). Setting `local` clears the default bucket.                |                                                                                                                                                                                                               |
+| `JASPER_OVERRIDE_SERVER_STORAGE_BUCKET`             | Override the server default storage bucket. An empty value clears it.                                                              |                                                                                                                                                                                                               |
+| `JASPER_OVERRIDE_SERVER_STORAGE_ROUTES_0_BUCKET`    | Override the server storage routes. Set `_STORAGE`, `_NAMESPACES`, `_TENANTS` and `_CDN_BASE_URL` the same way. Any set value replaces all template routes, an empty list clears them. |                                                                                                                                                                                                               |
 | `JASPER_OVERRIDE_SECURITY_MODE`                     | Override the security mode for all origins.                                                                                    |                                                                                                                                                                                                               |
 | `JASPER_OVERRIDE_SECURITY_CLIENT_ID`                | Override the security clientId for all origins.                                                                                |                                                                                                                                                                                                               |
 | `JASPER_OVERRIDE_SECURITY_BASE64_SECRET`            | Override the security base64Secret for all origins.                                                                            |                                                                                                                                                                                                               |
@@ -561,6 +570,8 @@ It supports the following configuration options:
 | `JASPER_OVERRIDE_SECURITY_SCIM_ENDPOINT`            | Override the security scimEndpoint for all origins.                                                                            |                                                                                                                                                                                                               |
 | `JASPER_OVERRIDE_SECURITY_MAX_REQUESTS`             | Override the security maximum HTTP requests per origin every 500 nanoseconds for all origins.                                  | `50`                                                                                                                                                                                                          |
 | `JASPER_OVERRIDE_SECURITY_MAX_CONCURRENT_SCRIPTS`   | Override the security maximum concurrent script executions per origin for all origins.                                         | `5`                                                                                                                                                                                                           |
+| `JASPER_CORES`                                      | Set the number of processors available to the JVM. Only applies to the docker container.                                      |                                                                                                                                                                                                               |
+| `JASPER_GC`                                         | Select the JVM garbage collector (`g1gc`, `parallel`, or `zgc`). Only applies to the docker container.                         | `g1gc`                                                                                                                                                                                                        |
 | `JASPER_HEAP`                                       | Set both max and initial heap size for the JVM. Only applies to the docker container.                                          | `512m`                                                                                                                                                                                                        |
 
 ### Configuration Templates
@@ -595,6 +606,9 @@ different nodes to run different workloads.
 | `maxRequests`              | Maximum HTTP requests per origin every 500 nanoseconds.                                         | `50`                                       |
 | `maxConcurrentRequests`    | Global maximum concurrent HTTP requests across all origins.                                     | `500`                                      |
 | `maxConcurrentFetch`       | Maximum concurrent fetch operations (scraping).                                                 | `10`                                       |
+| `storage`                  | Default storage provider: `local`, `gcs` or `s3`.                                               | `"local"`                                  |
+| `storageBucket`            | Default storage bucket. Never served by a CDN.                                                  | `""`                                       |
+| `storageRoutes`            | Storage routes by tenant and namespace. The first match wins.                                   | `[]`                                       |
 
 #### Security Config (`_config/security` Template)
 The `_config/security` template is installed per-origin to configure authentication and authorization
@@ -671,6 +685,51 @@ environment variable.
 
 The `storage` profile is required for backups, caches, or preloading static files. Use the `JASPER_STORAGE` environment
 variable to change the location of the storage folder.
+
+The `gcs` profile enables storing files in Google Cloud Storage buckets, and the `s3` profile enables storing files in
+AWS S3 (or an S3-compatible service such as MinIO or Cloudflare R2) buckets, allowing multiple pods to share storage.
+Both profiles may be active at the same time. The `storage` profile is the master switch: the `gcs` and `s3` profiles
+do nothing unless the `storage` profile is also active. Objects are keyed as `tenant/namespace/id`. Storage providers
+and buckets are set in the `_config/server` template and can be changed at runtime. Each tenant and namespace is
+stored by the first matching route in `storageRoutes`, or by the default `storage` provider and `storageBucket`.
+The storage provider is one of `local` (the local storage folder), `gcs` or `s3`. A route with no `storage` uses the
+default storage provider. The `gcs` and `s3` storage providers require a bucket and their profile, and `local` does not
+use a bucket. These can be overridden with the `JASPER_OVERRIDE_SERVER_STORAGE`, `JASPER_OVERRIDE_SERVER_STORAGE_BUCKET`
+and `JASPER_OVERRIDE_SERVER_STORAGE_ROUTES_*` environment variables. A route with no `namespaces` matches every namespace,
+and a route with no `tenants` matches every tenant (use `default` for the default tenant). Set `cdnBaseUrl` on a
+route to the CDN host serving its bucket. Cached M3U8 manifests for those routes then link their segments to the CDN
+instead of the proxy, and the segments are cached in the background. Objects in S3 buckets served by a CDN are stored
+with a content type and `Content-Disposition: inline`. To keep private files out of public buckets, CDN
+routes must list their namespaces, and a bucket used by a CDN route can't be the default bucket or be used by a route
+without a CDN. Segments cached before their route had a CDN stay behind the proxy. If the config is invalid at
+startup, the server still starts so the config can be fixed, but storage is unavailable until it is. Later invalid
+configs are logged and ignored, keeping the previous routes:
+```json
+{
+  "storage": "gcs",
+  "storageBucket": "jasper-private",
+  "storageRoutes": [
+    { "bucket": "jasper-public", "namespaces": ["cache"], "cdnBaseUrl": "https://cdn.example.com" },
+    { "storage": "s3", "bucket": "jasper-tenant-private", "tenants": ["@tenant"] }
+  ]
+}
+```
+For example, to keep the cache in S3 and everything else, such as backups, in local storage:
+```json
+{
+  "storage": "local",
+  "storageRoutes": [
+    { "storage": "s3", "bucket": "jasper-public", "namespaces": ["cache"], "cdnBaseUrl": "https://cdn.example.com" }
+  ]
+}
+```
+GCS credentials are resolved with Application Default Credentials, such as GKE Workload Identity Federation.
+S3 credentials are resolved with the default AWS credentials provider chain, such as environment variables or EKS IAM
+roles for service accounts. Set the S3 region with `APPLICATION_STORAGE_S3_REGION` (defaults to `us-east-1`). Set
+`APPLICATION_STORAGE_S3_ENDPOINT` only for S3-compatible services; leave it blank for AWS S3.
+Zip archives are staged in a temporary file while they are read or written, so each pod needs enough local disk for
+the largest backup stored in a bucket. Set the staging folder with the `APPLICATION_STORAGE_TMP_DIR` environment
+variable (defaults to `java.io.tmpdir`).
 
 The `preload` profile lets you preload static files. Zip files in the preload folder
 `$JASPER_STORAGE/default/preload`. If `$JASPER_LOCAL_ORIGIN` is set,
@@ -794,6 +853,14 @@ Jasper generates the following metadata in Refs:
 
 Metadata is never transferred during replication. A simplified version is sent over the client API, with
 counts for each response type, and user plugin responses for the current user.
+
+When a Ref is created or updated, the metadata of the first two entries in its sources list is updated immediately,
+along with any of the first two entries in its previous sources list that were removed. If the Ref has more than two
+sources, or more removed sources remain, the Ref itself is marked with the `cascade` flag, and the cascade updates the
+remaining sources in the background and sends the metadata updates over websockets. When a Ref is deleted without revealing a shadowed version,
+all of its sources are updated immediately; otherwise the revealed version uses the same two-source/cascade process. Like backfill, the cascade
+runs for origins selected by `+plugin/cascade` in the `scriptSelectors` of the server config, and can be
+disabled on a node with the `no-cascade` profile, so these updates can be delegated to a separate node.
 
 ## Server Scripting
 When the `scripts` profile is active, scripts may be attached to Refs with either the `plugin/delta` tag or the
@@ -1025,4 +1092,4 @@ Run `docker run -it jasper-tests` to execute the unit tests.
 
 ### Running end-to-end tests
 
-See [Jasper-UI Cypress Tests](https://github.com/cjmalloy/jasper-ui/actions/workflows/cypress.yml).
+See [Jasper-UI Playwright Tests](https://github.com/cjmalloy/jasper-ui/actions/workflows/playwright.yml).

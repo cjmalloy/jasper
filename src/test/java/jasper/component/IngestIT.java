@@ -1,15 +1,17 @@
 package jasper.component;
 
 import jasper.IntegrationTest;
+import jasper.component.dto.ComponentDtoMapper;
+import jasper.domain.Metadata;
 import jasper.domain.Ref;
 import jasper.errors.AlreadyExistsException;
 import jasper.errors.DuplicateModifiedDateException;
 import jasper.errors.ModifiedException;
-import jasper.errors.NotFoundException;
 import jasper.repository.RefRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -27,6 +29,10 @@ import static jasper.repository.spec.RefSpec.isUrl;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.springframework.test.util.AopTestUtils.getTargetObject;
+import static org.springframework.test.util.ReflectionTestUtils.getField;
 import static org.springframework.test.util.ReflectionTestUtils.setField;
 
 @IntegrationTest
@@ -39,6 +45,9 @@ public class IngestIT {
 
 	@Autowired
 	RefRepository refRepository;
+
+	@Autowired
+	ComponentDtoMapper mapper;
 
 	static final String URL = "https://www.example.com/";
 	static final String OTHER_URL = "https://www.example.com/other";
@@ -558,5 +567,106 @@ public class IngestIT {
 			.contains("+plugin/rng/uuid1");
 	}
 
+	Ref captureUpdateRef(Runnable action) {
+		Ingest target = getTargetObject(ingest);
+		var messages = (Messages) getField(target, "messages");
+		var mockMessages = mock(Messages.class);
+		setField(target, "messages", mockMessages);
+		try {
+			action.run();
+			var captor = ArgumentCaptor.forClass(Ref.class);
+			verify(mockMessages).updateRef(captor.capture());
+			return captor.getValue();
+		} finally {
+			setField(target, "messages", messages);
+		}
+	}
 
+	void createSources(String... urls) {
+		for (var url : urls) {
+			var source = new Ref();
+			source.setUrl(url);
+			ingest.create("", source);
+		}
+	}
+
+	List<String> responses(String url) {
+		return refRepository.findOneByUrlAndOrigin(url, "").get().getMetadata().getResponses();
+	}
+
+	@Test
+	void testCreateRefWithManySourcesSyncsAllSources() {
+		createSources(URL + "a", URL + "b", URL + "c");
+		var ref = new Ref();
+		ref.setUrl(URL);
+		ref.setSources(List.of(URL + "a", URL + "b", URL + "c"));
+
+		var sent = captureUpdateRef(() -> ingest.create("", ref));
+
+		assertThat(sent.getMetadata().isCascade()).isFalse();
+		assertThat(refRepository.findOneByUrlAndOrigin(URL, "").get().getMetadata().isCascade()).isFalse();
+		assertThat(responses(URL + "a")).containsExactly(URL);
+		assertThat(responses(URL + "b")).containsExactly(URL);
+		assertThat(responses(URL + "c")).containsExactly(URL);
+	}
+
+	@Test
+	void testUpdateRefWithManySourcesDefersToCascade() {
+		createSources(URL + "a", URL + "b", URL + "c");
+		var ref = new Ref();
+		ref.setUrl(URL);
+		ingest.create("", ref);
+		var update = new Ref();
+		update.setUrl(URL);
+		update.setSources(List.of(URL + "a", URL + "b", URL + "c"));
+		update.setModified(refRepository.findOneByUrlAndOrigin(URL, "").get().getModified());
+
+		ingest.update("", update);
+
+		assertThat(refRepository.findOneByUrlAndOrigin(URL, "").get().getMetadata().isCascade()).isTrue();
+		assertThat(responses(URL + "a")).containsExactly(URL);
+		assertThat(responses(URL + "b")).containsExactly(URL);
+		assertThat(responses(URL + "c")).isNullOrEmpty();
+	}
+
+	@Test
+	void testUpdateRefSyncSourcesUpdatesAllSources() {
+		createSources(URL + "a", URL + "b", URL + "c", URL + "d", URL + "e");
+		var ref = new Ref();
+		ref.setUrl(URL);
+		ref.setSources(List.of(URL + "a", URL + "b", URL + "c", URL + "d"));
+		ingest.create("", ref);
+		var update = new Ref();
+		update.setUrl(URL);
+		update.setSources(List.of(URL + "a", URL + "b", URL + "e"));
+		update.setModified(refRepository.findOneByUrlAndOrigin(URL, "").get().getModified());
+
+		ingest.update("", update, true);
+
+		assertThat(refRepository.findOneByUrlAndOrigin(URL, "").get().getMetadata().isCascade()).isFalse();
+		assertThat(responses(URL + "a")).containsExactly(URL);
+		assertThat(responses(URL + "b")).containsExactly(URL);
+		assertThat(responses(URL + "c")).isNullOrEmpty();
+		assertThat(responses(URL + "d")).isNullOrEmpty();
+		assertThat(responses(URL + "e")).containsExactly(URL);
+	}
+
+	@Test
+	void testUpdateFlaggedRefSendsCascadeFlag() {
+		var existing = new Ref();
+		existing.setUrl(URL);
+		existing.setSources(List.of(URL + "a"));
+		existing.setMetadata(Metadata.builder().cascade(true).build());
+		refRepository.save(existing);
+		var ref = new Ref();
+		ref.setUrl(URL);
+		ref.setTitle("Second");
+		ref.setSources(List.of(URL + "a"));
+		ref.setModified(existing.getModified());
+
+		var sent = captureUpdateRef(() -> ingest.update("", ref));
+
+		assertThat(sent.getMetadata().isCascade()).isTrue();
+		assertThat(mapper.domainToDto(sent).getMetadata().isCascade()).isTrue();
+	}
 }

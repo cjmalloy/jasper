@@ -135,6 +135,15 @@ public class Props {
 	 */
 	private int backfillBatchSize = 100;
 	/**
+	 * Number of seconds the server must be idle (no REST API requests) before backfill runs.
+	 * Set to 0 to disable idle detection and always run backfill.
+	 */
+	private int backfillIdleSec = 0;
+	/**
+	 * Number of Refs marked for cascade to update source Metadata for in each run.
+	 */
+	private int cascadeBatchSize = 100;
+	/**
 	 * Number of seconds to throttle clearing the config cache.
 	 */
 	private int clearCacheCooldownSec = 2;
@@ -273,6 +282,18 @@ public class Props {
 		 * Override the server maximum concurrent fetch operations (scraping).
 		 */
 		private Integer maxConcurrentFetch;
+		/**
+		 * Override the server default storage provider ("local", "gcs" or "s3").
+		 */
+		private String storage;
+		/**
+		 * Override the server default storage bucket.
+		 */
+		private String storageBucket;
+		/**
+		 * Override the server storage routes.
+		 */
+		private List<Config.StorageRoute> storageRoutes;
 	}
 
 	@Getter

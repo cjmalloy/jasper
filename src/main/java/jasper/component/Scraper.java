@@ -90,7 +90,9 @@ public class Scraper {
 	public Ref web(String url, String origin) throws IOException, URISyntaxException {
 		var config = getConfig(url, origin);
 		if (config == null) return null;
-		var data = proxy.fetchString(url, origin, refRepository.existsByUrlAndOrigin(url, origin));
+		var existing = refRepository.findOneByUrlAndOrigin(url, origin);
+		existing.ifPresent(ref -> tagger.debug(ref, "Scraping existing Ref"));
+		var data = proxy.fetchString(url, origin, existing.isPresent());
 		if (isBlank(data) || !data.trim().startsWith("<")) return from(url, origin);
 		var result = refRepository.findOneByUrlAndOrigin(url, origin).orElse(from(url, origin));
 		// Update ref but don't persist changes
@@ -104,13 +106,7 @@ public class Scraper {
 		removeSelectors(doc, config);
 		removeStyleSelectors(doc, config);
 		parseVideos(result, doc, config);
-		for (var v : doc.select("video")) {
-			if (v.select("source").isEmpty()) v.remove();
-		}
 		parseAudio(result, doc, config);
-		for (var a : doc.select("audio")) {
-			if (a.select("source").isEmpty()) a.remove();
-		}
 		parseOpenGraph(result, doc, config);
 		parseOembed(result, doc, config);
 		parseLinkedData(result, doc, config);
@@ -243,12 +239,12 @@ public class Scraper {
 					var src = video.absUrl("data-stream");
 					cacheLater(src, result.getOrigin());
 					addVideoUrl(result, getVideo(src));
+					return;
 				} else if (video.hasAttr("src")) {
 					var src = video.absUrl("src");
 					cacheLater(src, result.getOrigin());
 					addVideoUrl(result, getVideo(src));
-					addWeakThumbnail(result, getThumbnail(src));
-					video.parent().remove();
+					return;
 				}
 			}
 		}
@@ -262,7 +258,7 @@ public class Scraper {
 					var src = audio.absUrl("src");
 					cacheLater(src, result.getOrigin());
 					addPluginUrl(result, "plugin/audio", getVideo(src));
-					audio.parent().remove();
+					return;
 				}
 			}
 		}
@@ -317,7 +313,7 @@ public class Scraper {
 	}
 
 	private void parseLinkedData(Ref result, Document doc, Scrape config) {
-		if (!config.isLdJson());
+		if (!config.isLdJson()) return;
 		var jsonlds = doc.select("script[type=application/ld+json]");
 		for (var jsonld : jsonlds) {
 			var json = jsonld.html().trim().replaceAll("\n", " ");
@@ -478,6 +474,7 @@ public class Scraper {
 		url = fixUrl(url);
 		var ref = refRepository.findOneByUrlAndOrigin(url, origin).orElse(null);
 		if (ref != null && (ref.hasTag("_plugin/cache") || ref.hasTag("_plugin/delta/cache"))) return;
+		tagger.debug(ref, "Scraper queuing existing Ref for cache");
 		tagger.internalTag(url, origin, "_plugin/delta/cache");
 	}
 

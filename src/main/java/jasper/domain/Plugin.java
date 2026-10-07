@@ -1,6 +1,7 @@
 package jasper.domain;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -58,7 +59,7 @@ public class Plugin implements Tag {
 	private ObjectNode config;
 
 	@JdbcTypeCode(SqlTypes.JSON)
-	private ObjectNode defaults;
+	private JsonNode defaults;
 
 	@JdbcTypeCode(SqlTypes.JSON)
 	@SchemaValid

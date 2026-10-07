@@ -4,6 +4,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jasper.component.ConfigCache;
 import jasper.domain.proj.HasOrigin;
 import jasper.security.Auth;
+import jasper.security.AuthFactory;
 import jasper.security.jwt.TokenProvider;
 import jasper.security.jwt.TokenProviderImplDefault;
 import jasper.service.dto.UserDto;
@@ -11,7 +12,6 @@ import org.apache.tomcat.websocket.server.WsSci;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.tomcat.TomcatContextCustomizer;
 import org.springframework.boot.tomcat.servlet.TomcatServletWebServerFactory;
 import org.springframework.context.annotation.Bean;
@@ -82,8 +82,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 	TokenProviderImplDefault defaultTokenProvider;
 
 	@Autowired
-	@Qualifier("authSingleton")
-	Auth auth;
+	AuthFactory authFactory;
 
 	private Set<WebSocketSession> sessions = ConcurrentHashMap.newKeySet();
 
@@ -218,6 +217,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 	class JwtChannelInterceptor implements ChannelInterceptor {
 		@Override
 		public Message<?> preSend(Message<?> message, MessageChannel channel) {
+			Auth auth = null;
 			try {
 				var accessor = MessageHeaderAccessor.getAccessor(message, StompHeaderAccessor.class);
 				if (accessor.getCommand() == StompCommand.BEGIN) return null; // No Transactions
@@ -225,6 +225,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 				if (accessor.getCommand() != StompCommand.SUBSCRIBE) return message;
 				var wsAttributes = (WebSocketRequestAttributes) accessor.getSessionAttributes().get("wsAttributes");
 				RequestContextHolder.setRequestAttributes(wsAttributes);
+				auth = authFactory.create();
 				if (accessor.getUser() instanceof Authentication authentication) {
 					auth.clear(authentication);
 					logger.debug("{} STOMP User Set {}", auth.getOrigin(), auth.getUserTag());
@@ -249,7 +250,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 				if (auth.canSubscribeTo(accessor.getDestination())) return message;
 				logger.warn("{} {} can't subscribe to {}", auth.getOrigin(), auth.getUserTag(), accessor.getDestination());
 			} catch (Exception e) {
-				logger.error("{} Cannot authorize websocket subscription.", auth.getOrigin(), e);
+				logger.error("{} Cannot authorize websocket subscription.", auth == null ? props.getOrigin() : auth.getOrigin(), e);
 			} finally {
 				RequestContextHolder.resetRequestAttributes();
 			}

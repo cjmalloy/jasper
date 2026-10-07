@@ -10,7 +10,14 @@ import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.cloud.kubernetes.fabric8.discovery.Fabric8CatalogWatchAutoConfiguration;
 import org.springframework.cloud.kubernetes.fabric8.discovery.Fabric8DiscoveryClientAutoConfiguration;
 
-@SpringBootApplication(exclude = { Fabric8DiscoveryClientAutoConfiguration.class, Fabric8CatalogWatchAutoConfiguration.class, DataRedisAutoConfiguration.class })
+@SpringBootApplication(
+	exclude = {
+		Fabric8DiscoveryClientAutoConfiguration.class,
+		Fabric8CatalogWatchAutoConfiguration.class,
+		DataRedisAutoConfiguration.class,
+	},
+	excludeName = "org.springframework.cloud.kubernetes.fabric8.discovery.Fabric8InformerAutoConfiguration"
+)
 @EnableConfigurationProperties({ LiquibaseProperties.class, Props.class })
 @EnableCaching
 public class JasperApplication {

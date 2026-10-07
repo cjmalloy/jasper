@@ -47,6 +47,8 @@ import static jasper.repository.spec.QualifiedTag.concat;
 import static jasper.util.Crypto.keyPair;
 import static jasper.util.Crypto.writeRsaPrivatePem;
 import static jasper.util.Crypto.writeSshRsa;
+import static java.util.Optional.empty;
+import static java.util.Optional.ofNullable;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isEmpty;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
@@ -240,9 +242,11 @@ public class ConfigCache {
 
 	@Cacheable(value = "plugin-config-cache", key = "#tag + #origin")
 	public <T> Optional<T> getPluginConfig(String tag, String origin, Class<T> toValueType) {
+		if (!pluginRepository.existsByQualifiedTag(tag + origin)) return empty();
 		return pluginRepository.findByTagAndOrigin(tag, origin)
 			.map(Plugin::getConfig)
-			.map(n -> objectMapper.convertValue(n, toValueType));
+			.map(n -> objectMapper.convertValue(n, toValueType))
+			.or(() -> ofNullable(objectMapper.convertValue(objectMapper.createObjectNode(), toValueType)));
 	}
 
 	@Cacheable(value = "plugin-cache", key = "#tag + #origin")

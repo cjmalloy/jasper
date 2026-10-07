@@ -6,6 +6,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.constraints.Pattern;
+import jasper.aop.ClearIdle;
 import jasper.domain.proj.HasOrigin;
 import jasper.service.OriginService;
 import org.hibernate.validator.constraints.Length;
@@ -24,6 +25,7 @@ import java.util.List;
 
 import static jasper.domain.proj.HasOrigin.ORIGIN_LEN;
 
+@ClearIdle
 @RestController
 @RequestMapping("api/v1/origin")
 @Validated

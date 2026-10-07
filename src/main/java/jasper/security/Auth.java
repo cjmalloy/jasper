@@ -1,6 +1,5 @@
 package jasper.security;
 
-import io.jsonwebtoken.Claims;
 import jakarta.annotation.PostConstruct;
 import jasper.component.ConfigCache;
 import jasper.config.Config.SecurityConfig;
@@ -15,11 +14,15 @@ import jasper.errors.FreshLoginException;
 import jasper.repository.RefRepository;
 import jasper.repository.filter.Query;
 import jasper.repository.spec.QualifiedTag;
+import jasper.security.jwt.Claims;
 import jasper.security.jwt.JwtAuthentication;
 import jasper.service.dto.UserDto;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.access.hierarchicalroles.RoleHierarchy;
 import org.springframework.security.authentication.AnonymousAuthenticationToken;
@@ -46,7 +49,6 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import static io.jsonwebtoken.Jwts.claims;
 import static jasper.config.JacksonConfiguration.dump;
 import static jasper.domain.proj.HasOrigin.isSubOrigin;
 import static jasper.domain.proj.Tag.matchesTag;
@@ -237,7 +239,7 @@ public class Auth {
 	 */
 	public boolean freshLogin() {
 		var iat = getClaims().getIssuedAt();
-		if (iat != null && iat.toInstant().isAfter(Instant.now().minus(Duration.of(15, ChronoUnit.MINUTES)))) {
+		if (iat != null && iat.isAfter(Instant.now().minus(Duration.of(15, ChronoUnit.MINUTES)))) {
 			return true;
 		}
 		throw new FreshLoginException();
@@ -349,7 +351,10 @@ public class Auth {
 		// Check if owner
 		if (owns(qualifiedTags)) return true;
 		// Check access tags
-		return captures(getWriteAccess(), qualifiedTags);
+		return captures(getWriteAccess(), qualifiedTags.stream()
+			// Remove public tags to avoid downward matching
+			.filter(tag -> !isPublicTag(tag.tag))
+			.toList());
 	}
 
 	/**
@@ -621,6 +626,39 @@ public class Auth {
 	}
 
 	/**
+	 * Silently remove sorts that reference private plugins the user cannot read.
+	 */
+	public Pageable pageable(Pageable pageable) {
+		if (pageable == null || pageable.getSort().isUnsorted()) return pageable;
+		if (hasRole(MOD)) return pageable;
+		var orders = pageable.getSort().toList();
+		var filtered = orders.stream()
+			.filter(order -> {
+				var property = order.getProperty();
+				String afterPrefix;
+				if (property.startsWith("plugins->")) {
+					afterPrefix = property.substring("plugins->".length());
+				} else if (property.startsWith("metadata->plugins->")) {
+					afterPrefix = property.substring("metadata->plugins->".length());
+				} else {
+					return true;
+				}
+				int end = afterPrefix.indexOf("->");
+				if (end == -1) end = afterPrefix.indexOf(":");
+				var tag = end == -1 ? afterPrefix : afterPrefix.substring(0, end);
+				if (!isPrivateTag(tag)) return true;
+				if (isUser(tag)) return true;
+				return captures(getTagReadAccess(), QualifiedTag.selector(tag));
+			})
+			.toList();
+		if (filtered.size() == orders.size()) return pageable;
+		return PageRequest.of(
+			pageable.getPageNumber(),
+			pageable.getPageSize(),
+			Sort.by(filtered));
+	}
+
+	/**
 	 * Has the maximum role or lower.
 	 */
 	private boolean maxRole(String role) {
@@ -874,7 +912,7 @@ public class Auth {
 	protected Optional<User> getUser() {
 		if (user == null) {
 			var auth = ofNullable(getAuthentication());
-			user = auth.map(a -> a.getDetails() instanceof UserDto
+			user = auth.map(a -> a.getDetails() instanceof User
 				? (User) a.getDetails()
 				: null);
 			if (isLoggedIn() && user.isEmpty()) {
@@ -1041,7 +1079,7 @@ public class Auth {
 			if (auth instanceof JwtAuthentication j) {
 				claims = j.getClaims();
 			} else {
-				claims = claims().build();
+				claims = Claims.EMPTY;
 			}
 		}
 		return claims;

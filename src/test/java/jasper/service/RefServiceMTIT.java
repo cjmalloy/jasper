@@ -1,6 +1,7 @@
 package jasper.service;
 
 import jasper.MultiTenantIntegrationTest;
+import jasper.component.ConfigCache;
 import jasper.component.Ingest;
 import jasper.config.Props;
 import jasper.domain.Plugin;
@@ -48,6 +49,9 @@ public class RefServiceMTIT {
 	@Autowired
 	UserRepository userRepository;
 
+	@Autowired
+	ConfigCache configCache;
+
 	static final String URL = "https://www.example.com/";
 
 	Ref getRef() {
@@ -82,6 +86,9 @@ public class RefServiceMTIT {
 		refRepository.deleteAll();
 		pluginRepository.deleteAll();
 		userRepository.deleteAll();
+		configCache.clearUserCache();
+		configCache.clearPluginCache();
+		configCache.clearTemplateCache();
 	}
 
 	@BeforeEach

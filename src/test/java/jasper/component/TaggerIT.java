@@ -52,6 +52,27 @@ public class TaggerIT {
 	}
 
 	@Test
+	void testDebugRefWriteAttachesLogs() {
+		tagger.tag(URL, "", "+plugin/debug");
+
+		var logs = refRepository.findAll().stream()
+			.filter(r -> r.hasTag("+plugin/log"))
+			.toList();
+		assertThat(logs).hasSize(1);
+		assertThat(logs.getFirst().getSources()).containsExactly(URL);
+		assertThat(logs.getFirst().getTitle()).isEqualTo("+plugin/debug Ingest create");
+		assertThat(logs.getFirst().getComment()).contains("jasper.component.Tagger.tag");
+	}
+
+	@Test
+	void testNonDebugRefWriteDoesNotAttachLogs() {
+		tagger.tag(URL, "", "test");
+
+		assertThat(refRepository.findAll().stream().filter(r -> r.hasTag("+plugin/log")))
+			.isEmpty();
+	}
+
+	@Test
 	void testTagRef() {
 		tagger.tag(URL, "", "test");
 

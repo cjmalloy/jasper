@@ -4,7 +4,6 @@ import jasper.component.ConfigCache;
 import jasper.component.Storage;
 import jasper.config.Props;
 import jasper.repository.UserRepository;
-import jasper.service.dto.TemplateDto;
 import jasper.service.dto.UserDto;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -17,8 +16,6 @@ import org.springframework.messaging.Message;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
-
-import static jasper.repository.spec.QualifiedTag.concat;
 
 @Profile("!kubernetes & storage")
 @Component

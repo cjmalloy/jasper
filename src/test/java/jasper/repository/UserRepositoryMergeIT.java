@@ -1,6 +1,7 @@
 package jasper.repository;
 
 import jasper.IntegrationTest;
+import jasper.component.ConfigCache;
 import jasper.domain.External;
 import jasper.domain.User;
 import org.junit.jupiter.api.BeforeEach;
@@ -18,9 +19,15 @@ public class UserRepositoryMergeIT {
 	@Autowired
 	UserRepository userRepository;
 
+	@Autowired
+	ConfigCache configCache;
+
 	@BeforeEach
 	void init() {
 		userRepository.deleteAll();
+		configCache.clearUserCache();
+		configCache.clearPluginCache();
+		configCache.clearTemplateCache();
 	}
 
 	@Test
@@ -245,10 +252,10 @@ public class UserRepositoryMergeIT {
 	}
 
 	@Test
-	void testFindAllByOriginAndExternalId_JpqlWithJsonbExtractPath() {
-		// This test verifies that the JPQL query using jsonb_extract_path works correctly
+	void testFindAllByOriginAndExternalId_JpqlWithJsonbObjectField() {
+		// This test verifies that the JPQL query using jsonb_object_field works correctly
 		// with the custom PostgreSQLDialect function registration. The query uses:
-		// jsonb_exists(jsonb_extract_path(u.external, 'ids'), :externalId)
+		// jsonb_exists(jsonb_object_field(u.external, 'ids'), :externalId)
 		// which requires both functions to be registered in PostgreSQLDialect.
 
 		var user1 = new User();

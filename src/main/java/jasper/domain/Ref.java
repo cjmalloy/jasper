@@ -65,13 +65,13 @@ public class Ref implements HasTags {
 	private String comment;
 
 	@JdbcTypeCode(SqlTypes.JSON)
-	private List<@Length(max = TAG_LEN) @Pattern(regexp = Tag.REGEX) String> tags;
+	private List<@NotBlank @Length(max = TAG_LEN) @Pattern(regexp = Tag.REGEX) String> tags;
 
 	@JdbcTypeCode(SqlTypes.JSON)
-	private List<@Length(max = URL_LEN) @Pattern(regexp = REGEX) String> sources;
+	private List<@NotBlank @Length(max = URL_LEN) @Pattern(regexp = REGEX) String> sources;
 
 	@JdbcTypeCode(SqlTypes.JSON)
-	private List<@Length(max = URL_LEN) @Pattern(regexp = REGEX) String> alternateUrls;
+	private List<@NotBlank @Length(max = URL_LEN) @Pattern(regexp = REGEX) String> alternateUrls;
 
 	@JdbcTypeCode(SqlTypes.JSON)
 	private ObjectNode plugins;
@@ -79,7 +79,7 @@ public class Ref implements HasTags {
 	@JdbcTypeCode(SqlTypes.JSON)
 	private Metadata metadata;
 
-	@Formula("SUBSTRING(url from 0 for POSITION(':' in url))")
+	@Formula("SUBSTR(url, 1, INSTR(url, ':'))")
 	@Setter(AccessLevel.NONE)
 	private String scheme;
 
@@ -162,7 +162,6 @@ public class Ref implements HasTags {
 	@JsonIgnore
 	public Ref addTag(String tag) {
 		if (isBlank(tag)) return this;
-		if (isBlank(tag)) return this;
 		if (tags == null) {
 			if (tag.startsWith("-")) return this;
 			tags = new ArrayList<>();
@@ -181,6 +180,14 @@ public class Ref implements HasTags {
 	public Ref addTags(List<String> toAdd) {
 		if (toAdd == null) return this;
 		for (var t : toAdd) addTag(t);
+		return this;
+	}
+
+	@JsonIgnore
+	public Ref addSource(String source) {
+		if (isBlank(source)) return this;
+		if (sources == null) sources = new ArrayList<>();
+		sources.add(source);
 		return this;
 	}
 
@@ -208,7 +215,7 @@ public class Ref implements HasTags {
 
 	@JsonIgnore
 	public Ref setPlugin(String tag, Object jsonNode) {
-		if (jsonNode == null) {
+		if (jsonNode == null || jsonNode instanceof JsonNode n && n.isNull()) {
 			if (plugins != null) plugins.remove(tag);
 			return this;
 		}
@@ -220,9 +227,7 @@ public class Ref implements HasTags {
 
 	@JsonIgnore
 	public boolean hasPlugin(String tag) {
-		if (plugins == null) return false;
-		if (!plugins.has(tag)) return false;
-		return plugins.get(tag) != null;
+		return plugins != null && plugins.hasNonNull(tag);
 	}
 
 	@JsonIgnore
