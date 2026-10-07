@@ -53,9 +53,7 @@ public interface Tag extends Cursor {
 		return url.substring(0, url.indexOf("?")) + origin + url.substring(url.indexOf("?"));
 	}
 
-	/**
-	 * User URLs are qualified with the concrete origin of the user, never a selector such as "@*".
-	 */
+	// Selectors such as "@*" would never match a stored user URL
 	private static String concreteOrigin(String origin) {
 		if (isBlank(origin) || origin.equals("@")) return "";
 		if (!origin.matches(HasOrigin.REGEX)) throw new IllegalArgumentException("Not a concrete origin: " + origin);

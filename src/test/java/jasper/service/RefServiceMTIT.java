@@ -1470,7 +1470,11 @@ public class RefServiceMTIT {
 	}
 
 	Ref saveWithUserUrl(String url, String userUrl) {
-		var ref = getRef();
+		return saveWithUserUrl(url, "@other", userUrl);
+	}
+
+	Ref saveWithUserUrl(String url, String origin, String userUrl) {
+		var ref = getRef(origin);
 		ref.setUrl(url);
 		ref.setTags(new ArrayList<>(List.of("public")));
 		ref.setMetadata(Metadata.builder()
@@ -1506,6 +1510,27 @@ public class RefServiceMTIT {
 			RefFilter.builder().noUserResponse(List.of("+plugin/user/run")).build(),
 			PageRequest.of(0, 10));
 		assertThat(noPage.getContent())
+			.extracting(r -> r.getUrl())
+			.containsExactly(URL + 2);
+	}
+
+	@Test
+	void testUserResponseToSubOriginRef() {
+		saveWithUserUrl(URL, "@other.sub", "tag:/user/tester@other?url=" + URL);
+		saveWithUserUrl(URL + 2, "@other.sub", "tag:/user/tester@other.sub?url=" + URL + 2);
+
+		assertThat(refService.get(URL, "@other.sub").getMetadata().getUserUrls())
+			.containsExactly("+plugin/user/run");
+		assertThat(refService.get(URL + 2, "@other.sub").getMetadata().getUserUrls())
+			.isNullOrEmpty();
+		assertThat(refService.page(
+				RefFilter.builder().query("@other.sub").userResponse(List.of("+plugin/user/run")).build(),
+				PageRequest.of(0, 10)).getContent())
+			.extracting(r -> r.getUrl())
+			.containsExactly(URL);
+		assertThat(refService.page(
+				RefFilter.builder().query("@other.sub").noUserResponse(List.of("+plugin/user/run")).build(),
+				PageRequest.of(0, 10)).getContent())
 			.extracting(r -> r.getUrl())
 			.containsExactly(URL + 2);
 	}

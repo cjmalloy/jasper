@@ -209,6 +209,12 @@ public class TaggerIT {
 			res.setTags(new ArrayList<>(List.of("internal", "+user/tester", "+plugin/user/run")));
 			refRepository.save(res);
 		}
+		var other = new Ref();
+		other.setUrl("tag:/user/other?url=" + URL);
+		other.setOrigin("@sub");
+		other.setSources(new ArrayList<>(List.of(URL)));
+		other.setTags(new ArrayList<>(List.of("internal", "+user/other", "+plugin/user/run")));
+		refRepository.save(other);
 
 		((Tagger) AopTestUtils.getUltimateTargetObject(tagger)).removeAllResponses(URL, "", "+plugin/user/run");
 
@@ -216,8 +222,10 @@ public class TaggerIT {
 			.doesNotContain("+plugin/user/run");
 		assertThat(refRepository.findOneByUrlAndOrigin("tag:/user/tester?url=" + URL, "@sub").get().getTags())
 			.contains("+plugin/user/run");
-		assertThat(refRepository.findAll().stream().filter(r -> r.getOrigin().equals("@sub")))
-			.hasSize(1);
+		assertThat(refRepository.findOneByUrlAndOrigin("tag:/user/other?url=" + URL, "@sub").get().getTags())
+			.contains("+plugin/user/run");
+		assertThat(refRepository.findOneByUrlAndOrigin("tag:/user/other?url=" + URL, ""))
+			.isEmpty();
 	}
 
 }

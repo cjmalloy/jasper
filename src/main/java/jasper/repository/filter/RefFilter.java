@@ -54,10 +54,6 @@ public class RefFilter implements Query {
 	private Instant responseBefore;
 	private Instant responseAfter;
 
-	/**
-	 * @param user the user tag without origin, or null if not logged in
-	 * @param userOrigin the concrete origin the user is logged in to
-	 */
 	public Specification<Ref> spec(String user, String userOrigin) {
 		this.user = user;
 		this.userOrigin = userOrigin;
