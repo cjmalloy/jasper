@@ -22,7 +22,7 @@ public class SortSpec {
 	 * Only these fields can be accessed under metadata->.
 	 */
 	private static final Set<String> ALLOWED_METADATA_FIELDS = Set.of(
-		"modified", "expandedTags", "responses", "internalResponses", "plugins"
+		"modified", "newResponse", "newReaction", "expandedTags", "responses", "internalResponses", "plugins"
 	);
 
 	/**
@@ -44,7 +44,7 @@ public class SortSpec {
 	 * Uses COALESCE to handle nulls (0 for numeric/length, '' for string).
 	 *
 	 * For metadata fields, automatically applies the correct suffix and restricts access
-	 * to only allowed fields: modified, expandedTags, responses, internalResponses, plugins.
+	 * to only allowed fields: modified, newResponse, newReaction, expandedTags, responses, internalResponses, plugins.
 	 *
 	 * @param root the query root
 	 * @param cb the criteria builder

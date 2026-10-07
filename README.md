@@ -6,7 +6,7 @@ Knowledge Management Server
 [![Gatling](https://github.com/cjmalloy/jasper/actions/workflows/gatling.yml/badge.svg)](https://cjmalloy.github.io/jasper/reports/latest-gatling/)
 [![E2E](https://github.com/cjmalloy/jasper/actions/workflows/e2e.yml/badge.svg)](https://cjmalloy.github.io/jasper/reports/latest-e2e/)
 [![Dependabot](https://img.shields.io/endpoint?url=https://cjmalloy.github.io/jasper/reports/dependabot-badge.json)](https://github.com/cjmalloy/jasper/security/dependabot)
-[![OpenAPI](https://img.shields.io/badge/OpenAPI-1.4.0-brightgreen)](https://editor.swagger.io/?url=https://raw.githubusercontent.com/cjmalloy/jasper/refs/heads/master/src/main/resources/swagger/api.yml)
+[![OpenAPI](https://img.shields.io/badge/OpenAPI-1.4.2-brightgreen)](https://editor.swagger.io/?url=https://raw.githubusercontent.com/cjmalloy/jasper/refs/heads/master/src/main/resources/swagger/api.yml)
 [![Artifact Hub](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/jasper)](https://artifacthub.io/packages/helm/jasper/jasper)
 
 ## Quickstart
@@ -140,6 +140,15 @@ database schema changes.
 The `:num` and `:len` suffixes are automatically applied to metadata fields, so you can use
 `metadata->responses` instead of `metadata->responses:len`.
 
+Metadata dates useful for sorting:
+- `metadata->modified`: updated whenever the responses, internal responses or plugin counts change.
+- `metadata->newResponse`: updated only when a new response is created (not updated), ignoring
+  user urls (`tag:/user?url=...`).
+- `metadata->newReaction`: updated whenever any response is created or updated, including user urls.
+
+`newResponse` and `newReaction` are always written with 9 fractional digits so that sorting them
+as text gives chronological order.
+
 ## Modding
 Jasper allows extensive modification with server reuse. Since changes are done by creating
 Plugin and Template entities, server restarts are not required.  
@@ -194,7 +203,9 @@ Refs are the main data model in Jasper. A Ref defines a URL to a remote resource
     "responses": 0,
     "internalResponses": 0,
     "plugins": {},
-    "modified": "2022-06-18T12:07:04.404272Z"
+    "modified": "2022-06-18T12:07:04.404272Z",
+    "newResponse": "2022-06-18T12:07:04.404272000Z",
+    "newReaction": "2022-06-18T12:07:04.404272000Z"
   },
   "published": "2022-06-18T12:00:07Z",
   "created": "2022-06-18T12:07:04.404272Z",
