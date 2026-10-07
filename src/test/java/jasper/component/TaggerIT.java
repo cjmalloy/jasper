@@ -8,6 +8,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.test.context.support.WithMockUser;
+import org.springframework.test.util.AopTestUtils;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -195,6 +196,28 @@ public class TaggerIT {
 		var fetched = refRepository.findOneByUrlAndOrigin(URL, "@other").get();
 		assertThat(fetched.getTags())
 			.contains("plugin/test");
+	}
+
+	@Test
+	void testRemoveAllResponsesSkipsSubOrigins() {
+		refWithTags(URL);
+		for (var origin : List.of("", "@sub")) {
+			var res = new Ref();
+			res.setUrl("tag:/user/tester?url=" + URL);
+			res.setOrigin(origin);
+			res.setSources(new ArrayList<>(List.of(URL)));
+			res.setTags(new ArrayList<>(List.of("internal", "+user/tester", "+plugin/user/run")));
+			refRepository.save(res);
+		}
+
+		((Tagger) AopTestUtils.getUltimateTargetObject(tagger)).removeAllResponses(URL, "", "+plugin/user/run");
+
+		assertThat(refRepository.findOneByUrlAndOrigin("tag:/user/tester?url=" + URL, "").get().getTags())
+			.doesNotContain("+plugin/user/run");
+		assertThat(refRepository.findOneByUrlAndOrigin("tag:/user/tester?url=" + URL, "@sub").get().getTags())
+			.contains("+plugin/user/run");
+		assertThat(refRepository.findAll().stream().filter(r -> r.getOrigin().equals("@sub")))
+			.hasSize(1);
 	}
 
 }

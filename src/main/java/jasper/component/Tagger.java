@@ -334,7 +334,9 @@ public class Tagger {
 		var remote = configs.getRemote(origin);
 		if (remote != null) origin = remote.getOrigin();
 		for (var res : refRepository.findAllResponseIdsWithTag(url, origin, tag)) {
-			internalTag(res.getUrl(), res.getOrigin(), "-" + tag);
+			// Never write to sub-origins
+			if (!res.getOrigin().equals(origin)) continue;
+			internalTag(res.getUrl(), origin, "-" + tag);
 		}
 	}
 }
