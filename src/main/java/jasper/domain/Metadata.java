@@ -16,7 +16,6 @@ import java.util.Map;
 
 import static com.fasterxml.jackson.annotation.JsonInclude.Include.NON_DEFAULT;
 import static com.fasterxml.jackson.annotation.JsonInclude.Include.NON_EMPTY;
-import static com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL;
 import static jasper.domain.proj.Tag.matchesTemplate;
 
 @Getter
@@ -32,16 +31,7 @@ public class Metadata implements Serializable {
 	private List<String> expandedTags;
 	private List<String> responses;
 	private List<String> internalResponses;
-	/**
-	 * Plugin response counts from the same origin as this Ref.
-	 * Counts from all origins if the metadata was generated before remote counts were tracked.
-	 */
 	private Map<String, Long> plugins;
-	/**
-	 * Plugin response counts from all origins under the root origin.
-	 * Null if the metadata was generated before remote counts were tracked.
-	 */
-	@JsonInclude(NON_NULL)
 	private Map<String, Long> remotePlugins;
 	private Map<String, List<String>> userUrls;
 	@JsonInclude(NON_DEFAULT)
@@ -84,11 +74,10 @@ public class Metadata implements Serializable {
 	 *                response is not in the root origin
 	 */
 	public void addPlugins(List<String> add, String userUrl, boolean local) {
-		initRemotePlugins();
-		if (userUrls == null) userUrls = new HashMap<>();
+		initPlugins();
 		for (var plugin : add) {
-			if (local || remotePlugins == null) plugins.merge(plugin, 1L, Long::sum);
-			if (remotePlugins != null) remotePlugins.merge(plugin, 1L, Long::sum);
+			if (local) plugins.merge(plugin, 1L, Long::sum);
+			remotePlugins.merge(plugin, 1L, Long::sum);
 			if (userUrl != null && matchesTemplate("plugin/user", plugin)) {
 				if (userUrls.containsKey(plugin)) {
 					var list = userUrls.get(plugin);
@@ -106,12 +95,11 @@ public class Metadata implements Serializable {
 	 *                response is not in the root origin
 	 */
 	public void removePlugins(List<String> remove, String userUrl, boolean local) {
-		initRemotePlugins();
-		if (userUrls == null) userUrls = new HashMap<>();
+		initPlugins();
 		var changed = false;
 		for (var plugin : remove) {
-			if ((local || remotePlugins == null) && decrement(plugins, plugin)) changed = true;
-			if (remotePlugins != null && decrement(remotePlugins, plugin)) changed = true;
+			if (local && decrement(plugins, plugin)) changed = true;
+			if (decrement(remotePlugins, plugin)) changed = true;
 			if (userUrl != null && matchesTemplate("plugin/user", plugin)) {
 				for (var entry : userUrls.entrySet()) {
 					var list = entry.getValue();
@@ -130,15 +118,10 @@ public class Metadata implements Serializable {
 		if (changed) modified = Instant.now().toString();
 	}
 
-	private void initRemotePlugins() {
+	private void initPlugins() {
 		if (plugins == null) plugins = new HashMap<>();
-		if (remotePlugins != null) return;
-		if (plugins.isEmpty()) {
-			remotePlugins = new HashMap<>();
-		} else {
-			// Metadata generated before remote counts were tracked
-			regen = true;
-		}
+		if (remotePlugins == null) remotePlugins = new HashMap<>();
+		if (userUrls == null) userUrls = new HashMap<>();
 	}
 
 	private static boolean decrement(Map<String, Long> counts, String plugin) {

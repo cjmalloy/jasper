@@ -66,16 +66,11 @@ public interface HasTags extends Cursor {
 		return om().convertValue(ref.getPlugins().get(tag), toValueType);
 	}
 
-	/**
-	 * Has a plugin response in the same origin as this Ref.
-	 * Counts from all origins if remote counts have not been generated.
-	 */
 	static boolean hasPluginResponse(RefDto ref, String tag) {
 		if (ref.getMetadata() == null) return false;
-		var plugins = ref.getMetadata().getPlugins();
-		if (plugins == null) return false;
-		return plugins.entrySet().stream()
-			.filter(e -> matchesTag(tag, e.getKey()))
-			.anyMatch(e -> e.getValue() != null && e.getValue() > 0);
+		if (ref.getMetadata().getPlugins() == null) return false;
+		return ref.getMetadata().getPlugins().keySet().stream()
+			.filter(t -> matchesTag(tag, t))
+			.anyMatch(t -> ref.getMetadata().getPlugins().get(t) != null && ref.getMetadata().getPlugins().get(t) > 0);
 	}
 }

@@ -10,7 +10,6 @@ import java.util.List;
 import java.util.Map;
 
 import static com.fasterxml.jackson.annotation.JsonInclude.Include.NON_EMPTY;
-import static com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL;
 
 @Getter
 @Setter
@@ -20,7 +19,6 @@ public class MetadataDto implements Serializable {
 	private int responses;
 	private int internalResponses;
 	private Map<String, Integer> plugins;
-	@JsonInclude(NON_NULL)
 	private Map<String, Integer> remotePlugins;
 	private List<String> userUrls;
 	private boolean obsolete;

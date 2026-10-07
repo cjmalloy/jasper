@@ -66,23 +66,16 @@ public abstract class ComponentDtoMapper {
 
 	@AfterMapping
 	protected void publicMetadata(@MappingTarget MetadataUpdateDto metadata) {
+		metadata.setPlugins(publicPlugins(metadata.getPlugins()));
 		metadata.setRemotePlugins(publicPlugins(metadata.getRemotePlugins()));
-		var filteredPlugins = publicPlugins(metadata.getPlugins());
-		if (filteredPlugins == null || filteredPlugins.isEmpty()) {
-			metadata.setPlugins(null);
-		} else {
-			metadata.setPlugins(filteredPlugins);
-		}
 	}
 
 	private Map<String, Integer> publicPlugins(Map<String, Integer> plugins) {
 		if (plugins == null) return null;
-		var filteredPlugins = new HashMap<String, Integer>();
+		var filtered = new HashMap<String, Integer>();
 		plugins.forEach((tag, count) -> {
-			if (!tag.startsWith("_")) {
-				filteredPlugins.put(tag, count);
-			}
+			if (!tag.startsWith("_")) filtered.put(tag, count);
 		});
-		return filteredPlugins;
+		return filtered.isEmpty() ? null : filtered;
 	}
 }

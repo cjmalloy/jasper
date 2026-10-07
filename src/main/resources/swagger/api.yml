@@ -2704,9 +2704,7 @@ components:
             type: number
           example:
             'plugin/comment': 5
-          description: |
-            Total plugin response counts from all origins under the root origin.
-            Omitted if the metadata was generated before remote counts were tracked.
+          description: Total plugin response counts from all origins under the root origin.
         regen:
           type: boolean
           description: Metadata for this Ref is queued for regeneration.

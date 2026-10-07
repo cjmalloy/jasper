@@ -98,17 +98,12 @@ public class Ref implements HasTags {
 	@Column(updatable = false, insertable = false)
 	private String textsearchEn;
 
-	/**
-	 * Has a plugin response in the same origin as this Ref.
-	 * Counts from all origins if remote counts have not been generated.
-	 */
 	public boolean hasPluginResponse(String tag) {
 		if (metadata == null) return false;
-		var plugins = metadata.getPlugins();
-		if (plugins == null) return false;
-		return plugins.entrySet().stream()
-			.filter(e -> matchesTag(tag, e.getKey()))
-			.anyMatch(e -> e.getValue() != null && e.getValue() > 0);
+		if (metadata.getPlugins() == null) return false;
+		return metadata.getPlugins().keySet().stream()
+			.filter(t -> matchesTag(tag, t))
+			.anyMatch(t -> metadata.getPlugins().get(t) != null && metadata.getPlugins().get(t) > 0);
 	}
 
 	public void setOrigin(String value) {
