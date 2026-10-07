@@ -13,6 +13,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import java.util.List;
 import java.util.Optional;
 
 import static jasper.domain.Ref.from;
@@ -135,9 +136,7 @@ public class TaggerTest {
 
 	@Test
 	void testAttachLogsRedirectsSubOriginToRemoteOrigin() {
-		var remote = new RefDto();
-		remote.setOrigin("");
-		when(tagger.configs.getRemote("@sub")).thenReturn(remote);
+		mockRemote("+user/alice");
 		var parent = from(URL, "@sub", "_user/bob");
 
 		tagger.attachLogs("@sub", parent, "title", "logs");
@@ -146,7 +145,44 @@ public class TaggerTest {
 		verify(ingest).create(eq(""), log.capture());
 		assertThat(log.getValue().getOrigin()).isEqualTo("");
 		assertThat(log.getValue().getSources()).containsExactly(URL);
+		assertThat(log.getValue().getTags())
+			.contains("+plugin/log", "user/alice")
+			.doesNotContain("user/bob", "_user/bob", "public");
 		verify(ingest, never()).create(eq("@sub"), any(Ref.class));
+	}
+
+	@Test
+	void testAttachLogsRedirectedCopiesPrivateOwnerAndPublic() {
+		mockRemote("_user/alice");
+		var parent = from(URL, "@sub", "public", "+user/bob");
+
+		tagger.attachLogs("@sub", parent, "title", "logs");
+
+		var log = ArgumentCaptor.forClass(Ref.class);
+		verify(ingest).create(eq(""), log.capture());
+		assertThat(log.getValue().getTags())
+			.contains("+plugin/log", "public", "user/alice")
+			.doesNotContain("user/bob", "+user/bob");
+	}
+
+	@Test
+	void testAttachLogsKeepsLocalOriginPublic() {
+		var parent = from(URL, "@sub", "public", "+user/bob");
+
+		tagger.attachLogs("@sub", parent, "title", "logs");
+
+		var log = ArgumentCaptor.forClass(Ref.class);
+		verify(ingest).create(eq("@sub"), log.capture());
+		assertThat(log.getValue().getTags()).contains("+plugin/log", "public", "user/bob");
+	}
+
+	void mockRemote(String ...tags) {
+		var remote = new RefDto();
+		remote.setUrl("https://remote.example.com");
+		remote.setOrigin("");
+		when(tagger.configs.getRemote("@sub")).thenReturn(remote);
+		when(refRepository.findOneByUrlAndOrigin("https://remote.example.com", ""))
+			.thenReturn(Optional.of(from("https://remote.example.com", "", "+plugin/origin").addTags(List.of(tags))));
 	}
 
 	@Test

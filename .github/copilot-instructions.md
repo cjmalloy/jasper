@@ -203,6 +203,9 @@ jasper/
 - Keep a readable single-use expression at its call site instead of extracting it into a temporary variable.
 - Treat `src/main/java/jasper/security/Auth.java` as the authoritative security specification; avoid cosmetic refactors that reduce locality or obscure authorization decisions.
 
+**Replicated origins:**
+- Pulled origins only get silent, backdated state writes (`Tagger.silentPlugin`); logs stamped `now` go to the origin owning the `+plugin/origin` Ref (`Tagger.attachLogs`). See "Logs and errors on replicated origins" in `README.md`.
+
 ## Code drift check
 
 When a branch has more than one commit, ALWAYS check for drift before finishing: a change made then undone in a later commit can leave stray edits (imports, renames, reordering, whitespace, helper code).

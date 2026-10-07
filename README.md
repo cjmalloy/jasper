@@ -1069,6 +1069,30 @@ a time. If you want to combine multiple origins into one, create multiple `+plug
 **Push On Change:** Push entities immediately after modification.
 **Cache:** Also push cached files.  
 
+### Logs and errors on replicated origins
+A pulled origin is a copy of a remote server. Its users and user tags (`_user/*`, `+user/*`) belong to the remote
+server and mean nothing locally. The local users that matter are the owners of the `+plugin/origin` Ref, which lives
+in the owning origin (usually `""`).
+
+There are two kinds of writes:
+ * **State** on a Ref in a pulled origin, such as the `_plugin/cache` ban/error marker written after a failed cache
+   fetch. It is written silently into the pulled origin (`Tagger.silentPlugin`). A new Ref is backdated to
+   `cursor - 1ms` and an existing Ref keeps its `modified`, so the pull cursor (`modifiedAfter`) never moves past
+   remote entries.
+ * **Logs** (`+plugin/log` Refs with an `error:<uuid>` URL). They are stamped with `modified = now`, so they are never
+   written into a pulled origin. They are redirected to the origin that owns the `+plugin/origin` Ref.
+
+Rule: pulled origins only get silent, backdated writes; anything stamped `now` goes to the owning origin. This depends
+on whether the origin is a pull target, not on whether it is a sub origin. Local (non-replicated) sub origins keep their
+own logs.
+
+Redirected logs are tagged with the local owners of the `+plugin/origin` Ref, so they can read them (as can admins and
+mods, and everyone if the parent Ref is `public`). User tags from the pulled Ref belong to the remote server and are
+never copied. `+plugin/error` is never added to a Ref in a pulled origin.
+
+Push errors (including a `403` from the remote) are logged on the `+plugin/origin` Ref and tag it `+plugin/error`,
+which disables push on change until the tag is removed. They never fail the request that saved the Ref.
+
 ## Random Number Generator
 
 The `plugin/rng` tag can be used to generate random numbers. Random numbers are generated whenever editing, creating, or
