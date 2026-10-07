@@ -48,6 +48,7 @@ developers can create a bespoke interface without needing to make any server sid
 plugins and templates and ensure data shape with [JTD](https://jsontypedef.com/docs/jtd-in-5-minutes/)
 schemas. Fork [the reference client](https://github.com/cjmalloy/jasper-ui) or use the
 [OpenApi docs](https://editor.swagger.io/?url=https://raw.githubusercontent.com/cjmalloy/jasper/refs/heads/master/src/main/resources/swagger/api.yml) to generate API stubs.
+See [Errors](./docs/errors.md) for the error codes returned by the API.
 
 ## Standards
 Jasper is a standard data model and API. While JSON is used in this document, Jasper may be generalised
@@ -839,6 +840,9 @@ Error checking should be the first part of any script parsing user input as part
 We always want to err on the side of accepting well-shaped data rather than rejecting it, as server validation
 errors rejecting valid user input are infuriating and very common. Error correction can happen as a follow-up step
 if the client validation was somehow circumvented.
+
+Validation failures return an error code in the `message` field. See [Errors](./docs/errors.md) for every
+error code, category and HTTP status.
 
 ## Metadata
 Jasper uses metadata generation to pre-compute graph connections. This allows us to store derived data outside

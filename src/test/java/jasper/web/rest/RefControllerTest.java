@@ -297,14 +297,21 @@ class RefControllerTest {
         var pluginData = mapper.createObjectNode();
         pluginData.put("name", "John");
         pluginData.put("age", 30);
-        ref.setPlugin("plugin/test", pluginData);
+        // Set plugin data directly, since setPlugin would also add the tag
+        var plugins = mapper.createObjectNode();
+        plugins.set("plugin/test", pluginData);
+        ref.setPlugins(plugins);
 
-        // Plugin data without the tag is allowed (will be validated when tag is added)
+        // Plugin data must be tagged
         mockMvc
             .perform(post("/api/v1/ref")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(mapper.writeValueAsBytes(ref))
                 .with(csrf().asHeader()))
-            .andExpect(status().isCreated());
+            .andExpect(status().isBadRequest())
+            .andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON))
+            .andExpect(jsonPath("$.message").value(ErrorConstants.ERR_INVALID_PLUGIN))
+            .andExpect(jsonPath("$.type").value(ErrorConstants.PLUGIN_VALIDATION_TYPE.toString()))
+            .andExpect(jsonPath("$.detail").value(containsString("plugin/test")));
     }
 }
