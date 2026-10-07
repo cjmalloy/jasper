@@ -41,7 +41,7 @@ public class BackfillRepositoryImplPostgres implements BackfillRepository {
 				) FROM plugin p WHERE p.origin = :origin)), CAST('{}' AS jsonb)),
 				'remotePlugins', COALESCE(jsonb_strip_nulls((SELECT jsonb_object_agg(
 					p.tag,
-					(SELECT NULLIF(COUNT(*), 0) FROM ref pre WHERE (pre.sources @> jsonb_build_array(r.url)) AND (:origin = '' OR pre.origin = :origin OR pre.origin LIKE concat(:origin, '.%')) AND pre.metadata IS NOT NULL AND (pre.url LIKE 'tag:/%' OR COALESCE(pre.metadata->>'obsolete', 'false') IN ('false', '0')) AND jsonb_exists(COALESCE(pre.metadata->'expandedTags', pre.tags), p.tag) = true)
+					(SELECT NULLIF(COUNT(*), 0) FROM ref pre WHERE (pre.sources @> jsonb_build_array(r.url)) AND pre.url != r.url AND (:origin = '' OR pre.origin = :origin OR pre.origin LIKE concat(:origin, '.%')) AND pre.metadata IS NOT NULL AND (pre.url LIKE 'tag:/%' OR COALESCE(pre.metadata->>'obsolete', 'false') IN ('false', '0')) AND jsonb_exists(COALESCE(pre.metadata->'expandedTags', pre.tags), p.tag) = true)
 				) FROM plugin p WHERE p.origin = :origin)), CAST('{}' AS jsonb)),
 				'obsolete', EXISTS (SELECT 1 from ref n WHERE n.url = r.url AND n.modified > r.modified AND (:origin = '' OR n.origin = :origin OR n.origin LIKE concat(:origin, '.%'))),
 				'cascade', CASE WHEN jsonb_array_length(COALESCE(r.sources, '[]')) > 0 THEN true END
