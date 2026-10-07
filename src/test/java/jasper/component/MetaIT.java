@@ -915,4 +915,236 @@ public class MetaIT {
 		// Should call sources() since existing.tags is null
 	}
 
+	Ref userUrl(String origin, String... tags) {
+		var res = new Ref();
+		res.setUrl("tag:/user/tester?url=" + URL);
+		res.setOrigin(origin);
+		res.setSources(List.of(URL));
+		res.setTags(new ArrayList<>(List.of(tags)));
+		return res;
+	}
+
+	@Test
+	void testUserUrlsIgnoreSubOriginResponse() {
+		saveSource(URL);
+
+		meta.sources("", userUrl("@remote", "internal", "+user/tester", "+plugin/user/run"), null);
+
+		var parent = refRepository.findOneByUrlAndOrigin(URL, "").orElseThrow();
+		assertThat(parent.getMetadata().getUserUrls()).isNullOrEmpty();
+		assertThat(parent.hasPluginResponse("+plugin/user/run")).isFalse();
+		assertThat(parent.getMetadata().getPlugins()).isNullOrEmpty();
+		assertThat(parent.getMetadata().getRemotePlugins()).containsEntry("+plugin/user/run", 1L);
+	}
+
+	@Test
+	void testUserUrlsSameOriginResponse() {
+		saveSource(URL);
+
+		meta.sources("", userUrl("", "internal", "+user/tester", "+plugin/user/run"), null);
+
+		var parent = refRepository.findOneByUrlAndOrigin(URL, "").orElseThrow();
+		assertThat(parent.getMetadata().getUserUrls())
+			.containsEntry("+plugin/user/run", List.of("tag:/user/tester?url=" + URL));
+		assertThat(parent.hasPluginResponse("+plugin/user/run")).isTrue();
+		assertThat(parent.getMetadata().getRemotePlugins()).containsEntry("+plugin/user/run", 1L);
+	}
+
+	@Test
+	void testUserUrlsRemoveResponse() {
+		saveSource(URL);
+		var existing = userUrl("", "internal", "+user/tester", "+plugin/user/run");
+		meta.sources("", existing, null);
+
+		meta.sources("", userUrl("", "internal", "+user/tester"), existing);
+
+		var parent = refRepository.findOneByUrlAndOrigin(URL, "").orElseThrow();
+		assertThat(parent.getMetadata().getUserUrls().get("+plugin/user/run")).isNullOrEmpty();
+	}
+
+	Ref saveSourceInOrigin(String url, String origin) {
+		var source = new Ref();
+		source.setUrl(url);
+		source.setOrigin(origin);
+		source.setTitle("Source");
+		source.setMetadata(Metadata.builder()
+			.modified("2026-01-01T00:00:00Z")
+			.build());
+		return refRepository.save(source);
+	}
+
+	@Test
+	void testUserUrlsRootOriginRespondsToSubOrigin() {
+		saveSourceInOrigin(URL, "@remote.sub");
+
+		meta.sources("@remote", userUrl("@remote", "internal", "+user/tester", "+plugin/user/run"), null);
+
+		var parent = refRepository.findOneByUrlAndOrigin(URL, "@remote.sub").orElseThrow();
+		assertThat(parent.getMetadata().getUserUrls())
+			.containsEntry("+plugin/user/run", List.of("tag:/user/tester@remote?url=" + URL));
+		assertThat(parent.getMetadata().getPlugins()).isNullOrEmpty();
+		assertThat(parent.getMetadata().getRemotePlugins()).containsEntry("+plugin/user/run", 1L);
+	}
+
+	@Test
+	void testRegenUserUrlsRootOriginRespondsToSubOrigin() {
+		var source = saveSourceInOrigin(URL, "@remote.sub");
+		refRepository.save(userUrl("@remote", "internal", "+user/tester", "+plugin/user/run"));
+		refRepository.save(userUrl("@remote.sub", "internal", "+user/tester", "+plugin/user/run"));
+
+		meta.ref("@remote", source);
+
+		assertThat(source.getMetadata().getUserUrls().get("+plugin/user/run"))
+			.containsExactly("tag:/user/tester@remote?url=" + URL);
+		assertThat(source.getMetadata().getPlugins()).containsEntry("+plugin/user/run", 1L);
+		assertThat(source.getMetadata().getRemotePlugins()).containsEntry("+plugin/user/run", 2L);
+	}
+
+	@Test
+	void testRegenUserUrlsOnlyRootOrigin() {
+		var source = saveSource(URL);
+		refRepository.save(userUrl("", "internal", "+user/tester", "+plugin/user/run"));
+		refRepository.save(userUrl("@remote", "internal", "+user/tester", "+plugin/user/run"));
+
+		meta.ref("", source);
+
+		assertThat(source.getMetadata().getUserUrls().get("+plugin/user/run"))
+			.containsExactly("tag:/user/tester?url=" + URL);
+		assertThat(source.hasPluginResponse("+plugin/user/run")).isTrue();
+		assertThat(source.getMetadata().getPlugins()).containsEntry("+plugin/user/run", 1L);
+		assertThat(source.getMetadata().getRemotePlugins()).containsEntry("+plugin/user/run", 2L);
+	}
+
+	@Test
+	void testRegenUserUrlsNeverObsolete() {
+		var source = saveSource(URL);
+		var local = userUrl("", "internal", "+user/tester", "+plugin/user/run");
+		local.setMetadata(Metadata.builder().obsolete(true).build());
+		refRepository.save(local);
+		refRepository.save(userUrl("@remote", "internal", "+user/tester", "+plugin/user/run"));
+
+		meta.ref("", source);
+
+		assertThat(source.getMetadata().getUserUrls().get("+plugin/user/run"))
+			.containsExactly("tag:/user/tester?url=" + URL);
+		assertThat(source.hasPluginResponse("+plugin/user/run")).isTrue();
+		assertThat(source.getMetadata().getPlugins()).containsEntry("+plugin/user/run", 1L);
+		assertThat(source.getMetadata().getRemotePlugins()).containsEntry("+plugin/user/run", 2L);
+	}
+
+	@Test
+	void testRegenObsoleteNonUserTagUrlNotCounted() {
+		var source = saveSource(URL);
+		var local = userUrl("", "internal", "+plugin/user/run");
+		local.setUrl("tag:/news?url=" + URL);
+		local.setMetadata(Metadata.builder().obsolete(true).build());
+		refRepository.save(local);
+		var remote = userUrl("@remote", "internal", "+plugin/user/run");
+		remote.setUrl("tag:/news?url=" + URL);
+		refRepository.save(remote);
+
+		meta.ref("", source);
+
+		assertThat(source.getMetadata().getUserUrls()).isNullOrEmpty();
+		assertThat(source.getMetadata().getPlugins()).isNullOrEmpty();
+		assertThat(source.getMetadata().getRemotePlugins()).containsEntry("+plugin/user/run", 1L);
+	}
+
+	@Test
+	void testRegenPluginsIgnoreObsoleteResponses() {
+		var source = saveSource(URL);
+		var local = comment("comment:1", "");
+		local.setMetadata(Metadata.builder().obsolete(true).build());
+		refRepository.save(local);
+		refRepository.save(comment("comment:1", "@remote"));
+
+		meta.ref("", source);
+
+		assertThat(source.getMetadata().getPlugins()).isNullOrEmpty();
+		assertThat(source.getMetadata().getRemotePlugins()).containsEntry("plugin/comment", 1L);
+	}
+
+	@Test
+	void testRegenRemotePluginsMatchesLiveCountsForSameUrl() {
+		saveSource(URL);
+		var local = comment("comment:1", "");
+		var remote = comment("comment:1", "@remote");
+		meta.sources("", local, null);
+		meta.sources("", remote, null);
+		refRepository.save(local);
+		refRepository.save(remote);
+
+		var parent = refRepository.findOneByUrlAndOrigin(URL, "").orElseThrow();
+		assertThat(parent.getMetadata().getPlugins()).containsEntry("plugin/comment", 1L);
+		assertThat(parent.getMetadata().getRemotePlugins()).containsEntry("plugin/comment", 2L);
+
+		meta.ref("", parent);
+
+		assertThat(parent.getMetadata().getPlugins()).containsEntry("plugin/comment", 1L);
+		assertThat(parent.getMetadata().getRemotePlugins()).containsEntry("plugin/comment", 2L);
+	}
+
+	Ref comment(String url, String origin) {
+		var res = new Ref();
+		res.setUrl(url);
+		res.setOrigin(origin);
+		res.setSources(List.of(URL));
+		res.setTags(new ArrayList<>(List.of("plugin/comment")));
+		return res;
+	}
+
+	@Test
+	void testPluginsOnlyCountSameOrigin() {
+		saveSource(URL);
+
+		meta.sources("", comment("comment:1", ""), null);
+		meta.sources("", comment("comment:2", "@remote"), null);
+
+		var parent = refRepository.findOneByUrlAndOrigin(URL, "").orElseThrow();
+		assertThat(parent.getMetadata().getPlugins()).containsEntry("plugin/comment", 1L);
+		assertThat(parent.getMetadata().getRemotePlugins()).containsEntry("plugin/comment", 2L);
+	}
+
+	@Test
+	void testRemoteResponseNotLocalPluginResponse() {
+		saveSource(URL);
+
+		meta.sources("", comment("comment:1", "@remote"), null);
+
+		var parent = refRepository.findOneByUrlAndOrigin(URL, "").orElseThrow();
+		assertThat(parent.getMetadata().getPlugins()).isNullOrEmpty();
+		assertThat(parent.getMetadata().getRemotePlugins()).containsEntry("plugin/comment", 1L);
+		assertThat(parent.hasPluginResponse("plugin/comment")).isFalse();
+	}
+
+	@Test
+	void testRemovePluginsKeepsRemote() {
+		saveSource(URL);
+		var local = comment("comment:1", "");
+		meta.sources("", local, null);
+		var remote = comment("comment:2", "@remote");
+		meta.sources("", remote, null);
+
+		var updated = comment("comment:1", "");
+		updated.setTags(new ArrayList<>(List.of("internal")));
+		meta.sources("", updated, local);
+
+		var parent = refRepository.findOneByUrlAndOrigin(URL, "").orElseThrow();
+		assertThat(parent.getMetadata().getPlugins()).isNullOrEmpty();
+		assertThat(parent.getMetadata().getRemotePlugins()).containsEntry("plugin/comment", 1L);
+		assertThat(parent.hasPluginResponse("plugin/comment")).isFalse();
+	}
+
+	@Test
+	void testRegenRemotePlugins() {
+		var source = saveSource(URL);
+		refRepository.save(comment("comment:1", ""));
+		refRepository.save(comment("comment:2", "@remote"));
+
+		meta.ref("", source);
+
+		assertThat(source.getMetadata().getPlugins()).containsEntry("plugin/comment", 1L);
+		assertThat(source.getMetadata().getRemotePlugins()).containsEntry("plugin/comment", 2L);
+		assertThat(source.hasPluginResponse("plugin/comment")).isTrue();
+	}
 }

@@ -32,17 +32,26 @@ public class RefRepositoryImplPostgres implements RefRepositoryCustom {
 
 	@Override
 	public List<Object[]> countPluginTagsInResponses(String url, String origin) {
+		return countPluginTags(url, origin, "(r.url, r.origin)", "(:origin = '' OR r.origin = :origin OR r.origin LIKE concat(:origin, '.%'))");
+	}
+
+	@Override
+	public List<Object[]> countLocalPluginTagsInResponses(String url, String origin) {
+		return countPluginTags(url, origin, "r.url", "r.origin = :origin");
+	}
+
+	private List<Object[]> countPluginTags(String url, String origin, String distinct, String originFilter) {
 		return em.createNativeQuery("""
-			SELECT t.tag, COUNT(DISTINCT r.url)
+			SELECT t.tag, COUNT(DISTINCT %s)
 			FROM ref r
 				CROSS JOIN LATERAL jsonb_array_elements_text(COALESCE(r.metadata->'expandedTags', r.tags)) AS t(tag)
 			WHERE r.url != :url
 				AND r.sources @> jsonb_build_array(:url)
 				AND t.tag ~ '^[_+]?plugin(/|$)'
-				AND COALESCE(jsonb_object_field_text(r.metadata, 'obsolete'), 'false') != 'true'
-				AND (:origin = '' OR r.origin = :origin OR r.origin LIKE concat(:origin, '.%'))
+				AND (r.url ~ '^tag:/[_+]?user([/?]|$)' OR COALESCE(jsonb_object_field_text(r.metadata, 'obsolete'), 'false') != 'true')
+				AND %s
 			GROUP BY t.tag
-			""", Object[].class)
+			""".formatted(distinct, originFilter), Object[].class)
 			.setParameter("url", url)
 			.setParameter("origin", origin)
 			.getResultList();

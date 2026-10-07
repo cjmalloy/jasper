@@ -205,6 +205,30 @@ public class RefRepositoryIT {
 		assertThat(map).doesNotContainKey("public");
 	}
 
+	@Test
+	void testCountPluginTagsInResponses_CountsSameUrlInEachOrigin() {
+		var parent = new Ref();
+		parent.setUrl("http://example.com/parent");
+		parent.setOrigin("");
+		refRepository.save(parent);
+
+		for (var origin : List.of("", "@other")) {
+			var response = new Ref();
+			response.setUrl("http://example.com/response");
+			response.setOrigin(origin);
+			response.setSources(List.of("http://example.com/parent"));
+			response.setMetadata(Metadata.builder()
+				.expandedTags(List.of("plugin/comment", "public"))
+				.build());
+			refRepository.save(response);
+		}
+
+		var result = refRepositoryCustom.countPluginTagsInResponses("http://example.com/parent", "");
+
+		var map = result.stream().collect(java.util.stream.Collectors.toMap(r -> (String) r[0], r -> ((Number) r[1]).longValue()));
+		assertThat(map).containsEntry("plugin/comment", 2L);
+	}
+
 	// --- findAllUserPluginTagsInResponses ---
 
 	@Test

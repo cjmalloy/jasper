@@ -154,7 +154,6 @@ public class Async {
 				if (!v.backfill()) return;
 				if (!configs.root().script(tag, ref)) return;
 				if (!hasMatchingTag(ref, tag)) return;
-				// TODO: Only check plugin responses in the same origin
 				if (isNotBlank(v.signature()) && ref.hasPluginResponse(v.signature())) return;
 				refs.compute(getKey(ref), (u, existing) -> {
 					if (existing != null && !existing.isDone()) {

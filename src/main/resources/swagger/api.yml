@@ -2709,6 +2709,14 @@ components:
             type: number
           example:
             'plugin/comment': 3
+          description: Plugin response counts from the same origin as this Ref.
+        remotePlugins:
+          type: object
+          additionalProperties:
+            type: number
+          example:
+            'plugin/comment': 5
+          description: Total plugin response counts from all origins under the root origin.
         regen:
           type: boolean
           description: Metadata for this Ref is queued for regeneration.

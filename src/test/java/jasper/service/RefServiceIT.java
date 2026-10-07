@@ -32,7 +32,9 @@ import org.springframework.security.test.context.support.WithMockUser;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -1836,5 +1838,43 @@ public class RefServiceIT {
 				{"op": "add", "path": "/plugins/plugin~1test", "value": null},
 				{"op": "add", "path": "/plugins/plugin~1test/style", "value": {}}
 			]""");
+	}
+
+	Ref saveWithUserUrl(String url, String userUrl) {
+		var ref = new Ref();
+		ref.setUrl(url);
+		ref.setTags(new ArrayList<>(List.of("public")));
+		ref.setMetadata(Metadata.builder()
+			.userUrls(new HashMap<>(Map.of("+plugin/user/run", List.of(userUrl))))
+			.build());
+		return refRepository.save(ref);
+	}
+
+	@Test
+	void testUserUrlsMatchDefaultOriginUser() {
+		saveWithUserUrl(URL, "tag:/user/tester?url=" + URL);
+		saveWithUserUrl(URL + 2, "tag:/user/tester@other?url=" + URL + 2);
+
+		assertThat(refService.get(URL, "").getMetadata().getUserUrls())
+			.containsExactly("+plugin/user/run");
+		assertThat(refService.get(URL + 2, "").getMetadata().getUserUrls())
+			.isNullOrEmpty();
+	}
+
+	@Test
+	void testUserResponseFilterMatchesDefaultOriginUser() {
+		saveWithUserUrl(URL, "tag:/user/tester?url=" + URL);
+		saveWithUserUrl(URL + 2, "tag:/user/tester@other?url=" + URL + 2);
+
+		assertThat(refService.page(
+				RefFilter.builder().userResponse(List.of("+plugin/user/run")).build(),
+				PageRequest.of(0, 10)).getContent())
+			.extracting(r -> r.getUrl())
+			.containsExactly(URL);
+		assertThat(refService.page(
+				RefFilter.builder().noUserResponse(List.of("+plugin/user/run")).build(),
+				PageRequest.of(0, 10)).getContent())
+			.extracting(r -> r.getUrl())
+			.containsExactly(URL + 2);
 	}
 }

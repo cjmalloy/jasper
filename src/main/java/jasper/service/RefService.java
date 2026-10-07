@@ -113,7 +113,7 @@ public class RefService {
 			.findAll(
 				sort(
 					auth.refReadSpec()
-						.and(filter.spec(auth.getUserTag())),
+						.and(filter.spec(auth.isLoggedIn() ? auth.getUserTag().tag : null, auth.getOrigin())),
 					auth.pageable(pageable)),
 				of(pageable.getPageNumber(), pageable.getPageSize()))
 			.map(mapper::domainToDto);
@@ -126,7 +126,7 @@ public class RefService {
 		return refRepository
 			.count(
 				auth.refReadSpec()
-					.and(filter.spec(auth.getUserTag())));
+					.and(filter.spec(auth.isLoggedIn() ? auth.getUserTag().tag : null, auth.getOrigin())));
 	}
 
 	@PreAuthorize("@auth.canWriteRef(#ref)")

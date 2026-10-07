@@ -23,6 +23,7 @@ import java.util.List;
 
 import static jasper.domain.Metadata.timestamp;
 import static jasper.domain.proj.Tag.matchesTemplate;
+import static jasper.domain.proj.Tag.qualifiedUserUrl;
 import static jasper.domain.proj.Tag.userUrl;
 import static jasper.repository.spec.OriginSpec.isUnderOrigin;
 import static jasper.repository.spec.RefSpec.isNotObsolete;
@@ -72,10 +73,17 @@ public class Meta {
 				.stream()
 				.map(tag -> new UserUrlResponse(
 					tag,
-					refRepository.findAllResponsesWithTag(ref.getUrl(), rootOrigin, tag)))
+					refRepository.findAllResponseIdsWithTag(ref.getUrl(), rootOrigin, tag)
+						.stream()
+						.filter(id -> id.getOrigin().equals(rootOrigin))
+						.map(id -> qualifiedUserUrl(id.getUrl(), id.getOrigin()))
+						.toList()))
 				.filter(p -> !p.responses.isEmpty())
 				.collect(toMap(UserUrlResponse::tag, UserUrlResponse::responses)))
-			.plugins(refRepositoryCustom.countPluginTagsInResponses(ref.getUrl(), rootOrigin)
+			.plugins(refRepositoryCustom.countLocalPluginTagsInResponses(ref.getUrl(), ref.getOrigin())
+				.stream()
+				.collect(toMap(r -> (String) r[0], r -> ((Number) r[1]).longValue())))
+			.remotePlugins(refRepositoryCustom.countPluginTagsInResponses(ref.getUrl(), rootOrigin)
 				.stream()
 				.collect(toMap(r -> (String) r[0], r -> ((Number) r[1]).longValue())))
 			.build()
@@ -287,6 +295,7 @@ public class Meta {
 					.responses(new ArrayList<>())
 					.internalResponses(new ArrayList<>())
 					.plugins(new HashMap<>())
+					.remotePlugins(new HashMap<>())
 					.build();
 			}
 			if (ref.hasTag("internal")) {
@@ -298,12 +307,14 @@ public class Meta {
 				metadata.removePlugins(existing.getExpandedTags().stream()
 						.filter(tag -> matchesTemplate("plugin", tag))
 						.toList(),
-					ref.getUrl());
+					rootUserUrl(rootOrigin, existing.getUrl(), existing.getOrigin()),
+					existing.getOrigin().equals(source.getOrigin()));
 			}
 			metadata.addPlugins(ref.getExpandedTags().stream()
 				.filter(tag -> matchesTemplate("plugin", tag))
 				.toList(),
-				ref.getUrl());
+				rootUserUrl(rootOrigin, ref.getUrl(), ref.getOrigin()),
+				ref.getOrigin().equals(source.getOrigin()));
 			metadata.setNewReaction(timestamp);
 			if (newResponse) metadata.setNewResponse(timestamp);
 			source.setMetadata(metadata);
@@ -351,7 +362,8 @@ logger.error("{} Error updating source metadata for ({}) {}", rootOrigin, ref.ge
 			metadata.removePlugins(existing.getExpandedTags().stream()
 					.filter(tag -> matchesTemplate("plugin", tag))
 					.toList(),
-				url);
+				rootUserUrl(rootOrigin, url, existing.getOrigin()),
+				existing.getOrigin().equals(source.getOrigin()));
 		}
 		source.setMetadata(metadata);
 		try {
@@ -361,6 +373,11 @@ logger.error("{} Error updating source metadata for ({}) {}", rootOrigin, ref.ge
 			logger.error("{} Error updating source metadata for {} {}",
 				rootOrigin, source.getOrigin(), source.getUrl(), e);
 		}
+	}
+
+	private static String rootUserUrl(String rootOrigin, String url, String origin) {
+		if (!origin.equals(rootOrigin)) return null;
+		return qualifiedUserUrl(url, origin);
 	}
 
 	/**

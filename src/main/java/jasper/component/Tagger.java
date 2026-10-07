@@ -333,8 +333,10 @@ public class Tagger {
 	public void removeAllResponses(String url, String origin, String tag) {
 		var remote = configs.getRemote(origin);
 		if (remote != null) origin = remote.getOrigin();
-		for (var res : refRepository.findAllResponsesWithTag(url, origin, tag)) {
-			internalTag(res, origin, "-" + tag);
+		for (var res : refRepository.findAllResponseIdsWithTag(url, origin, tag)) {
+			// Never write to sub-origins
+			if (!res.getOrigin().equals(origin)) continue;
+			internalTag(res.getUrl(), origin, "-" + tag);
 		}
 	}
 }

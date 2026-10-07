@@ -185,6 +185,190 @@ public class BackfillRepositoryIT {
 
 	@Test
 	@DisabledOnSqlite
+	void testBackfillMetadata_UserUrlsNeverObsolete() {
+		var plugin = new Plugin();
+		plugin.setTag("+plugin/user/run");
+		plugin.setOrigin("");
+		pluginRepository.save(plugin);
+
+		var parent = new Ref();
+		parent.setUrl("http://example.com/parent");
+		parent.setOrigin("");
+		parent.setMetadata(null);
+		refRepository.save(parent);
+
+		for (var origin : List.of("", "@other")) {
+			var userUrl = new Ref();
+			userUrl.setUrl("tag:/user/tester?url=http://example.com/parent");
+			userUrl.setOrigin(origin);
+			userUrl.setSources(List.of("http://example.com/parent"));
+			userUrl.setTags(List.of("+plugin/user/run"));
+			userUrl.setMetadata(Metadata.builder()
+				.expandedTags(List.of("+plugin/user/run", "+plugin/user", "+plugin"))
+				.obsolete(origin.isEmpty())
+				.build());
+			refRepository.save(userUrl);
+		}
+
+		backfillRepository.backfillMetadata("", 10);
+
+		var loaded = refRepository.findOneByUrlAndOrigin(parent.getUrl(), parent.getOrigin()).get();
+		assertThat(loaded.getMetadata().getPlugins()).containsEntry("+plugin/user/run", 1L);
+		assertThat(loaded.getMetadata().getRemotePlugins()).containsEntry("+plugin/user/run", 2L);
+		assertThat(loaded.getMetadata().getUserUrls())
+			.containsEntry("+plugin/user/run", List.of("tag:/user/tester?url=http://example.com/parent"))
+			.containsEntry("+plugin/user", List.of("tag:/user/tester?url=http://example.com/parent"));
+	}
+
+	@Test
+	@DisabledOnSqlite
+	void testBackfillMetadata_UserUrlsQualifiedWithRootOrigin() {
+		var parent = new Ref();
+		parent.setUrl("http://example.com/parent");
+		parent.setOrigin("@test");
+		parent.setMetadata(null);
+		refRepository.save(parent);
+
+		for (var origin : List.of("@test", "@test.other")) {
+			var userUrl = new Ref();
+			userUrl.setUrl("tag:/user/tester?url=http://example.com/parent");
+			userUrl.setOrigin(origin);
+			userUrl.setSources(List.of("http://example.com/parent"));
+			userUrl.setTags(List.of("+plugin/user/run"));
+			userUrl.setMetadata(Metadata.builder()
+				.expandedTags(List.of("+plugin/user/run", "+plugin/user", "+plugin"))
+				.build());
+			refRepository.save(userUrl);
+		}
+
+		var response = new Ref();
+		response.setUrl("http://example.com/response");
+		response.setOrigin("@test");
+		response.setSources(List.of("http://example.com/parent"));
+		response.setTags(List.of("+plugin/user/run"));
+		response.setMetadata(Metadata.builder()
+			.expandedTags(List.of("+plugin/user/run", "+plugin/user", "+plugin"))
+			.build());
+		refRepository.save(response);
+
+		backfillRepository.backfillMetadata("@test", 10);
+
+		var loaded = refRepository.findOneByUrlAndOrigin(parent.getUrl(), parent.getOrigin()).get();
+		assertThat(loaded.getMetadata().getUserUrls().get("+plugin/user/run"))
+			.containsExactlyInAnyOrder(
+				"tag:/user/tester@test?url=http://example.com/parent",
+				"http://example.com/response@test");
+	}
+
+	@Test
+	@DisabledOnSqlite
+	void testBackfillMetadata_UserUrlWithoutMetadata() {
+		var parent = new Ref();
+		parent.setUrl("http://example.com/parent");
+		parent.setOrigin("");
+		parent.setMetadata(null);
+		refRepository.save(parent);
+
+		var userUrl = new Ref();
+		userUrl.setUrl("tag:/user/tester?url=http://example.com/parent");
+		userUrl.setOrigin("");
+		userUrl.setSources(List.of("http://example.com/parent"));
+		userUrl.setTags(List.of("+plugin/user/run"));
+		userUrl.setMetadata(null);
+		refRepository.save(userUrl);
+
+		backfillRepository.backfillMetadata("", 10);
+
+		var loaded = refRepository.findOneByUrlAndOrigin(parent.getUrl(), parent.getOrigin()).get();
+		assertThat(loaded.getMetadata().getPlugins()).containsEntry("+plugin/user/run", 1L);
+		assertThat(loaded.getMetadata().getRemotePlugins()).containsEntry("+plugin/user/run", 1L);
+		assertThat(loaded.getMetadata().getUserUrls()).containsEntry("+plugin/user/run", List.of("tag:/user/tester?url=http://example.com/parent"));
+	}
+
+	@Test
+	@DisabledOnSqlite
+	void testBackfillMetadata_ObsoleteNonUserTagUrlNotCounted() {
+		var parent = new Ref();
+		parent.setUrl("http://example.com/parent");
+		parent.setOrigin("");
+		parent.setMetadata(null);
+		refRepository.save(parent);
+
+		for (var origin : List.of("", "@other")) {
+			var response = new Ref();
+			response.setUrl("tag:/news?url=http://example.com/parent");
+			response.setOrigin(origin);
+			response.setSources(List.of("http://example.com/parent"));
+			response.setTags(List.of("plugin/comment"));
+			response.setMetadata(Metadata.builder()
+				.expandedTags(List.of("plugin/comment", "plugin"))
+				.obsolete(origin.isEmpty())
+				.build());
+			refRepository.save(response);
+		}
+
+		backfillRepository.backfillMetadata("", 10);
+
+		var loaded = refRepository.findOneByUrlAndOrigin(parent.getUrl(), parent.getOrigin()).get();
+		assertThat(loaded.getMetadata().getPlugins()).isNullOrEmpty();
+		assertThat(loaded.getMetadata().getRemotePlugins()).containsEntry("plugin/comment", 1L);
+	}
+
+	@Test
+	@DisabledOnSqlite
+	void testBackfillMetadata_LocalPlugins() {
+		var plugin = new Plugin();
+		plugin.setTag("plugin/comment");
+		plugin.setOrigin("");
+		pluginRepository.save(plugin);
+
+		var remoteOnly = new Ref();
+		remoteOnly.setUrl("http://example.com/remoteOnly");
+		remoteOnly.setOrigin("");
+		remoteOnly.setMetadata(null);
+		refRepository.save(remoteOnly);
+
+		var parent = new Ref();
+		parent.setUrl("http://example.com/parent");
+		parent.setOrigin("");
+		parent.setMetadata(null);
+		refRepository.save(parent);
+
+		var remote = new Ref();
+		remote.setUrl("http://example.com/remote");
+		remote.setOrigin("@other");
+		remote.setSources(List.of("http://example.com/parent", "http://example.com/remoteOnly"));
+		remote.setTags(List.of("plugin/comment"));
+		remote.setMetadata(Metadata.builder()
+			.expandedTags(List.of("plugin/comment", "plugin"))
+			.build());
+		refRepository.save(remote);
+
+		var local = new Ref();
+		local.setUrl("http://example.com/local");
+		local.setOrigin("");
+		local.setSources(List.of("http://example.com/parent"));
+		local.setTags(List.of("plugin/comment"));
+		local.setMetadata(Metadata.builder()
+			.expandedTags(List.of("plugin/comment", "plugin"))
+			.build());
+		refRepository.save(local);
+
+		backfillRepository.backfillMetadata("", 10);
+
+		var loaded = refRepository.findOneByUrlAndOrigin(remoteOnly.getUrl(), remoteOnly.getOrigin()).get();
+		assertThat(loaded.getMetadata().getPlugins()).isNullOrEmpty();
+		assertThat(loaded.getMetadata().getRemotePlugins()).containsEntry("plugin/comment", 1L);
+		assertThat(loaded.hasPluginResponse("plugin/comment")).isFalse();
+
+		loaded = refRepository.findOneByUrlAndOrigin(parent.getUrl(), parent.getOrigin()).get();
+		assertThat(loaded.getMetadata().getPlugins()).containsEntry("plugin/comment", 1L);
+		assertThat(loaded.getMetadata().getRemotePlugins()).containsEntry("plugin/comment", 2L);
+		assertThat(loaded.hasPluginResponse("plugin/comment")).isTrue();
+	}
+
+	@Test
+	@DisabledOnSqlite
 	void testBackfillMetadata_AssumesUnbackfilledResponsesObsolete() {
 		var plugin = new Plugin();
 		plugin.setTag("plugin/comment");
@@ -316,6 +500,34 @@ public class BackfillRepositoryIT {
 
 	@Test
 	@DisabledOnSqlite
+	void testBackfillMetadata_EmptyPluginTable() {
+		var parent = new Ref();
+		parent.setUrl("http://example.com/parent");
+		parent.setOrigin("");
+		parent.setMetadata(null);
+		refRepository.save(parent);
+
+		for (var origin : List.of("", "@other")) {
+			var response = new Ref();
+			response.setUrl("http://example.com/response");
+			response.setOrigin(origin);
+			response.setSources(List.of("http://example.com/parent"));
+			response.setTags(List.of("plugin/comment"));
+			response.setMetadata(Metadata.builder()
+				.expandedTags(List.of("plugin/comment", "plugin"))
+				.build());
+			refRepository.save(response);
+		}
+
+		backfillRepository.backfillMetadata("", 10);
+
+		var loaded = refRepository.findOneByUrlAndOrigin(parent.getUrl(), parent.getOrigin()).get();
+		assertThat(loaded.getMetadata().getPlugins()).containsEntry("plugin/comment", 1L);
+		assertThat(loaded.getMetadata().getRemotePlugins()).containsEntry("plugin/comment", 2L);
+	}
+
+	@Test
+	@DisabledOnSqlite
 	void testBackfillMetadata_CascadesRefsWithSources() {
 		var parent = new Ref();
 		parent.setUrl("http://example.com/parent");
@@ -354,7 +566,7 @@ public class BackfillRepositoryIT {
 			.getSingleResult();
 		assertThat(count.intValue()).isEqualTo(responses);
 		var loaded = refRepository.findOneByUrlAndOrigin(parent.getUrl(), parent.getOrigin()).get();
-		var pluginCount = loaded.getMetadata().getPlugins() == null ? 0 : loaded.getMetadata().getPlugins().getOrDefault("plugin/comment", 0L).intValue();
+		var pluginCount = loaded.getMetadata().getRemotePlugins() == null ? 0 : loaded.getMetadata().getRemotePlugins().getOrDefault("plugin/comment", 0L).intValue();
 		assertThat(pluginCount).isEqualTo(comments);
 	}
 }
