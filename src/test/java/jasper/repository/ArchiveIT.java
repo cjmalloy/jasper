@@ -900,6 +900,26 @@ public class ArchiveIT {
 	}
 
 	@Test
+	void testServicePushBlankUserIsTombstone() {
+		var user = new User();
+		user.setTag("+user/blank");
+		user.setRole("ROLE_USER");
+		user.setPubKey("ssh-rsa AAAA".getBytes());
+		user.setModified(now.minusSeconds(10));
+		userService.push(user);
+		var blank = new User();
+		blank.setTag("+user/blank");
+		blank.setModified(now);
+
+		userService.push(blank);
+
+		assertThat(VersionKind.countTag(userRepository, "+user/blank", ""))
+			.isEqualTo(2);
+		assertThat(ingestUser.current("+user/blank"))
+			.isEmpty();
+	}
+
+	@Test
 	void testSetExternalIdAppendsVersion() {
 		var user = new User();
 		user.setTag("+user/ext");

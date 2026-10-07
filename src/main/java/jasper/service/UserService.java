@@ -17,7 +17,9 @@ import jasper.security.Auth;
 import jasper.service.dto.DtoMapper;
 import jasper.service.dto.RolesDto;
 import jasper.service.dto.UserDto;
+import jasper.util.Archive;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.data.domain.Page;
@@ -69,6 +71,9 @@ public class UserService {
 	@Autowired
 	ObjectMapper objectMapper;
 
+	@Value("#{environment.matchesProfiles('archive')}")
+	boolean archive;
+
 	@PreAuthorize("@auth.canWriteUser(#user)")
 	@Timed(value = "jasper.service", extraTags = {"service", "user"}, histogram = true)
 	public Instant create(User user) {
@@ -84,7 +89,8 @@ public class UserService {
 			user.setAuthorizedKeys(new String(user.getPubKey(), StandardCharsets.UTF_8));
 		}
 		var maybeExisting = userRepository.findOneByQualifiedTag(user.getQualifiedTag());
-		if (maybeExisting.isPresent()) {
+		// In archive mode a blank version is a tombstone, so keep it blank
+		if (maybeExisting.isPresent() && !(archive && Archive.isBlank(user))) {
 			if (user.getKey() == null) user.setKey(maybeExisting.get().getKey());
 			if (user.getPubKey() == null) user.setPubKey(maybeExisting.get().getPubKey());
 			if (user.getExternal() == null) user.setExternal(maybeExisting.get().getExternal());
