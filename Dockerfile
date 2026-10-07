@@ -13,6 +13,7 @@ RUN java -Djarmode=tools -jar target/*.jar extract --layers --launcher --destina
 
 FROM builder AS test
 COPY docker/entrypoint.sh .
+COPY docs ./docs
 ENV BUN_RUNTIME_TRANSPILER_CACHE_PATH=0
 ENV BUN_INSTALL_BIN=/usr/local/bin
 COPY --from=bun /usr/local/bin/bun /usr/local/bin/

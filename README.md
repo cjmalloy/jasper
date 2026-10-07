@@ -6,7 +6,7 @@ Knowledge Management Server
 [![Gatling](https://github.com/cjmalloy/jasper/actions/workflows/gatling.yml/badge.svg)](https://cjmalloy.github.io/jasper/reports/latest-gatling/)
 [![E2E](https://github.com/cjmalloy/jasper/actions/workflows/e2e.yml/badge.svg)](https://cjmalloy.github.io/jasper/reports/latest-e2e/)
 [![Dependabot](https://img.shields.io/endpoint?url=https://cjmalloy.github.io/jasper/reports/dependabot-badge.json)](https://github.com/cjmalloy/jasper/security/dependabot)
-[![OpenAPI](https://img.shields.io/badge/OpenAPI-1.3.7-brightgreen)](https://editor.swagger.io/?url=https://raw.githubusercontent.com/cjmalloy/jasper/refs/heads/master/src/main/resources/swagger/api.yml)
+[![OpenAPI](https://img.shields.io/badge/OpenAPI-1.4.0-brightgreen)](https://editor.swagger.io/?url=https://raw.githubusercontent.com/cjmalloy/jasper/refs/heads/master/src/main/resources/swagger/api.yml)
 [![Artifact Hub](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/jasper)](https://artifacthub.io/packages/helm/jasper/jasper)
 
 ## Quickstart
@@ -49,6 +49,7 @@ developers can create a bespoke interface without needing to make any server sid
 plugins and templates and ensure data shape with [JTD](https://jsontypedef.com/docs/jtd-in-5-minutes/)
 schemas. Fork [the reference client](https://github.com/cjmalloy/jasper-ui) or use the
 [OpenApi docs](https://editor.swagger.io/?url=https://raw.githubusercontent.com/cjmalloy/jasper/refs/heads/master/src/main/resources/swagger/api.yml) to generate API stubs.
+See [Errors](./docs/errors.md) for the error codes returned by the API.
 
 ## Standards
 Jasper is a standard data model and API. While JSON is used in this document, Jasper may be generalised
@@ -846,6 +847,9 @@ We always want to err on the side of accepting well-shaped data rather than reje
 errors rejecting valid user input are infuriating and very common. Error correction can happen as a follow-up step
 if the client validation was somehow circumvented.
 
+Validation failures return an error code in the `message` field. See [Errors](./docs/errors.md) for every
+error code, category and HTTP status.
+
 ## Metadata
 Jasper uses metadata generation to pre-compute graph connections. This allows us to store derived data outside
 of the main data model and keeps our queries join free.
@@ -1079,6 +1083,8 @@ When delegating rng to a trusted server, users push their updates to that server
 When playing on mutually replicating servers, each server is trusted to generate their own rng.
 
 ## Release Notes
+* [v1.4](./docs/release-notes/jasper-1.4.md)
+* [v1.3](./docs/release-notes/jasper-1.3.md)
 * [v1.2](./docs/release-notes/jasper-1.2.md)
 * [v1.1](./docs/release-notes/jasper-1.1.md)
 * [v1.0](./docs/release-notes/jasper-1.0.md)

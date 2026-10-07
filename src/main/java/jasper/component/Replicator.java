@@ -458,7 +458,7 @@ public class Replicator {
 										}
 									} catch (Exception e) {
 										logger.warn("{} Failed Pushing Cache! Skipping cache of ref ({}) {}: {}",
-											remote.getOrigin(), localOrigin, ref.getTitle(), ref.getUrl(), e);
+											remote.getOrigin(), localOrigin, ref.getTitle(), ref.getUrl());
 										logs.add(new Log(
 											"Failed Pushing Cache! Skipping cache of ref (%s) %s: %s".formatted(
 												localOrigin, ref.getTitle(), ref.getUrl()),
