@@ -32,7 +32,7 @@ public class RefRepositoryImplSqlite implements RefRepositoryCustom {
 	@Override
 	public List<Object[]> countPluginTagsInResponses(String url, String origin) {
 		return em.createNativeQuery("""
-			SELECT j.value AS tag, COUNT(DISTINCT r.url)
+			SELECT j.value AS tag, COUNT(DISTINCT json_array(r.url, r.origin))
 			FROM ref r, json_each(COALESCE(json_extract(r.metadata, '$.expandedTags'), r.tags)) AS j
 			WHERE r.url != :url
 				AND EXISTS (SELECT 1 FROM json_each(r.sources) s WHERE s.value = :url)

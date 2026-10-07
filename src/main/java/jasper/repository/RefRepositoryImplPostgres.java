@@ -33,7 +33,7 @@ public class RefRepositoryImplPostgres implements RefRepositoryCustom {
 	@Override
 	public List<Object[]> countPluginTagsInResponses(String url, String origin) {
 		return em.createNativeQuery("""
-			SELECT t.tag, COUNT(DISTINCT r.url)
+			SELECT t.tag, COUNT(DISTINCT (r.url, r.origin))
 			FROM ref r
 				CROSS JOIN LATERAL jsonb_array_elements_text(COALESCE(r.metadata->'expandedTags', r.tags)) AS t(tag)
 			WHERE r.url != :url

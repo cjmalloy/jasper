@@ -846,7 +846,28 @@ public class MetaIT {
 				"tag:/user/tester?url=" + URL,
 				"tag:/user/tester@remote?url=" + URL);
 		assertThat(source.hasPluginResponse("+plugin/user/run")).isTrue();
-		assertThat(source.getMetadata().getRemotePlugins()).containsEntry("+plugin/user/run", 1L);
+		assertThat(source.getMetadata().getPlugins()).containsEntry("+plugin/user/run", 1L);
+		assertThat(source.getMetadata().getRemotePlugins()).containsEntry("+plugin/user/run", 2L);
+	}
+
+	@Test
+	void testRegenRemotePluginsMatchesLiveCountsForSameUrl() {
+		saveSource(URL);
+		var local = comment("comment:1", "");
+		var remote = comment("comment:1", "@remote");
+		meta.sources("", local, null);
+		meta.sources("", remote, null);
+		refRepository.save(local);
+		refRepository.save(remote);
+
+		var parent = refRepository.findOneByUrlAndOrigin(URL, "").orElseThrow();
+		assertThat(parent.getMetadata().getPlugins()).containsEntry("plugin/comment", 1L);
+		assertThat(parent.getMetadata().getRemotePlugins()).containsEntry("plugin/comment", 2L);
+
+		meta.ref("", parent);
+
+		assertThat(parent.getMetadata().getPlugins()).containsEntry("plugin/comment", 1L);
+		assertThat(parent.getMetadata().getRemotePlugins()).containsEntry("plugin/comment", 2L);
 	}
 
 	Ref comment(String url, String origin) {
