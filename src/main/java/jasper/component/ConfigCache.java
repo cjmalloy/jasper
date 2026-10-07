@@ -256,6 +256,7 @@ public class ConfigCache {
 			var remote = refRepository.findAll(
 					RefFilter.builder()
 						.origin(origin)
+						.obsolete(false)
 						.query("+plugin/origin").build().spec())
 				.stream()
 				.filter(r -> finalLocal.equals(getOrigin(r).getLocal()))
