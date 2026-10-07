@@ -55,7 +55,21 @@ jobs:
         run: |
           mkdir -p "_site/reports"
           gh auth login --with-token <<< "${{ github.token }}"
-          gh run download --pattern "*-reports-*" --dir _site/reports
+          # Download artifacts individually: cleanup jobs may delete an artifact between listing and download,
+          # which makes `gh run download --pattern` fail the whole build with HTTP 404.
+          gh api --paginate "/repos/${GITHUB_REPOSITORY}/actions/artifacts?per_page=100" \
+            --jq '.artifacts[] | select((.expired | not) and (.name | test(".-reports-"))) | [.id, .name] | @tsv' \
+            > /tmp/report-artifacts.tsv
+          awk -F'\t' '!seen[$2]++' /tmp/report-artifacts.tsv | while IFS=$'\t' read -r artifact_id artifact_name; do
+            if gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}/zip" > /tmp/report-artifact.zip \
+              && unzip -q -o /tmp/report-artifact.zip -d "_site/reports/${artifact_name}"; then
+              :
+            else
+              echo "Skipping unavailable artifact: ${artifact_name} (${artifact_id})"
+              rm -rf "_site/reports/${artifact_name}"
+            fi
+            rm -f /tmp/report-artifact.zip
+          done
           # Create copy of latest master report
           # Prefer reports with JaCoCo coverage data so README coverage links resolve.
           # Matches legacy junit-reports-master-* and matrix artifacts like junit-reports-postgres-master-*.
