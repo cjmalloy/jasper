@@ -47,6 +47,7 @@ public class Metadata implements Serializable {
 	private List<String> responses;
 	private List<String> internalResponses;
 	private Map<String, Long> plugins;
+	private Map<String, Long> remotePlugins;
 	private Map<String, List<String>> userUrls;
 	@JsonInclude(NON_DEFAULT)
 	private boolean obsolete = false;
@@ -83,57 +84,58 @@ public class Metadata implements Serializable {
 		}
 	}
 
-	public void addPlugins(List<String> add, String url) {
-		if (plugins == null) plugins = new HashMap<>();
-		if (userUrls == null) userUrls = new HashMap<>();
+	public void addPlugins(List<String> add, String userUrl, boolean local) {
+		initPlugins();
 		for (var plugin : add) {
-			if (plugins.containsKey(plugin)) {
-				plugins.put(plugin, plugins.get(plugin) + 1);
-			} else {
-				plugins.put(plugin, 1L);
-			}
-			if (matchesTemplate("plugin/user", plugin)) {
-				if (userUrls.containsKey(plugin)) {
-					var list = userUrls.get(plugin);
-					if (!list.contains(url)) list.add(url);
-				} else {
-					userUrls.put(plugin, new ArrayList<>(List.of(url)));
-				}
+			if (local) plugins.merge(plugin, 1L, Long::sum);
+			remotePlugins.merge(plugin, 1L, Long::sum);
+			if (userUrl != null && matchesTemplate("plugin/user", plugin)) {
+				var list = userUrls.computeIfAbsent(plugin, k -> new ArrayList<>());
+				if (!list.contains(userUrl)) list.add(userUrl);
 			}
 		}
 		modified = Instant.now().toString();
 	}
 
-	public void removePlugins(List<String> remove, String url) {
-		if (plugins == null) plugins = new HashMap<>();
-		if (userUrls == null) userUrls = new HashMap<>();
+	public void removePlugins(List<String> remove, String userUrl, boolean local) {
+		initPlugins();
 		var changed = false;
 		for (var plugin : remove) {
-			if (plugins.containsKey(plugin)) {
-				changed = true;
-				var count = plugins.get(plugin) - 1;
-				if (count > 0) {
-					plugins.put(plugin, plugins.get(plugin) - 1);
-				} else {
-					plugins.remove(plugin);
-				}
-			}
-			if (matchesTemplate("plugin/user", plugin)) {
+			if (local && decrement(plugins, plugin)) changed = true;
+			if (decrement(remotePlugins, plugin)) changed = true;
+			if (userUrl != null && matchesTemplate("plugin/user", plugin)) {
 				for (var entry : userUrls.entrySet()) {
 					var list = entry.getValue();
-					if (list.contains(url)) {
+					if (list.contains(userUrl)) {
 						changed = true;
 						try {
-							list.remove(url);
+							list.remove(userUrl);
 						} catch (UnsupportedOperationException e) {
 							userUrls.put(entry.getKey(), list = new ArrayList<>(list));
-							list.remove(url);
+							list.remove(userUrl);
 						}
 					}
 				}
 			}
 		}
 		if (changed) modified = Instant.now().toString();
+	}
+
+	private void initPlugins() {
+		if (plugins == null) plugins = new HashMap<>();
+		if (remotePlugins == null) remotePlugins = new HashMap<>();
+		if (userUrls == null) userUrls = new HashMap<>();
+	}
+
+	private static boolean decrement(Map<String, Long> counts, String plugin) {
+		if (!counts.containsKey(plugin)) return false;
+		var count = counts.get(plugin) - 1;
+		if (count > 0) {
+			counts.put(plugin, count);
+		} else {
+			counts.remove(plugin);
+		}
+		return true;
 	}
 
 	public void remove(String url) {

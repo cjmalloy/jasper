@@ -22,7 +22,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static jasper.domain.proj.Tag.publicTag;
+import static jasper.domain.proj.Tag.userUrlPrefix;
 
 /**
  * Filtering mapper. Removes fields hidden to the user.
@@ -78,18 +78,17 @@ public abstract class DtoMapper {
 
 	@AfterMapping
 	protected void filterMetadata(@MappingTarget MetadataDto metadata) {
-		if (metadata.getPlugins() == null) return;
-		var filteredPlugins = new HashMap<String, Integer>();
-		metadata.getPlugins().entrySet().iterator().forEachRemaining(e -> {
-			if (auth.canReadTag(e.getKey() + auth.getOrigin())) {
-				filteredPlugins.put(e.getKey(), e.getValue());
-			}
+		metadata.setPlugins(filterPlugins(metadata.getPlugins()));
+		metadata.setRemotePlugins(filterPlugins(metadata.getRemotePlugins()));
+	}
+
+	private Map<String, Integer> filterPlugins(Map<String, Integer> plugins) {
+		if (plugins == null) return null;
+		var filtered = new HashMap<String, Integer>();
+		plugins.forEach((tag, count) -> {
+			if (auth.canReadTag(tag + auth.getOrigin())) filtered.put(tag, count);
 		});
-		if (filteredPlugins.isEmpty()) {
-			metadata.setPlugins(null);
-		} else {
-			metadata.setPlugins(filteredPlugins);
-		}
+		return filtered.isEmpty() ? null : filtered;
 	}
 
 	@AfterMapping
@@ -102,7 +101,7 @@ public abstract class DtoMapper {
 	protected void userUrlsMetadata(Metadata source, @MappingTarget MetadataDto target) {
 		if (source.getUserUrls() == null) return;
 		if (auth.getUserTag() == null) return;
-		var prefix = "tag:/" + publicTag(auth.getUserTag().tag) + "?url=";
+		var prefix = userUrlPrefix(auth.getUserTag().tag, auth.getOrigin());
 		target.setUserUrls(source.getUserUrls().entrySet().stream()
 			// TODO: how is null getting in here
 			.filter(e -> e.getValue().stream().anyMatch(url -> url != null && url.startsWith(prefix)))

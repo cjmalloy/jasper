@@ -41,6 +41,25 @@ public interface Tag extends Cursor {
 		return "tag:/" + publicTag(user) + "?url=" + url;
 	}
 
+	// User tags are only unique within an origin
+	static String userUrlPrefix(String user, String origin) {
+		return "tag:/" + publicTag(user) + concreteOrigin(origin) + "?url=";
+	}
+
+	static String qualifiedUserUrl(String url, String origin) {
+		origin = concreteOrigin(origin);
+		if (origin.isEmpty()) return url;
+		if (!url.contains("?")) return url + origin;
+		return url.substring(0, url.indexOf("?")) + origin + url.substring(url.indexOf("?"));
+	}
+
+	// Selectors such as "@*" would never match a stored user URL
+	private static String concreteOrigin(String origin) {
+		if (isBlank(origin) || origin.equals("@")) return "";
+		if (!origin.matches(HasOrigin.REGEX)) throw new IllegalArgumentException("Not a concrete origin: " + origin);
+		return origin;
+	}
+
 	static boolean tagUrl(String url) {
 		return url.startsWith("tag:/");
 	}

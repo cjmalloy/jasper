@@ -71,6 +71,6 @@ public interface HasTags extends Cursor {
 		if (ref.getMetadata().getPlugins() == null) return false;
 		return ref.getMetadata().getPlugins().keySet().stream()
 			.filter(t -> matchesTag(tag, t))
-			.anyMatch(t -> ref.getMetadata().getPlugins().get(t) > 0);
+			.anyMatch(t -> ref.getMetadata().getPlugins().get(t) != null && ref.getMetadata().getPlugins().get(t) > 0);
 	}
 }

@@ -4,6 +4,7 @@ import jasper.MultiTenantIntegrationTest;
 import jasper.component.ConfigCache;
 import jasper.component.Ingest;
 import jasper.config.Props;
+import jasper.domain.Metadata;
 import jasper.domain.Plugin;
 import jasper.domain.Ref;
 import jasper.domain.User;
@@ -21,7 +22,9 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.test.context.support.WithMockUser;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -1464,6 +1467,72 @@ public class RefServiceMTIT {
 
 		assertThat(refRepository.existsByUrlAndOrigin(URL, "@other"))
 			.isFalse();
+	}
+
+	Ref saveWithUserUrl(String url, String userUrl) {
+		return saveWithUserUrl(url, "@other", userUrl);
+	}
+
+	Ref saveWithUserUrl(String url, String origin, String userUrl) {
+		var ref = getRef(origin);
+		ref.setUrl(url);
+		ref.setTags(new ArrayList<>(List.of("public")));
+		ref.setMetadata(Metadata.builder()
+			.userUrls(new HashMap<>(Map.of("+plugin/user/run", List.of(userUrl))))
+			.build());
+		return refRepository.save(ref);
+	}
+
+	@Test
+	void testUserUrlsOnlyShowsUserFromSameOrigin() {
+		saveWithUserUrl(URL, "tag:/user/tester@other?url=" + URL);
+		saveWithUserUrl(URL + 2, "tag:/user/tester?url=" + URL + 2);
+
+		assertThat(refService.get(URL, "@other").getMetadata().getUserUrls())
+			.containsExactly("+plugin/user/run");
+		assertThat(refService.get(URL + 2, "@other").getMetadata().getUserUrls())
+			.isNullOrEmpty();
+	}
+
+	@Test
+	void testUserResponseFilterOnlyMatchesUserFromSameOrigin() {
+		saveWithUserUrl(URL, "tag:/user/tester@other?url=" + URL);
+		saveWithUserUrl(URL + 2, "tag:/user/tester?url=" + URL + 2);
+
+		var page = refService.page(
+			RefFilter.builder().userResponse(List.of("+plugin/user/run")).build(),
+			PageRequest.of(0, 10));
+		assertThat(page.getContent())
+			.extracting(r -> r.getUrl())
+			.containsExactly(URL);
+
+		var noPage = refService.page(
+			RefFilter.builder().noUserResponse(List.of("+plugin/user/run")).build(),
+			PageRequest.of(0, 10));
+		assertThat(noPage.getContent())
+			.extracting(r -> r.getUrl())
+			.containsExactly(URL + 2);
+	}
+
+	@Test
+	void testUserResponseToSubOriginRef() {
+		saveWithUserUrl(URL, "@other.sub", "tag:/user/tester@other?url=" + URL);
+		saveWithUserUrl(URL + 2, "@other.sub", "tag:/user/tester@other.sub?url=" + URL + 2);
+
+		assertThat(refService.get(URL, "@other.sub").getMetadata().getUserUrls())
+			.containsExactly("+plugin/user/run");
+		assertThat(refService.get(URL + 2, "@other.sub").getMetadata().getUserUrls())
+			.isNullOrEmpty();
+		assertThat(refService.page(
+				RefFilter.builder().query("@other.sub").userResponse(List.of("+plugin/user/run")).build(),
+				PageRequest.of(0, 10)).getContent())
+			.extracting(r -> r.getUrl())
+			.containsExactly(URL);
+		assertThat(refService.page(
+				RefFilter.builder().query("@other.sub").noUserResponse(List.of("+plugin/user/run")).build(),
+				PageRequest.of(0, 10)).getContent())
+			.extracting(r -> r.getUrl())
+			.containsExactly(URL + 2);
 	}
 
 }

@@ -1,7 +1,6 @@
 package jasper.repository.filter;
 
 import jasper.domain.Ref;
-import jasper.repository.spec.QualifiedTag;
 import lombok.Builder;
 import lombok.Getter;
 import org.slf4j.Logger;
@@ -43,6 +42,7 @@ public class RefFilter implements Query {
 	private List<String> pluginResponse;
 	private List<String> noPluginResponse;
 	private String user;
+	private String userOrigin;
 	private List<String> userResponse;
 	private List<String> noUserResponse;
 	private Instant modifiedBefore;
@@ -54,8 +54,9 @@ public class RefFilter implements Query {
 	private Instant responseBefore;
 	private Instant responseAfter;
 
-	public Specification<Ref> spec(QualifiedTag user) {
-		if (user != null) this.user = user.tag;
+	public Specification<Ref> spec(String user, String userOrigin) {
+		this.user = user;
+		this.userOrigin = userOrigin;
 		return spec();
 	}
 
@@ -120,12 +121,12 @@ public class RefFilter implements Query {
 		if (isNotBlank(user)) {
 			if (userResponse != null) {
 				for (var r : userResponse) {
-					result = result.and(hasPluginResponses(user, r));
+					result = result.and(hasPluginResponses(user, userOrigin, r));
 				}
 			}
 			if (noUserResponse != null) {
 				for (var nr : noUserResponse) {
-					result = result.and(hasNoPluginResponses(user, nr));
+					result = result.and(hasNoPluginResponses(user, userOrigin, nr));
 				}
 			}
 		}
