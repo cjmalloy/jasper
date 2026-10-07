@@ -2,7 +2,7 @@
 
 Follow these instructions first. Only fall back to further search if something here is incomplete or proven wrong; if you find it wrong, fix this file in the same PR.
 
-Jasper is a Spring Boot 4.1 / Java 25 Maven project (single module plus a separate `gatling/` load-test module). There is **no** `package.json`, npm lockfile or frontend build in this repo: Bun and Python are only *runtimes* used by plugin scripts and their tests.
+Jasper is a Spring Boot 4.1 / Java 25 Maven project (single module plus a separate `gatling/` load-test module and an `e2e/` Playwright module). The only `package.json`/lockfile is `e2e/` (Playwright, runs in Docker); there is no frontend build. Bun and Python are only *runtimes* used by plugin scripts and their tests.
 
 ## TL;DR — verified command sequence
 
@@ -107,6 +107,24 @@ docker compose down
 - The gatling stack also binds port 8081: stop the root compose stack / local app first.
 - When adding a simulation, ALWAYS add a matching `GATLING_TEST=YourNewTest` step to `.github/workflows/gatling.yml`.
 
+## End-to-end tests (Playwright)
+
+`e2e/` is a separate npm module (`@playwright/test` pinned, `package-lock.json` committed). Everything runs in Docker; host Node is only needed for `npm run`.
+
+```bash
+cd e2e
+npm run ci            # postgres stack + tests, ~3 min with a warm build cache, 26 tests ~40s
+npm run ci:sqlite     # same with sqlite in-memory servers
+npm run down          # / down:sqlite — ALWAYS tear down (volumes keep state)
+# Iterate against a running stack:
+docker compose up --build -d --wait && docker compose --profile ci run --rm playwright
+```
+- Stack: `client` (jasper-ui, :8080), `web` (:8081, JWT; tests use the jasper-ui debug HS256 secret or `?debug=ADMIN` in the UI), `repl-web` (:8083, `@repl`, default role admin), `tunnel-web` (:8085, ssh origins `@open,@tunnel`, default role admin) and `ssh` (jasper-ssh). Don't use `X-Jasper-Key` (Electron only).
+- Never use `docker compose up --exit-code-from`: jasper-ssh restarts itself when `authorized_keys` changes, which aborts the whole stack.
+- Report files are written by root inside the container: `sudo rm -rf e2e/reports e2e/test-results` locally.
+- Builds `..` (the root Dockerfile), so the PKIX sandbox workaround above applies.
+- New spec files go in `e2e/tests/` and are picked up automatically by `.github/workflows/e2e.yml` (matrix postgres/sqlite, PR comment, `e2e-reports-*` artifacts published to `reports/latest-e2e/` by `pages.yml`).
+
 ## Problems hit during a mock debug session and how to avoid them
 
 | Symptom | Cause | Fix / avoidance |
@@ -124,11 +142,12 @@ docker compose down
 | Docker build `PKIX path building failed` | Sandbox TLS-intercepting proxy | See "PKIX error inside Docker" above. |
 | `bind: address already in use` on 8081 | Local app, root compose and gatling compose all use 8081 | Run only one at a time; `docker compose down` / stop the async shell. |
 | Maven seems hung on first build | Downloading dependencies | Wait; first build downloads hundreds of MB. Use `-B` to avoid progress spam. |
-| Lockfile / dependency-version drift | Not npm here: there is no JS lockfile. Drift happens between Bun versions (Dockerfile pins `oven/bun:1.4.2-slim`; CI `setup-bun` and the install script take latest) and between Maven image tags (`Dockerfile` vs `gatling/Dockerfile`) | Don't add `package.json`/lockfiles. If a JS test behaves differently locally vs Docker, install the pinned version: `curl -fsSL https://bun.sh/install \| bash -s bun-v1.4.2`. Versions in `pom.xml` are the source of truth; Dependabot updates them. |
+| Lockfile / dependency-version drift | Not npm here: there is no JS lockfile. Drift happens between Bun versions (Dockerfile pins `oven/bun:1.4.2-slim`; CI `setup-bun` and the install script take latest) and between Maven image tags (`Dockerfile` vs `gatling/Dockerfile`) | Don't add `package.json`/lockfiles outside `e2e/`. If a JS test behaves differently locally vs Docker, install the pinned version: `curl -fsSL https://bun.sh/install \| bash -s bun-v1.4.2`. Versions in `pom.xml` are the source of truth; Dependabot updates them. |
 
 ## CI (`.github/workflows/`)
 
 - `test.yml` — builds the Docker image; test matrix: **postgres** (Docker `test` stage + Testcontainers) and **sqlite** (`./mvnw test surefire-report:report -Dspring.profiles.active=test,sqlite,scripts` with Java 25, `setup-bun`, Python 3). Posts a results/coverage comment on PRs.
+- `e2e.yml` — Playwright suite in `e2e/` against postgres and sqlite stacks; PR comment, step summary, reports to Pages (`latest-e2e`).
 - `gatling.yml` — every simulation against postgres (g1gc, parallel, zgc) and sqlite (g1gc).
 - `codeql.yml`, `publish.yml` (GHCR images), `release.yml` (draft releases with JARs), `pages.yml` (reports/docs), `cleanup.yml` (stale PR caches/artifacts).
 - Investigate CI failures with the GitHub Actions tools (list runs → job logs) rather than guessing.
@@ -150,6 +169,7 @@ jasper/
 ├── .m2/settings.xml          # Maven settings used by the Dockerfile (mirror commented out)
 ├── docker/entrypoint.sh      # Container entrypoint (heap/GC flags)
 ├── docs/, _config.yml, _includes/  # GitHub Pages docs
+├── e2e/                      # Playwright e2e tests (own package.json, Dockerfile and compose files)
 ├── gatling/                  # Separate Maven project for load tests (own Dockerfile and compose files)
 ├── src/main/java/jasper/
 │   ├── aop/ client/ component/ config/ domain/ errors/

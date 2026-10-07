@@ -6,6 +6,7 @@ docs/
 .idea/
 storage/
 gatling/
+e2e/
 repl/
 .DS_Store
 
