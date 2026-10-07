@@ -221,6 +221,8 @@ Authentication or authorization failed.
 | `error.unauthorized` | 401    | `AuthenticationException` | Credentials are missing or invalid.             | Log in again or send a valid token.                   |
 | `error.accessDenied` | 403    | `AccessDeniedException`   | The user may not read or write this resource.   | Request access, or don't show the action to the user. |
 
+Failures raised by the security filter chain, such as a missing or invalid CSRF token, use the same codes.
+
 ## Missing
 
 The requested resource does not exist.

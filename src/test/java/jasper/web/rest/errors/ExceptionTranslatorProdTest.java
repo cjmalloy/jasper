@@ -79,6 +79,7 @@ class ExceptionTranslatorProdTest {
 			Arguments.of("duplicate-key", 409, ErrorConstants.ERR_DUPLICATE_KEY, DATA_ACCESS),
 			// Package names are hidden
 			Arguments.of("bad-request-with-package", 400, ErrorConstants.ERR_INVALID_TUNNEL, UNEXPECTED),
+			Arguments.of("bad-request-with-de-package", 400, ErrorConstants.ERR_INVALID_TUNNEL, UNEXPECTED),
 			// Plugin and template validation details stay visible
 			Arguments.of("invalid-plugin", 400, ErrorConstants.ERR_INVALID_PLUGIN, "plugin/test: age: expected uint32"),
 			Arguments.of("invalid-template", 400, ErrorConstants.ERR_INVALID_TEMPLATE, "_config/test: config is not allowed without a template schema"),

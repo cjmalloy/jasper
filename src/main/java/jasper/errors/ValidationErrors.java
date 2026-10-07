@@ -35,13 +35,15 @@ public interface ValidationErrors {
 
 	/**
 	 * One line summary of field errors, e.g. {@code age: expected uint32; name: required}.
+	 * Lists longer than {@link #MAX_ERRORS} are truncated, so the remaining count is a lower bound.
 	 */
 	static String summary(List<FieldError> errors) {
 		var result = errors.stream()
 			.limit(SUMMARY_ERRORS)
 			.map(FieldError::message)
 			.collect(Collectors.joining("; "));
-		if (errors.size() > SUMMARY_ERRORS) result += "; and " + (errors.size() - SUMMARY_ERRORS) + " more";
+		if (errors.size() > MAX_ERRORS) result += "; and at least " + (errors.size() - SUMMARY_ERRORS) + " more";
+		else if (errors.size() > SUMMARY_ERRORS) result += "; and " + (errors.size() - SUMMARY_ERRORS) + " more";
 		return result;
 	}
 }

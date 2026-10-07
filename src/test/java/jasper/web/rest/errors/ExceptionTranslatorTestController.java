@@ -118,6 +118,11 @@ public class ExceptionTranslatorTestController {
 		throw new InvalidTunnelException("Error in jasper.component.TunnelClient");
 	}
 
+	@GetMapping("/bad-request-with-de-package")
+	public void badRequestWithDePackage() {
+		throw new InvalidTunnelException("Error in de.example.TunnelClient");
+	}
+
 	@GetMapping("/no-resource")
 	public void noResource() throws NoResourceFoundException {
 		throw new NoResourceFoundException(HttpMethod.GET, "/api/exception-translator-test/no-resource", "missing.txt");

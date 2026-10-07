@@ -454,7 +454,8 @@ class RefControllerTest {
         postRef(createRef(URL + "/many", "plugin/many", data.toString()))
             .andExpect(status().isBadRequest())
             .andExpect(jsonPath("$.errors.length()").value(50))
-            .andExpect(jsonPath("$.truncated").value(true));
+            .andExpect(jsonPath("$.truncated").value(true))
+            .andExpect(jsonPath("$.detail").value(containsString("; and at least 46 more")));
     }
 
     @Test

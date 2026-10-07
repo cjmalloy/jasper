@@ -88,7 +88,7 @@ public class ExceptionTranslator extends ResponseEntityExceptionHandler {
 	private static final String REASON_KEY = "reason";
 	private static final String ERRORS_KEY = "errors";
 	private static final String TRUNCATED_KEY = "truncated";
-	private static final Pattern PACKAGE_NAME = Pattern.compile("(?<![\\w.])(jasper|org|java|jakarta|javax|com|io|net|liquibase)\\.[a-zA-Z_]");
+	private static final Pattern PACKAGE_NAME = Pattern.compile("(?<![\\w.])(jasper|org|java|jakarta|javax|com|de|io|net|liquibase)\\.[a-zA-Z_]");
 
 	/**
 	 * Ordered lookup table of exception class to error code and category.
