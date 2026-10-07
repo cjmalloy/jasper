@@ -1,0 +1,17 @@
+{
+  "name": "jasper-e2e",
+  "private": true,
+  "description": "End-to-end tests for the Jasper server",
+  "scripts": {
+    "test": "playwright test",
+    "open": "docker compose up --build -d --wait && playwright test --ui; docker compose down -v",
+    "open:sqlite": "docker compose -f docker-compose.yaml -f docker-compose.sqlite.yaml up --build -d --wait && playwright test --ui; docker compose -f docker-compose.yaml -f docker-compose.sqlite.yaml down -v",
+    "ci": "docker compose up --build -d --wait && docker compose --profile ci run --rm --build playwright",
+    "ci:sqlite": "docker compose -f docker-compose.yaml -f docker-compose.sqlite.yaml up --build -d --wait && docker compose -f docker-compose.yaml -f docker-compose.sqlite.yaml --profile ci run --rm --build playwright",
+    "down": "docker compose --profile ci down -v",
+    "down:sqlite": "docker compose -f docker-compose.yaml -f docker-compose.sqlite.yaml --profile ci down -v"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.63.0"
+  }
+}

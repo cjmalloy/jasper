@@ -510,6 +510,12 @@ public class Replicator {
 					}
 					return userList.size() == size ? userList.getLast().getModified() : null;
 				}));
+			} catch (FeignException.Forbidden e) {
+				logger.error("{} Access denied pushing {} to origin ({}) {}: {} {}",
+					remote.getOrigin(), localOrigin, remoteOrigin, remote.getTitle(), remote.getUrl(), getMessage(e));
+				tagger.attachError(remote.getOrigin(), remote,
+					"Access denied pushing %s to origin (%s) %s: %s".formatted(
+						localOrigin, remoteOrigin, remote.getTitle(), remote.getUrl()), getMessage(e));
 			} catch (FeignException e) {
 				// Temporary connection issue, ignore
 				logger.warn("{} Error pushing {} to origin ({}) {}: {} {}",

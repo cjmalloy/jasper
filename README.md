@@ -4,6 +4,7 @@ Knowledge Management Server
 [![Build & Test](https://github.com/cjmalloy/jasper/actions/workflows/test.yml/badge.svg)](https://cjmalloy.github.io/jasper/reports/latest-junit/)
 [![Coverage](https://img.shields.io/endpoint?url=https://cjmalloy.github.io/jasper/reports/latest-junit/coverage-badge.json)](https://cjmalloy.github.io/jasper/reports/latest-junit/coverage/)
 [![Gatling](https://github.com/cjmalloy/jasper/actions/workflows/gatling.yml/badge.svg)](https://cjmalloy.github.io/jasper/reports/latest-gatling/)
+[![E2E](https://github.com/cjmalloy/jasper/actions/workflows/e2e.yml/badge.svg)](https://cjmalloy.github.io/jasper/reports/latest-e2e/)
 [![Dependabot](https://img.shields.io/endpoint?url=https://cjmalloy.github.io/jasper/reports/dependabot-badge.json)](https://github.com/cjmalloy/jasper/security/dependabot)
 [![OpenAPI](https://img.shields.io/badge/OpenAPI-1.4.1-brightgreen)](https://editor.swagger.io/?url=https://raw.githubusercontent.com/cjmalloy/jasper/refs/heads/master/src/main/resources/swagger/api.yml)
 [![Artifact Hub](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/jasper)](https://artifacthub.io/packages/helm/jasper/jasper)
@@ -1072,6 +1073,30 @@ a time. If you want to combine multiple origins into one, create multiple `+plug
 **Batch Size:** The max page size of entities to push.  
 **Push On Change:** Push entities immediately after modification.
 **Cache:** Also push cached files.  
+
+### Logs and errors on replicated origins
+A pulled origin is a copy of a remote server. Its users and user tags (`_user/*`, `+user/*`) belong to the remote
+server and mean nothing locally. The local users that matter are the owners of the `+plugin/origin` Ref, which lives
+in the owning origin (usually `""`).
+
+There are two kinds of writes:
+ * **Plugin data** on a Ref in a pulled origin, such as the `_plugin/cache` ban/error marker written after a failed cache
+   fetch. It is written silently into the pulled origin (`Tagger.silentPlugin`). A new Ref is backdated to
+   `cursor - 1ms` and an existing Ref keeps its `modified`, so the pull cursor (`modifiedAfter`) never moves past
+   remote entries.
+ * **Logs** (`+plugin/log` Refs with an `error:<uuid>` URL). They are stamped with `modified = now`, so they are never
+   written into a pulled origin. They are redirected to the origin that owns the `+plugin/origin` Ref.
+
+Rule: pulled origins only get silent, backdated writes; anything stamped `now` goes to the owning origin. This depends
+on whether the origin is a pull target, not on whether it is a sub origin. Local (non-replicated) sub origins keep their
+own logs.
+
+Redirected logs are tagged with the local owners of the `+plugin/origin` Ref, so they can read them (as can admins and
+mods, and everyone if the parent Ref is `public`). User tags from the pulled Ref belong to the remote server and are
+never copied. `+plugin/error` is never added to a Ref in a pulled origin.
+
+Push errors (including a `403` from the remote) are logged on the `+plugin/origin` Ref and tag it `+plugin/error`,
+which disables push on change until the tag is removed. They never fail the request that saved the Ref.
 
 ## Random Number Generator
 

@@ -109,6 +109,10 @@ public class Tagger {
 
 	/**
 	 * For monkey patching replicated origins.
+	 * Only plugin data belongs in a pulled origin, and it is written silently: a
+	 * new Ref is backdated to cursor - 1ms and an existing Ref keeps its modified,
+	 * so the pull cursor never moves past remote entries. Logs go to the owning
+	 * origin instead, see {@link #attachLogs(String, Ref, String, String)}.
 	 */
 	Ref silentPlugin(String url, String title, String origin, String tag, Object plugin, String ...tags) {
 		var maybeRef = refRepository.findOneByUrlAndOrigin(url, origin);
@@ -219,9 +223,27 @@ public class Tagger {
 		attachLogs(origin, parent, "", msg);
 	}
 
+	/**
+	 * Logs are created with modified = now, so they are never written into a
+	 * pulled origin (that would move its pull cursor past remote entries).
+	 * Logs for a pulled origin are redirected to the origin that owns the
+	 * +plugin/origin Ref and tagged with that Ref's local owners. User tags
+	 * on the pulled parent belong to the remote server and are never copied.
+	 */
 	@Async
 	@Timed(value = "jasper.tagger", histogram = true)
 	public void attachLogs(String origin, Ref parent, String title, String logs) {
+		var remote = configs.getRemote(origin);
+		List<String> userTags = null;
+		if (remote != null) {
+			origin = remote.getOrigin();
+			// Cached RefDto tags are filtered by the caller's access, so read the owners from the database
+			userTags = refRepository.findOneByUrlAndOrigin(remote.getUrl(), remote.getOrigin())
+				.map(Ref::getTags)
+				.orElse(null);
+		} else if (origin.equals(parent.getOrigin())) {
+			userTags = parent.getTags();
+		}
 		var ref = new Ref();
 		ref.setOrigin(origin);
 		ref.setUrl("error:" + UUID.randomUUID());
@@ -230,8 +252,8 @@ public class Tagger {
 		ref.setComment(logs);
 		var tags = new ArrayList<>(List.of("internal", "+plugin/log"));
 		if (parent.hasTag("public")) tags.add("public");
-		if (origin.equals(parent.getOrigin()) && parent.getTags() != null) {
-			tags.addAll(parent.getTags().stream().filter(t -> capturesDownwards("_user", t)).map(Tag::publicTag).toList());
+		if (userTags != null) {
+			tags.addAll(userTags.stream().filter(t -> capturesDownwards("_user", t)).map(Tag::publicTag).toList());
 		}
 		ref.setTags(tags);
 		ingest.create(origin, ref);
@@ -249,8 +271,7 @@ public class Tagger {
 			"```\n" + getStackTrace(new Throwable("+plugin/debug stack trace")) + "```";
 		logger.debug("{} +plugin/debug {}", ref.getOrigin(), logs);
 		try {
-			var remote = configs.getRemote(ref.getOrigin());
-			attachLogs(remote == null ? ref.getOrigin() : remote.getOrigin(), ref, "+plugin/debug " + msg, logs);
+			attachLogs(ref.getOrigin(), ref, "+plugin/debug " + msg, logs);
 		} catch (Exception e) {
 			logger.warn("{} +plugin/debug Could not attach logs to {}", ref.getOrigin(), ref.getUrl(), e);
 		}
@@ -278,7 +299,6 @@ public class Tagger {
 	@Timed(value = "jasper.tagger", histogram = true)
 	public void attachError(String origin, Ref parent, String title, String logs) {
 		var remote = configs.getRemote(origin);
-		if (remote != null) origin = remote.getOrigin();
 		attachLogs(origin, parent, title, logs);
 		if (remote == null && !parent.hasTag("+plugin/error")) {
 			tag(false, true, parent.getUrl(), parent.getOrigin(), "+plugin/error");

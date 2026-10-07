@@ -45,6 +45,20 @@ updates:
     gatling:
       patterns:
         - "*gatling*"
+- package-ecosystem: npm
+  directory: /e2e
+  schedule:
+    interval: daily
+    timezone: America/Halifax
+  cooldown:
+    semver-major-days: 5
+    semver-minor-days: 1
+    semver-patch-days: 0
+- package-ecosystem: docker
+  directory: /e2e
+  schedule:
+    interval: daily
+    timezone: America/Halifax
 - package-ecosystem: github-actions
   directory: /
   schedule:
