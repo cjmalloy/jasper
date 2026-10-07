@@ -145,6 +145,7 @@ public class IngestTemplate {
 			var deletor = isDeletorTag(qualifiedTag) ? qualifiedTag : deletorTag(qualifiedTag);
 			templateRepository.deleteByQualifiedTagAndModifiedLessThanEqual(tag, startedAt);
 			templateRepository.deleteByQualifiedTagAndModifiedLessThanEqual(deletor, startedAt);
+			messages.invalidateTemplate(tag);
 			return;
 		}
 		var tombstone = new Template();

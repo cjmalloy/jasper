@@ -812,6 +812,32 @@ public class ArchiveIT {
 	}
 
 	@Test
+	void testPruningTemplateDeletorInvalidatesCachedTemplate() {
+		var template = new Template();
+		template.setTag("test");
+		template.setName("Test");
+		template.setModified(now.minusSeconds(10));
+		ingestTemplate.push(template);
+		var deletor = new Template();
+		deletor.setTag("test/deleted");
+		deletor.setModified(now);
+		ingestTemplate.push(deletor);
+
+		assertThat(configCache.getTemplate("test", ""))
+			.get()
+			.extracting(Template::getName)
+			.isEqualTo("Test");
+		clearInvocations(messages);
+
+		ingestTemplate.delete("test/deleted");
+
+		assertThat(configCache.getTemplate("test", ""))
+			.isEmpty();
+		verify(messages).invalidateTemplate("test");
+		verify(messages, notSent()).deleteTemplate(any());
+	}
+
+	@Test
 	void testAuthUserLookupUsesLatestVersion() {
 		var older = new User();
 		older.setTag("+user/auth");

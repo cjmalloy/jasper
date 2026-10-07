@@ -69,6 +69,9 @@ public class Messages {
 	MessageChannel templateTxChannel;
 
 	@Autowired
+	MessageChannel templateRxChannel;
+
+	@Autowired
 	ComponentDtoMapper mapper;
 
 	@Autowired
@@ -177,6 +180,12 @@ public class Messages {
 		var tag = localTag(qualifiedTag);
 		var origin = tagOrigin(qualifiedTag);
 		sendAndRetry(() -> templateTxChannel.send(createMessage(deleteNotice(tag, origin, TemplateDto.class), tagHeaders(origin, tag))));
+	}
+
+	public void invalidateTemplate(String qualifiedTag) {
+		var tag = localTag(qualifiedTag);
+		var origin = tagOrigin(qualifiedTag);
+		templateRxChannel.send(createMessage(deleteNotice(tag, origin, TemplateDto.class), tagHeaders(origin, tag)));
 	}
 
 	private <T> T deleteNotice(String tag, String origin, Class<T> type) {
