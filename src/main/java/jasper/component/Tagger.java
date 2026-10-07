@@ -251,8 +251,7 @@ public class Tagger {
 			"```\n" + getStackTrace(new Throwable("+plugin/debug stack trace")) + "```";
 		logger.debug("{} +plugin/debug {}", ref.getOrigin(), logs);
 		try {
-			var remote = configs.getRemote(ref.getOrigin());
-			attachLogs(remote == null ? ref.getOrigin() : remote.getOrigin(), ref, "+plugin/debug " + msg, logs);
+			attachLogs(ref.getOrigin(), ref, "+plugin/debug " + msg, logs);
 		} catch (Exception e) {
 			logger.warn("{} +plugin/debug Could not attach logs to {}", ref.getOrigin(), ref.getUrl(), e);
 		}
@@ -280,7 +279,6 @@ public class Tagger {
 	@Timed(value = "jasper.tagger", histogram = true)
 	public void attachError(String origin, Ref parent, String title, String logs) {
 		var remote = configs.getRemote(origin);
-		if (remote != null) origin = remote.getOrigin();
 		attachLogs(origin, parent, title, logs);
 		if (remote == null && !parent.hasTag("+plugin/error")) {
 			tag(false, true, parent.getUrl(), parent.getOrigin(), "+plugin/error");

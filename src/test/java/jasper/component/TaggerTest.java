@@ -7,8 +7,10 @@ import jasper.errors.AlreadyExistsException;
 import jasper.errors.ModifiedException;
 import jasper.plugin.Cache;
 import jasper.repository.RefRepository;
+import jasper.service.dto.RefDto;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.Optional;
@@ -129,5 +131,47 @@ public class TaggerTest {
 
 		assertThat(ref).isNull();
 		verify(ingest, times(Tagger.INIT_PLUGIN_RETRIES)).create(eq(""), any(Ref.class));
+	}
+
+	@Test
+	void testAttachLogsRedirectsSubOriginToRemoteOrigin() {
+		var remote = new RefDto();
+		remote.setOrigin("");
+		when(tagger.configs.getRemote("@sub")).thenReturn(remote);
+		var parent = from(URL, "@sub", "_user/bob");
+
+		tagger.attachLogs("@sub", parent, "title", "logs");
+
+		var log = ArgumentCaptor.forClass(Ref.class);
+		verify(ingest).create(eq(""), log.capture());
+		assertThat(log.getValue().getOrigin()).isEqualTo("");
+		assertThat(log.getValue().getSources()).containsExactly(URL);
+		verify(ingest, never()).create(eq("@sub"), any(Ref.class));
+	}
+
+	@Test
+	void testAttachLogsKeepsLocalOrigin() {
+		var parent = from(URL, "@sub", "_user/bob");
+
+		tagger.attachLogs("@sub", parent, "title", "logs");
+
+		var log = ArgumentCaptor.forClass(Ref.class);
+		verify(ingest).create(eq("@sub"), log.capture());
+		assertThat(log.getValue().getOrigin()).isEqualTo("@sub");
+		assertThat(log.getValue().getTags()).contains("+plugin/log", "user/bob");
+	}
+
+	@Test
+	void testAttachErrorRedirectsSubOriginToRemoteOrigin() {
+		var remote = new RefDto();
+		remote.setOrigin("");
+		when(tagger.configs.getRemote("@sub")).thenReturn(remote);
+		var parent = from(URL, "@sub");
+
+		tagger.attachError("@sub", parent, "title", "logs");
+
+		verify(ingest).create(eq(""), any(Ref.class));
+		verify(ingest, never()).create(eq("@sub"), any(Ref.class));
+		verify(ingest, never()).update(any(), any(Ref.class));
 	}
 }
