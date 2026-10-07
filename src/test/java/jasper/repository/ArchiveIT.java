@@ -386,6 +386,21 @@ public class ArchiveIT {
 	}
 
 	@Test
+	void testUpdateResponseSameTagsMarksOlderObsolete() {
+		push("", "First", now.minusSeconds(10), "public");
+
+		ingest.updateResponse("", ref("", "Second", now.minusSeconds(10), "public"));
+
+		assertThat(refRepository.count())
+			.isEqualTo(2);
+		assertThat(version("", now.minusSeconds(10)).getMetadata().isObsolete())
+			.isTrue();
+		assertThat(refRepository.findAll(RefFilter.builder().obsolete(false).build().spec()))
+			.extracting(Ref::getTitle)
+			.containsExactly("Second");
+	}
+
+	@Test
 	void testUpdateStaleCursorFails() {
 		push("", "First", now.minusSeconds(10));
 
