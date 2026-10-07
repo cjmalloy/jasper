@@ -79,41 +79,49 @@ public class Metadata implements Serializable {
 		}
 	}
 
-	public void addPlugins(List<String> add, String url, boolean local) {
+	/**
+	 * @param userUrl qualified user URL to add to userUrls, or null if the
+	 *                response is not in the root origin
+	 */
+	public void addPlugins(List<String> add, String userUrl, boolean local) {
 		initRemotePlugins();
 		if (userUrls == null) userUrls = new HashMap<>();
 		for (var plugin : add) {
 			if (local || remotePlugins == null) plugins.merge(plugin, 1L, Long::sum);
 			if (remotePlugins != null) remotePlugins.merge(plugin, 1L, Long::sum);
-			if (matchesTemplate("plugin/user", plugin)) {
+			if (userUrl != null && matchesTemplate("plugin/user", plugin)) {
 				if (userUrls.containsKey(plugin)) {
 					var list = userUrls.get(plugin);
-					if (!list.contains(url)) list.add(url);
+					if (!list.contains(userUrl)) list.add(userUrl);
 				} else {
-					userUrls.put(plugin, new ArrayList<>(List.of(url)));
+					userUrls.put(plugin, new ArrayList<>(List.of(userUrl)));
 				}
 			}
 		}
 		modified = Instant.now().toString();
 	}
 
-	public void removePlugins(List<String> remove, String url, boolean local) {
+	/**
+	 * @param userUrl qualified user URL to remove from userUrls, or null if the
+	 *                response is not in the root origin
+	 */
+	public void removePlugins(List<String> remove, String userUrl, boolean local) {
 		initRemotePlugins();
 		if (userUrls == null) userUrls = new HashMap<>();
 		var changed = false;
 		for (var plugin : remove) {
 			if ((local || remotePlugins == null) && decrement(plugins, plugin)) changed = true;
 			if (remotePlugins != null && decrement(remotePlugins, plugin)) changed = true;
-			if (matchesTemplate("plugin/user", plugin)) {
+			if (userUrl != null && matchesTemplate("plugin/user", plugin)) {
 				for (var entry : userUrls.entrySet()) {
 					var list = entry.getValue();
-					if (list.contains(url)) {
+					if (list.contains(userUrl)) {
 						changed = true;
 						try {
-							list.remove(url);
+							list.remove(userUrl);
 						} catch (UnsupportedOperationException e) {
 							userUrls.put(entry.getKey(), list = new ArrayList<>(list));
-							list.remove(url);
+							list.remove(userUrl);
 						}
 					}
 				}

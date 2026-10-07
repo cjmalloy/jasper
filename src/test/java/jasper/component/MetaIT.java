@@ -795,14 +795,13 @@ public class MetaIT {
 	}
 
 	@Test
-	void testUserUrlsQualifiedWithResponseOrigin() {
+	void testUserUrlsIgnoreSubOriginResponse() {
 		saveSource(URL);
 
 		meta.sources("", userUrl("@remote", "internal", "+user/tester", "+plugin/user/run"), null);
 
 		var parent = refRepository.findOneByUrlAndOrigin(URL, "").orElseThrow();
-		assertThat(parent.getMetadata().getUserUrls())
-			.containsEntry("+plugin/user/run", List.of("tag:/user/tester@remote?url=" + URL));
+		assertThat(parent.getMetadata().getUserUrls()).isNullOrEmpty();
 		assertThat(parent.hasPluginResponse("+plugin/user/run")).isFalse();
 		assertThat(parent.getMetadata().getPlugins()).isNullOrEmpty();
 		assertThat(parent.getMetadata().getRemotePlugins()).containsEntry("+plugin/user/run", 1L);
@@ -822,19 +821,57 @@ public class MetaIT {
 	}
 
 	@Test
-	void testUserUrlsRemoveQualifiedResponse() {
+	void testUserUrlsRemoveResponse() {
 		saveSource(URL);
-		var existing = userUrl("@remote", "internal", "+user/tester", "+plugin/user/run");
+		var existing = userUrl("", "internal", "+user/tester", "+plugin/user/run");
 		meta.sources("", existing, null);
 
-		meta.sources("", userUrl("@remote", "internal", "+user/tester"), existing);
+		meta.sources("", userUrl("", "internal", "+user/tester"), existing);
 
 		var parent = refRepository.findOneByUrlAndOrigin(URL, "").orElseThrow();
 		assertThat(parent.getMetadata().getUserUrls().get("+plugin/user/run")).isNullOrEmpty();
 	}
 
+	Ref saveSourceInOrigin(String url, String origin) {
+		var source = new Ref();
+		source.setUrl(url);
+		source.setOrigin(origin);
+		source.setTitle("Source");
+		source.setMetadata(Metadata.builder()
+			.modified("2026-01-01T00:00:00Z")
+			.build());
+		return refRepository.save(source);
+	}
+
 	@Test
-	void testRegenUserUrlsQualifiedWithResponseOrigin() {
+	void testUserUrlsRootOriginRespondsToSubOrigin() {
+		saveSourceInOrigin(URL, "@remote.sub");
+
+		meta.sources("@remote", userUrl("@remote", "internal", "+user/tester", "+plugin/user/run"), null);
+
+		var parent = refRepository.findOneByUrlAndOrigin(URL, "@remote.sub").orElseThrow();
+		assertThat(parent.getMetadata().getUserUrls())
+			.containsEntry("+plugin/user/run", List.of("tag:/user/tester@remote?url=" + URL));
+		assertThat(parent.getMetadata().getPlugins()).isNullOrEmpty();
+		assertThat(parent.getMetadata().getRemotePlugins()).containsEntry("+plugin/user/run", 1L);
+	}
+
+	@Test
+	void testRegenUserUrlsRootOriginRespondsToSubOrigin() {
+		var source = saveSourceInOrigin(URL, "@remote.sub");
+		refRepository.save(userUrl("@remote", "internal", "+user/tester", "+plugin/user/run"));
+		refRepository.save(userUrl("@remote.sub", "internal", "+user/tester", "+plugin/user/run"));
+
+		meta.ref("@remote", source);
+
+		assertThat(source.getMetadata().getUserUrls().get("+plugin/user/run"))
+			.containsExactly("tag:/user/tester@remote?url=" + URL);
+		assertThat(source.getMetadata().getPlugins()).containsEntry("+plugin/user/run", 1L);
+		assertThat(source.getMetadata().getRemotePlugins()).containsEntry("+plugin/user/run", 2L);
+	}
+
+	@Test
+	void testRegenUserUrlsOnlyRootOrigin() {
 		var source = saveSource(URL);
 		refRepository.save(userUrl("", "internal", "+user/tester", "+plugin/user/run"));
 		refRepository.save(userUrl("@remote", "internal", "+user/tester", "+plugin/user/run"));
@@ -842,9 +879,7 @@ public class MetaIT {
 		meta.ref("", source);
 
 		assertThat(source.getMetadata().getUserUrls().get("+plugin/user/run"))
-			.containsExactlyInAnyOrder(
-				"tag:/user/tester?url=" + URL,
-				"tag:/user/tester@remote?url=" + URL);
+			.containsExactly("tag:/user/tester?url=" + URL);
 		assertThat(source.hasPluginResponse("+plugin/user/run")).isTrue();
 		assertThat(source.getMetadata().getPlugins()).containsEntry("+plugin/user/run", 1L);
 		assertThat(source.getMetadata().getRemotePlugins()).containsEntry("+plugin/user/run", 2L);
@@ -861,9 +896,7 @@ public class MetaIT {
 		meta.ref("", source);
 
 		assertThat(source.getMetadata().getUserUrls().get("+plugin/user/run"))
-			.containsExactlyInAnyOrder(
-				"tag:/user/tester?url=" + URL,
-				"tag:/user/tester@remote?url=" + URL);
+			.containsExactly("tag:/user/tester?url=" + URL);
 		assertThat(source.hasPluginResponse("+plugin/user/run")).isTrue();
 		assertThat(source.getMetadata().getPlugins()).containsEntry("+plugin/user/run", 1L);
 		assertThat(source.getMetadata().getRemotePlugins()).containsEntry("+plugin/user/run", 2L);

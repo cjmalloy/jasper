@@ -69,6 +69,7 @@ public class Meta {
 					tag,
 					refRepository.findAllResponseIdsWithTag(ref.getUrl(), rootOrigin, tag)
 						.stream()
+						.filter(id -> id.getOrigin().equals(rootOrigin))
 						.map(id -> qualifiedUserUrl(id.getUrl(), id.getOrigin()))
 						.toList()))
 				.filter(p -> !p.responses.isEmpty())
@@ -235,13 +236,13 @@ public class Meta {
 				metadata.removePlugins(existing.getExpandedTags().stream()
 						.filter(tag -> matchesTemplate("plugin", tag))
 						.toList(),
-					qualifiedUserUrl(existing.getUrl(), existing.getOrigin()),
+					rootUserUrl(rootOrigin, existing.getUrl(), existing.getOrigin()),
 					existing.getOrigin().equals(source.getOrigin()));
 			}
 			metadata.addPlugins(ref.getExpandedTags().stream()
 				.filter(tag -> matchesTemplate("plugin", tag))
 				.toList(),
-				qualifiedUserUrl(ref.getUrl(), ref.getOrigin()),
+				rootUserUrl(rootOrigin, ref.getUrl(), ref.getOrigin()),
 				ref.getOrigin().equals(source.getOrigin()));
 			source.setMetadata(metadata);
 			try {
@@ -288,7 +289,7 @@ logger.error("{} Error updating source metadata for ({}) {}", rootOrigin, ref.ge
 			metadata.removePlugins(existing.getExpandedTags().stream()
 					.filter(tag -> matchesTemplate("plugin", tag))
 					.toList(),
-				qualifiedUserUrl(url, existing.getOrigin()),
+				rootUserUrl(rootOrigin, url, existing.getOrigin()),
 				existing.getOrigin().equals(source.getOrigin()));
 		}
 		source.setMetadata(metadata);
@@ -299,6 +300,15 @@ logger.error("{} Error updating source metadata for ({}) {}", rootOrigin, ref.ge
 			logger.error("{} Error updating source metadata for {} {}",
 				rootOrigin, source.getOrigin(), source.getUrl(), e);
 		}
+	}
+
+	/**
+	 * User URLs are built in the context of the root origin, so only user URLs
+	 * in the root origin are tracked. They may respond to Refs in sub-origins.
+	 */
+	private static String rootUserUrl(String rootOrigin, String url, String origin) {
+		if (!origin.equals(rootOrigin)) return null;
+		return qualifiedUserUrl(url, origin);
 	}
 
 	/**
