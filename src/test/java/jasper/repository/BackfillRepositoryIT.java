@@ -185,7 +185,7 @@ public class BackfillRepositoryIT {
 
 	@Test
 	@DisabledOnSqlite
-	void testBackfillMetadata_RemotePlugins() {
+	void testBackfillMetadata_LocalPlugins() {
 		var plugin = new Plugin();
 		plugin.setTag("plugin/comment");
 		plugin.setOrigin("");
@@ -226,13 +226,13 @@ public class BackfillRepositoryIT {
 		backfillRepository.backfillMetadata("", 10);
 
 		var loaded = refRepository.findOneByUrlAndOrigin(remoteOnly.getUrl(), remoteOnly.getOrigin()).get();
-		assertThat(loaded.getMetadata().getPlugins()).containsEntry("plugin/comment", 1L);
+		assertThat(loaded.getMetadata().getPlugins()).isNullOrEmpty();
 		assertThat(loaded.getMetadata().getRemotePlugins()).containsEntry("plugin/comment", 1L);
 		assertThat(loaded.hasPluginResponse("plugin/comment")).isFalse();
 
 		loaded = refRepository.findOneByUrlAndOrigin(parent.getUrl(), parent.getOrigin()).get();
-		assertThat(loaded.getMetadata().getPlugins()).containsEntry("plugin/comment", 2L);
-		assertThat(loaded.getMetadata().getRemotePlugins()).containsEntry("plugin/comment", 1L);
+		assertThat(loaded.getMetadata().getPlugins()).containsEntry("plugin/comment", 1L);
+		assertThat(loaded.getMetadata().getRemotePlugins()).containsEntry("plugin/comment", 2L);
 		assertThat(loaded.hasPluginResponse("plugin/comment")).isTrue();
 	}
 
@@ -407,7 +407,7 @@ public class BackfillRepositoryIT {
 			.getSingleResult();
 		assertThat(count.intValue()).isEqualTo(responses);
 		var loaded = refRepository.findOneByUrlAndOrigin(parent.getUrl(), parent.getOrigin()).get();
-		var pluginCount = loaded.getMetadata().getPlugins() == null ? 0 : loaded.getMetadata().getPlugins().getOrDefault("plugin/comment", 0L).intValue();
+		var pluginCount = loaded.getMetadata().getRemotePlugins() == null ? 0 : loaded.getMetadata().getRemotePlugins().getOrDefault("plugin/comment", 0L).intValue();
 		assertThat(pluginCount).isEqualTo(comments);
 	}
 }

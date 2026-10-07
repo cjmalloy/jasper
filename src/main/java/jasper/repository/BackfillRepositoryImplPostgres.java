@@ -16,8 +16,8 @@ public class BackfillRepositoryImplPostgres implements BackfillRepository {
 
 	/**
 	 * Responses are filtered by their obsolete flag. Responses with missing
-	 * metadata are assumed to be obsolete. Remote plugin counts only include
-	 * responses in other origins than the Ref.
+	 * metadata are assumed to be obsolete. Plugin counts only include responses
+	 * in the same origin as the Ref, remote plugin counts include all origins.
 	 */
 	@Override
 	public int backfillMetadata(String origin, int batchSize) {
@@ -33,13 +33,13 @@ public class BackfillRepositoryImplPostgres implements BackfillRepository {
 				'modified', COALESCE(r.metadata->>'modified', to_char(NOW(), 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')),
 				'responses', (SELECT jsonb_agg(re.url) FROM ref re WHERE (re.sources @> jsonb_build_array(r.url)) AND (:origin = '' OR re.origin = :origin OR re.origin LIKE concat(:origin, '.%')) AND re.metadata IS NOT NULL AND COALESCE(re.metadata->>'obsolete', 'false') IN ('false', '0') AND jsonb_exists(COALESCE(re.metadata->'expandedTags', re.tags), 'internal') = false),
 				'internalResponses', (SELECT jsonb_agg(ire.url) FROM ref ire WHERE (ire.sources @> jsonb_build_array(r.url)) AND (:origin = '' OR ire.origin = :origin OR ire.origin LIKE concat(:origin, '.%')) AND ire.metadata IS NOT NULL AND COALESCE(ire.metadata->>'obsolete', 'false') IN ('false', '0') AND jsonb_exists(COALESCE(ire.metadata->'expandedTags', ire.tags), 'internal') = true),
-				'plugins', jsonb_strip_nulls((SELECT jsonb_object_agg(
+				'plugins', COALESCE(jsonb_strip_nulls((SELECT jsonb_object_agg(
 					p.tag,
-					(SELECT NULLIF(COUNT(DISTINCT pre.url), 0) FROM ref pre WHERE (pre.sources @> jsonb_build_array(r.url)) AND (:origin = '' OR pre.origin = :origin OR pre.origin LIKE concat(:origin, '.%')) AND pre.metadata IS NOT NULL AND COALESCE(pre.metadata->>'obsolete', 'false') IN ('false', '0') AND jsonb_exists(COALESCE(pre.metadata->'expandedTags', pre.tags), p.tag) = true)
-				) FROM plugin p WHERE p.origin = :origin)),
+					(SELECT NULLIF(COUNT(DISTINCT lpre.url), 0) FROM ref lpre WHERE (lpre.sources @> jsonb_build_array(r.url)) AND lpre.url != r.url AND lpre.origin = r.origin AND lpre.metadata IS NOT NULL AND COALESCE(lpre.metadata->>'obsolete', 'false') IN ('false', '0') AND jsonb_exists(COALESCE(lpre.metadata->'expandedTags', lpre.tags), p.tag) = true)
+				) FROM plugin p WHERE p.origin = :origin)), CAST('{}' AS jsonb)),
 				'remotePlugins', COALESCE(jsonb_strip_nulls((SELECT jsonb_object_agg(
 					p.tag,
-					(SELECT NULLIF(COUNT(DISTINCT rpre.url), 0) FROM ref rpre WHERE (rpre.sources @> jsonb_build_array(r.url)) AND (:origin = '' OR rpre.origin = :origin OR rpre.origin LIKE concat(:origin, '.%')) AND NOT EXISTS (SELECT 1 FROM ref lpre WHERE lpre.url = rpre.url AND lpre.origin = r.origin AND (lpre.sources @> jsonb_build_array(r.url)) AND lpre.metadata IS NOT NULL AND COALESCE(lpre.metadata->>'obsolete', 'false') IN ('false', '0') AND jsonb_exists(COALESCE(lpre.metadata->'expandedTags', lpre.tags), p.tag) = true) AND rpre.metadata IS NOT NULL AND COALESCE(rpre.metadata->>'obsolete', 'false') IN ('false', '0') AND jsonb_exists(COALESCE(rpre.metadata->'expandedTags', rpre.tags), p.tag) = true)
+					(SELECT NULLIF(COUNT(DISTINCT pre.url), 0) FROM ref pre WHERE (pre.sources @> jsonb_build_array(r.url)) AND (:origin = '' OR pre.origin = :origin OR pre.origin LIKE concat(:origin, '.%')) AND pre.metadata IS NOT NULL AND COALESCE(pre.metadata->>'obsolete', 'false') IN ('false', '0') AND jsonb_exists(COALESCE(pre.metadata->'expandedTags', pre.tags), p.tag) = true)
 				) FROM plugin p WHERE p.origin = :origin)), CAST('{}' AS jsonb)),
 				'obsolete', EXISTS (SELECT 1 from ref n WHERE n.url = r.url AND n.modified > r.modified AND (:origin = '' OR n.origin = :origin OR n.origin LIKE concat(:origin, '.%'))),
 				'cascade', CASE WHEN jsonb_array_length(COALESCE(r.sources, '[]')) > 0 THEN true END

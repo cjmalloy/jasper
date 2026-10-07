@@ -68,15 +68,14 @@ public interface HasTags extends Cursor {
 
 	/**
 	 * Has a plugin response in the same origin as this Ref.
-	 * Falls back to counts from all origins if remote counts have not been generated.
+	 * Counts from all origins if remote counts have not been generated.
 	 */
 	static boolean hasPluginResponse(RefDto ref, String tag) {
 		if (ref.getMetadata() == null) return false;
 		var plugins = ref.getMetadata().getPlugins();
 		if (plugins == null) return false;
-		var remotePlugins = ref.getMetadata().getRemotePlugins();
 		return plugins.entrySet().stream()
 			.filter(e -> matchesTag(tag, e.getKey()))
-			.anyMatch(e -> e.getValue() != null && e.getValue() - (remotePlugins == null ? 0 : remotePlugins.getOrDefault(e.getKey(), 0)) > 0);
+			.anyMatch(e -> e.getValue() != null && e.getValue() > 0);
 	}
 }

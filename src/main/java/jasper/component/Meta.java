@@ -58,17 +58,6 @@ public class Meta {
 	@Timed(value = "jasper.meta", histogram = true)
 	public void ref(String rootOrigin, Ref ref) {
 		if (ref == null) return;
-		var plugins = refRepositoryCustom.countPluginTagsInResponses(ref.getUrl(), rootOrigin)
-			.stream()
-			.collect(toMap(r -> (String) r[0], r -> ((Number) r[1]).longValue()));
-		var localPlugins = refRepositoryCustom.countLocalPluginTagsInResponses(ref.getUrl(), ref.getOrigin())
-			.stream()
-			.collect(toMap(r -> (String) r[0], r -> ((Number) r[1]).longValue()));
-		var remotePlugins = new HashMap<String, Long>();
-		plugins.forEach((tag, count) -> {
-			var remote = count - localPlugins.getOrDefault(tag, 0L);
-			if (remote > 0) remotePlugins.put(tag, remote);
-		});
 		ref.setMetadata(Metadata
 			.builder()
 			.expandedTags(expandTags(ref.getTags()))
@@ -84,8 +73,12 @@ public class Meta {
 						.toList()))
 				.filter(p -> !p.responses.isEmpty())
 				.collect(toMap(UserUrlResponse::tag, UserUrlResponse::responses)))
-			.plugins(plugins)
-			.remotePlugins(remotePlugins)
+			.plugins(refRepositoryCustom.countLocalPluginTagsInResponses(ref.getUrl(), ref.getOrigin())
+				.stream()
+				.collect(toMap(r -> (String) r[0], r -> ((Number) r[1]).longValue())))
+			.remotePlugins(refRepositoryCustom.countPluginTagsInResponses(ref.getUrl(), rootOrigin)
+				.stream()
+				.collect(toMap(r -> (String) r[0], r -> ((Number) r[1]).longValue())))
 			.build()
 		);
 	}

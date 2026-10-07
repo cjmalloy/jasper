@@ -32,9 +32,13 @@ public class Metadata implements Serializable {
 	private List<String> expandedTags;
 	private List<String> responses;
 	private List<String> internalResponses;
+	/**
+	 * Plugin response counts from the same origin as this Ref.
+	 * Counts from all origins if the metadata was generated before remote counts were tracked.
+	 */
 	private Map<String, Long> plugins;
 	/**
-	 * Plugin response counts from other origins than this Ref.
+	 * Plugin response counts from all origins under the root origin.
 	 * Null if the metadata was generated before remote counts were tracked.
 	 */
 	@JsonInclude(NON_NULL)
@@ -79,8 +83,8 @@ public class Metadata implements Serializable {
 		initRemotePlugins();
 		if (userUrls == null) userUrls = new HashMap<>();
 		for (var plugin : add) {
-			plugins.merge(plugin, 1L, Long::sum);
-			if (!local && remotePlugins != null) remotePlugins.merge(plugin, 1L, Long::sum);
+			if (local || remotePlugins == null) plugins.merge(plugin, 1L, Long::sum);
+			if (remotePlugins != null) remotePlugins.merge(plugin, 1L, Long::sum);
 			if (matchesTemplate("plugin/user", plugin)) {
 				if (userUrls.containsKey(plugin)) {
 					var list = userUrls.get(plugin);
@@ -98,8 +102,8 @@ public class Metadata implements Serializable {
 		if (userUrls == null) userUrls = new HashMap<>();
 		var changed = false;
 		for (var plugin : remove) {
-			if (decrement(plugins, plugin)) changed = true;
-			if (!local && remotePlugins != null && decrement(remotePlugins, plugin)) changed = true;
+			if ((local || remotePlugins == null) && decrement(plugins, plugin)) changed = true;
+			if (remotePlugins != null && decrement(remotePlugins, plugin)) changed = true;
 			if (matchesTemplate("plugin/user", plugin)) {
 				for (var entry : userUrls.entrySet()) {
 					var list = entry.getValue();
