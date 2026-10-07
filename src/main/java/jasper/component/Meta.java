@@ -14,11 +14,14 @@ import org.springframework.dao.DataAccessException;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Component;
 
+import java.time.Instant;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 
 import static jasper.domain.proj.Tag.matchesTemplate;
+import static jasper.domain.proj.Tag.userUrl;
 import static jasper.repository.spec.OriginSpec.isUnderOrigin;
 import static jasper.repository.spec.RefSpec.isNotObsolete;
 import static jasper.repository.spec.RefSpec.isUrl;
@@ -183,12 +186,27 @@ public class Meta {
 			source.getMetadata().setRegen(original.isRegen());
 			source.getMetadata().setCascade(original.isCascade());
 		}
+		if (ref.getSources() != null && ref.getSources().contains(source.getUrl())) {
+			source.getMetadata().setNewReaction(latest(source.getMetadata().getNewReaction(), ref.getModified()));
+			if (!userUrl(ref.getUrl())) source.getMetadata().setNewResponse(latest(source.getMetadata().getNewResponse(), ref.getCreated()));
+		}
 		try {
 			refRepository.updateMetadata(source.getUrl(), source.getOrigin(), source.getMetadata());
 			messages.updateMetadata(source);
 		} catch (DataAccessException e) {
 			logger.error("Error updating source metadata for {} {}", ref.getOrigin(), ref.getUrl(), e);
 		}
+	}
+
+	/**
+	 * The later of a metadata timestamp and an instant.
+	 */
+	private static String latest(String current, Instant time) {
+		if (time == null) return current;
+		try {
+			if (current != null && !Instant.parse(current).isBefore(time)) return current;
+		} catch (DateTimeParseException ignored) { }
+		return time.toString();
 	}
 
 	@Timed(value = "jasper.meta", histogram = true)
@@ -236,7 +254,7 @@ public class Meta {
 
 		// Update sources
 		var timestamp = now().toString();
-		var newResponse = existing == null && ref.getExpandedTags().stream().noneMatch(tag -> matchesTemplate("plugin/user", tag));
+		var newResponse = existing == null && !userUrl(ref.getUrl());
 		var sources = (ref.getSources() == null ? List.<String>of() : ref.getSources())
 			.stream()
 			.limit(limit)

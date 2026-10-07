@@ -143,7 +143,7 @@ The `:num` and `:len` suffixes are automatically applied to metadata fields, so 
 Metadata dates useful for sorting:
 - `metadata->modified`: updated whenever the responses, internal responses or plugin counts change.
 - `metadata->newResponse`: updated only when a new response is created (not updated), ignoring
-  user urls (responses tagged with a `plugin/user` plugin).
+  user urls (`tag:/user?url=...`).
 - `metadata->newReaction`: updated whenever any response is created or updated, including user urls.
 
 ## Modding
