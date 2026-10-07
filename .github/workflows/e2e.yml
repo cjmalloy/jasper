@@ -1,0 +1,236 @@
+name: E2E
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ '**' ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        database: [postgres, sqlite]
+    defaults:
+      run:
+        working-directory: e2e
+    steps:
+      - uses: actions/checkout@v7
+      - name: Run E2E tests
+        # language=bash
+        run: |
+          if [ "${{ matrix.database }}" = "sqlite" ]; then
+            npm run ci:sqlite
+          else
+            npm run ci
+          fi
+      - name: Collect server logs
+        if: always()
+        # language=bash
+        run: |
+          mkdir -p logs
+          files="-f docker-compose.yaml"
+          if [ "${{ matrix.database }}" = "sqlite" ]; then
+            files="$files -f docker-compose.sqlite.yaml"
+          fi
+          docker compose $files --profile ci logs --no-color > logs/docker-compose.log 2>&1 || true
+          docker compose $files --profile ci down -v || true
+      - name: Fix report permissions
+        if: always()
+        # language=bash
+        run: |
+          if [ -d reports ]; then
+            sudo chown -R "$(id -u):$(id -g)" reports
+          fi
+      - name: Patch HTML report
+        if: always()
+        # language=bash
+        run: |
+          # Expand all test steps by default
+          if [ -f reports/html/index.html ]; then
+            sed -i 's/mergeFiles",!1/mergeFiles",!0/g' reports/html/index.html
+          fi
+      - name: Summarize results
+        id: summary
+        if: always()
+        uses: actions/github-script@v9
+        env:
+          DATABASE: ${{ matrix.database }}
+        with:
+          # language=JavaScript
+          script: |
+            const fs = require('fs');
+            const file = 'e2e/reports/results.json';
+            const db = process.env.DATABASE;
+            let md = '';
+            if (!fs.existsSync(file)) {
+              md = `## ❌ E2E Results (${db})\n\n**No results found.** The stack probably failed to start; see the job logs.\n`;
+              core.setOutput('failed', 'true');
+            } else {
+              const results = JSON.parse(fs.readFileSync(file, 'utf8'));
+              const tests = [];
+              const walk = (suite, path) => {
+                const title = suite.title && !suite.title.endsWith('.ts') ? [...path, suite.title] : path;
+                for (const spec of suite.specs || []) {
+                  for (const test of spec.tests || []) {
+                    const last = test.results?.[test.results.length - 1];
+                    tests.push({
+                      file: spec.file,
+                      title: [...title, spec.title].join(' › '),
+                      status: test.status,
+                      duration: (test.results || []).reduce((a, r) => a + (r.duration || 0), 0),
+                      error: last?.error?.message || '',
+                    });
+                  }
+                }
+                for (const child of suite.suites || []) walk(child, title);
+              };
+              for (const suite of results.suites || []) walk(suite, []);
+              const count = s => tests.filter(t => t.status === s).length;
+              const passed = count('expected');
+              const failed = count('unexpected');
+              const flaky = count('flaky');
+              const skipped = count('skipped');
+              const errors = (results.errors || []).length;
+              const ok = failed === 0 && errors === 0;
+              const seconds = ((results.stats?.duration || 0) / 1000).toFixed(1);
+              md += `## ${ok ? '✅' : '❌'} E2E Results (${db})\n\n`;
+              md += `**${ok ? 'All tests passed' : 'Some tests failed'}** in ${seconds}s\n\n`;
+              md += `| Metric | Count |\n|--------|-------|\n`;
+              md += `| Total Tests | ${tests.length} |\n`;
+              md += `| ✅ Passed | ${passed} |\n`;
+              md += `| ❌ Failed | ${failed} |\n`;
+              md += `| 🔁 Flaky | ${flaky} |\n`;
+              md += `| ⏭️ Skipped | ${skipped} |\n`;
+              if (errors) md += `| 💥 Errors | ${errors} |\n`;
+              md += '\n';
+              const icon = { expected: '✅', unexpected: '❌', flaky: '🔁', skipped: '⏭️' };
+              md += `<details><summary>Test details</summary>\n\n`;
+              md += `| | Test | File | Duration |\n|---|------|------|----------|\n`;
+              for (const t of tests) {
+                md += `| ${icon[t.status] || '❔'} | ${t.title.replace(/\|/g, '\\|')} | \`${t.file}\` | ${(t.duration / 1000).toFixed(1)}s |\n`;
+              }
+              md += `\n</details>\n\n`;
+              const failures = tests.filter(t => t.status === 'unexpected');
+              const strip = s => s.replace(/\u001b\[[0-9;]*m/g, '').slice(0, 1500);
+              if (failures.length || errors) {
+                md += `### 🔍 Failures\n\n`;
+                for (const t of failures.slice(0, 10)) {
+                  md += `#### ${t.title}\n\n\`\`\`\n${strip(t.error)}\n\`\`\`\n\n`;
+                }
+                if (failures.length > 10) md += `*... and ${failures.length - 10} more failures. See the detailed report.*\n\n`;
+                for (const e of (results.errors || []).slice(0, 5)) {
+                  md += `\`\`\`\n${strip(e.message || '')}\n\`\`\`\n\n`;
+                }
+              }
+              core.setOutput('failed', ok ? 'false' : 'true');
+            }
+            fs.writeFileSync('e2e-summary.md', md);
+            await core.summary.addRaw(md).write();
+      - name: Comment on PR
+        if: github.event_name == 'pull_request' && always() && github.event.pull_request.head.repo.full_name == github.repository
+        uses: actions/github-script@v9
+        env:
+          DATABASE: ${{ matrix.database }}
+          ARTIFACT: e2e-reports-${{ matrix.database }}-pr-${{ github.event.pull_request.number }}
+        with:
+          # language=JavaScript
+          script: |
+            const fs = require('fs');
+            const marker = `<!-- e2e-results-${process.env.DATABASE}-comment -->`;
+            let body = fs.existsSync('e2e-summary.md') ? fs.readFileSync('e2e-summary.md', 'utf8') : `## ❔ E2E Results (${process.env.DATABASE})\n\nNo summary generated.\n`;
+            const url = `https://${context.repo.owner}.github.io/${context.repo.repo}/reports/${process.env.ARTIFACT}/`;
+            body += `\n📋 [View detailed E2E report](${url})\n`;
+            body += `\n${marker}`;
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            const existing = comments.find(c => c.body?.includes(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body,
+              });
+            }
+      - name: Upload PR Report
+        if: github.event_name == 'pull_request' && always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: e2e-reports-${{ matrix.database }}-pr-${{ github.event.pull_request.number }}
+          path: e2e/reports/html
+          retention-days: 7
+      - name: Upload Reports
+        if: github.event_name != 'pull_request' && always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: e2e-reports-${{ matrix.database }}-${{ github.ref_name }}-${{ github.run_number }}
+          path: e2e/reports/html
+          retention-days: 90
+      - name: Upload Logs
+        if: failure() || steps.summary.outputs.failed == 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          name: e2e-logs-${{ matrix.database }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            e2e/logs
+            e2e/test-results
+          retention-days: 7
+
+  clean:
+    needs: e2e
+    if: always()
+    runs-on: ubuntu-24.04-arm
+    permissions:
+      actions: write
+    steps:
+      - name: Cleanup old artifacts
+        uses: actions/github-script@v9
+        env:
+          PR: ${{ github.event.pull_request.number }}
+        with:
+          # language=JavaScript
+          script: |
+            const pr = process.env.PR;
+            const keep = pr ? 1 : 10;
+            const artifacts = await github.paginate(github.rest.actions.listArtifactsForRepo, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              per_page: 100,
+            });
+            const groups = {};
+            for (const a of artifacts) {
+              if (!a.name.startsWith('e2e-reports-')) continue;
+              if (pr ? !a.name.endsWith(`-pr-${pr}`) : !a.name.includes(`-${context.ref.replace('refs/heads/', '')}-`)) continue;
+              const group = pr ? a.name : a.name.replace(/-\d+$/, '');
+              (groups[group] ||= []).push(a);
+            }
+            for (const group of Object.values(groups)) {
+              group.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+              for (const a of group.slice(keep)) {
+                console.log('Deleting artifact:', a.name);
+                await github.rest.actions.deleteArtifact({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  artifact_id: a.id,
+                });
+              }
+            }

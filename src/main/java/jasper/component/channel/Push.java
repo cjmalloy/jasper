@@ -110,7 +110,7 @@ public class Push {
 							logger.info("{} Finished pushing origin ({}) on change {}: {}", remote.getOrigin(), formatOrigin(origin), remote.getTitle(), remote.getUrl());
 						} catch (Exception e) {
 							logger.error("{} Error pushing origin ({}) on change {}: {}", remote.getOrigin(), formatOrigin(origin), remote.getTitle(), remote.getUrl());
-							tagger.attachError(remote.getUrl(), origin, "Error pushing", getMessage(e));
+							tagger.attachError(remote.getOrigin(), remote, "Error pushing", getMessage(e));
 						}
 					} else {
 						deleted.add(target);

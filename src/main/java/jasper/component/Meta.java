@@ -15,11 +15,16 @@ import org.springframework.dao.DataAccessException;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Component;
 
+import java.time.Duration;
+import java.time.Instant;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 
+import static jasper.domain.Metadata.timestamp;
 import static jasper.domain.proj.Tag.matchesTemplate;
+import static jasper.domain.proj.Tag.userUrl;
 import static jasper.repository.spec.OriginSpec.isUnderOrigin;
 import static jasper.repository.spec.RefSpec.isNotObsolete;
 import static jasper.repository.spec.RefSpec.isUrl;
@@ -37,6 +42,7 @@ public class Meta {
 	 * Number of sources already updated synchronously on cascade-queued Refs.
 	 */
 	public static final int SYNC_SOURCES = 2;
+	private static final Duration NEW_TOLERANCE = Duration.ofSeconds(5);
 
 	@Autowired
 	RefRepository refRepository;
@@ -113,7 +119,10 @@ public class Meta {
 
 	@Timed(value = "jasper.meta", histogram = true)
 	public void responseSource(String rootOrigin, Ref ref, Ref existing) {
-		if (ref != null && existing != null && existing.getTags() != null && existing.getTags().equals(ref.getTags())) return;
+		if (ref != null && existing != null && existing.getTags() != null && existing.getTags().equals(ref.getTags())) {
+			reaction(rootOrigin, ref);
+			return;
+		}
 		sources(rootOrigin, ref, existing);
 	}
 
@@ -125,6 +134,36 @@ public class Meta {
 			.builder()
 			.expandedTags(expandTags(ref.getTags()))
 			.build());
+	}
+
+	/**
+	 * Update the newReaction timestamp of the sources of a Ref without rebuilding counts.
+	 * Sources past {@link #SYNC_SOURCES} are updated by the cascade.
+	 */
+	private void reaction(String rootOrigin, Ref ref) {
+		if (archive) refRepository.updateObsolete(ref.getUrl(), rootOrigin);
+		if (noMetadata) return;
+		var timestamp = timestamp(now());
+		var sources = (ref.getSources() == null ? List.<String>of() : ref.getSources())
+			.stream()
+			.limit(SYNC_SOURCES)
+			.filter(s -> !s.equals(ref.getUrl()))
+			.distinct()
+			.toList();
+		if (!sources.isEmpty()) for (var source : refRepository.findAll(isUrls(sources).and(isNotObsolete()).and(isUnderOrigin(rootOrigin)))) {
+			if (source.getMetadata() == null) continue;
+			detach(source);
+			source.getMetadata().setNewReaction(timestamp);
+			try {
+				updateMetadata(source, source.getMetadata());
+				messages.updateMetadata(source);
+			} catch (DataAccessException e) {
+				logger.error("{} Error updating source metadata for ({}) {}", rootOrigin, ref.getOrigin(), ref.getUrl(), e);
+			}
+		}
+		if (ref.getSources() != null && ref.getSources().size() > SYNC_SOURCES) {
+			markCascade(ref);
+		}
 	}
 
 	public static List<String> expandTags(List<String> tags) {
@@ -144,9 +183,13 @@ public class Meta {
 
 	@Timed(value = "jasper.meta", histogram = true)
 	public void regen(String rootOrigin, Ref ref) {
-		var originalDate = ref.getMetadata() == null ? now().toString() : ref.getMetadata().getModified();
+		var original = ref.getMetadata();
 		ref(rootOrigin, ref);
-		ref.getMetadata().setModified(originalDate);
+		ref.getMetadata().setModified(original == null ? now().toString() : original.getModified());
+		if (original != null) {
+			ref.getMetadata().setNewResponse(original.getNewResponse());
+			ref.getMetadata().setNewReaction(original.getNewReaction());
+		}
 		ref.getMetadata().setObsolete(refRepository.newerExists(ref.getUrl(), rootOrigin, ref.getModified()));
 		if (ref.getMetadata().isObsolete()) return;
 		refRepository.updateObsolete(ref.getUrl(), rootOrigin);
@@ -165,19 +208,44 @@ public class Meta {
 
 	public void cascadeSource(String rootOrigin, Ref ref, Ref source) {
 		detach(source);
-		var originalDate = source.getMetadata() == null ? now().toString() : source.getMetadata().getModified();
-		var regen = source.getMetadata() != null && source.getMetadata().isRegen();
-		var cascade = source.getMetadata() != null && source.getMetadata().isCascade();
+		var original = source.getMetadata();
 		ref(rootOrigin, source);
-		source.getMetadata().setModified(originalDate);
-		source.getMetadata().setRegen(regen);
-		source.getMetadata().setCascade(cascade);
+		source.getMetadata().setModified(original == null ? now().toString() : original.getModified());
+		if (original != null) {
+			source.getMetadata().setNewResponse(original.getNewResponse());
+			source.getMetadata().setNewReaction(original.getNewReaction());
+			source.getMetadata().setRegen(original.isRegen());
+			source.getMetadata().setCascade(original.isCascade());
+		}
+		if (ref.getSources() != null && ref.getSources().contains(source.getUrl())) {
+			source.getMetadata().setNewReaction(latest(source.getMetadata().getNewReaction(), ref.getModified()));
+			if (!userUrl(ref.getUrl()) && isNew(ref)) source.getMetadata().setNewResponse(latest(source.getMetadata().getNewResponse(), ref.getCreated()));
+		}
 		try {
 			updateMetadata(source, source.getMetadata());
 			messages.updateMetadata(source);
 		} catch (DataAccessException e) {
 			logger.error("Error updating source metadata for {} {}", ref.getOrigin(), ref.getUrl(), e);
 		}
+	}
+
+	/**
+	 * A Ref is new if it has not been modified since it was created.
+	 */
+	private static boolean isNew(Ref ref) {
+		if (ref.getCreated() == null || ref.getModified() == null) return false;
+		return Duration.between(ref.getCreated(), ref.getModified()).abs().compareTo(NEW_TOLERANCE) <= 0;
+	}
+
+	/**
+	 * The later of a metadata timestamp and an instant.
+	 */
+	private static String latest(String current, Instant time) {
+		if (time == null) return current;
+		try {
+			if (current != null && !Instant.parse(current).isBefore(time)) return current;
+		} catch (DateTimeParseException ignored) { }
+		return timestamp(time);
 	}
 
 	@Timed(value = "jasper.meta", histogram = true)
@@ -202,6 +270,8 @@ public class Meta {
 				detach(latest);
 				if (latest.getMetadata() != null && existing.getMetadata() != null) {
 					latest.getMetadata().setModified(existing.getMetadata().getModified());
+					latest.getMetadata().setNewResponse(existing.getMetadata().getNewResponse());
+					latest.getMetadata().setNewReaction(existing.getMetadata().getNewReaction());
 				}
 				regen(rootOrigin, latest);
 				updateMetadata(latest, latest.getMetadata());
@@ -223,6 +293,8 @@ public class Meta {
 		}
 
 		// Update sources
+		var timestamp = timestamp(now());
+		var newResponse = existing == null && !userUrl(ref.getUrl());
 		var sources = (ref.getSources() == null ? List.<String>of() : ref.getSources())
 			.stream()
 			.limit(limit)
@@ -256,6 +328,8 @@ public class Meta {
 				.filter(tag -> matchesTemplate("plugin", tag))
 				.toList(),
 				ref.getUrl());
+			metadata.setNewReaction(timestamp);
+			if (newResponse) metadata.setNewResponse(timestamp);
 			source.setMetadata(metadata);
 			try {
 				updateMetadata(source, metadata);
@@ -286,13 +360,18 @@ logger.error("{} Error updating source metadata for ({}) {}", rootOrigin, ref.ge
 				}
 			}
 		}
-		if (cascade) {
-			ref.getMetadata().setCascade(true);
-			if (archive) {
-				refRepository.markCascadeVersion(ref.getUrl(), ref.getOrigin(), ref.getModified());
-			} else {
-				refRepository.markCascade(ref.getUrl(), ref.getOrigin());
-			}
+		if (cascade) markCascade(ref);
+	}
+
+	/**
+	 * Queue a Ref for the cascade. In archive mode only the given version is marked.
+	 */
+	private void markCascade(Ref ref) {
+		ref.getMetadata().setCascade(true);
+		if (archive) {
+			refRepository.markCascadeVersion(ref.getUrl(), ref.getOrigin(), ref.getModified());
+		} else {
+			refRepository.markCascade(ref.getUrl(), ref.getOrigin());
 		}
 	}
 

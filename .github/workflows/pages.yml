@@ -4,7 +4,7 @@ on:
   push:
     branches: [ master, 'v1.3' ]
   workflow_run:
-    workflows: ["Test", "Load Test"]
+    workflows: ["Test", "Load Test", "E2E"]
     types:
       - completed
     branches: [ '**' ]
@@ -55,7 +55,21 @@ jobs:
         run: |
           mkdir -p "_site/reports"
           gh auth login --with-token <<< "${{ github.token }}"
-          gh run download --pattern "*-reports-*" --dir _site/reports
+          # Download artifacts individually: cleanup jobs may delete an artifact between listing and download,
+          # which makes `gh run download --pattern` fail the whole build with HTTP 404.
+          gh api --paginate "/repos/${GITHUB_REPOSITORY}/actions/artifacts?per_page=100" \
+            --jq '.artifacts[] | select((.expired | not) and (.name | test(".-reports-"))) | [.id, .name] | @tsv' \
+            > /tmp/report-artifacts.tsv
+          awk -F'\t' '!seen[$2]++' /tmp/report-artifacts.tsv | while IFS=$'\t' read -r artifact_id artifact_name; do
+            if gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}/zip" > /tmp/report-artifact.zip \
+              && unzip -q -o /tmp/report-artifact.zip -d "_site/reports/${artifact_name}"; then
+              :
+            else
+              echo "Skipping unavailable artifact: ${artifact_name} (${artifact_id})"
+              rm -rf "_site/reports/${artifact_name}"
+            fi
+            rm -f /tmp/report-artifact.zip
+          done
           # Create copy of latest master report
           # Prefer reports with JaCoCo coverage data so README coverage links resolve.
           # Matches legacy junit-reports-master-* and matrix artifacts like junit-reports-postgres-master-*.
@@ -91,6 +105,11 @@ jobs:
           if [[ -n "$latest_gatling" && -d "$latest_gatling" ]]; then
             mkdir -p _site/reports/latest-gatling
             cp -r "$latest_gatling/." _site/reports/latest-gatling/
+          fi
+          latest_e2e=$(ls -dv _site/reports/e2e-reports-postgres-master-* 2>/dev/null | tail -1)
+          if [[ -n "$latest_e2e" && -d "$latest_e2e" ]]; then
+            mkdir -p _site/reports/latest-e2e
+            cp -r "$latest_e2e/." _site/reports/latest-e2e/
           fi
           # Prune all but the most recent runs of each report group (name without the trailing run number).
           for d in _site/reports/*/; do
@@ -300,6 +319,9 @@ jobs:
             <h1>Test Reports</h1>
             <div class='report'>
               <a href='latest-gatling/'>Latest Gatling Report</a>
+            </div>
+            <div class='report'>
+              <a href='latest-e2e/'>Latest E2E Report</a>
             </div>
             <div class='report'>
               <a href='latest-junit/'>Latest JUnit Report</a>

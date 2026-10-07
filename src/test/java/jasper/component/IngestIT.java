@@ -1,6 +1,7 @@
 package jasper.component;
 
 import jasper.IntegrationTest;
+import jasper.component.channel.Cascade;
 import jasper.component.dto.ComponentDtoMapper;
 import jasper.domain.Metadata;
 import jasper.domain.Ref;
@@ -48,6 +49,9 @@ public class IngestIT {
 
 	@Autowired
 	ComponentDtoMapper mapper;
+
+	@Autowired
+	Cascade cascade;
 
 	static final String URL = "https://www.example.com/";
 	static final String OTHER_URL = "https://www.example.com/other";
@@ -568,6 +572,107 @@ public class IngestIT {
 			.isNotNull();
 		assertThat(fetched.getMetadata().getExpandedTags())
 			.isNotNull();
+	}
+
+	@Test
+	void testUpdateResponseWithSameTagsSetsSourceNewReaction() {
+		var source = new Ref();
+		source.setUrl(OTHER_URL);
+		source.setTitle("Source");
+		source.setMetadata(Metadata.builder()
+			.modified("2026-01-01T00:00:00Z")
+			.responses(new ArrayList<>(List.of(URL)))
+			.build());
+		refRepository.save(source);
+		var existing = new Ref();
+		existing.setUrl(URL);
+		existing.setTitle("First");
+		existing.setSources(List.of(OTHER_URL));
+		existing.setTags(List.of("test/tag"));
+		refRepository.save(existing);
+		var ref = new Ref();
+		ref.setUrl(URL);
+		ref.setTitle("Second");
+		ref.setSources(List.of(OTHER_URL));
+		ref.setTags(List.of("test/tag"));
+		ref.setModified(existing.getModified());
+
+		ingest.updateResponse("", ref);
+
+		var fetched = refRepository.findOneByUrlAndOrigin(OTHER_URL, "").get();
+		assertThat(fetched.getMetadata().getNewReaction())
+			.isNotNull();
+		assertThat(fetched.getMetadata().getNewResponse())
+			.isNull();
+		assertThat(fetched.getMetadata().getResponses())
+			.containsExactly(URL);
+	}
+
+	@Test
+	void testUpdateResponseWithSameTagsCascadesNewReaction() {
+		for (var url : List.of(URL + "a", URL + "b", URL + "c")) {
+			var source = new Ref();
+			source.setUrl(url);
+			source.setTitle("Source");
+			source.setMetadata(Metadata.builder()
+				.modified("2026-01-01T00:00:00Z")
+				.responses(new ArrayList<>(List.of(URL)))
+				.build());
+			refRepository.save(source);
+		}
+		var existing = new Ref();
+		existing.setUrl(URL);
+		existing.setTitle("First");
+		existing.setSources(List.of(URL + "a", URL + "b", URL + "c"));
+		existing.setTags(List.of("test/tag"));
+		existing.setCreated(Instant.now().minusSeconds(60));
+		refRepository.save(existing);
+		var ref = new Ref();
+		ref.setUrl(URL);
+		ref.setTitle("Second");
+		ref.setSources(List.of(URL + "a", URL + "b", URL + "c"));
+		ref.setTags(List.of("test/tag"));
+		ref.setModified(existing.getModified());
+
+		ingest.updateResponse("", ref);
+
+		assertThat(ref.getMetadata().isCascade()).isTrue();
+		var fetched = refRepository.findOneByUrlAndOrigin(URL, "").get();
+		assertThat(fetched.getMetadata().isCascade()).isTrue();
+		assertThat(refRepository.findOneByUrlAndOrigin(URL + "c", "").get().getMetadata().getNewReaction())
+			.isNull();
+
+		cascade.cascadeRef("", fetched);
+
+		var third = refRepository.findOneByUrlAndOrigin(URL + "c", "").get();
+		assertThat(third.getMetadata().getNewReaction())
+			.isNotNull();
+		assertThat(third.getMetadata().getNewResponse())
+			.isNull();
+		assertThat(third.getMetadata().getResponses())
+			.containsExactly(URL);
+	}
+
+	@Test
+	void testUpdateResponseWithSameTagsAndFewSourcesDoesNotCascade() {
+		createSources(URL + "a", URL + "b");
+		var existing = new Ref();
+		existing.setUrl(URL);
+		existing.setTitle("First");
+		existing.setSources(List.of(URL + "a", URL + "b"));
+		existing.setTags(List.of("test/tag"));
+		refRepository.save(existing);
+		var ref = new Ref();
+		ref.setUrl(URL);
+		ref.setTitle("Second");
+		ref.setSources(List.of(URL + "a", URL + "b"));
+		ref.setTags(List.of("test/tag"));
+		ref.setModified(existing.getModified());
+
+		ingest.updateResponse("", ref);
+
+		assertThat(ref.getMetadata().isCascade()).isFalse();
+		assertThat(refRepository.findOneByUrlAndOrigin(URL, "").get().getMetadata().isCascade()).isFalse();
 	}
 
 	@Test

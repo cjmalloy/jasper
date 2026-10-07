@@ -170,6 +170,18 @@ public class AuthUnitTest {
 	}
 
 	@Test
+	void testCanReadRef_RedirectedLogOwner() {
+		var ref = getRef("internal", "+plugin/log", "user/alice");
+
+		assertThat(getAuth(getUser("+user/alice"), USER).canReadRef(ref))
+			.isTrue();
+		assertThat(getAuth(getUser("_user/alice"), USER).canReadRef(ref))
+			.isTrue();
+		assertThat(getAuth(getUser("+user/bob"), USER).canReadRef(ref))
+			.isFalse();
+	}
+
+	@Test
 	void testCanReadRef_RemoteRef() {
 		var auth = getAuth(getUser("+user/test"));
 		var ref = getRef("public");
