@@ -785,4 +785,64 @@ public class MetaIT {
 		// Should call sources() since existing.tags is null
 	}
 
+	Ref userUrl(String origin, String... tags) {
+		var res = new Ref();
+		res.setUrl("tag:/user/tester?url=" + URL);
+		res.setOrigin(origin);
+		res.setSources(List.of(URL));
+		res.setTags(new ArrayList<>(List.of(tags)));
+		return res;
+	}
+
+	@Test
+	void testUserUrlsQualifiedWithResponseOrigin() {
+		saveSource(URL);
+
+		meta.sources("", userUrl("@remote", "internal", "+user/tester", "+plugin/user/run"), null);
+
+		var parent = refRepository.findOneByUrlAndOrigin(URL, "").orElseThrow();
+		assertThat(parent.getMetadata().getUserUrls())
+			.containsEntry("+plugin/user/run", List.of("tag:/user/tester@remote?url=" + URL));
+		assertThat(parent.hasUserPluginResponse("+plugin/user/run")).isFalse();
+	}
+
+	@Test
+	void testUserUrlsSameOriginResponse() {
+		saveSource(URL);
+
+		meta.sources("", userUrl("", "internal", "+user/tester", "+plugin/user/run"), null);
+
+		var parent = refRepository.findOneByUrlAndOrigin(URL, "").orElseThrow();
+		assertThat(parent.getMetadata().getUserUrls())
+			.containsEntry("+plugin/user/run", List.of("tag:/user/tester?url=" + URL));
+		assertThat(parent.hasUserPluginResponse("+plugin/user/run")).isTrue();
+	}
+
+	@Test
+	void testUserUrlsRemoveQualifiedResponse() {
+		saveSource(URL);
+		var existing = userUrl("@remote", "internal", "+user/tester", "+plugin/user/run");
+		meta.sources("", existing, null);
+
+		meta.sources("", userUrl("@remote", "internal", "+user/tester"), existing);
+
+		var parent = refRepository.findOneByUrlAndOrigin(URL, "").orElseThrow();
+		assertThat(parent.getMetadata().getUserUrls().get("+plugin/user/run")).isNullOrEmpty();
+	}
+
+	@Test
+	void testRegenUserUrlsQualifiedWithResponseOrigin() {
+		var source = saveSource(URL);
+		refRepository.save(userUrl("", "internal", "+user/tester", "+plugin/user/run"));
+		refRepository.save(userUrl("@remote", "internal", "+user/tester", "+plugin/user/run"));
+
+		meta.ref("", source);
+
+		assertThat(source.getMetadata().getUserUrls().get("+plugin/user/run"))
+			.containsExactlyInAnyOrder(
+				"tag:/user/tester?url=" + URL,
+				"tag:/user/tester@remote?url=" + URL);
+		assertThat(source.hasUserPluginResponse("+plugin/user/run")).isTrue();
+	}
+
 }
