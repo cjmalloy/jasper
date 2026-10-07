@@ -142,7 +142,7 @@ docker compose up --build -d --wait && docker compose --profile ci run --rm play
 | Docker build `PKIX path building failed` | Sandbox TLS-intercepting proxy | See "PKIX error inside Docker" above. |
 | `bind: address already in use` on 8081 | Local app, root compose and gatling compose all use 8081 | Run only one at a time; `docker compose down` / stop the async shell. |
 | Maven seems hung on first build | Downloading dependencies | Wait; first build downloads hundreds of MB. Use `-B` to avoid progress spam. |
-| Lockfile / dependency-version drift | Not npm here: there is no JS lockfile. Drift happens between Bun versions (Dockerfile pins `oven/bun:1.4.2-slim`; CI `setup-bun` and the install script take latest) and between Maven image tags (`Dockerfile` vs `gatling/Dockerfile`) | Don't add `package.json`/lockfiles outside `e2e/`. If a JS test behaves differently locally vs Docker, install the pinned version: `curl -fsSL https://bun.sh/install \| bash -s bun-v1.4.2`. Versions in `pom.xml` are the source of truth; Dependabot updates them. |
+| Lockfile / dependency-version drift | The `e2e/` module has an npm lockfile; elsewhere, drift happens between Bun versions (Dockerfile pins `oven/bun:1.4.2-slim`; CI `setup-bun` and the install script take latest) and between Maven image tags (`Dockerfile` vs `gatling/Dockerfile`) | Don't add `package.json`/lockfiles outside `e2e/`. If a JS test behaves differently locally vs Docker, install the pinned version: `curl -fsSL https://bun.sh/install \| bash -s bun-v1.4.2`. Versions in `pom.xml` are the source of truth; Dependabot updates them. |
 
 ## CI (`.github/workflows/`)
 
