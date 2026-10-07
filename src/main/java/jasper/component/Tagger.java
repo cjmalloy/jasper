@@ -222,6 +222,8 @@ public class Tagger {
 	@Async
 	@Timed(value = "jasper.tagger", histogram = true)
 	public void attachLogs(String origin, Ref parent, String title, String logs) {
+		var remote = configs.getRemote(origin);
+		if (remote != null) origin = remote.getOrigin();
 		var ref = new Ref();
 		ref.setOrigin(origin);
 		ref.setUrl("error:" + UUID.randomUUID());
