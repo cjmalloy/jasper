@@ -1075,7 +1075,7 @@ server and mean nothing locally. The local users that matter are the owners of t
 in the owning origin (usually `""`).
 
 There are two kinds of writes:
- * **State** on a Ref in a pulled origin, such as the `_plugin/cache` ban/error marker written after a failed cache
+ * **Plugin data** on a Ref in a pulled origin, such as the `_plugin/cache` ban/error marker written after a failed cache
    fetch. It is written silently into the pulled origin (`Tagger.silentPlugin`). A new Ref is backdated to
    `cursor - 1ms` and an existing Ref keeps its `modified`, so the pull cursor (`modifiedAfter`) never moves past
    remote entries.

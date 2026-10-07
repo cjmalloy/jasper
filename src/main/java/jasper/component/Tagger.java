@@ -109,8 +109,8 @@ public class Tagger {
 
 	/**
 	 * For monkey patching replicated origins.
-	 * Only state belongs in a pulled origin, and it is written silently: a new
-	 * Ref is backdated to cursor - 1ms and an existing Ref keeps its modified,
+	 * Only plugin data belongs in a pulled origin, and it is written silently: a
+	 * new Ref is backdated to cursor - 1ms and an existing Ref keeps its modified,
 	 * so the pull cursor never moves past remote entries. Logs go to the owning
 	 * origin instead, see {@link #attachLogs(String, Ref, String, String)}.
 	 */
