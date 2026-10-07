@@ -140,6 +140,12 @@ database schema changes.
 The `:num` and `:len` suffixes are automatically applied to metadata fields, so you can use
 `metadata->responses` instead of `metadata->responses:len`.
 
+Metadata dates useful for sorting:
+- `metadata->modified`: updated whenever the responses, internal responses or plugin counts change.
+- `metadata->newResponse`: updated only when a new response is created (not updated), ignoring
+  user urls (responses tagged with a `plugin/user` plugin).
+- `metadata->newReaction`: updated whenever any response is created or updated, including user urls.
+
 ## Modding
 Jasper allows extensive modification with server reuse. Since changes are done by creating
 Plugin and Template entities, server restarts are not required.  
@@ -194,7 +200,9 @@ Refs are the main data model in Jasper. A Ref defines a URL to a remote resource
     "responses": 0,
     "internalResponses": 0,
     "plugins": {},
-    "modified": "2022-06-18T12:07:04.404272Z"
+    "modified": "2022-06-18T12:07:04.404272Z",
+    "newResponse": "2022-06-18T12:07:04.404272Z",
+    "newReaction": "2022-06-18T12:07:04.404272Z"
   },
   "published": "2022-06-18T12:00:07Z",
   "created": "2022-06-18T12:07:04.404272Z",

@@ -123,9 +123,13 @@ public class Meta {
 
 	@Timed(value = "jasper.meta", histogram = true)
 	public void regen(String rootOrigin, Ref ref) {
-		var originalDate = ref.getMetadata() == null ? now().toString() : ref.getMetadata().getModified();
+		var original = ref.getMetadata();
 		ref(rootOrigin, ref);
-		ref.getMetadata().setModified(originalDate);
+		ref.getMetadata().setModified(original == null ? now().toString() : original.getModified());
+		if (original != null) {
+			ref.getMetadata().setNewResponse(original.getNewResponse());
+			ref.getMetadata().setNewReaction(original.getNewReaction());
+		}
 		ref.getMetadata().setObsolete(refRepository.newerExists(ref.getUrl(), rootOrigin, ref.getModified()));
 		if (ref.getMetadata().isObsolete()) return;
 		refRepository.updateObsolete(ref.getUrl(), rootOrigin);
@@ -143,13 +147,15 @@ public class Meta {
 
 	public void cascadeSource(String rootOrigin, Ref ref, Ref source) {
 		detach(source);
-		var originalDate = source.getMetadata() == null ? now().toString() : source.getMetadata().getModified();
-		var regen = source.getMetadata() != null && source.getMetadata().isRegen();
-		var cascade = source.getMetadata() != null && source.getMetadata().isCascade();
+		var original = source.getMetadata();
 		ref(rootOrigin, source);
-		source.getMetadata().setModified(originalDate);
-		source.getMetadata().setRegen(regen);
-		source.getMetadata().setCascade(cascade);
+		source.getMetadata().setModified(original == null ? now().toString() : original.getModified());
+		if (original != null) {
+			source.getMetadata().setNewResponse(original.getNewResponse());
+			source.getMetadata().setNewReaction(original.getNewReaction());
+			source.getMetadata().setRegen(original.isRegen());
+			source.getMetadata().setCascade(original.isCascade());
+		}
 		try {
 			refRepository.updateMetadata(source.getUrl(), source.getOrigin(), source.getMetadata());
 			messages.updateMetadata(source);
@@ -180,6 +186,8 @@ public class Meta {
 				detach(latest);
 				if (latest.getMetadata() != null && existing.getMetadata() != null) {
 					latest.getMetadata().setModified(existing.getMetadata().getModified());
+					latest.getMetadata().setNewResponse(existing.getMetadata().getNewResponse());
+					latest.getMetadata().setNewReaction(existing.getMetadata().getNewReaction());
 				}
 				regen(rootOrigin, latest);
 				refRepository.updateMetadata(latest.getUrl(), latest.getOrigin(), latest.getMetadata());
@@ -200,6 +208,8 @@ public class Meta {
 		}
 
 		// Update sources
+		var timestamp = now().toString();
+		var newResponse = existing == null && ref.getExpandedTags().stream().noneMatch(tag -> matchesTemplate("plugin/user", tag));
 		var sources = (ref.getSources() == null ? List.<String>of() : ref.getSources())
 			.stream()
 			.limit(limit)
@@ -233,6 +243,8 @@ public class Meta {
 				.filter(tag -> matchesTemplate("plugin", tag))
 				.toList(),
 				ref.getUrl());
+			metadata.setNewReaction(timestamp);
+			if (newResponse) metadata.setNewResponse(timestamp);
 			source.setMetadata(metadata);
 			try {
 				refRepository.updateMetadata(source.getUrl(), source.getOrigin(), metadata);

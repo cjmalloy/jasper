@@ -258,6 +258,52 @@ public class MetaIT {
 	}
 
 	@Test
+	void testCreateResponseSetsNewResponseAndNewReaction() {
+		saveSource(URL + "a");
+		var child = saveChild(URL + "a");
+
+		meta.sources("", child, null);
+
+		assertThat(metadata(URL + "a").getNewResponse()).isNotNull();
+		assertThat(metadata(URL + "a").getNewReaction()).isEqualTo(metadata(URL + "a").getNewResponse());
+	}
+
+	@Test
+	void testCreateUserUrlResponseOnlySetsNewReaction() {
+		saveSource(URL + "a");
+		var child = saveChild(List.of("+user/tester", "plugin/user/vote/up"), URL + "a");
+
+		meta.sources("", child, null);
+
+		assertThat(metadata(URL + "a").getNewResponse()).isNull();
+		assertThat(metadata(URL + "a").getNewReaction()).isNotNull();
+	}
+
+	@Test
+	void testUpdateResponseOnlySetsNewReaction() {
+		saveSource(URL + "a", URL + "child");
+		var child = saveChild(URL + "a");
+
+		meta.sources("", child, existingChild(List.of("+user/tester"), URL + "a"));
+
+		assertThat(metadata(URL + "a").getNewResponse()).isNull();
+		assertThat(metadata(URL + "a").getNewReaction()).isNotNull();
+	}
+
+	@Test
+	void testRegenPreservesNewResponseAndNewReaction() {
+		var ref = saveSource(URL + "a");
+		ref.getMetadata().setNewResponse("2026-01-02T00:00:00Z");
+		ref.getMetadata().setNewReaction("2026-01-03T00:00:00Z");
+
+		meta.regen("", ref);
+
+		assertThat(ref.getMetadata().getModified()).isEqualTo("2026-01-01T00:00:00Z");
+		assertThat(ref.getMetadata().getNewResponse()).isEqualTo("2026-01-02T00:00:00Z");
+		assertThat(ref.getMetadata().getNewReaction()).isEqualTo("2026-01-03T00:00:00Z");
+	}
+
+	@Test
 	void testUpdateMetadataSameTwoSourcesDoesNotCascade() {
 		saveSource(URL + "a", URL + "child");
 		saveSource(URL + "b", URL + "child");
