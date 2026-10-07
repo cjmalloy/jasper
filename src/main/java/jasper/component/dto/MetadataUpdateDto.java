@@ -20,6 +20,6 @@ public class MetadataUpdateDto implements Serializable {
 	private int internalResponses;
 	private Map<String, Integer> plugins;
 	@JsonInclude(NON_NULL)
-	private Map<String, Integer> localPlugins;
+	private Map<String, Integer> remotePlugins;
 	private boolean obsolete;
 }

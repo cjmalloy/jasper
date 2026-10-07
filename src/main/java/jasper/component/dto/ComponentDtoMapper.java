@@ -66,7 +66,7 @@ public abstract class ComponentDtoMapper {
 
 	@AfterMapping
 	protected void publicMetadata(@MappingTarget MetadataUpdateDto metadata) {
-		metadata.setLocalPlugins(publicPlugins(metadata.getLocalPlugins()));
+		metadata.setRemotePlugins(publicPlugins(metadata.getRemotePlugins()));
 		var filteredPlugins = publicPlugins(metadata.getPlugins());
 		if (filteredPlugins == null || filteredPlugins.isEmpty()) {
 			metadata.setPlugins(null);

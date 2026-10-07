@@ -865,7 +865,8 @@ Jasper generates the following metadata in Refs:
  * Obsolete: flag set if another origin contains the newest version of this Ref
 
 Metadata is never transferred during replication. A simplified version is sent over the client API, with
-counts for each response type, and user plugin responses for the current user.
+counts for each response type, plugin response counts from other origins (`remotePlugins`), and user plugin
+responses for the current user.
 
 When a Ref is created or updated, the metadata of the first two entries in its sources list is updated immediately,
 along with any of the first two entries in its previous sources list that were removed. If the Ref has more than two

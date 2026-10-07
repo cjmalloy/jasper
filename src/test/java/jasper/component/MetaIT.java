@@ -868,6 +868,7 @@ public class MetaIT {
 		var parent = refRepository.findOneByUrlAndOrigin(URL, "").orElseThrow();
 		assertThat(parent.getMetadata().getPlugins()).containsEntry("plugin/comment", 2L);
 		assertThat(parent.getMetadata().getLocalPlugins()).containsEntry("plugin/comment", 1L);
+		assertThat(parent.getMetadata().getRemotePlugins()).containsEntry("plugin/comment", 1L);
 		assertThat(parent.getMetadata().isRegen()).isFalse();
 	}
 
@@ -880,6 +881,7 @@ public class MetaIT {
 		var parent = refRepository.findOneByUrlAndOrigin(URL, "").orElseThrow();
 		assertThat(parent.getMetadata().getPlugins()).containsEntry("plugin/comment", 1L);
 		assertThat(parent.getMetadata().getLocalPlugins()).isEmpty();
+		assertThat(parent.getMetadata().getRemotePlugins()).containsEntry("plugin/comment", 1L);
 		assertThat(parent.hasPluginResponse("plugin/comment")).isFalse();
 	}
 

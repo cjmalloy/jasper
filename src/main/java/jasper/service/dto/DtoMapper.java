@@ -78,7 +78,7 @@ public abstract class DtoMapper {
 
 	@AfterMapping
 	protected void filterMetadata(@MappingTarget MetadataDto metadata) {
-		metadata.setLocalPlugins(filterPlugins(metadata.getLocalPlugins()));
+		metadata.setRemotePlugins(filterPlugins(metadata.getRemotePlugins()));
 		var filteredPlugins = filterPlugins(metadata.getPlugins());
 		if (filteredPlugins == null || filteredPlugins.isEmpty()) {
 			metadata.setPlugins(null);

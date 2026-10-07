@@ -1,5 +1,6 @@
 package jasper.domain;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -46,6 +47,21 @@ public class Metadata implements Serializable {
 	private boolean regen = false;
 	@JsonInclude(NON_DEFAULT)
 	private boolean cascade = false;
+
+	/**
+	 * Plugin response counts from other origins than this Ref.
+	 * Null if local counts have not been generated.
+	 */
+	@JsonIgnore
+	public Map<String, Long> getRemotePlugins() {
+		if (plugins == null || localPlugins == null) return null;
+		var remotePlugins = new HashMap<String, Long>();
+		plugins.forEach((tag, count) -> {
+			var remote = count - localPlugins.getOrDefault(tag, 0L);
+			if (remote > 0) remotePlugins.put(tag, remote);
+		});
+		return remotePlugins;
+	}
 
 	public void addResponse(String url) {
 		if (responses == null) {

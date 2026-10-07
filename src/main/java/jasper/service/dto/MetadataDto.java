@@ -21,7 +21,7 @@ public class MetadataDto implements Serializable {
 	private int internalResponses;
 	private Map<String, Integer> plugins;
 	@JsonInclude(NON_NULL)
-	private Map<String, Integer> localPlugins;
+	private Map<String, Integer> remotePlugins;
 	private List<String> userUrls;
 	private boolean obsolete;
 	private boolean regen;
