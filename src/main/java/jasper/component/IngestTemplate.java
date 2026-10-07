@@ -13,7 +13,6 @@ import jasper.errors.InvalidPushException;
 import jasper.errors.ModifiedException;
 import jasper.errors.NotFoundException;
 import jasper.repository.TemplateRepository;
-import jasper.util.Archive;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -170,10 +169,7 @@ public class IngestTemplate {
 				TransactionTemplate transactionTemplate = new TransactionTemplate(transactionManager);
 				transactionTemplate.execute(status -> {
 					if (archive) {
-						// The primary key includes modified, so lock and check the current version before appending
-						// A deletor tag also locks and checks the tag it deletes, always locked first
-						if (isDeletorTag(template.getTag())) Archive.lock(em, "template", deletedTag(template.getTag()), template.getOrigin());
-						Archive.lock(em, "template", template.getTag(), template.getOrigin());
+						// The primary key includes modified, so check the current version before appending
 						if (create && current(template.getQualifiedTag()).isPresent()) throw new AlreadyExistsException();
 						if (create && isDeletorTag(template.getTag()) && current(deletedTag(template.getQualifiedTag())).isPresent()) throw new AlreadyExistsException();
 						template.setModified(nextModified(Instant.now(ensureUniqueModifiedClock), templateRepository.getCursor(template.getOrigin())));
@@ -207,8 +203,6 @@ public class IngestTemplate {
 				transactionTemplate.execute(status -> {
 					if (archive) {
 						// Append a new version instead of overwriting the current one
-						// Appending does not conflict with the current version, so lock before checking the cursor
-						Archive.lock(em, "template", template.getTag(), template.getOrigin());
 						if (templateRepository.findOneByQualifiedTag(template.getQualifiedTag())
 							.filter(e -> e.getModified().equals(cursor))
 							.isEmpty()) throw new ModifiedException("Template");

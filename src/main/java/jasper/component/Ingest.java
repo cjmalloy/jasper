@@ -14,7 +14,6 @@ import jasper.errors.InvalidPushException;
 import jasper.errors.ModifiedException;
 import jasper.errors.NotFoundException;
 import jasper.repository.RefRepository;
-import jasper.util.Archive;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -220,8 +219,7 @@ public class Ingest {
 				count++;
 				new TransactionTemplate(transactionManager).execute(status -> {
 					if (archive) {
-						// The primary key includes modified, so lock and check the current version before appending
-						Archive.lock(em, "ref", ref.getUrl(), ref.getOrigin());
+						// The primary key includes modified, so check the current version before appending
 						if (create && current(ref.getUrl(), ref.getOrigin()).isPresent()) throw new AlreadyExistsException();
 						ref.setModified(nextModified(Instant.now(ensureUniqueModifiedClock), refRepository.getCursor(ref.getOrigin())));
 					} else {
@@ -255,7 +253,6 @@ public class Ingest {
 					if (archive) {
 						// Append a new version right after the newest one instead of overwriting it,
 						// so the origin cursor moves as little as possible
-						Archive.lock(em, "ref", ref.getUrl(), ref.getOrigin());
 						if (em.contains(ref)) em.detach(ref);
 						var newest = refRepository.findOneByUrlAndOrigin(ref.getUrl(), ref.getOrigin());
 						if (newest.isPresent()) {
@@ -293,8 +290,6 @@ public class Ingest {
 				new TransactionTemplate(transactionManager).execute(status -> {
 					if (archive) {
 						// Append a new version instead of overwriting the current one
-						// Appending does not conflict with the current version, so lock before checking the cursor
-						Archive.lock(em, "ref", ref.getUrl(), ref.getOrigin());
 						var current = refRepository.findOneByUrlAndOrigin(ref.getUrl(), ref.getOrigin())
 							.filter(r -> r.getModified().equals(cursor))
 							.orElseThrow(() -> new ModifiedException("Ref"));

@@ -13,7 +13,6 @@ import jasper.errors.InvalidPushException;
 import jasper.errors.ModifiedException;
 import jasper.errors.NotFoundException;
 import jasper.repository.PluginRepository;
-import jasper.util.Archive;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -170,10 +169,7 @@ public class IngestPlugin {
 				TransactionTemplate transactionTemplate = new TransactionTemplate(transactionManager);
 				transactionTemplate.execute(status -> {
 					if (archive) {
-						// The primary key includes modified, so lock and check the current version before appending
-						// A deletor tag also locks and checks the tag it deletes, always locked first
-						if (isDeletorTag(plugin.getTag())) Archive.lock(em, "plugin", deletedTag(plugin.getTag()), plugin.getOrigin());
-						Archive.lock(em, "plugin", plugin.getTag(), plugin.getOrigin());
+						// The primary key includes modified, so check the current version before appending
 						if (create && current(plugin.getQualifiedTag()).isPresent()) throw new AlreadyExistsException();
 						if (create && isDeletorTag(plugin.getTag()) && current(deletedTag(plugin.getQualifiedTag())).isPresent()) throw new AlreadyExistsException();
 						plugin.setModified(nextModified(Instant.now(ensureUniqueModifiedClock), pluginRepository.getCursor(plugin.getOrigin())));

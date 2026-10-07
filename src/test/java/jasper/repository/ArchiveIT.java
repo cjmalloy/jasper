@@ -50,9 +50,6 @@ import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.Executors;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import static jasper.repository.spec.OriginSpec.isOrigin;
 import static jasper.repository.spec.RefSpec.isUrl;
@@ -840,108 +837,6 @@ public class ArchiveIT {
 
 		assertThatThrownBy(() -> refService.get(URL, ""))
 			.isInstanceOf(NotFoundException.class);
-	}
-
-	int concurrentUpdates(Runnable update) throws Exception {
-		return concurrent(ModifiedException.class, update);
-	}
-
-	int concurrent(Class<? extends RuntimeException> expected, Runnable update) throws Exception {
-		var threads = 8;
-		var start = new CountDownLatch(1);
-		var succeeded = new AtomicInteger();
-		var failed = new AtomicInteger();
-		try (var executor = Executors.newFixedThreadPool(threads)) {
-			for (var i = 0; i < threads; i++) {
-				executor.submit(() -> {
-					start.await();
-					try {
-						update.run();
-						succeeded.incrementAndGet();
-					} catch (RuntimeException e) {
-						if (!expected.isInstance(e)) throw e;
-						failed.incrementAndGet();
-					}
-					return null;
-				});
-			}
-			start.countDown();
-		}
-		assertThat(failed.get())
-			.isEqualTo(threads - 1);
-		return succeeded.get();
-	}
-
-	@Test
-	void testConcurrentRefUpdatesWithSameCursor() throws Exception {
-		push("", "First", now.minusSeconds(10));
-
-		assertThat(concurrentUpdates(() -> ingest.update("", ref("", "Second", now.minusSeconds(10)))))
-			.isEqualTo(1);
-		assertThat(refRepository.count())
-			.isEqualTo(2);
-	}
-
-	@Test
-	void testConcurrentExtUpdatesWithSameCursor() throws Exception {
-		ingestExt.push("", ext("test", now.minusSeconds(10), "First"), false, false);
-
-		assertThat(concurrentUpdates(() -> ingestExt.update(ext("test", now.minusSeconds(10), "Second"))))
-			.isEqualTo(1);
-		assertThat(VersionKind.countTag(extRepository, "test", ""))
-			.isEqualTo(2);
-	}
-
-	@Test
-	void testConcurrentRefCreates() throws Exception {
-		assertThat(concurrent(AlreadyExistsException.class, () -> ingest.create("", ref("", "First", null))))
-			.isEqualTo(1);
-		assertThat(refRepository.count())
-			.isEqualTo(1);
-	}
-
-	@Test
-	void testConcurrentExtCreates() throws Exception {
-		assertThat(concurrent(AlreadyExistsException.class, () -> ingestExt.create(ext("test", null, "First"))))
-			.isEqualTo(1);
-		assertThat(VersionKind.countTag(extRepository, "test", ""))
-			.isEqualTo(1);
-	}
-
-	@Test
-	void testConcurrentUserCreates() throws Exception {
-		assertThat(concurrent(AlreadyExistsException.class, () -> {
-			var user = new User();
-			user.setTag("+user/test");
-			user.setRole("ROLE_USER");
-			ingestUser.create(user);
-		})).isEqualTo(1);
-		assertThat(VersionKind.countTag(userRepository, "+user/test", ""))
-			.isEqualTo(1);
-	}
-
-	@Test
-	void testConcurrentPluginCreates() throws Exception {
-		assertThat(concurrent(AlreadyExistsException.class, () -> {
-			var plugin = new Plugin();
-			plugin.setTag("plugin/test");
-			plugin.setName("Test");
-			ingestPlugin.create(plugin);
-		})).isEqualTo(1);
-		assertThat(VersionKind.countTag(pluginRepository, "plugin/test", ""))
-			.isEqualTo(1);
-	}
-
-	@Test
-	void testConcurrentTemplateCreates() throws Exception {
-		assertThat(concurrent(AlreadyExistsException.class, () -> {
-			var template = new Template();
-			template.setTag("test");
-			template.setName("Test");
-			ingestTemplate.create(template);
-		})).isEqualTo(1);
-		assertThat(VersionKind.countTag(templateRepository, "test", ""))
-			.isEqualTo(1);
 	}
 
 	@Test

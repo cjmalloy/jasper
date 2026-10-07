@@ -13,7 +13,6 @@ import jasper.errors.InvalidPushException;
 import jasper.errors.ModifiedException;
 import jasper.errors.NotFoundException;
 import jasper.repository.ExtRepository;
-import jasper.util.Archive;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -160,10 +159,7 @@ public class IngestExt {
 				TransactionTemplate transactionTemplate = new TransactionTemplate(transactionManager);
 				transactionTemplate.execute(status -> {
 					if (archive) {
-						// The primary key includes modified, so lock and check the current version before appending
-						// A deletor tag also locks and checks the tag it deletes, always locked first
-						if (isDeletorTag(ext.getTag())) Archive.lock(em, "ext", deletedTag(ext.getTag()), ext.getOrigin());
-						Archive.lock(em, "ext", ext.getTag(), ext.getOrigin());
+						// The primary key includes modified, so check the current version before appending
 						if (create && current(ext.getQualifiedTag()).isPresent()) throw new AlreadyExistsException();
 						if (create && isDeletorTag(ext.getTag()) && current(deletedTag(ext.getQualifiedTag())).isPresent()) throw new AlreadyExistsException();
 						ext.setModified(nextModified(Instant.now(ensureUniqueModifiedClock), extRepository.getCursor(ext.getOrigin())));
@@ -197,8 +193,6 @@ public class IngestExt {
 				transactionTemplate.execute(status -> {
 					if (archive) {
 						// Append a new version instead of overwriting the current one
-						// Appending does not conflict with the current version, so lock before checking the cursor
-						Archive.lock(em, "ext", ext.getTag(), ext.getOrigin());
 						if (extRepository.findOneByQualifiedTag(ext.getQualifiedTag())
 							.filter(e -> e.getModified().equals(cursor))
 							.isEmpty()) throw new ModifiedException("Ext");
