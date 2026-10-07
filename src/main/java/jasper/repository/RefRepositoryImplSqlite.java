@@ -37,10 +37,10 @@ public class RefRepositoryImplSqlite implements RefRepositoryCustom {
 			WHERE r.url != :url
 				AND EXISTS (SELECT 1 FROM json_each(r.sources) s WHERE s.value = :url)
 				AND (j.value LIKE 'plugin/%' OR j.value LIKE '+plugin/%' OR j.value LIKE '\\_plugin/%' ESCAPE '\\' OR j.value = 'plugin' OR j.value = '+plugin' OR j.value = '_plugin')
-				AND COALESCE(CASE
+				AND (r.url LIKE 'tag:/%' OR COALESCE(CASE
 					WHEN json_type(r.metadata, '$.obsolete') IN ('true', 'false') THEN json_type(r.metadata, '$.obsolete')
 					ELSE CAST(json_extract(r.metadata, '$.obsolete') AS TEXT)
-				END, 'false') != 'true'
+				END, 'false') != 'true')
 				AND (:origin = '' OR r.origin = :origin OR r.origin LIKE (:origin || '.%'))
 			GROUP BY j.value
 			""", Object[].class)
@@ -57,10 +57,10 @@ public class RefRepositoryImplSqlite implements RefRepositoryCustom {
 			WHERE r.url != :url
 				AND EXISTS (SELECT 1 FROM json_each(r.sources) s WHERE s.value = :url)
 				AND (j.value LIKE 'plugin/%' OR j.value LIKE '+plugin/%' OR j.value LIKE '\\_plugin/%' ESCAPE '\\' OR j.value = 'plugin' OR j.value = '+plugin' OR j.value = '_plugin')
-				AND COALESCE(CASE
+				AND (r.url LIKE 'tag:/%' OR COALESCE(CASE
 					WHEN json_type(r.metadata, '$.obsolete') IN ('true', 'false') THEN json_type(r.metadata, '$.obsolete')
 					ELSE CAST(json_extract(r.metadata, '$.obsolete') AS TEXT)
-				END, 'false') != 'true'
+				END, 'false') != 'true')
 				AND r.origin = :origin
 			GROUP BY j.value
 			""", Object[].class)

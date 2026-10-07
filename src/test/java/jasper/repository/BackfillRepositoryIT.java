@@ -185,6 +185,40 @@ public class BackfillRepositoryIT {
 
 	@Test
 	@DisabledOnSqlite
+	void testBackfillMetadata_UserUrlsNeverObsolete() {
+		var plugin = new Plugin();
+		plugin.setTag("+plugin/user/run");
+		plugin.setOrigin("");
+		pluginRepository.save(plugin);
+
+		var parent = new Ref();
+		parent.setUrl("http://example.com/parent");
+		parent.setOrigin("");
+		parent.setMetadata(null);
+		refRepository.save(parent);
+
+		for (var origin : List.of("", "@other")) {
+			var userUrl = new Ref();
+			userUrl.setUrl("tag:/user/tester?url=http://example.com/parent");
+			userUrl.setOrigin(origin);
+			userUrl.setSources(List.of("http://example.com/parent"));
+			userUrl.setTags(List.of("+plugin/user/run"));
+			userUrl.setMetadata(Metadata.builder()
+				.expandedTags(List.of("+plugin/user/run", "+plugin/user", "+plugin"))
+				.obsolete(origin.isEmpty())
+				.build());
+			refRepository.save(userUrl);
+		}
+
+		backfillRepository.backfillMetadata("", 10);
+
+		var loaded = refRepository.findOneByUrlAndOrigin(parent.getUrl(), parent.getOrigin()).get();
+		assertThat(loaded.getMetadata().getPlugins()).containsEntry("+plugin/user/run", 1L);
+		assertThat(loaded.getMetadata().getRemotePlugins()).containsEntry("+plugin/user/run", 2L);
+	}
+
+	@Test
+	@DisabledOnSqlite
 	void testBackfillMetadata_LocalPlugins() {
 		var plugin = new Plugin();
 		plugin.setTag("plugin/comment");

@@ -851,6 +851,39 @@ public class MetaIT {
 	}
 
 	@Test
+	void testRegenUserUrlsNeverObsolete() {
+		var source = saveSource(URL);
+		var local = userUrl("", "internal", "+user/tester", "+plugin/user/run");
+		local.setMetadata(Metadata.builder().obsolete(true).build());
+		refRepository.save(local);
+		refRepository.save(userUrl("@remote", "internal", "+user/tester", "+plugin/user/run"));
+
+		meta.ref("", source);
+
+		assertThat(source.getMetadata().getUserUrls().get("+plugin/user/run"))
+			.containsExactlyInAnyOrder(
+				"tag:/user/tester?url=" + URL,
+				"tag:/user/tester@remote?url=" + URL);
+		assertThat(source.hasPluginResponse("+plugin/user/run")).isTrue();
+		assertThat(source.getMetadata().getPlugins()).containsEntry("+plugin/user/run", 1L);
+		assertThat(source.getMetadata().getRemotePlugins()).containsEntry("+plugin/user/run", 2L);
+	}
+
+	@Test
+	void testRegenPluginsIgnoreObsoleteResponses() {
+		var source = saveSource(URL);
+		var local = comment("comment:1", "");
+		local.setMetadata(Metadata.builder().obsolete(true).build());
+		refRepository.save(local);
+		refRepository.save(comment("comment:1", "@remote"));
+
+		meta.ref("", source);
+
+		assertThat(source.getMetadata().getPlugins()).isNullOrEmpty();
+		assertThat(source.getMetadata().getRemotePlugins()).containsEntry("plugin/comment", 1L);
+	}
+
+	@Test
 	void testRegenRemotePluginsMatchesLiveCountsForSameUrl() {
 		saveSource(URL);
 		var local = comment("comment:1", "");

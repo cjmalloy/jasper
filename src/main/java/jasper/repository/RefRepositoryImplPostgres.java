@@ -39,7 +39,7 @@ public class RefRepositoryImplPostgres implements RefRepositoryCustom {
 			WHERE r.url != :url
 				AND r.sources @> jsonb_build_array(:url)
 				AND t.tag ~ '^[_+]?plugin(/|$)'
-				AND COALESCE(jsonb_object_field_text(r.metadata, 'obsolete'), 'false') != 'true'
+				AND (r.url LIKE 'tag:/%' OR COALESCE(jsonb_object_field_text(r.metadata, 'obsolete'), 'false') != 'true')
 				AND (:origin = '' OR r.origin = :origin OR r.origin LIKE concat(:origin, '.%'))
 			GROUP BY t.tag
 			""", Object[].class)
@@ -57,7 +57,7 @@ public class RefRepositoryImplPostgres implements RefRepositoryCustom {
 			WHERE r.url != :url
 				AND r.sources @> jsonb_build_array(:url)
 				AND t.tag ~ '^[_+]?plugin(/|$)'
-				AND COALESCE(jsonb_object_field_text(r.metadata, 'obsolete'), 'false') != 'true'
+				AND (r.url LIKE 'tag:/%' OR COALESCE(jsonb_object_field_text(r.metadata, 'obsolete'), 'false') != 'true')
 				AND r.origin = :origin
 			GROUP BY t.tag
 			""", Object[].class)
