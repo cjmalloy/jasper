@@ -217,7 +217,7 @@ public class Pull {
 			var maybeRemote = refRepository.findOneByUrlAndOrigin(info.url, info.origin);
 			if (maybeRemote.isPresent()) {
 				var remote = maybeRemote.get();
-				if (remote.getPluginResponses("+plugin/user/run") == 0 && isPulling.putIfAbsent(local, true) == null) {
+				if (!remote.hasUserPluginResponse("+plugin/user/run") && isPulling.putIfAbsent(local, true) == null) {
 					taskScheduler.schedule(() -> {
 						var config = getOrigin(remote);
 						var localOrigin = subOrigin(remote.getOrigin(), config.getLocal());

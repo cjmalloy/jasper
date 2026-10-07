@@ -29,11 +29,15 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
+import java.util.stream.Stream;
 
 import static jasper.component.Meta.expandTags;
 import static jasper.config.JacksonConfiguration.om;
 import static jasper.domain.proj.Tag.TAG_LEN;
 import static jasper.domain.proj.Tag.matchesTag;
+import static jasper.domain.proj.Tag.tagOrigin;
+import static jasper.domain.proj.Tag.tagUrl;
+import static jasper.domain.proj.Tag.urlToTag;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 
 @Entity
@@ -104,6 +108,18 @@ public class Ref implements HasTags {
 		return metadata.getPlugins().keySet().stream()
 			.filter(t -> matchesTag(tag, t))
 			.anyMatch(t -> metadata.getPlugins().get(t) > 0);
+	}
+
+	/**
+	 * Has a user plugin response from a user URL in the same origin as this Ref.
+	 */
+	public boolean hasUserPluginResponse(String tag) {
+		if (metadata == null) return false;
+		if (metadata.getUserUrls() == null) return false;
+		return metadata.getUserUrls().entrySet().stream()
+			.filter(e -> matchesTag(tag, e.getKey()))
+			.flatMap(e -> e.getValue() == null ? Stream.empty() : e.getValue().stream())
+			.anyMatch(url -> url != null && tagUrl(url) && tagOrigin(urlToTag(url)).equals(getOrigin()));
 	}
 
 	public void setOrigin(String value) {

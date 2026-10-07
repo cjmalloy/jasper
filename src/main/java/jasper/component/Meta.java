@@ -19,6 +19,7 @@ import java.util.HashMap;
 import java.util.List;
 
 import static jasper.domain.proj.Tag.matchesTemplate;
+import static jasper.domain.proj.Tag.qualifiedUserUrl;
 import static jasper.repository.spec.OriginSpec.isUnderOrigin;
 import static jasper.repository.spec.RefSpec.isNotObsolete;
 import static jasper.repository.spec.RefSpec.isUrl;
@@ -66,7 +67,10 @@ public class Meta {
 				.stream()
 				.map(tag -> new UserUrlResponse(
 					tag,
-					refRepository.findAllResponsesWithTag(ref.getUrl(), rootOrigin, tag)))
+					refRepository.findAllResponseIdsWithTag(ref.getUrl(), rootOrigin, tag)
+						.stream()
+						.map(id -> qualifiedUserUrl(id.getUrl(), id.getOrigin()))
+						.toList()))
 				.filter(p -> !p.responses.isEmpty())
 				.collect(toMap(UserUrlResponse::tag, UserUrlResponse::responses)))
 			.plugins(refRepositoryCustom.countPluginTagsInResponses(ref.getUrl(), rootOrigin)
@@ -227,12 +231,12 @@ public class Meta {
 				metadata.removePlugins(existing.getExpandedTags().stream()
 						.filter(tag -> matchesTemplate("plugin", tag))
 						.toList(),
-					ref.getUrl());
+					qualifiedUserUrl(existing.getUrl(), existing.getOrigin()));
 			}
 			metadata.addPlugins(ref.getExpandedTags().stream()
 				.filter(tag -> matchesTemplate("plugin", tag))
 				.toList(),
-				ref.getUrl());
+				qualifiedUserUrl(ref.getUrl(), ref.getOrigin()));
 			source.setMetadata(metadata);
 			try {
 				refRepository.updateMetadata(source.getUrl(), source.getOrigin(), metadata);
@@ -278,7 +282,7 @@ logger.error("{} Error updating source metadata for ({}) {}", rootOrigin, ref.ge
 			metadata.removePlugins(existing.getExpandedTags().stream()
 					.filter(tag -> matchesTemplate("plugin", tag))
 					.toList(),
-				url);
+				qualifiedUserUrl(url, existing.getOrigin()));
 		}
 		source.setMetadata(metadata);
 		try {

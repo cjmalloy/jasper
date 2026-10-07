@@ -43,6 +43,7 @@ public class RefFilter implements Query {
 	private List<String> pluginResponse;
 	private List<String> noPluginResponse;
 	private String user;
+	private String userOrigin;
 	private List<String> userResponse;
 	private List<String> noUserResponse;
 	private Instant modifiedBefore;
@@ -55,7 +56,10 @@ public class RefFilter implements Query {
 	private Instant responseAfter;
 
 	public Specification<Ref> spec(QualifiedTag user) {
-		if (user != null) this.user = user.tag;
+		if (user != null) {
+			this.user = user.tag;
+			this.userOrigin = user.origin;
+		}
 		return spec();
 	}
 
@@ -120,12 +124,12 @@ public class RefFilter implements Query {
 		if (isNotBlank(user)) {
 			if (userResponse != null) {
 				for (var r : userResponse) {
-					result = result.and(hasPluginResponses(user, r));
+					result = result.and(hasPluginResponses(user, userOrigin, r));
 				}
 			}
 			if (noUserResponse != null) {
 				for (var nr : noUserResponse) {
-					result = result.and(hasNoPluginResponses(user, nr));
+					result = result.and(hasNoPluginResponses(user, userOrigin, nr));
 				}
 			}
 		}
