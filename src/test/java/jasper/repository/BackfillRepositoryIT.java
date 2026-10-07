@@ -215,6 +215,49 @@ public class BackfillRepositoryIT {
 		var loaded = refRepository.findOneByUrlAndOrigin(parent.getUrl(), parent.getOrigin()).get();
 		assertThat(loaded.getMetadata().getPlugins()).containsEntry("+plugin/user/run", 1L);
 		assertThat(loaded.getMetadata().getRemotePlugins()).containsEntry("+plugin/user/run", 2L);
+		assertThat(loaded.getMetadata().getUserUrls())
+			.containsEntry("+plugin/user/run", List.of("tag:/user/tester?url=http://example.com/parent"))
+			.containsEntry("+plugin/user", List.of("tag:/user/tester?url=http://example.com/parent"));
+	}
+
+	@Test
+	@DisabledOnSqlite
+	void testBackfillMetadata_UserUrlsQualifiedWithRootOrigin() {
+		var parent = new Ref();
+		parent.setUrl("http://example.com/parent");
+		parent.setOrigin("@test");
+		parent.setMetadata(null);
+		refRepository.save(parent);
+
+		for (var origin : List.of("@test", "@test.other")) {
+			var userUrl = new Ref();
+			userUrl.setUrl("tag:/user/tester?url=http://example.com/parent");
+			userUrl.setOrigin(origin);
+			userUrl.setSources(List.of("http://example.com/parent"));
+			userUrl.setTags(List.of("+plugin/user/run"));
+			userUrl.setMetadata(Metadata.builder()
+				.expandedTags(List.of("+plugin/user/run", "+plugin/user", "+plugin"))
+				.build());
+			refRepository.save(userUrl);
+		}
+
+		var response = new Ref();
+		response.setUrl("http://example.com/response");
+		response.setOrigin("@test");
+		response.setSources(List.of("http://example.com/parent"));
+		response.setTags(List.of("+plugin/user/run"));
+		response.setMetadata(Metadata.builder()
+			.expandedTags(List.of("+plugin/user/run", "+plugin/user", "+plugin"))
+			.build());
+		refRepository.save(response);
+
+		backfillRepository.backfillMetadata("@test", 10);
+
+		var loaded = refRepository.findOneByUrlAndOrigin(parent.getUrl(), parent.getOrigin()).get();
+		assertThat(loaded.getMetadata().getUserUrls().get("+plugin/user/run"))
+			.containsExactlyInAnyOrder(
+				"tag:/user/tester@test?url=http://example.com/parent",
+				"http://example.com/response@test");
 	}
 
 	@Test
@@ -239,6 +282,7 @@ public class BackfillRepositoryIT {
 		var loaded = refRepository.findOneByUrlAndOrigin(parent.getUrl(), parent.getOrigin()).get();
 		assertThat(loaded.getMetadata().getPlugins()).containsEntry("+plugin/user/run", 1L);
 		assertThat(loaded.getMetadata().getRemotePlugins()).containsEntry("+plugin/user/run", 1L);
+		assertThat(loaded.getMetadata().getUserUrls()).containsEntry("+plugin/user/run", List.of("tag:/user/tester?url=http://example.com/parent"));
 	}
 
 	@Test

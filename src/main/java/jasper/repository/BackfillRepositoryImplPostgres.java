@@ -46,6 +46,16 @@ public class BackfillRepositoryImplPostgres implements BackfillRepository {
 					WHERE (pre.sources @> jsonb_build_array(r.url)) AND pre.url != r.url AND (:origin = '' OR pre.origin = :origin OR pre.origin LIKE concat(:origin, '.%')) AND (pre.url ~ '^tag:/[_+]?user([/?]|$)' OR (pre.metadata IS NOT NULL AND COALESCE(pre.metadata->>'obsolete', 'false') IN ('false', '0'))) AND t.tag ~ '^[_+]?plugin(/|$)'
 					GROUP BY t.tag
 				) rp), CAST('{}' AS jsonb)),
+				'userUrls', COALESCE((SELECT jsonb_object_agg(uu.tag, uu.urls) FROM (
+					SELECT t.tag, jsonb_agg(CASE
+						WHEN ure.origin = '' THEN ure.url
+						WHEN strpos(ure.url, '?') = 0 THEN concat(ure.url, ure.origin)
+						ELSE overlay(ure.url PLACING concat(ure.origin, '?') FROM strpos(ure.url, '?') FOR 1)
+					END) AS urls FROM ref ure
+						CROSS JOIN LATERAL jsonb_array_elements_text(COALESCE(ure.metadata->'expandedTags', ure.tags)) AS t(tag)
+					WHERE (ure.sources @> jsonb_build_array(r.url)) AND ure.url != r.url AND ure.origin = :origin AND (ure.url ~ '^tag:/[_+]?user([/?]|$)' OR (ure.metadata IS NOT NULL AND COALESCE(ure.metadata->>'obsolete', 'false') IN ('false', '0'))) AND t.tag ~ '^[_+]?plugin/user(/|$)'
+					GROUP BY t.tag
+				) uu), CAST('{}' AS jsonb)),
 				'obsolete', EXISTS (SELECT 1 from ref n WHERE n.url = r.url AND n.modified > r.modified AND (:origin = '' OR n.origin = :origin OR n.origin LIKE concat(:origin, '.%'))),
 				'cascade', CASE WHEN jsonb_array_length(COALESCE(r.sources, '[]')) > 0 THEN true END
 			))
