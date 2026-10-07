@@ -1,41 +1,82 @@
 package jasper.web.rest.errors;
 
 import jakarta.servlet.http.HttpServletRequest;
+import jasper.errors.AlreadyExistsException;
+import jasper.errors.DeactivateSelfException;
+import jasper.errors.DuplicateModifiedDateException;
+import jasper.errors.DuplicateTagException;
+import jasper.errors.FreshLoginException;
+import jasper.errors.InvalidPatchException;
+import jasper.errors.InvalidPluginException;
+import jasper.errors.InvalidPluginUserUrlException;
+import jasper.errors.InvalidPushException;
+import jasper.errors.InvalidTemplateException;
+import jasper.errors.InvalidTunnelException;
+import jasper.errors.InvalidUserProfileException;
+import jasper.errors.MaxSourcesException;
+import jasper.errors.ModifiedException;
+import jasper.errors.NotAvailableException;
+import jasper.errors.NotFoundException;
+import jasper.errors.OperationForbiddenOnOriginException;
+import jasper.errors.PublishDateException;
+import jasper.errors.PullLocalException;
+import jasper.errors.RetryableTunnelException;
+import jasper.errors.ScrapeProtocolException;
+import jasper.errors.ScriptException;
+import jasper.errors.TooLargeException;
+import jasper.errors.UntrustedScriptException;
+import jasper.errors.UserTagInUseException;
+import jasper.errors.ValidationErrors;
 import jasper.web.rest.errors.ProblemDetailWithCause.ProblemDetailWithCauseBuilder;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.core.env.Environment;
 import org.springframework.dao.ConcurrencyFailureException;
 import org.springframework.dao.DataAccessException;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageConversionException;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.lang.Nullable;
 import org.springframework.security.access.AccessDeniedException;
-import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.web.ErrorResponse;
 import org.springframework.web.ErrorResponseException;
+import org.springframework.web.HttpMediaTypeNotSupportedException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.context.request.NativeWebRequest;
 import org.springframework.web.context.request.WebRequest;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.multipart.support.MissingServletRequestPartException;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.net.URI;
 import java.util.Arrays;
-import java.util.Collection;
+import java.util.Collections;
+import java.util.IdentityHashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.regex.Pattern;
 
+import static jasper.web.rest.errors.ErrorConstants.*;
 import static org.springframework.core.annotation.AnnotatedElementUtils.findMergedAnnotation;
 
 /**
  * Controller advice to translate the server side exceptions to client-friendly json structures.
- * The error response follows RFC7807 - Problem Details for HTTP APIs (https://tools.ietf.org/html/rfc7807).
+ * The error response follows RFC 9457 - Problem Details for HTTP APIs (https://www.rfc-editor.org/rfc/rfc9457).
+ * Error codes and categories are documented in docs/errors.md.
  */
 @ControllerAdvice
 public class ExceptionTranslator extends ResponseEntityExceptionHandler {
@@ -43,7 +84,107 @@ public class ExceptionTranslator extends ResponseEntityExceptionHandler {
 	private static final String FIELD_ERRORS_KEY = "fieldErrors";
 	private static final String MESSAGE_KEY = "message";
 	private static final String PATH_KEY = "path";
-	private static final boolean CAUSAL_CHAIN_ENABLED = false;
+	private static final String TAG_KEY = "tag";
+	private static final String REASON_KEY = "reason";
+	private static final String ERRORS_KEY = "errors";
+	private static final String TRUNCATED_KEY = "truncated";
+	private static final Pattern PACKAGE_NAME = Pattern.compile("(?<![\\w.])(jasper|org|java|jakarta|javax|com|de|io|net|liquibase)\\.[a-zA-Z_]");
+
+	/**
+	 * Ordered lookup table of exception class to error code and category.
+	 * The first entry assignable from an exception in the cause chain wins,
+	 * so subclasses must be listed before their superclasses.
+	 */
+	static final Map<Class<? extends Throwable>, ErrorMapping> ERROR_MAPPINGS;
+	static {
+		var m = new LinkedHashMap<Class<? extends Throwable>, ErrorMapping>();
+		// Request
+		m.put(MethodArgumentNotValidException.class, new ErrorMapping(ERR_VALIDATION, CONSTRAINT_VIOLATION_TYPE, HttpStatus.BAD_REQUEST));
+		m.put(HttpMessageNotReadableException.class, new ErrorMapping(ERR_MESSAGE_NOT_READABLE, REQUEST_ERROR_TYPE, HttpStatus.BAD_REQUEST));
+		m.put(MissingServletRequestParameterException.class, new ErrorMapping(ERR_MISSING_PARAMETER, REQUEST_ERROR_TYPE, HttpStatus.BAD_REQUEST));
+		m.put(MissingServletRequestPartException.class, new ErrorMapping(ERR_MISSING_PARAMETER, REQUEST_ERROR_TYPE, HttpStatus.BAD_REQUEST));
+		m.put(MethodArgumentTypeMismatchException.class, new ErrorMapping(ERR_TYPE_MISMATCH, REQUEST_ERROR_TYPE, HttpStatus.BAD_REQUEST));
+		m.put(HttpRequestMethodNotSupportedException.class, new ErrorMapping(ERR_METHOD_NOT_SUPPORTED, REQUEST_ERROR_TYPE, HttpStatus.METHOD_NOT_ALLOWED));
+		m.put(HttpMediaTypeNotSupportedException.class, new ErrorMapping(ERR_MEDIA_TYPE_NOT_SUPPORTED, REQUEST_ERROR_TYPE, HttpStatus.UNSUPPORTED_MEDIA_TYPE));
+		// Constraint
+		m.put(InvalidPatchException.class, new ErrorMapping(ERR_INVALID_PATCH, CONSTRAINT_VIOLATION_TYPE));
+		m.put(InvalidPushException.class, new ErrorMapping(ERR_INVALID_PUSH, CONSTRAINT_VIOLATION_TYPE));
+		// Plugin
+		m.put(InvalidPluginException.class, new ErrorMapping(ERR_INVALID_PLUGIN, PLUGIN_VALIDATION_TYPE));
+		m.put(InvalidPluginUserUrlException.class, new ErrorMapping(ERR_INVALID_USER_URL, PLUGIN_VALIDATION_TYPE));
+		// Template
+		m.put(InvalidTemplateException.class, new ErrorMapping(ERR_INVALID_TEMPLATE, TEMPLATE_VALIDATION_TYPE));
+		// Access
+		m.put(AuthenticationException.class, new ErrorMapping(ERR_UNAUTHORIZED, ACCESS_VIOLATION_TYPE, HttpStatus.UNAUTHORIZED));
+		m.put(AccessDeniedException.class, new ErrorMapping(ERR_ACCESS_DENIED, ACCESS_VIOLATION_TYPE, HttpStatus.FORBIDDEN));
+		// Missing
+		m.put(NotFoundException.class, new ErrorMapping(ERR_NOT_FOUND, NOT_FOUND_TYPE));
+		m.put(NoResourceFoundException.class, new ErrorMapping(ERR_NOT_FOUND, NOT_FOUND_TYPE, HttpStatus.NOT_FOUND));
+		// Duplicate
+		m.put(DuplicateTagException.class, new ErrorMapping(ERR_DUPLICATE_TAG, DUPLICATE_KEY_TYPE));
+		m.put(DuplicateModifiedDateException.class, new ErrorMapping(ERR_DUPLICATE_MODIFIED_DATE, DUPLICATE_KEY_TYPE));
+		m.put(DuplicateKeyException.class, new ErrorMapping(ERR_DUPLICATE_KEY, DUPLICATE_KEY_TYPE, HttpStatus.CONFLICT));
+		// Conflict
+		m.put(ConcurrencyFailureException.class, new ErrorMapping(ERR_OPTIMISTIC_LOCK, CONFLICT_TYPE, HttpStatus.CONFLICT));
+		m.put(AlreadyExistsException.class, new ErrorMapping(ERR_ALREADY_EXISTS, CONFLICT_TYPE));
+		m.put(ModifiedException.class, new ErrorMapping(ERR_MODIFIED, CONFLICT_TYPE));
+		m.put(UserTagInUseException.class, new ErrorMapping(ERR_USER_TAG_IN_USE, CONFLICT_TYPE));
+		m.put(DataIntegrityViolationException.class, new ErrorMapping(ERR_DATA_INTEGRITY, CONFLICT_TYPE, HttpStatus.CONFLICT));
+		// User
+		m.put(FreshLoginException.class, new ErrorMapping(ERR_FRESH_LOGIN, USER_ERROR_TYPE));
+		m.put(DeactivateSelfException.class, new ErrorMapping(ERR_DEACTIVATE_SELF, USER_ERROR_TYPE));
+		m.put(InvalidUserProfileException.class, new ErrorMapping(ERR_INVALID_USER_PROFILE, USER_ERROR_TYPE));
+		// Origin
+		m.put(OperationForbiddenOnOriginException.class, new ErrorMapping(ERR_ORIGIN_FORBIDDEN, ORIGIN_ERROR_TYPE));
+		m.put(PullLocalException.class, new ErrorMapping(ERR_PULL_LOCAL, ORIGIN_ERROR_TYPE));
+		// Script
+		m.put(ScriptException.class, new ErrorMapping(ERR_SCRIPT, SCRIPT_ERROR_TYPE));
+		m.put(UntrustedScriptException.class, new ErrorMapping(ERR_UNTRUSTED_SCRIPT, SCRIPT_ERROR_TYPE));
+		// Date
+		m.put(PublishDateException.class, new ErrorMapping(ERR_PUBLISH_DATE, DATE_ERROR_TYPE));
+		// Protocol
+		m.put(InvalidTunnelException.class, new ErrorMapping(ERR_INVALID_TUNNEL, PROTOCOL_ERROR_TYPE));
+		m.put(RetryableTunnelException.class, new ErrorMapping(ERR_TUNNEL_TIMEOUT, PROTOCOL_ERROR_TYPE));
+		m.put(ScrapeProtocolException.class, new ErrorMapping(ERR_SCRAPE_PROTOCOL, PROTOCOL_ERROR_TYPE));
+		// Size
+		m.put(TooLargeException.class, new ErrorMapping(ERR_TOO_LARGE, SIZE_ERROR_TYPE));
+		m.put(MaxUploadSizeExceededException.class, new ErrorMapping(ERR_TOO_LARGE, SIZE_ERROR_TYPE, HttpStatus.PAYLOAD_TOO_LARGE));
+		m.put(MaxSourcesException.class, new ErrorMapping(ERR_MAX_SOURCES, SIZE_ERROR_TYPE));
+		// Unavailable
+		m.put(NotAvailableException.class, new ErrorMapping(ERR_NOT_AVAILABLE, UNAVAILABLE_TYPE));
+		ERROR_MAPPINGS = Collections.unmodifiableMap(m);
+	}
+
+	/**
+	 * Find the mapping for the first exception in the cause chain that has one.
+	 */
+	static Optional<ErrorMapping> findMapping(Throwable err) {
+		var seen = Collections.newSetFromMap(new IdentityHashMap<Throwable, Boolean>());
+		for (var t = err; t != null && seen.add(t); t = t.getCause()) {
+			var mapping = mappingFor(t.getClass());
+			if (mapping.isPresent()) return mapping;
+		}
+		return Optional.empty();
+	}
+
+	static Optional<ErrorMapping> mappingFor(Class<?> type) {
+		for (var e : ERROR_MAPPINGS.entrySet()) {
+			if (e.getKey().isAssignableFrom(type)) return Optional.of(e.getValue());
+		}
+		return Optional.empty();
+	}
+
+	private static <T> Optional<T> findCause(Throwable err, Class<T> type) {
+		var seen = Collections.newSetFromMap(new IdentityHashMap<Throwable, Boolean>());
+		for (var t = err; t != null && seen.add(t); t = t.getCause()) {
+			if (type.isInstance(t)) return Optional.of(type.cast(t));
+		}
+		return Optional.empty();
+	}
+
+	private static boolean causedBy(Throwable err, Class<?> type) {
+		return findCause(err, type).isPresent();
+	}
 
 	private final Environment env;
 
@@ -54,7 +195,7 @@ public class ExceptionTranslator extends ResponseEntityExceptionHandler {
 	@ExceptionHandler
 	public ResponseEntity<Object> handleAnyException(Throwable ex, NativeWebRequest request) {
 		ProblemDetailWithCause pdCause = wrapAndCustomizeProblem(ex, request);
-		return handleExceptionInternal((Exception) ex, pdCause, buildHeaders(ex), HttpStatusCode.valueOf(pdCause.getStatus()), request);
+		return handleExceptionInternal((Exception) ex, pdCause, new HttpHeaders(), HttpStatusCode.valueOf(pdCause.getStatus()), request);
 	}
 
 	@Nullable
@@ -66,7 +207,8 @@ public class ExceptionTranslator extends ResponseEntityExceptionHandler {
 		HttpStatusCode statusCode,
 		WebRequest request
 	) {
-		body = body == null ? wrapAndCustomizeProblem((Throwable) ex, (NativeWebRequest) request) : body;
+		// Replace null bodies and plain Spring ProblemDetail bodies so every response has a code and category
+		if (!(body instanceof ProblemDetailWithCause)) body = wrapAndCustomizeProblem(ex, (NativeWebRequest) request);
 		return super.handleExceptionInternal(ex, body, headers, statusCode, request);
 	}
 
@@ -84,7 +226,10 @@ public class ExceptionTranslator extends ResponseEntityExceptionHandler {
 	protected ProblemDetailWithCause customizeProblem(ProblemDetailWithCause problem, Throwable err, NativeWebRequest request) {
 		if (problem.getStatus() <= 0) problem.setStatus(toStatus(err));
 
-		if (problem.getType() == null || problem.getType().equals(URI.create("about:blank"))) problem.setType(getMappedType(err));
+		var mapping = findMapping(err);
+		if (problem.getType() == null || problem.getType().equals(URI.create("about:blank"))) {
+			problem.setType(mapping.map(ErrorMapping::type).orElse(DEFAULT_TYPE));
+		}
 
 		// higher precedence to Custom/ResponseStatus types
 		String title = extractTitle(err, problem.getStatus());
@@ -95,13 +240,13 @@ public class ExceptionTranslator extends ResponseEntityExceptionHandler {
 
 		if (problem.getDetail() == null) {
 			// higher precedence to cause
-			problem.setDetail(getCustomizedErrorDetails(err));
+			problem.setDetail(getCustomizedErrorDetails(err, problem.getStatus()));
 		}
 
 		Map<String, Object> problemProperties = problem.getProperties();
 		problem.setProperty(
 			MESSAGE_KEY,
-			getMappedMessageKey(err) != null ? getMappedMessageKey(err) : "error.http." + problem.getStatus()
+			mapping.map(ErrorMapping::code).orElse("error.http." + problem.getStatus())
 		);
 
 		if (problemProperties == null || !problemProperties.containsKey(PATH_KEY)) problem.setProperty(PATH_KEY, getPathValue(request));
@@ -111,7 +256,12 @@ public class ExceptionTranslator extends ResponseEntityExceptionHandler {
 				(problemProperties == null || !problemProperties.containsKey(FIELD_ERRORS_KEY))
 		) problem.setProperty(FIELD_ERRORS_KEY, getFieldErrors(fieldException));
 
-		problem.setCause(buildCause(err.getCause(), request).orElse(null));
+		findCause(err, ValidationErrors.class).ifPresent(v -> {
+			problem.setProperty(TAG_KEY, v.getTag());
+			problem.setProperty(REASON_KEY, v.getReason());
+			problem.setProperty(ERRORS_KEY, v.getErrors());
+			problem.setProperty(TRUNCATED_KEY, v.isTruncated());
+		});
 
 		return problem;
 	}
@@ -137,7 +287,9 @@ public class ExceptionTranslator extends ResponseEntityExceptionHandler {
 
 	private String extractTitleForResponseStatus(Throwable err, int statusCode) {
 		ResponseStatus specialStatus = extractResponseStatus(err);
-		return specialStatus == null ? HttpStatus.valueOf(statusCode).getReasonPhrase() : specialStatus.reason();
+		return specialStatus == null || StringUtils.isBlank(specialStatus.reason())
+			? HttpStatus.valueOf(statusCode).getReasonPhrase()
+			: specialStatus.reason();
 	}
 
 	private String extractURI(NativeWebRequest request) {
@@ -149,11 +301,10 @@ public class ExceptionTranslator extends ResponseEntityExceptionHandler {
 		// Let the ErrorResponse take this responsibility
 		if (throwable instanceof ErrorResponse err) return HttpStatus.valueOf(err.getBody().getStatus());
 
-		return Optional
-			.ofNullable(getMappedStatus(throwable))
-			.orElse(
-				Optional.ofNullable(resolveResponseStatus(throwable)).map(ResponseStatus::value).orElse(HttpStatus.INTERNAL_SERVER_ERROR)
-			);
+		return findMapping(throwable)
+			.map(ErrorMapping::status)
+			.or(() -> Optional.ofNullable(resolveResponseStatus(throwable)).map(ResponseStatus::value))
+			.orElse(HttpStatus.INTERNAL_SERVER_ERROR);
 	}
 
 	private ResponseStatus extractResponseStatus(final Throwable throwable) {
@@ -165,41 +316,23 @@ public class ExceptionTranslator extends ResponseEntityExceptionHandler {
 		return candidate == null && type.getCause() != null ? resolveResponseStatus(type.getCause()) : candidate;
 	}
 
-	private URI getMappedType(Throwable err) {
-		if (err instanceof MethodArgumentNotValidException) return ErrorConstants.CONSTRAINT_VIOLATION_TYPE;
-		return ErrorConstants.DEFAULT_TYPE;
-	}
-
-	private String getMappedMessageKey(Throwable err) {
-		if (err instanceof MethodArgumentNotValidException) {
-			return ErrorConstants.ERR_VALIDATION;
-		} else if (err instanceof ConcurrencyFailureException || err.getCause() instanceof ConcurrencyFailureException) {
-			return ErrorConstants.ERR_CONCURRENCY_FAILURE;
-		}
-		return null;
-	}
-
 	private String getCustomizedTitle(Throwable err) {
 		if (err instanceof MethodArgumentNotValidException) return "Method argument not valid";
 		return null;
 	}
 
-	private String getCustomizedErrorDetails(Throwable err) {
-		Collection<String> activeProfiles = Arrays.asList(env.getActiveProfiles());
-		if (activeProfiles.contains("prod")) {
-			if (err instanceof HttpMessageConversionException) return "Unable to convert http message";
-			if (err instanceof DataAccessException) return "Failure during data access";
-			if (containsPackageName(err.getMessage())) return "Unexpected runtime exception";
+	private String getCustomizedErrorDetails(Throwable err, int status) {
+		// Plugin and template validation summaries are user-facing and never contain submitted values
+		var validation = findCause(err, ValidationErrors.class);
+		if (validation.isPresent()) return ((Throwable) validation.get()).getMessage();
+		var detail = err.getCause() != null ? err.getCause().getMessage() : err.getMessage();
+		if (Arrays.asList(env.getActiveProfiles()).contains("prod")) {
+			if (causedBy(err, HttpMessageConversionException.class)) return "Unable to convert http message";
+			if (causedBy(err, DataAccessException.class)) return "Failure during data access";
+			if (status >= 500) return "Unexpected runtime exception";
+			if (containsPackageName(detail)) return "Unexpected runtime exception";
 		}
-		return err.getCause() != null ? err.getCause().getMessage() : err.getMessage();
-	}
-
-	private HttpStatus getMappedStatus(Throwable err) {
-		// Where we disagree with Spring defaults
-		if (err instanceof AccessDeniedException) return HttpStatus.FORBIDDEN;
-		if (err instanceof ConcurrencyFailureException) return HttpStatus.CONFLICT;
-		if (err instanceof BadCredentialsException) return HttpStatus.UNAUTHORIZED;
-		return null;
+		return detail;
 	}
 
 	private URI getPathValue(NativeWebRequest request) {
@@ -207,51 +340,7 @@ public class ExceptionTranslator extends ResponseEntityExceptionHandler {
 		return URI.create(extractURI(request));
 	}
 
-	/**
-	 * <p>createFailureAlert.</p>
-	 *
-	 * @param applicationName a {@link java.lang.String} object.
-	 * @param enableTranslation a boolean.
-	 * @param entityName a {@link java.lang.String} object.
-	 * @param errorKey a {@link java.lang.String} object.
-	 * @param defaultMessage a {@link java.lang.String} object.
-	 * @return a {@link org.springframework.http.HttpHeaders} object.
-	 */
-	public static HttpHeaders createFailureAlert(String applicationName, boolean enableTranslation, String entityName, String errorKey, String defaultMessage) {
-		String message = enableTranslation ? "error." + errorKey : defaultMessage;
-
-		HttpHeaders headers = new HttpHeaders();
-		headers.add("X-" + applicationName + "-error", message);
-		headers.add("X-" + applicationName + "-params", entityName);
-		return headers;
-	}
-
-	private HttpHeaders buildHeaders(Throwable err) {
-		return err instanceof BadRequestAlertException badRequestAlertException
-			? createFailureAlert(
-			"jasper",
-			true,
-			badRequestAlertException.getEntityName(),
-			badRequestAlertException.getErrorKey(),
-			badRequestAlertException.getMessage()
-		)
-			: null;
-	}
-
-	public Optional<ProblemDetailWithCause> buildCause(final Throwable throwable, NativeWebRequest request) {
-		if (throwable != null && isCausalChainEnabled()) {
-			return Optional.of(customizeProblem(getProblemDetailWithCause(throwable), throwable, request));
-		}
-		return Optional.ofNullable(null);
-	}
-
-	private boolean isCausalChainEnabled() {
-		// Customize as per the needs
-		return CAUSAL_CHAIN_ENABLED;
-	}
-
 	private boolean containsPackageName(String message) {
-		// This list is for sure not complete
-		return StringUtils.containsAny(message, "org.", "java.", "net.", "jakarta.", "javax.", "com.", "io.", "de.", "com.mycompany.myapp");
+		return message != null && PACKAGE_NAME.matcher(message).find();
 	}
 }
