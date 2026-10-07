@@ -10,6 +10,7 @@ import jasper.errors.InvalidPatchException;
 import jasper.errors.InvalidPluginException;
 import jasper.errors.InvalidPluginUserUrlException;
 import jasper.errors.InvalidPushException;
+import jasper.errors.InvalidQueryException;
 import jasper.errors.InvalidTemplateException;
 import jasper.errors.InvalidTunnelException;
 import jasper.errors.InvalidUserProfileException;
@@ -106,6 +107,7 @@ public class ExceptionTranslator extends ResponseEntityExceptionHandler {
 		m.put(MethodArgumentTypeMismatchException.class, new ErrorMapping(ERR_TYPE_MISMATCH, REQUEST_ERROR_TYPE, HttpStatus.BAD_REQUEST));
 		m.put(HttpRequestMethodNotSupportedException.class, new ErrorMapping(ERR_METHOD_NOT_SUPPORTED, REQUEST_ERROR_TYPE, HttpStatus.METHOD_NOT_ALLOWED));
 		m.put(HttpMediaTypeNotSupportedException.class, new ErrorMapping(ERR_MEDIA_TYPE_NOT_SUPPORTED, REQUEST_ERROR_TYPE, HttpStatus.UNSUPPORTED_MEDIA_TYPE));
+		m.put(InvalidQueryException.class, new ErrorMapping(ERR_INVALID_QUERY, REQUEST_ERROR_TYPE));
 		// Constraint
 		m.put(InvalidPatchException.class, new ErrorMapping(ERR_INVALID_PATCH, CONSTRAINT_VIOLATION_TYPE));
 		m.put(InvalidPushException.class, new ErrorMapping(ERR_INVALID_PUSH, CONSTRAINT_VIOLATION_TYPE));

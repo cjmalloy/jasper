@@ -12,6 +12,7 @@ import jasper.errors.InvalidPatchException;
 import jasper.errors.InvalidPluginException;
 import jasper.errors.InvalidPluginUserUrlException;
 import jasper.errors.InvalidPushException;
+import jasper.errors.InvalidQueryException;
 import jasper.errors.InvalidTemplateException;
 import jasper.errors.InvalidTunnelException;
 import jasper.errors.InvalidUserProfileException;
@@ -187,6 +188,11 @@ public class ExceptionTranslatorTestController {
 	@GetMapping("/invalid-push")
 	public void invalidPush() {
 		throw new InvalidPushException();
+	}
+
+	@GetMapping("/invalid-query")
+	public void invalidQuery() {
+		throw new InvalidQueryException("a|", "unexpected end of query");
 	}
 
 	@GetMapping("/invalid-template")
