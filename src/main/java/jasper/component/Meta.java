@@ -41,7 +41,7 @@ public class Meta {
 	 * Number of sources already updated synchronously on cascade-queued Refs.
 	 */
 	public static final int SYNC_SOURCES = 2;
-	private static final Duration NEW_TOLERANCE = Duration.ofMillis(5);
+	private static final Duration NEW_TOLERANCE = Duration.ofSeconds(5);
 
 	@Autowired
 	RefRepository refRepository;

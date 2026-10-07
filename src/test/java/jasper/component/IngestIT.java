@@ -592,6 +592,7 @@ public class IngestIT {
 		existing.setTitle("First");
 		existing.setSources(List.of(URL + "a", URL + "b", URL + "c"));
 		existing.setTags(List.of("test/tag"));
+		existing.setCreated(Instant.now().minusSeconds(60));
 		refRepository.save(existing);
 		var ref = new Ref();
 		ref.setUrl(URL);
