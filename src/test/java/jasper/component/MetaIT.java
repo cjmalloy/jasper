@@ -903,6 +903,24 @@ public class MetaIT {
 	}
 
 	@Test
+	void testRegenObsoleteNonUserTagUrlNotCounted() {
+		var source = saveSource(URL);
+		var local = userUrl("", "internal", "+plugin/user/run");
+		local.setUrl("tag:/news?url=" + URL);
+		local.setMetadata(Metadata.builder().obsolete(true).build());
+		refRepository.save(local);
+		var remote = userUrl("@remote", "internal", "+plugin/user/run");
+		remote.setUrl("tag:/news?url=" + URL);
+		refRepository.save(remote);
+
+		meta.ref("", source);
+
+		assertThat(source.getMetadata().getUserUrls()).isNullOrEmpty();
+		assertThat(source.getMetadata().getPlugins()).isNullOrEmpty();
+		assertThat(source.getMetadata().getRemotePlugins()).containsEntry("+plugin/user/run", 1L);
+	}
+
+	@Test
 	void testRegenPluginsIgnoreObsoleteResponses() {
 		var source = saveSource(URL);
 		var local = comment("comment:1", "");

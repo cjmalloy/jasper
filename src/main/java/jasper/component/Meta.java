@@ -302,10 +302,6 @@ logger.error("{} Error updating source metadata for ({}) {}", rootOrigin, ref.ge
 		}
 	}
 
-	/**
-	 * User URLs are built in the context of the root origin, so only user URLs
-	 * in the root origin are tracked. They may respond to Refs in sub-origins.
-	 */
 	private static String rootUserUrl(String rootOrigin, String url, String origin) {
 		if (!origin.equals(rootOrigin)) return null;
 		return qualifiedUserUrl(url, origin);

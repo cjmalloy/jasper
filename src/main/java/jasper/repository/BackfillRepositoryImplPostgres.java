@@ -16,10 +16,7 @@ public class BackfillRepositoryImplPostgres implements BackfillRepository {
 
 	/**
 	 * Responses are filtered by their obsolete flag. Responses with missing
-	 * metadata are assumed to be obsolete. Plugin counts only include responses
-	 * in the same origin as the Ref, remote plugin counts include all origins.
-	 * User URLs are never obsolete in plugin counts, since the same user tag in
-	 * different origins is a different user.
+	 * metadata are assumed to be obsolete, except user URLs which are never obsolete.
 	 */
 	@Override
 	public int backfillMetadata(String origin, int batchSize) {
@@ -38,13 +35,13 @@ public class BackfillRepositoryImplPostgres implements BackfillRepository {
 				'plugins', COALESCE((SELECT jsonb_object_agg(lp.tag, lp.cnt) FROM (
 					SELECT t.tag, COUNT(DISTINCT lpre.url) AS cnt FROM ref lpre
 						CROSS JOIN LATERAL jsonb_array_elements_text(COALESCE(lpre.metadata->'expandedTags', lpre.tags)) AS t(tag)
-					WHERE (lpre.sources @> jsonb_build_array(r.url)) AND lpre.url != r.url AND lpre.origin = r.origin AND lpre.metadata IS NOT NULL AND (lpre.url LIKE 'tag:/%' OR COALESCE(lpre.metadata->>'obsolete', 'false') IN ('false', '0')) AND t.tag ~ '^[_+]?plugin(/|$)'
+					WHERE (lpre.sources @> jsonb_build_array(r.url)) AND lpre.url != r.url AND lpre.origin = r.origin AND (lpre.url ~ '^tag:/[_+]?user([/?]|$)' OR (lpre.metadata IS NOT NULL AND COALESCE(lpre.metadata->>'obsolete', 'false') IN ('false', '0'))) AND t.tag ~ '^[_+]?plugin(/|$)'
 					GROUP BY t.tag
 				) lp), CAST('{}' AS jsonb)),
 				'remotePlugins', COALESCE((SELECT jsonb_object_agg(rp.tag, rp.cnt) FROM (
 					SELECT t.tag, COUNT(DISTINCT (pre.url, pre.origin)) AS cnt FROM ref pre
 						CROSS JOIN LATERAL jsonb_array_elements_text(COALESCE(pre.metadata->'expandedTags', pre.tags)) AS t(tag)
-					WHERE (pre.sources @> jsonb_build_array(r.url)) AND pre.url != r.url AND (:origin = '' OR pre.origin = :origin OR pre.origin LIKE concat(:origin, '.%')) AND pre.metadata IS NOT NULL AND (pre.url LIKE 'tag:/%' OR COALESCE(pre.metadata->>'obsolete', 'false') IN ('false', '0')) AND t.tag ~ '^[_+]?plugin(/|$)'
+					WHERE (pre.sources @> jsonb_build_array(r.url)) AND pre.url != r.url AND (:origin = '' OR pre.origin = :origin OR pre.origin LIKE concat(:origin, '.%')) AND (pre.url ~ '^tag:/[_+]?user([/?]|$)' OR (pre.metadata IS NOT NULL AND COALESCE(pre.metadata->>'obsolete', 'false') IN ('false', '0'))) AND t.tag ~ '^[_+]?plugin(/|$)'
 					GROUP BY t.tag
 				) rp), CAST('{}' AS jsonb)),
 				'obsolete', EXISTS (SELECT 1 from ref n WHERE n.url = r.url AND n.modified > r.modified AND (:origin = '' OR n.origin = :origin OR n.origin LIKE concat(:origin, '.%'))),

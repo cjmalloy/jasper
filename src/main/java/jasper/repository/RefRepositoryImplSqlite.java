@@ -31,39 +31,28 @@ public class RefRepositoryImplSqlite implements RefRepositoryCustom {
 
 	@Override
 	public List<Object[]> countPluginTagsInResponses(String url, String origin) {
-		return em.createNativeQuery("""
-			SELECT j.value AS tag, COUNT(DISTINCT json_array(r.url, r.origin))
-			FROM ref r, json_each(COALESCE(json_extract(r.metadata, '$.expandedTags'), r.tags)) AS j
-			WHERE r.url != :url
-				AND EXISTS (SELECT 1 FROM json_each(r.sources) s WHERE s.value = :url)
-				AND (j.value LIKE 'plugin/%' OR j.value LIKE '+plugin/%' OR j.value LIKE '\\_plugin/%' ESCAPE '\\' OR j.value = 'plugin' OR j.value = '+plugin' OR j.value = '_plugin')
-				AND (r.url LIKE 'tag:/%' OR COALESCE(CASE
-					WHEN json_type(r.metadata, '$.obsolete') IN ('true', 'false') THEN json_type(r.metadata, '$.obsolete')
-					ELSE CAST(json_extract(r.metadata, '$.obsolete') AS TEXT)
-				END, 'false') != 'true')
-				AND (:origin = '' OR r.origin = :origin OR r.origin LIKE (:origin || '.%'))
-			GROUP BY j.value
-			""", Object[].class)
-			.setParameter("url", url)
-			.setParameter("origin", origin)
-			.getResultList();
+		return countPluginTags(url, origin, "json_array(r.url, r.origin)", "(:origin = '' OR r.origin = :origin OR r.origin LIKE (:origin || '.%'))");
 	}
 
 	@Override
 	public List<Object[]> countLocalPluginTagsInResponses(String url, String origin) {
+		return countPluginTags(url, origin, "r.url", "r.origin = :origin");
+	}
+
+	private List<Object[]> countPluginTags(String url, String origin, String distinct, String originFilter) {
 		return em.createNativeQuery("""
-			SELECT j.value AS tag, COUNT(DISTINCT r.url)
+			SELECT j.value AS tag, COUNT(DISTINCT %s)
 			FROM ref r, json_each(COALESCE(json_extract(r.metadata, '$.expandedTags'), r.tags)) AS j
 			WHERE r.url != :url
 				AND EXISTS (SELECT 1 FROM json_each(r.sources) s WHERE s.value = :url)
-				AND (j.value LIKE 'plugin/%' OR j.value LIKE '+plugin/%' OR j.value LIKE '\\_plugin/%' ESCAPE '\\' OR j.value = 'plugin' OR j.value = '+plugin' OR j.value = '_plugin')
-				AND (r.url LIKE 'tag:/%' OR COALESCE(CASE
+				AND (j.value LIKE 'plugin/%%' OR j.value LIKE '+plugin/%%' OR j.value LIKE '\\_plugin/%%' ESCAPE '\\' OR j.value = 'plugin' OR j.value = '+plugin' OR j.value = '_plugin')
+				AND (r.url GLOB 'tag:/user' OR r.url GLOB 'tag:/user[/?]*' OR r.url GLOB 'tag:/[_+]user' OR r.url GLOB 'tag:/[_+]user[/?]*' OR COALESCE(CASE
 					WHEN json_type(r.metadata, '$.obsolete') IN ('true', 'false') THEN json_type(r.metadata, '$.obsolete')
 					ELSE CAST(json_extract(r.metadata, '$.obsolete') AS TEXT)
 				END, 'false') != 'true')
-				AND r.origin = :origin
+				AND %s
 			GROUP BY j.value
-			""", Object[].class)
+			""".formatted(distinct, originFilter), Object[].class)
 			.setParameter("url", url)
 			.setParameter("origin", origin)
 			.getResultList();

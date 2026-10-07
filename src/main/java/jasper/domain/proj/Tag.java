@@ -41,17 +41,11 @@ public interface Tag extends Cursor {
 		return "tag:/" + publicTag(user) + "?url=" + url;
 	}
 
-	/**
-	 * Prefix of the origin qualified user URLs stored in Metadata userUrls.
-	 * User tags are only unique within an origin, so the origin is added to the tag.
-	 */
+	// User tags are only unique within an origin
 	static String userUrlPrefix(String user, String origin) {
 		return "tag:/" + publicTag(user) + (isBlank(origin) ? "" : origin) + "?url=";
 	}
 
-	/**
-	 * Qualify a user URL with its origin for storing in Metadata userUrls.
-	 */
 	static String qualifiedUserUrl(String url, String origin) {
 		if (isBlank(origin)) return url;
 		if (!url.contains("?")) return url + origin;

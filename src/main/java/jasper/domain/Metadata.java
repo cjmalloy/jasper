@@ -69,31 +69,19 @@ public class Metadata implements Serializable {
 		}
 	}
 
-	/**
-	 * @param userUrl qualified user URL to add to userUrls, or null if the
-	 *                response is not in the root origin
-	 */
 	public void addPlugins(List<String> add, String userUrl, boolean local) {
 		initPlugins();
 		for (var plugin : add) {
 			if (local) plugins.merge(plugin, 1L, Long::sum);
 			remotePlugins.merge(plugin, 1L, Long::sum);
 			if (userUrl != null && matchesTemplate("plugin/user", plugin)) {
-				if (userUrls.containsKey(plugin)) {
-					var list = userUrls.get(plugin);
-					if (!list.contains(userUrl)) list.add(userUrl);
-				} else {
-					userUrls.put(plugin, new ArrayList<>(List.of(userUrl)));
-				}
+				var list = userUrls.computeIfAbsent(plugin, k -> new ArrayList<>());
+				if (!list.contains(userUrl)) list.add(userUrl);
 			}
 		}
 		modified = Instant.now().toString();
 	}
 
-	/**
-	 * @param userUrl qualified user URL to remove from userUrls, or null if the
-	 *                response is not in the root origin
-	 */
 	public void removePlugins(List<String> remove, String userUrl, boolean local) {
 		initPlugins();
 		var changed = false;
