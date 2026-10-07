@@ -14,6 +14,8 @@ _includes/
 docs/
 *.md
 LICENSE
+# Read by ErrorMappingTest in the test stage
+!docs/errors.md
 
 # Git and config files not needed for build
 .git/
