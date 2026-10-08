@@ -1033,6 +1033,55 @@ public class MetaIT {
 	}
 
 	@Test
+	void testUserUrlsNormalizeProtectedUserTag() {
+		var source = saveSourceInOrigin(URL, "@a");
+		var res = userUrl("@a", "internal", "+user/tester", "+plugin/user/run");
+		res.setUrl("tag:/+user/tester?url=" + URL);
+		refRepository.save(res);
+
+		meta.regen("@a", source);
+
+		assertThat(source.getMetadata().getUserUrls().get("+plugin/user/run"))
+			.containsExactly("tag:/user/tester@a?url=" + URL);
+	}
+
+	@Test
+	void testRegenKeepsUserUrlsFromOtherOrigins() {
+		var source = saveSourceInOrigin(URL, "@a");
+		source.setMetadata(Metadata.builder()
+			.userUrls(new HashMap<>(Map.of("+plugin/user/run", List.of(
+				"tag:/user/tester@a?url=" + URL,
+				"tag:/user/deleted?url=" + URL))))
+			.build());
+		refRepository.save(userUrl("", "internal", "+user/tester", "+plugin/user/run"));
+
+		meta.regen("", source);
+
+		assertThat(source.getMetadata().getUserUrls().get("+plugin/user/run"))
+			.containsExactlyInAnyOrder(
+				"tag:/user/tester?url=" + URL,
+				"tag:/user/tester@a?url=" + URL);
+	}
+
+	@Test
+	void testCascadeSourceKeepsUserUrlsFromOtherOrigins() {
+		var source = saveSourceInOrigin(URL, "@a");
+		source.setMetadata(Metadata.builder()
+			.userUrls(new HashMap<>(Map.of("+plugin/user/run", List.of("tag:/user/tester?url=" + URL))))
+			.build());
+		var ref = userUrl("@a", "internal", "+user/tester", "+plugin/user/run");
+		refRepository.save(ref);
+		refRepository.flush();
+
+		meta.cascadeSource("@a", ref, source);
+
+		assertThat(source.getMetadata().getUserUrls().get("+plugin/user/run"))
+			.containsExactlyInAnyOrder(
+				"tag:/user/tester?url=" + URL,
+				"tag:/user/tester@a?url=" + URL);
+	}
+
+	@Test
 	void testRegenObsoleteNonUserTagUrlNotCounted() {
 		var source = saveSource(URL);
 		var local = userUrl("", "internal", "+plugin/user/run");

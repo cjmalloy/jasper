@@ -25,6 +25,7 @@ import static jasper.domain.Metadata.timestamp;
 import static jasper.domain.proj.Tag.matchesTemplate;
 import static jasper.domain.proj.Tag.qualifiedUserUrl;
 import static jasper.domain.proj.Tag.userUrl;
+import static jasper.domain.proj.Tag.userUrlOrigin;
 import static jasper.repository.spec.OriginSpec.isUnderOrigin;
 import static jasper.repository.spec.RefSpec.isNotObsolete;
 import static jasper.repository.spec.RefSpec.isUrl;
@@ -176,6 +177,7 @@ public class Meta {
 			ref.getMetadata().setNewResponse(original.getNewResponse());
 			ref.getMetadata().setNewReaction(original.getNewReaction());
 		}
+		keepOtherOriginUserUrls(rootOrigin, original, ref.getMetadata());
 		ref.getMetadata().setObsolete(refRepository.newerExists(ref.getUrl(), rootOrigin, ref.getModified()));
 		if (ref.getMetadata().isObsolete()) return;
 		refRepository.updateObsolete(ref.getUrl(), rootOrigin);
@@ -202,6 +204,7 @@ public class Meta {
 			source.getMetadata().setRegen(original.isRegen());
 			source.getMetadata().setCascade(original.isCascade());
 		}
+		keepOtherOriginUserUrls(rootOrigin, original, source.getMetadata());
 		if (ref.getSources() != null && ref.getSources().contains(source.getUrl())) {
 			source.getMetadata().setNewReaction(latest(source.getMetadata().getNewReaction(), ref.getModified()));
 			if (!userUrl(ref.getUrl()) && isNew(ref)) source.getMetadata().setNewResponse(latest(source.getMetadata().getNewResponse(), ref.getCreated()));
@@ -373,6 +376,18 @@ logger.error("{} Error updating source metadata for ({}) {}", rootOrigin, ref.ge
 			logger.error("{} Error updating source metadata for {} {}",
 				rootOrigin, source.getOrigin(), source.getUrl(), e);
 		}
+	}
+
+	// Regen only rebuilds the user URLs of the root origin, tenants in other origins keep theirs
+	private static void keepOtherOriginUserUrls(String rootOrigin, Metadata original, Metadata metadata) {
+		if (original == null || original.getUserUrls() == null) return;
+		original.getUserUrls().forEach((tag, urls) -> {
+			var list = new ArrayList<>(metadata.getUserUrls().getOrDefault(tag, List.of()));
+			urls.stream()
+				.filter(url -> url != null && !userUrlOrigin(url).equals(rootOrigin) && !list.contains(url))
+				.forEach(list::add);
+			if (!list.isEmpty()) metadata.getUserUrls().put(tag, list);
+		});
 	}
 
 	private static String rootUserUrl(String rootOrigin, String url, String origin) {
