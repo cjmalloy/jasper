@@ -958,6 +958,24 @@ public class MetaIT {
 		// Should call sources() since existing.tags is null
 	}
 
+	@Test
+	void testLatestResponseTimestampsIgnoreMissingMetadataExceptForUserUrls() {
+		var response = new Ref();
+		response.setUrl(URL + 1);
+		response.setSources(List.of(URL));
+		response.setCreated(Instant.parse("2026-01-02T00:00:00Z"));
+		response.setModified(Instant.parse("2026-01-04T00:00:00Z"));
+		refRepository.save(response);
+		var userResponse = userUrl("", "+user/tester");
+		userResponse.setCreated(Instant.parse("2026-01-03T00:00:00Z"));
+		userResponse.setModified(Instant.parse("2026-01-05T00:00:00Z"));
+		refRepository.save(userResponse);
+
+		assertThat(refRepository.latestResponseCreated(URL, "")).isNull();
+		assertThat(refRepository.latestResponseModified(URL, ""))
+			.isEqualTo(Instant.parse("2026-01-05T00:00:00Z"));
+	}
+
 	Ref userUrl(String origin, String... tags) {
 		var res = new Ref();
 		res.setUrl("tag:/user/tester?url=" + URL);

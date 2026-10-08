@@ -145,6 +145,7 @@ public class Meta {
 		if (!sources.isEmpty()) for (var source : refRepository.findAll(isUrls(sources).and(isNotObsolete()).and(isUnderOrigin(rootOrigin)))) {
 			if (source.getMetadata() == null) continue;
 			detach(source);
+			source.getMetadata().setNewResponse(newResponse(rootOrigin, source, source.getMetadata().getNewResponse()));
 			source.getMetadata().setNewReaction(timestamp);
 			try {
 				refRepository.updateMetadata(source.getUrl(), source.getOrigin(), source.getMetadata());

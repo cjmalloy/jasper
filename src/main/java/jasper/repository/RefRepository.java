@@ -162,6 +162,7 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 			AND r.url NOT LIKE 'tag:/user/%' AND r.url NOT LIKE 'tag:/user?%'
 			AND r.url NOT LIKE 'tag:/+user/%' AND r.url NOT LIKE 'tag:/+user?%'
 			AND r.url NOT LIKE 'tag:/\\_user/%' ESCAPE '\\' AND r.url NOT LIKE 'tag:/\\_user?%' ESCAPE '\\'
+			AND r.metadata IS NOT NULL
 			AND COALESCE(jsonb_object_field_text(r.metadata, 'obsolete'), 'false') != 'true'
 			AND (:origin = '' OR r.origin = :origin OR r.origin LIKE concat(:origin, '.%'))""")
 	Instant latestResponseCreated(String url, String origin);
@@ -177,7 +178,7 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 				OR r.url LIKE 'tag:/user/%' OR r.url LIKE 'tag:/user?%'
 				OR r.url LIKE 'tag:/+user/%' OR r.url LIKE 'tag:/+user?%'
 				OR r.url LIKE 'tag:/\\_user/%' ESCAPE '\\' OR r.url LIKE 'tag:/\\_user?%' ESCAPE '\\'
-				OR COALESCE(jsonb_object_field_text(r.metadata, 'obsolete'), 'false') != 'true')
+				OR (r.metadata IS NOT NULL AND COALESCE(jsonb_object_field_text(r.metadata, 'obsolete'), 'false') != 'true'))
 			AND (:origin = '' OR r.origin = :origin OR r.origin LIKE concat(:origin, '.%'))""")
 	Instant latestResponseModified(String url, String origin);
 

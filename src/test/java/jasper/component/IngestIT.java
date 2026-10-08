@@ -572,7 +572,7 @@ public class IngestIT {
 		assertThat(fetched.getMetadata().getNewReaction())
 			.isNotNull();
 		assertThat(fetched.getMetadata().getNewResponse())
-			.isNull();
+			.isNotNull();
 		assertThat(fetched.getMetadata().getResponses())
 			.containsExactly(URL);
 	}
