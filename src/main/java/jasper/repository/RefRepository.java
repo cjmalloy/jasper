@@ -22,7 +22,15 @@ import java.util.stream.Stream;
 @Transactional(readOnly = true)
 public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificationExecutor<Ref>, StreamMixin<RefView>, ModifiedCursor, OriginMixin {
 
-	Optional<Ref> findOneByUrlAndOrigin(String url, String origin);
+	Optional<Ref> findFirstByUrlAndOriginOrderByModifiedDesc(String url, String origin);
+
+	/**
+	 * Find the latest version. In archive mode multiple versions may exist.
+	 */
+	default Optional<Ref> findOneByUrlAndOrigin(String url, String origin) {
+		return findFirstByUrlAndOriginOrderByModifiedDesc(url, origin);
+	}
+
 	void deleteByUrlAndOrigin(String url, String origin);
 	boolean existsByUrlAndOrigin(String url, String origin);
 
@@ -85,6 +93,39 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 		Instant published,
 		Instant modified);
 
+	/**
+	 * Archive mode version of {@link #pushAsyncMetadata}: only updates the
+	 * version with the same modified date so a new version is inserted instead.
+	 */
+	@Transactional
+	@Modifying
+	@Query("""
+		UPDATE Ref SET
+			title = :title,
+			comment = :comment,
+			tags = :tags,
+			sources = :sources,
+			alternateUrls = :alternateUrls,
+			plugins = :plugins,
+			metadata = jsonb_concat(COALESCE(metadata, cast_to_jsonb('{}')), :partialMetadata),
+			published = :published
+		WHERE
+			url = :url AND
+			origin = :origin AND
+			modified = :modified""")
+	int pushAsyncMetadataVersion(
+		String url,
+		String origin,
+		String title,
+		String comment,
+		List<String> tags,
+		List<String> sources,
+		List<String> alternateUrls,
+		ObjectNode plugins,
+		Metadata partialMetadata,
+		Instant published,
+		Instant modified);
+
 	@Query("""
 		SELECT max(r.modified)
 		FROM Ref r
@@ -100,6 +141,18 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 		WHERE ref.origin = :origin
 			AND ref.modified <= :olderThan""")
 	void deleteByOriginAndModifiedLessThanEqual(String origin, Instant olderThan);
+
+	/**
+	 * Remove every version modified at or before olderThan. Only used to prune in archive mode.
+	 */
+	@Transactional
+	@Modifying(clearAutomatically = true, flushAutomatically = true)
+	@Query("""
+		DELETE FROM Ref ref
+		WHERE ref.url = :url
+			AND ref.origin = :origin
+			AND ref.modified <= :olderThan""")
+	void deleteByUrlAndOriginAndModifiedLessThanEqual(String url, String origin, Instant olderThan);
 
 	@Query("""
 		FROM Ref ref
@@ -134,10 +187,11 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 		WHERE r.url != :url
 			AND jsonb_exists(r.sources, :url) = true
 			AND jsonb_exists(COALESCE(jsonb_object_field(r.metadata, 'expandedTags'), r.tags), :tag) = true
-			AND (r.url IN ('tag:/user', 'tag:/+user', 'tag:/_user')
-				OR r.url LIKE 'tag:/user/%' OR r.url LIKE 'tag:/user?%'
-				OR r.url LIKE 'tag:/+user/%' OR r.url LIKE 'tag:/+user?%'
-				OR r.url LIKE 'tag:/\\_user/%' ESCAPE '\\' OR r.url LIKE 'tag:/\\_user?%' ESCAPE '\\'
+			AND ((r.url IN ('tag:/user', 'tag:/+user', 'tag:/_user')
+					OR r.url LIKE 'tag:/user/%' OR r.url LIKE 'tag:/user?%'
+					OR r.url LIKE 'tag:/+user/%' OR r.url LIKE 'tag:/+user?%'
+					OR r.url LIKE 'tag:/\\_user/%' ESCAPE '\\' OR r.url LIKE 'tag:/\\_user?%' ESCAPE '\\')
+				AND NOT EXISTS (SELECT 1 FROM Ref n WHERE n.url = r.url AND n.origin = r.origin AND n.modified > r.modified)
 				OR COALESCE(jsonb_object_field_text(r.metadata, 'obsolete'), 'false') != 'true')
 			AND (:origin = '' OR r.origin = :origin OR r.origin LIKE concat(:origin, '.%'))""")
 	List<RefId> findAllResponseIdsWithTag(String url, String origin, String tag);
@@ -235,6 +289,19 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 			AND r.origin = :origin""")
 	int updateMetadata(String url, String origin, Metadata metadata);
 
+	/**
+	 * Archive mode version of {@link #updateMetadata}: only updates a single version.
+	 */
+	@Modifying
+	@Transactional
+	@Query("""
+		UPDATE Ref r
+		SET r.metadata = :metadata
+		WHERE r.url = :url
+			AND r.origin = :origin
+			AND r.modified = :modified""")
+	int updateMetadataVersion(String url, String origin, Instant modified, Metadata metadata);
+
 	@Modifying
 	@Transactional
 	@Query("""
@@ -243,6 +310,19 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 		WHERE r.url = :url
 			AND r.origin = :origin""")
 	int markCascade(String url, String origin);
+
+	/**
+	 * Archive mode version of {@link #markCascade}: only updates a single version.
+	 */
+	@Modifying
+	@Transactional
+	@Query("""
+		UPDATE Ref r
+		SET r.metadata = jsonb_set(COALESCE(r.metadata, cast_to_jsonb('{}')), '{cascade}', cast_to_jsonb('true'), true)
+		WHERE r.url = :url
+			AND r.origin = :origin
+			AND r.modified = :modified""")
+	int markCascadeVersion(String url, String origin, Instant modified);
 
 	@Modifying
 	@Transactional

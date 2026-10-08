@@ -29,7 +29,7 @@ import static jasper.repository.spec.RefSpec.isUrl;
  * Updates the Metadata of the sources of Refs marked for cascade.
  * Only the first sources of a Ref are updated synchronously, the rest are updated here.
  */
-@Profile("!no-cascade")
+@Profile("!no-cascade & !no-metadata")
 @Component
 public class Cascade {
 	private static final Logger logger = LoggerFactory.getLogger(Cascade.class);

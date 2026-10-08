@@ -16,6 +16,7 @@ import jasper.repository.PluginRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.orm.jpa.JpaSystemException;
 import org.springframework.stereotype.Component;
@@ -25,10 +26,15 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.Clock;
 import java.time.Instant;
+import java.util.Optional;
 
 import static jasper.component.Replicator.deletedTag;
 import static jasper.component.Replicator.deletorTag;
 import static jasper.component.Replicator.isDeletorTag;
+import static jasper.domain.proj.Tag.localTag;
+import static jasper.domain.proj.Tag.tagOrigin;
+import static jasper.util.Archive.isBlank;
+import static jasper.util.Archive.nextModified;
 import static jasper.util.DbConstraint.isPkViolation;
 import static jasper.util.DbConstraint.isUniqueModifiedOriginViolation;
 
@@ -54,24 +60,30 @@ public class IngestPlugin {
 	@Autowired
 	PlatformTransactionManager transactionManager;
 
+	@Value("#{environment.matchesProfiles('archive')}")
+	boolean archive;
+
 	// Exposed for testing
 	Clock ensureUniqueModifiedClock = Clock.systemUTC();
 
 	@Timed(value = "jasper.plugin", histogram = true)
 	public void create(Plugin plugin) {
-		if (isDeletorTag(plugin.getTag())) {
-			if (pluginRepository.existsByQualifiedTag(deletedTag(plugin.getQualifiedTag()))) throw new AlreadyExistsException();
-		} else {
-			delete(deletorTag(plugin.getQualifiedTag()));
+		// In archive mode the current version is checked when appending
+		if (!archive) {
+			if (isDeletorTag(plugin.getTag())) {
+				if (pluginRepository.existsByQualifiedTag(deletedTag(plugin.getQualifiedTag()))) throw new AlreadyExistsException();
+			} else {
+				delete(deletorTag(plugin.getQualifiedTag()));
+			}
 		}
 		validate.plugin(plugin.getOrigin(), plugin);
-		ensureCreateUniqueModified(plugin);
+		ensureCreateUniqueModified(plugin, true);
 		messages.updatePlugin(plugin);
 	}
 
 	@Timed(value = "jasper.plugin", histogram = true)
 	public void update(Plugin plugin) {
-		if (!pluginRepository.existsByQualifiedTag(plugin.getQualifiedTag())) throw new NotFoundException("Plugin");
+		if (archive ? current(plugin.getQualifiedTag()).isEmpty() : !pluginRepository.existsByQualifiedTag(plugin.getQualifiedTag())) throw new NotFoundException("Plugin");
 		validate.plugin(plugin.getOrigin(), plugin);
 		ensureUpdateUniqueModified(plugin);
 		messages.updatePlugin(plugin);
@@ -93,7 +105,8 @@ public class IngestPlugin {
 			}
 			throw e;
 		}
-		if (isDeletorTag(plugin.getTag())) {
+		// In archive mode pushes never remove rows
+		if (!archive && isDeletorTag(plugin.getTag())) {
 			delete(deletedTag(plugin.getQualifiedTag()));
 		}
 		messages.updatePlugin(plugin);
@@ -101,18 +114,68 @@ public class IngestPlugin {
 
 	@Timed(value = "jasper.plugin", histogram = true)
 	public void delete(String qualifiedTag) {
+		if (archive) {
+			archiveDelete(qualifiedTag);
+			return;
+		}
 		pluginRepository.deleteByQualifiedTag(qualifiedTag);
 		messages.deletePlugin(qualifiedTag);
 	}
 
+	/**
+	 * The current version, or empty if it is missing. In archive mode a blank current version
+	 * is a tombstone and is treated as missing.
+	 */
+	public Optional<Plugin> current(String qualifiedTag) {
+		var maybeExisting = pluginRepository.findOneByQualifiedTag(qualifiedTag);
+		if (!archive) return maybeExisting;
+		return maybeExisting.filter(e -> !isBlank(e));
+	}
+
+	/**
+	 * Deleting appends a blank version (tombstone). Deleting a tombstone or a deletor tag
+	 * prunes every version of the tag and its deletor tag.
+	 */
+	private void archiveDelete(String qualifiedTag) {
+		var maybeExisting = pluginRepository.findOneByQualifiedTag(qualifiedTag);
+		if (maybeExisting.isEmpty()) return;
+		if (isDeletorTag(qualifiedTag) || isBlank(maybeExisting.get())) {
+			var startedAt = Instant.now(ensureUniqueModifiedClock);
+			var tag = isDeletorTag(qualifiedTag) ? deletedTag(qualifiedTag) : qualifiedTag;
+			var deletor = isDeletorTag(qualifiedTag) ? qualifiedTag : deletorTag(qualifiedTag);
+			pluginRepository.deleteByQualifiedTagAndModifiedLessThanEqual(tag, startedAt);
+			pluginRepository.deleteByQualifiedTagAndModifiedLessThanEqual(deletor, startedAt);
+			return;
+		}
+		var tombstone = new Plugin();
+		tombstone.setTag(localTag(qualifiedTag));
+		tombstone.setOrigin(tagOrigin(qualifiedTag));
+		ensureCreateUniqueModified(tombstone);
+		messages.deletePlugin(qualifiedTag);
+	}
+
 	void ensureCreateUniqueModified(Plugin plugin) {
+		ensureCreateUniqueModified(plugin, false);
+	}
+
+	/**
+	 * @param create in archive mode, fail if a current version exists
+	 */
+	void ensureCreateUniqueModified(Plugin plugin, boolean create) {
 		var count = 0;
 		while (true) {
 			try {
 				count++;
 				TransactionTemplate transactionTemplate = new TransactionTemplate(transactionManager);
 				transactionTemplate.execute(status -> {
-					plugin.setModified(Instant.now(ensureUniqueModifiedClock));
+					if (archive) {
+						// The primary key includes modified, so check the current version before appending
+						if (create && current(plugin.getQualifiedTag()).isPresent()) throw new AlreadyExistsException();
+						if (create && isDeletorTag(plugin.getTag()) && current(deletedTag(plugin.getQualifiedTag())).isPresent()) throw new AlreadyExistsException();
+						plugin.setModified(nextModified(Instant.now(ensureUniqueModifiedClock), pluginRepository.getCursor(plugin.getOrigin())));
+					} else {
+						plugin.setModified(Instant.now(ensureUniqueModifiedClock));
+					}
 					em.persist(plugin);
 					em.flush();
 					return null;
@@ -138,6 +201,16 @@ public class IngestPlugin {
 				count++;
 				TransactionTemplate transactionTemplate = new TransactionTemplate(transactionManager);
 				transactionTemplate.execute(status -> {
+					if (archive) {
+						// Insert a new version instead of updating the current one
+						if (pluginRepository.findOneByQualifiedTag(plugin.getQualifiedTag())
+							.filter(e -> e.getModified().equals(cursor))
+							.isEmpty()) throw new ModifiedException("Plugin");
+						plugin.setModified(nextModified(Instant.now(ensureUniqueModifiedClock), pluginRepository.getCursor(plugin.getOrigin())));
+						em.persist(plugin);
+						em.flush();
+						return null;
+					}
 					plugin.setModified(Instant.now(ensureUniqueModifiedClock));
 					var updated = pluginRepository.optimisticUpdate(
 						cursor,

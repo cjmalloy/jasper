@@ -84,10 +84,13 @@ public interface TemplateRepository extends JpaRepository<Template, TagId>, Qual
 		ORDER BY tag_levels(t.tag) ASC""")
 	List<Template> findAllForTagAndOriginWithDefaults(String tag, String origin);
 
-	@Query("""
-		FROM Template AS t
-		WHERE t.origin = :origin
-			AND COALESCE(CAST(jsonb_object_field(t.config, 'disabled') as boolean), false) = false
-			AND t.tag = :template""")
-	Optional<Template> findByTemplateAndOrigin(String template, String origin);
+	Optional<Template> findFirstByTagAndOriginOrderByModifiedDesc(String tag, String origin);
+
+	/**
+	 * Find the latest version if it is not disabled. In archive mode multiple versions may exist.
+	 */
+	default Optional<Template> findByTemplateAndOrigin(String template, String origin) {
+		return findFirstByTagAndOriginOrderByModifiedDesc(template, origin)
+			.filter(t -> t.getConfig() == null || !t.getConfig().path("disabled").booleanValue());
+	}
 }

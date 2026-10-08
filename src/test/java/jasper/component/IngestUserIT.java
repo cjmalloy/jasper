@@ -39,6 +39,40 @@ public class IngestUserIT {
 	}
 
 	@Test
+	void testPushDeletorDeletesTag() {
+		var existing = new User();
+		existing.setTag("+user/test");
+		existing.setModified(Instant.now().minusSeconds(10));
+		ingest.push(existing);
+		var deletor = new User();
+		deletor.setTag("+user/test/deleted");
+		deletor.setModified(Instant.now());
+
+		ingest.push(deletor);
+
+		assertThat(userRepository.existsByQualifiedTag("+user/test"))
+			.isFalse();
+		assertThat(userRepository.existsByQualifiedTag("+user/test/deleted"))
+			.isTrue();
+	}
+
+	@Test
+	void testCreateDeletesDeletor() {
+		var deletor = new User();
+		deletor.setTag("+user/test/deleted");
+		userRepository.save(deletor);
+		var user = new User();
+		user.setTag("+user/test");
+
+		ingest.create(user);
+
+		assertThat(userRepository.existsByQualifiedTag("+user/test"))
+			.isTrue();
+		assertThat(userRepository.existsByQualifiedTag("+user/test/deleted"))
+			.isFalse();
+	}
+
+	@Test
 	void testIngestExt() {
 		var user = new User();
 		user.setTag("+user/tester");

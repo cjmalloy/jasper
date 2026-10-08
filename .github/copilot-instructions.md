@@ -45,7 +45,7 @@ curl http://localhost:8081/api/v1/ref/page          # {"content":[],"page":{...}
 - The `dev` profile already points at `jdbc:postgresql://localhost:5432/jasper` (user/pass `jasper`), so the `SPRING_DATASOURCE_*` variables are optional.
 - Run `spring-boot:run` as a background/async process and stop it before running `./mvnw test` or `clean`; both use `target/`.
 - Redis is only used when the `redis` profile is active. Neither `dev` nor the compose `web` service enables it, so the `redis` container is optional.
-- Profiles are opt-in feature switches (`@Profile`): `scripts`, `storage`, `proxy`, `file-cache`, `jwt`, `redis`, `sqlite`, `kubernetes`, `gcs`, `scim`, `preload`, `api-docs`, and opt-outs such as `no-websocket`, `no-cascade`, `no-backfill`, `no-ssl`. Search `@Profile` in `src/main/java/jasper` before assuming a component is loaded.
+- Profiles are opt-in feature switches (`@Profile`): `scripts`, `storage`, `proxy`, `file-cache`, `jwt`, `redis`, `sqlite`, `kubernetes`, `gcs`, `scim`, `preload`, `api-docs`, and opt-outs such as `no-websocket`, `no-cascade`, `no-backfill`, `no-metadata`, `no-ssl`. Search `@Profile` in `src/main/java/jasper` before assuming a component is loaded.
 
 **Full stack in Docker:**
 ```bash

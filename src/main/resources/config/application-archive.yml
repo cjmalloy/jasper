@@ -1,0 +1,45 @@
+# ===================================================================
+# Spring Boot configuration for the "archive" profile.
+#
+# Keeps every version of Refs, Exts, Users, Plugins and Templates by
+# adding the modified date to the primary key. Intended for
+# backup/replication and investigations, not for direct use.
+#
+# - Older versions of Refs are marked obsolete, the same as obsolete
+#   copies from other origins.
+# - Every write adds a new version. Pushes and pulls never remove rows.
+# - Local writes are dated after the newest version in their origin,
+#   even if a pushed version is dated later than the local clock.
+#   Silent Ref writes add a version dated 1 microsecond after the Ref's newest
+#   version, so they move the origin cursor as little as possible.
+# - A blank version (or a plugin/delete Ref) is a tombstone. Single
+#   lookups treat an item whose current version is a tombstone as
+#   deleted, including items that were created blank.
+# - A deletor tag (<tag>/deleted) received for an Ext, User, Plugin or
+#   Template is stored as its own item and does not hide the tag it
+#   deletes. Only a blank current version does.
+# - Deleting adds a blank version and sends the regular delete notice.
+# - Deleting a tombstone or a deletor tag prunes every version of the
+#   item and its deletor tag in that origin, modified at or before the
+#   start of the prune. No notice is sent and it is not replicated.
+# - Page and count results for Exts, Users, Plugins and Templates
+#   include older and deleted versions.
+# - Regular servers pulling from an archive store blank versions as
+#   normal, empty items.
+# - Do not serve SSH (tunnels) or user logins from an archive server,
+#   since older user versions, including old authorized keys and roles,
+#   may be returned.
+#
+# WARNING: Only supported on PostgreSQL. Enabling this profile is a
+# one-way migration. The primary keys are changed on startup, and
+# switching back to non-archive mode requires manually removing old
+# versions and restoring the original primary keys.
+# ===================================================================
+
+spring:
+  jpa:
+    mapping-resources:
+      - config/archive-orm.xml
+  liquibase:
+    parameters:
+      archive: true

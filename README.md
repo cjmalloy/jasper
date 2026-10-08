@@ -755,6 +755,37 @@ The `preload` profile lets you preload static files. Zip files in the preload fo
 
 The `scripts` profile enables server side scripting through the `plugin/delta` Plugin.
 
+The `no-metadata` profile skips response metadata (sources/responses) for relay-only servers. See [Metadata](#metadata).
+
+The `archive` profile keeps previous versions of Refs, Exts, Users, Plugins and Templates by adding the
+modified date to the primary key. It is intended for backup/replication and investigations, not for direct
+use. Only PostgreSQL is supported, and enabling the `archive` profile is a one-way migration: going back to
+non-archive mode requires manually deleting old versions and restoring the original primary keys.
+ * Replication works the same as a regular server: pulling from a regular server stores each new modified
+   date as a new version, and a regular server pulling from an archive receives every version in modified
+   order, keeping the latest.
+ * Older versions of Refs are marked obsolete, the same as obsolete copies of a Ref from other origins.
+   Lookups by URL and origin return the latest version.
+ * Every write adds a new version. Pushes and pulls are stored exactly as received, including deletor tags
+   and `plugin/delete` Refs, and never remove rows.
+ * Local writes are dated after the newest version in their origin, even if a pushed version is dated later
+   than the local clock, so they always become the current version. Silent Ref writes add a version dated
+   1µs after the Ref's newest version, so they move the origin cursor as little as possible.
+ * A blank version (only the key and dates set) is a tombstone. A Ref tagged `plugin/delete` is also a
+   tombstone. If the current version is a tombstone, single lookups treat the item as deleted. This includes
+   items that were created blank.
+ * A deletor tag (`<tag>/deleted`) received for an Ext, User, Plugin or Template is stored as its own item and
+   does not hide the tag it deletes. Only a blank current version does.
+ * Deleting adds a blank version and sends the regular delete notice. Re-creating a deleted item adds another
+   version, and the tombstone stays in the history.
+ * Deleting a tombstone, or a deletor tag, prunes every version of the item and its deletor tag in that
+   origin. Only versions modified at or before the start of the prune are removed. This is a local admin
+   action: no delete notice is sent and it is not replicated.
+ * Page and count results for Exts, Users, Plugins and Templates include older and deleted versions.
+ * A regular server pulling from an archive stores blank versions as normal, empty items.
+ * Do not serve SSH (tunnels) or user logins from an archive server, since older user versions, including
+   old authorized keys and roles, may be returned.
+
 ## Access Control
 Jasper uses a combination of simple roles and Tag Based Access Control (TBAC). There are five
 hierarchical roles which cover broad access control, Admin, Mod, Editor, User, and Viewer. The
@@ -892,6 +923,10 @@ remaining sources in the background and sends the metadata updates over websocke
 all of its sources are updated immediately; otherwise the revealed version uses the same two-source/cascade process. Like backfill, the cascade
 runs for origins selected by `+plugin/cascade` in the `scriptSelectors` of the server config, and can be
 disabled on a node with the `no-cascade` profile, so these updates can be delegated to a separate node.
+
+Relay-only servers that just store and forward Refs can skip response metadata with the `no-metadata` profile.
+Lists of responses, plugin responses and user plugin responses are not generated, the metadata of sources is not
+updated, and the cascade is disabled. Expanded tags and the obsolete flag are still tracked.
 
 ## Server Scripting
 When the `scripts` profile is active, scripts may be attached to Refs with either the `plugin/delta` tag or the

@@ -17,6 +17,7 @@ import jasper.repository.RefRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.orm.jpa.JpaSystemException;
 import org.springframework.stereotype.Component;
@@ -28,8 +29,11 @@ import org.springframework.transaction.support.TransactionTemplate;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.Optional;
 
 import static jasper.component.Meta.expandTags;
+import static jasper.util.Archive.isBlank;
+import static jasper.util.Archive.nextModified;
 import static jasper.util.DbConstraint.isPkViolation;
 import static jasper.util.DbConstraint.isUniqueModifiedOriginViolation;
 
@@ -61,6 +65,9 @@ public class Ingest {
 	@Autowired
 	PlatformTransactionManager transactionManager;
 
+	@Value("#{environment.matchesProfiles('archive')}")
+	boolean archive;
+
 	// Exposed for testing
 	Clock ensureUniqueModifiedClock = Clock.systemUTC();
 
@@ -70,7 +77,7 @@ public class Ingest {
 		validate.ref(rootOrigin, ref);
 		rng.update(rootOrigin, ref, null);
 		meta.ref(rootOrigin, ref);
-		ensureCreateUniqueModified(ref);
+		ensureCreateUniqueModified(ref, true);
 		meta.sources(rootOrigin, ref, null, true);
 		messages.updateRef(ref);
 	}
@@ -85,7 +92,7 @@ public class Ingest {
 	 */
 	@Timed(value = "jasper.ref", histogram = true)
 	public void update(String rootOrigin, Ref ref, boolean syncSources) {
-		var maybeExisting = refRepository.findOneByUrlAndOrigin(ref.getUrl(), ref.getOrigin());
+		var maybeExisting = current(ref.getUrl(), ref.getOrigin());
 		if (maybeExisting.isEmpty()) throw new NotFoundException("Ref");
 		validate.ref(rootOrigin, ref);
 		rng.update(rootOrigin, ref, maybeExisting.get());
@@ -97,7 +104,7 @@ public class Ingest {
 
 	@Timed(value = "jasper.ref", histogram = true)
 	public void updateResponse(String rootOrigin, Ref ref) {
-		var maybeExisting = refRepository.findOneByUrlAndOrigin(ref.getUrl(), ref.getOrigin());
+		var maybeExisting = current(ref.getUrl(), ref.getOrigin());
 		if (maybeExisting.isEmpty()) throw new NotFoundException("Ref");
 		validate.response(rootOrigin, ref);
 		rng.update(rootOrigin, ref, maybeExisting.get());
@@ -151,18 +158,73 @@ public class Ingest {
 	public void delete(String rootOrigin, String url, String origin) {
 		var maybeExisting = refRepository.findOneByUrlAndOrigin(url, origin);
 		if (maybeExisting.isEmpty()) return;
+		if (archive) {
+			archiveDelete(rootOrigin, maybeExisting.get());
+			return;
+		}
 		messages.deleteRef(maybeExisting.get());
 		refRepository.deleteByUrlAndOrigin(url, origin);
 		meta.sources(rootOrigin, null, maybeExisting.get());
 	}
 
+	/**
+	 * The current version, or empty if it is missing. In archive mode a blank current version
+	 * is a tombstone and is treated as missing.
+	 */
+	public Optional<Ref> current(String url, String origin) {
+		var maybeExisting = refRepository.findOneByUrlAndOrigin(url, origin);
+		if (!archive) return maybeExisting;
+		return maybeExisting.filter(r -> !isBlank(r));
+	}
+
+	/**
+	 * In archive mode a blank version is a tombstone and is treated as missing.
+	 */
+	public boolean isTombstone(Ref ref) {
+		return archive && isBlank(ref);
+	}
+
+	/**
+	 * Deleting appends a blank version (tombstone). Deleting a tombstone prunes every version.
+	 */
+	private void archiveDelete(String rootOrigin, Ref existing) {
+		// Only metadata of older versions is updated, never flush a stale copy
+		em.detach(existing);
+		if (isBlank(existing)) {
+			var startedAt = Instant.now(ensureUniqueModifiedClock);
+			refRepository.deleteByUrlAndOriginAndModifiedLessThanEqual(existing.getUrl(), existing.getOrigin(), startedAt);
+			meta.sources(rootOrigin, null, existing);
+			return;
+		}
+		var tombstone = new Ref();
+		tombstone.setUrl(existing.getUrl());
+		tombstone.setOrigin(existing.getOrigin());
+		meta.ref(rootOrigin, tombstone);
+		ensureCreateUniqueModified(tombstone);
+		meta.sources(rootOrigin, tombstone, existing);
+		messages.deleteRef(existing);
+	}
+
 	void ensureCreateUniqueModified(Ref ref) {
+		ensureCreateUniqueModified(ref, false);
+	}
+
+	/**
+	 * @param create in archive mode, fail if a current version exists
+	 */
+	void ensureCreateUniqueModified(Ref ref, boolean create) {
 		var count = 0;
 		while (true) {
 			try {
 				count++;
 				new TransactionTemplate(transactionManager).execute(status -> {
-					ref.setModified(Instant.now(ensureUniqueModifiedClock));
+					if (archive) {
+						// The primary key includes modified, so check the current version before appending
+						if (create && current(ref.getUrl(), ref.getOrigin()).isPresent()) throw new AlreadyExistsException();
+						ref.setModified(nextModified(Instant.now(ensureUniqueModifiedClock), refRepository.getCursor(ref.getOrigin())));
+					} else {
+						ref.setModified(Instant.now(ensureUniqueModifiedClock));
+					}
 					em.persist(ref);
 					em.flush();
 					return null;
@@ -186,7 +248,21 @@ public class Ingest {
 		while (true) {
 			try {
 				count++;
+				var offset = count;
 				new TransactionTemplate(transactionManager).execute(status -> {
+					if (archive) {
+						// Append a new version right after the newest one instead of overwriting it,
+						// so the origin cursor moves as little as possible
+						if (em.contains(ref)) em.detach(ref);
+						var newest = refRepository.findOneByUrlAndOrigin(ref.getUrl(), ref.getOrigin());
+						if (newest.isPresent()) {
+							ref.setCreated(newest.get().getCreated());
+							ref.setModified(newest.get().getModified().truncatedTo(ChronoUnit.MICROS).plus(offset, ChronoUnit.MICROS));
+						}
+						em.persist(ref);
+						em.flush();
+						return null;
+					}
 					refRepository.saveAndFlush(ref);
 					return null;
 				});
@@ -194,6 +270,7 @@ public class Ingest {
 			} catch (DataIntegrityViolationException | PersistenceException | JpaSystemException e) {
 				if (!isUniqueModifiedOriginViolation(e, "ref")) throw e;
 				if (count > props.getIngestMaxRetry()) {
+					if (archive) throw new DuplicateModifiedDateException();
 					count = 0;
 					cursor = cursor.minusNanos((long) (1000 * Math.random()));
 					ref.setModified(cursor);
@@ -211,6 +288,17 @@ public class Ingest {
 			try {
 				count++;
 				new TransactionTemplate(transactionManager).execute(status -> {
+					if (archive) {
+						// Append a new version instead of overwriting the current one
+						var current = refRepository.findOneByUrlAndOrigin(ref.getUrl(), ref.getOrigin())
+							.filter(r -> r.getModified().equals(cursor))
+							.orElseThrow(() -> new ModifiedException("Ref"));
+						ref.setModified(nextModified(Instant.now(ensureUniqueModifiedClock), refRepository.getCursor(ref.getOrigin())));
+						ref.setCreated(current.getCreated());
+						em.persist(ref);
+						em.flush();
+						return null;
+					}
 					ref.setModified(Instant.now(ensureUniqueModifiedClock));
 					var updated = refRepository.optimisticUpdate(
 						cursor,
@@ -243,18 +331,35 @@ public class Ingest {
 
 	void pushUniqueModified(Ref ref) {
 		try {
-			var updated = refRepository.pushAsyncMetadata(
-				ref.getUrl(),
-				ref.getOrigin(),
-				ref.getTitle(),
-				ref.getComment(),
-				ref.getTags(),
-				ref.getSources(),
-				ref.getAlternateUrls(),
-				ref.getPlugins(),
-				ref.getMetadata(),
-				ref.getPublished(),
-				ref.getModified());
+			int updated;
+			if (archive) {
+				// Only update a repeated push of the same version, otherwise insert a new version
+				updated = refRepository.pushAsyncMetadataVersion(
+					ref.getUrl(),
+					ref.getOrigin(),
+					ref.getTitle(),
+					ref.getComment(),
+					ref.getTags(),
+					ref.getSources(),
+					ref.getAlternateUrls(),
+					ref.getPlugins(),
+					ref.getMetadata(),
+					ref.getPublished(),
+					ref.getModified());
+			} else {
+				updated = refRepository.pushAsyncMetadata(
+					ref.getUrl(),
+					ref.getOrigin(),
+					ref.getTitle(),
+					ref.getComment(),
+					ref.getTags(),
+					ref.getSources(),
+					ref.getAlternateUrls(),
+					ref.getPlugins(),
+					ref.getMetadata(),
+					ref.getPublished(),
+					ref.getModified());
+			}
 			if (updated == 0) {
 				refRepository.save(ref);
 			}
