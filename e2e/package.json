@@ -12,6 +12,6 @@
     "down:sqlite": "docker compose -f docker-compose.yaml -f docker-compose.sqlite.yaml --profile ci down -v"
   },
   "devDependencies": {
-    "@playwright/test": "1.63.0"
+    "@playwright/test": "1.64.0"
   }
 }
