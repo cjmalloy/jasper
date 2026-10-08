@@ -170,6 +170,11 @@ stored in Ext entities and similarly validated according to their schema.
 See [Jasper-UI](https://github.com/cjmalloy/jasper-ui) for examples of Plugins and Templates, such as:
 * `plugin/thumbnail`: [This plugin](https://github.com/cjmalloy/jasper-ui/blob/master/src/app/mods/thumbnail.ts)
 allows a Ref to include a URL to a thumbnail image.
+* `plugin/progress`: Shows a progress bar for a tag like `plugin/progress/3/5`. If this plugin is
+installed in an origin, the server tags origin push/pull Refs and RSS feed Refs with their progress while
+long-running jobs are running, and removes the tag when they finish. These updates are silent: they do
+not change the Ref's modified date. Updates are sent at most once per second, so jobs that finish in
+under a second add no tag.
 * `user` Template: 
 [This template](https://github.com/cjmalloy/jasper-ui/blob/master/src/app/mods/user.ts)
 allows a user tag to customize their experience, such as subscribing to a list of tags to show

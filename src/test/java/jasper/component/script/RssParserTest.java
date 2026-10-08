@@ -111,6 +111,7 @@ public class RssParserTest {
 		ReflectionTestUtils.setField(rssParser, "api", "http://localhost:8081");
 		when(httpClientFactory.getClient()).thenReturn(httpClient);
 		when(mapper.domainToDto(any(Ref.class))).thenReturn(new RefReplDto());
+		when(tagger.progress(any(), any())).thenReturn(mock(Tagger.Progress.class));
 	}
 
 	void setUpValidHttpResponse() throws Exception {

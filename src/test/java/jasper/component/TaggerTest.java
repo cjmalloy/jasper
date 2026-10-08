@@ -2,6 +2,7 @@ package jasper.component;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jasper.config.JacksonConfiguration;
+import jasper.domain.Plugin;
 import jasper.domain.Ref;
 import jasper.errors.AlreadyExistsException;
 import jasper.errors.ModifiedException;
@@ -13,6 +14,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
@@ -209,5 +211,60 @@ public class TaggerTest {
 		verify(ingest).create(eq(""), any(Ref.class));
 		verify(ingest, never()).create(eq("@sub"), any(Ref.class));
 		verify(ingest, never()).update(any(), any(Ref.class));
+	}
+
+	@Test
+	void testProgressSkippedWhenPluginNotInstalled() {
+		when(tagger.configs.getPlugin("plugin/progress", "")).thenReturn(Optional.empty());
+
+		try (var progress = tagger.progress(URL, "")) {
+			progress.last = Instant.EPOCH;
+			progress.update(1, 2);
+		}
+
+		verify(refRepository, never()).findOneByUrlAndOrigin(any(), any());
+		verify(ingest, never()).silent(any(), any(Ref.class));
+	}
+
+	@Test
+	void testProgressSkippedOnRemoteOrigin() {
+		when(tagger.configs.getPlugin("plugin/progress", "@remote")).thenReturn(Optional.of(new Plugin()));
+		when(tagger.configs.getRemote("@remote")).thenReturn(new RefDto());
+
+		try (var progress = tagger.progress(URL, "@remote")) {
+			progress.last = Instant.EPOCH;
+			progress.update(1, 2);
+		}
+
+		verify(ingest, never()).silent(any(), any(Ref.class));
+	}
+
+	@Test
+	void testProgressThrottled() {
+		when(tagger.configs.getPlugin("plugin/progress", "")).thenReturn(Optional.of(new Plugin()));
+
+		try (var progress = tagger.progress(URL, "")) {
+			progress.update(1, 2);
+		}
+
+		verify(ingest, never()).silent(any(), any(Ref.class));
+	}
+
+	@Test
+	void testProgressReplacesTagAndClears() {
+		when(tagger.configs.getPlugin("plugin/progress", "")).thenReturn(Optional.of(new Plugin()));
+		var ref = from(URL, "", "public", "plugin/progress/1/10");
+		when(refRepository.findOneByUrlAndOrigin(URL, "")).thenReturn(Optional.of(ref));
+		var saved = ArgumentCaptor.forClass(Ref.class);
+
+		try (var progress = tagger.progress(URL, "")) {
+			progress.last = Instant.EPOCH;
+			progress.update(30, 10);
+			verify(ingest).silent(eq(""), saved.capture());
+			assertThat(saved.getValue().getTags()).containsExactly("public", "plugin/progress/10/10");
+		}
+
+		verify(ingest, times(2)).silent(eq(""), saved.capture());
+		assertThat(saved.getValue().getTags()).containsExactly("public");
 	}
 }
