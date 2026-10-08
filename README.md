@@ -175,8 +175,8 @@ installed in an origin, the server tags origin push/pull Refs and RSS feed Refs 
 long-running jobs are running, and removes the tag when they finish. Push/pull progress is estimated
 from where the modified cursor is between its starting position and the latest modified date on the
 source. These updates are silent: they do
-not change the Ref's modified date. Updates are sent at most once per second, so jobs that finish in
-under a second add no tag.
+not change the Ref's modified date. Updates are sent at most once every 5 seconds, so jobs that finish in
+under 5 seconds add no tag.
 * `user` Template: 
 [This template](https://github.com/cjmalloy/jasper-ui/blob/master/src/app/mods/user.ts)
 allows a user tag to customize their experience, such as subscribing to a list of tags to show

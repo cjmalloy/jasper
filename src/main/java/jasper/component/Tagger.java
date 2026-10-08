@@ -34,7 +34,7 @@ import static org.apache.commons.lang3.StringUtils.isNotBlank;
 public class Tagger {
 	private static final Logger logger = LoggerFactory.getLogger(Tagger.class);
 	static final int INIT_PLUGIN_RETRIES = 5;
-	static final Duration PROGRESS_THROTTLE = Duration.ofSeconds(1);
+	static final Duration PROGRESS_THROTTLE = Duration.ofSeconds(5);
 
 	@Autowired
 	ConfigCache configs;
