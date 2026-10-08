@@ -15,6 +15,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -258,6 +259,64 @@ public class BackfillRepositoryIT {
 			.containsExactlyInAnyOrder(
 				"tag:/user/tester@test?url=http://example.com/parent",
 				"http://example.com/response@test");
+	}
+
+	@Test
+	@DisabledOnSqlite
+	void testBackfillMetadata_NormalizesProtectedUserTag() {
+		var parent = new Ref();
+		parent.setUrl("http://example.com/parent");
+		parent.setOrigin("@a");
+		parent.setMetadata(Metadata.builder().regen(true).build());
+		refRepository.save(parent);
+
+		var userUrl = new Ref();
+		userUrl.setUrl("tag:/+user/tester?url=http://example.com/parent");
+		userUrl.setOrigin("@a");
+		userUrl.setSources(List.of("http://example.com/parent"));
+		userUrl.setTags(List.of("+plugin/user/run"));
+		refRepository.save(userUrl);
+
+		backfillRepository.backfillMetadata("@a", 10);
+
+		var loaded = refRepository.findOneByUrlAndOrigin(parent.getUrl(), parent.getOrigin()).get();
+		assertThat(loaded.getMetadata().getUserUrls().get("+plugin/user/run"))
+			.containsExactly("tag:/user/tester@a?url=http://example.com/parent");
+	}
+
+	@Test
+	@DisabledOnSqlite
+	void testBackfillMetadata_KeepsUserUrlsFromOtherOrigins() {
+		var parent = new Ref();
+		parent.setUrl("http://example.com/parent");
+		parent.setOrigin("@a");
+		parent.setMetadata(Metadata.builder()
+			.regen(true)
+			.userUrls(Map.of("+plugin/user/run", List.of(
+				"tag:/user/tester@a?url=http://example.com/parent",
+				"tag:/user/deleted?url=http://example.com/parent")))
+			.build());
+		refRepository.save(parent);
+
+		var userUrl = new Ref();
+		userUrl.setUrl("tag:/user/tester?url=http://example.com/parent");
+		userUrl.setOrigin("");
+		userUrl.setSources(List.of("http://example.com/parent"));
+		userUrl.setTags(List.of("+plugin/user/run"));
+		userUrl.setMetadata(Metadata.builder()
+			.expandedTags(List.of("+plugin/user/run", "+plugin/user", "+plugin"))
+			.build());
+		refRepository.save(userUrl);
+
+		backfillRepository.backfillMetadata("", 10);
+
+		var loaded = refRepository.findOneByUrlAndOrigin(parent.getUrl(), parent.getOrigin()).get();
+		assertThat(loaded.getMetadata().getUserUrls().get("+plugin/user/run"))
+			.containsExactlyInAnyOrder(
+				"tag:/user/tester?url=http://example.com/parent",
+				"tag:/user/tester@a?url=http://example.com/parent");
+		assertThat(loaded.getMetadata().getUserUrls().get("+plugin/user"))
+			.containsExactly("tag:/user/tester?url=http://example.com/parent");
 	}
 
 	@Test
