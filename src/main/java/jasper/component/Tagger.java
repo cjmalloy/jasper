@@ -167,6 +167,10 @@ public class Tagger {
 			this.enabled = enabled;
 		}
 
+		public boolean isEnabled() {
+			return enabled;
+		}
+
 		public void update(int value, int max) {
 			if (!enabled || max <= 0) return;
 			if (now().isBefore(last.plus(PROGRESS_THROTTLE))) return;
