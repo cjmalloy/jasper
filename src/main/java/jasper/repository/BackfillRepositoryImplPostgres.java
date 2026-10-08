@@ -15,6 +15,7 @@ public class BackfillRepositoryImplPostgres implements BackfillRepository {
 	/**
 	 * Responses are filtered by their obsolete flag. Responses with missing
 	 * metadata are assumed to be obsolete, except user URLs which are never obsolete.
+	 * Only the user URLs of the given origin are rebuilt, user URLs from other origins are kept.
 	 * Older versions of a user URL in archive mode are skipped.
 	 * Rows are matched by modified so only a single version is updated in archive mode.
 	 */
@@ -45,14 +46,21 @@ public class BackfillRepositoryImplPostgres implements BackfillRepository {
 				GROUP BY t.tag
 			) rp), CAST('{}' AS jsonb)),
 			'userUrls', COALESCE((SELECT jsonb_object_agg(uu.tag, uu.urls) FROM (
-				SELECT t.tag, jsonb_agg(CASE
-					WHEN ure.origin = '' THEN ure.url
-					WHEN strpos(ure.url, '?') = 0 THEN concat(ure.url, ure.origin)
-					ELSE overlay(ure.url PLACING concat(ure.origin, '?') FROM strpos(ure.url, '?') FOR 1)
-				END) AS urls FROM ref ure
-					CROSS JOIN LATERAL jsonb_array_elements_text(COALESCE(ure.metadata->'expandedTags', ure.tags)) AS t(tag)
-				WHERE (ure.sources @> jsonb_build_array(r.url)) AND ure.url != r.url AND ure.origin = :origin AND ((ure.url ~ '^tag:/[_+]?user([/?]|$)' AND NOT EXISTS (SELECT 1 FROM ref uren WHERE uren.url = ure.url AND uren.origin = ure.origin AND uren.modified > ure.modified)) OR (ure.metadata IS NOT NULL AND COALESCE(ure.metadata->>'obsolete', 'false') IN ('false', '0'))) AND t.tag ~ '^[_+]?plugin/user(/|$)'
-				GROUP BY t.tag
+				SELECT u.tag, jsonb_agg(DISTINCT u.url) AS urls FROM (
+					SELECT t.tag, CASE
+						WHEN ure.origin = '' THEN pu.url
+						WHEN strpos(pu.url, '?') = 0 THEN concat(pu.url, ure.origin)
+						ELSE overlay(pu.url PLACING concat(ure.origin, '?') FROM strpos(pu.url, '?') FOR 1)
+					END AS url FROM ref ure
+						CROSS JOIN LATERAL (SELECT regexp_replace(ure.url, '^tag:/[_+](user([/?]|$))', 'tag:/\\1') AS url) AS pu
+						CROSS JOIN LATERAL jsonb_array_elements_text(COALESCE(ure.metadata->'expandedTags', ure.tags)) AS t(tag)
+					WHERE (ure.sources @> jsonb_build_array(r.url)) AND ure.url != r.url AND ure.origin = :origin AND ((ure.url ~ '^tag:/[_+]?user([/?]|$)' AND NOT EXISTS (SELECT 1 FROM ref uren WHERE uren.url = ure.url AND uren.origin = ure.origin AND uren.modified > ure.modified)) OR (ure.metadata IS NOT NULL AND COALESCE(ure.metadata->>'obsolete', 'false') IN ('false', '0'))) AND t.tag ~ '^[_+]?plugin/user(/|$)'
+					UNION ALL
+					SELECT kt.tag, ku.url FROM jsonb_each(CASE WHEN jsonb_typeof(r.metadata->'userUrls') = 'object' THEN r.metadata->'userUrls' END) AS kt(tag, urls)
+						CROSS JOIN LATERAL jsonb_array_elements_text(CASE WHEN jsonb_typeof(kt.urls) = 'array' THEN kt.urls ELSE CAST('[]' AS jsonb) END) AS ku(url)
+					WHERE ku.url IS NOT NULL AND COALESCE(substring(split_part(ku.url, '?', 1) FROM '@.*$'), '') != :origin
+				) u
+				GROUP BY u.tag
 			) uu), CAST('{}' AS jsonb)),
 			'obsolete', EXISTS (SELECT 1 from ref n WHERE n.url = r.url AND n.modified > r.modified AND (:origin = '' OR n.origin = :origin OR n.origin LIKE concat(:origin, '.%'))),
 			'cascade', CASE WHEN jsonb_array_length(COALESCE(r.sources, '[]')) > 0 THEN true END

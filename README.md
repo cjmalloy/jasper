@@ -907,6 +907,9 @@ Jasper generates the following metadata in Refs:
    origin of the response (e.g. `tag:/user/alice@remote?url=...`), so users only see their own.
    The current user is always matched in the origin they are logged in to, so the `userResponse` and
    `noUserResponse` filters (which take plugin tags) only match responses from that user in that origin.
+   Protected and private user URLs (`tag:/+user/alice` and `tag:/_user/alice`) are recorded as `tag:/user/alice`.
+   Regenerating metadata for an origin only rebuilds the user URLs of that origin, user URLs from other
+   origins are kept.
  * Obsolete: flag set if another origin contains the newest version of this Ref
 
 Metadata is never transferred during replication. A simplified version is sent over the client API, with

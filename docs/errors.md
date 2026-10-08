@@ -318,29 +318,3 @@ The server can't handle the request right now.
 | Code                 | Status | Exception               | Meaning                                         | Client action                           |
 |----------------------|--------|-------------------------|-------------------------------------------------|-----------------------------------------|
 | `error.notAvailable` | 503    | `NotAvailableException` | A required service or feature is not available. | Retry later or enable the feature.      |
-
-## Breaking changes
-
-Compared to the previous release (`master` before this change):
-
-* `type` URIs moved from `https://www.jhipster.tech/problem/...` to the categories on this page.
-* `error.concurrencyFailure` was renamed to `error.optimisticLock`.
-* Every code in the tables above other than `error.validation` previously returned the generic
-  `error.http.<status>` code, for example `error.http.409` for `AlreadyExistsException` is now `error.alreadyExists`:
-  `error.messageNotReadable`, `error.missingParameter`, `error.typeMismatch`, `error.methodNotSupported`,
-  `error.mediaTypeNotSupported`, `error.invalidPatch`, `error.invalidPush`, `error.invalidPlugin`,
-  `error.invalidUserUrl`, `error.invalidTemplate`, `error.unauthorized`, `error.accessDenied`, `error.notFound`,
-  `error.duplicateTag`, `error.duplicateModifiedDate`, `error.duplicateKey`, `error.alreadyExists`,
-  `error.modified`, `error.userTagInUse`, `error.dataIntegrity`, `error.freshLogin`, `error.deactivateSelf`,
-  `error.invalidUserProfile`, `error.originForbidden`, `error.pullLocal`, `error.script`,
-  `error.untrustedScript`, `error.publishDate`, `error.invalidTunnel`, `error.tunnelTimeout`,
-  `error.scrapeProtocol`, `error.tooLarge`, `error.maxSources` and `error.notAvailable`.
-* `DataIntegrityViolationException` and `DuplicateKeyException` return 409 instead of 500.
-* `AuthenticationException` subclasses other than `BadCredentialsException` return 401 instead of 500.
-* `title` falls back to the HTTP reason phrase instead of an empty string when `@ResponseStatus` has no reason.
-* Plugin and template errors no longer put the raw validator output in `detail`
-  (e.g. `plugin/test: [ValidationError(...)]`). `detail` is now a one line summary such as
-  `plugin/test: age: expected uint32; name: required`, and the structured `tag`, `reason`, `errors`
-  and `truncated` fields were added.
-* `error.invalidUserUrl` and `error.invalidTemplate` details now include the reason, e.g.
-  `plugin/user: requires exactly one source` instead of `Invalid User Url for plugin plugin/user`.
