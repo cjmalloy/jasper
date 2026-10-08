@@ -27,8 +27,10 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static jasper.repository.spec.RefSpec.isUrl;
+import static java.time.temporal.ChronoUnit.MICROS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.within;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -570,7 +572,7 @@ public class IngestIT {
 		assertThat(fetched.getMetadata().getNewReaction())
 			.isNotNull();
 		assertThat(fetched.getMetadata().getNewResponse())
-			.isNull();
+			.isNotNull();
 		assertThat(fetched.getMetadata().getResponses())
 			.containsExactly(URL);
 	}
@@ -614,8 +616,8 @@ public class IngestIT {
 		var third = refRepository.findOneByUrlAndOrigin(URL + "c", "").get();
 		assertThat(third.getMetadata().getNewReaction())
 			.isNotNull();
-		assertThat(third.getMetadata().getNewResponse())
-			.isNull();
+		assertThat(Instant.parse(third.getMetadata().getNewResponse()))
+			.isCloseTo(third.getCreated(), within(1, MICROS));
 		assertThat(third.getMetadata().getResponses())
 			.containsExactly(URL);
 	}
