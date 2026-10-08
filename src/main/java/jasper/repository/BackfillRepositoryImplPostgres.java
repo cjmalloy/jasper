@@ -18,6 +18,7 @@ public class BackfillRepositoryImplPostgres implements BackfillRepository {
 	 * Responses are filtered by their obsolete flag. Responses with missing
 	 * metadata are assumed to be obsolete, except user URLs which are never obsolete.
 	 * Only the user URLs of the given origin are rebuilt, user URLs from other origins are kept.
+	 * Blank newResponse and newReaction are filled from the latest response, or the Ref created date.
 	 */
 	@Override
 	public int backfillMetadata(String origin, int batchSize) {
@@ -31,8 +32,8 @@ public class BackfillRepositoryImplPostgres implements BackfillRepository {
 			UPDATE ref r
 			SET metadata = jsonb_strip_nulls(jsonb_build_object(
 				'modified', COALESCE(r.metadata->>'modified', to_char(NOW(), 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')),
-				'newResponse', COALESCE(r.metadata->>'newResponse', to_char(NOW() AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"000Z"')),
-				'newReaction', COALESCE(r.metadata->>'newReaction', to_char(NOW() AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"000Z"')),
+				'newResponse', COALESCE(NULLIF(r.metadata->>'newResponse', ''), to_char(GREATEST(r.created, (SELECT MAX(nre.created) FROM ref nre WHERE (nre.sources @> jsonb_build_array(r.url)) AND nre.url != r.url AND (:origin = '' OR nre.origin = :origin OR nre.origin LIKE concat(:origin, '.%')) AND nre.url !~ '^tag:/[_+]?user([/?]|$)' AND nre.metadata IS NOT NULL AND COALESCE(nre.metadata->>'obsolete', 'false') IN ('false', '0'))), 'YYYY-MM-DD"T"HH24:MI:SS.US"000Z"')),
+				'newReaction', COALESCE(NULLIF(r.metadata->>'newReaction', ''), to_char(GREATEST(r.created, (SELECT MAX(nra.modified) FROM ref nra WHERE (nra.sources @> jsonb_build_array(r.url)) AND nra.url != r.url AND (:origin = '' OR nra.origin = :origin OR nra.origin LIKE concat(:origin, '.%')) AND (nra.url ~ '^tag:/[_+]?user([/?]|$)' OR (nra.metadata IS NOT NULL AND COALESCE(nra.metadata->>'obsolete', 'false') IN ('false', '0'))))), 'YYYY-MM-DD"T"HH24:MI:SS.US"000Z"')),
 				'responses', (SELECT jsonb_agg(re.url) FROM ref re WHERE (re.sources @> jsonb_build_array(r.url)) AND (:origin = '' OR re.origin = :origin OR re.origin LIKE concat(:origin, '.%')) AND re.metadata IS NOT NULL AND COALESCE(re.metadata->>'obsolete', 'false') IN ('false', '0') AND jsonb_exists(COALESCE(re.metadata->'expandedTags', re.tags), 'internal') = false),
 				'internalResponses', (SELECT jsonb_agg(ire.url) FROM ref ire WHERE (ire.sources @> jsonb_build_array(r.url)) AND (:origin = '' OR ire.origin = :origin OR ire.origin LIKE concat(:origin, '.%')) AND ire.metadata IS NOT NULL AND COALESCE(ire.metadata->>'obsolete', 'false') IN ('false', '0') AND jsonb_exists(COALESCE(ire.metadata->'expandedTags', ire.tags), 'internal') = true),
 				'plugins', COALESCE((SELECT jsonb_object_agg(lp.tag, lp.cnt) FROM (

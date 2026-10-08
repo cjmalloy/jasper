@@ -87,6 +87,8 @@ public class Meta {
 			.remotePlugins(refRepositoryCustom.countPluginTagsInResponses(ref.getUrl(), rootOrigin)
 				.stream()
 				.collect(toMap(r -> (String) r[0], r -> ((Number) r[1]).longValue())))
+			.newResponse(orCreated(null, ref))
+			.newReaction(orCreated(null, ref))
 			.build()
 		);
 	}
@@ -100,6 +102,8 @@ public class Meta {
 		if (ref == null) return;
 		ref.setMetadata(existing.getMetadata().toBuilder()
 			.expandedTags(expandTags(ref.getTags()))
+			.newResponse(newResponse(rootOrigin, existing, existing.getMetadata().getNewResponse()))
+			.newReaction(newReaction(rootOrigin, existing, existing.getMetadata().getNewReaction()))
 			.obsolete(false)
 			.build()
 		);
@@ -111,6 +115,8 @@ public class Meta {
 		ref.setMetadata(Metadata
 			.builder()
 			.expandedTags(expandTags(ref.getTags()))
+			.newResponse(orCreated(null, ref))
+			.newReaction(orCreated(null, ref))
 			.build()
 		);
 	}
@@ -173,10 +179,8 @@ public class Meta {
 		var original = ref.getMetadata();
 		ref(rootOrigin, ref);
 		ref.getMetadata().setModified(original == null ? now().toString() : original.getModified());
-		if (original != null) {
-			if (original.getNewResponse() != null) ref.getMetadata().setNewResponse(original.getNewResponse());
-			if (original.getNewReaction() != null) ref.getMetadata().setNewReaction(original.getNewReaction());
-		}
+		ref.getMetadata().setNewResponse(newResponse(rootOrigin, ref, original == null ? null : original.getNewResponse()));
+		ref.getMetadata().setNewReaction(newReaction(rootOrigin, ref, original == null ? null : original.getNewReaction()));
 		keepOtherOriginUserUrls(rootOrigin, original, ref.getMetadata());
 		ref.getMetadata().setObsolete(refRepository.newerExists(ref.getUrl(), rootOrigin, ref.getModified()));
 		if (ref.getMetadata().isObsolete()) return;
@@ -198,9 +202,9 @@ public class Meta {
 		var original = source.getMetadata();
 		ref(rootOrigin, source);
 		source.getMetadata().setModified(original == null ? now().toString() : original.getModified());
+		source.getMetadata().setNewResponse(newResponse(rootOrigin, source, original == null ? null : original.getNewResponse()));
+		source.getMetadata().setNewReaction(newReaction(rootOrigin, source, original == null ? null : original.getNewReaction()));
 		if (original != null) {
-			if (original.getNewResponse() != null) source.getMetadata().setNewResponse(original.getNewResponse());
-			if (original.getNewReaction() != null) source.getMetadata().setNewReaction(original.getNewReaction());
 			source.getMetadata().setRegen(original.isRegen());
 			source.getMetadata().setCascade(original.isCascade());
 		}
@@ -223,6 +227,30 @@ public class Meta {
 	private static boolean isNew(Ref ref) {
 		if (ref.getCreated() == null || ref.getModified() == null) return false;
 		return Duration.between(ref.getCreated(), ref.getModified()).abs().compareTo(NEW_TOLERANCE) <= 0;
+	}
+
+	/**
+	 * Use the Ref created date when a metadata timestamp is blank.
+	 */
+	private static String orCreated(String value, Ref ref) {
+		if (value != null && !value.isBlank()) return value;
+		return timestamp(ref.getCreated() == null ? now() : ref.getCreated());
+	}
+
+	/**
+	 * Backfill a blank newResponse from the latest response, or the Ref created date.
+	 */
+	private String newResponse(String rootOrigin, Ref ref, String value) {
+		if (value != null && !value.isBlank()) return value;
+		return latest(orCreated(null, ref), refRepository.latestResponseCreated(ref.getUrl(), rootOrigin));
+	}
+
+	/**
+	 * Backfill a blank newReaction from the latest response, or the Ref created date.
+	 */
+	private String newReaction(String rootOrigin, Ref ref, String value) {
+		if (value != null && !value.isBlank()) return value;
+		return latest(orCreated(null, ref), refRepository.latestResponseModified(ref.getUrl(), rootOrigin));
 	}
 
 	/**
@@ -301,6 +329,7 @@ public class Meta {
 					.remotePlugins(new HashMap<>())
 					.build();
 			}
+			metadata.setNewResponse(newResponse(rootOrigin, source, metadata.getNewResponse()));
 			if (ref.hasTag("internal")) {
 				metadata.addInternalResponse(ref.getUrl());
 			} else {

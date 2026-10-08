@@ -151,6 +151,36 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 			AND (:origin = '' OR r.origin = :origin OR r.origin LIKE concat(:origin, '.%'))""")
 	List<String> findAllResponsesWithoutTag(String url, String origin, String tag);
 
+	/**
+	 * Latest created date of a response, ignoring user urls.
+	 */
+	@Query("""
+		SELECT MAX(r.created) FROM Ref r
+		WHERE r.url != :url
+			AND jsonb_exists(r.sources, :url) = true
+			AND r.url NOT IN ('tag:/user', 'tag:/+user', 'tag:/_user')
+			AND r.url NOT LIKE 'tag:/user/%' AND r.url NOT LIKE 'tag:/user?%'
+			AND r.url NOT LIKE 'tag:/+user/%' AND r.url NOT LIKE 'tag:/+user?%'
+			AND r.url NOT LIKE 'tag:/\\_user/%' ESCAPE '\\' AND r.url NOT LIKE 'tag:/\\_user?%' ESCAPE '\\'
+			AND COALESCE(jsonb_object_field_text(r.metadata, 'obsolete'), 'false') != 'true'
+			AND (:origin = '' OR r.origin = :origin OR r.origin LIKE concat(:origin, '.%'))""")
+	Instant latestResponseCreated(String url, String origin);
+
+	/**
+	 * Latest modified date of a response, including user urls.
+	 */
+	@Query("""
+		SELECT MAX(r.modified) FROM Ref r
+		WHERE r.url != :url
+			AND jsonb_exists(r.sources, :url) = true
+			AND (r.url IN ('tag:/user', 'tag:/+user', 'tag:/_user')
+				OR r.url LIKE 'tag:/user/%' OR r.url LIKE 'tag:/user?%'
+				OR r.url LIKE 'tag:/+user/%' OR r.url LIKE 'tag:/+user?%'
+				OR r.url LIKE 'tag:/\\_user/%' ESCAPE '\\' OR r.url LIKE 'tag:/\\_user?%' ESCAPE '\\'
+				OR COALESCE(jsonb_object_field_text(r.metadata, 'obsolete'), 'false') != 'true')
+			AND (:origin = '' OR r.origin = :origin OR r.origin LIKE concat(:origin, '.%'))""")
+	Instant latestResponseModified(String url, String origin);
+
 	@Transactional
 	@Query("""
 		SELECT r FROM Ref r

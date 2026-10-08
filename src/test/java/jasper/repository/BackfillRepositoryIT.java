@@ -102,6 +102,67 @@ public class BackfillRepositoryIT {
 
 	@Test
 	@DisabledOnSqlite
+	void testBackfillMetadata_BlankNewResponseAndNewReactionUseCreated() {
+		var created = Instant.parse("2025-03-04T05:06:07.123456Z");
+		var parent = new Ref();
+		parent.setUrl("http://example.com/parent");
+		parent.setOrigin("");
+		parent.setCreated(created);
+		parent.setMetadata(null);
+		refRepository.save(parent);
+		var kept = new Ref();
+		kept.setUrl("http://example.com/kept");
+		kept.setOrigin("");
+		kept.setMetadata(Metadata.builder()
+			.regen(true)
+			.newResponse("2026-01-02T00:00:00Z")
+			.newReaction("2026-01-03T00:00:00Z")
+			.build());
+		refRepository.save(kept);
+
+		backfillRepository.backfillMetadata("", 10);
+
+		var metadata = refRepository.findOneByUrlAndOrigin(parent.getUrl(), "").orElseThrow().getMetadata();
+		assertThat(metadata.getNewResponse()).isEqualTo(Metadata.timestamp(created));
+		assertThat(metadata.getNewReaction()).isEqualTo(Metadata.timestamp(created));
+		var keptMetadata = refRepository.findOneByUrlAndOrigin(kept.getUrl(), "").orElseThrow().getMetadata();
+		assertThat(keptMetadata.getNewResponse()).isEqualTo("2026-01-02T00:00:00Z");
+		assertThat(keptMetadata.getNewReaction()).isEqualTo("2026-01-03T00:00:00Z");
+	}
+
+	@Test
+	@DisabledOnSqlite
+	void testBackfillMetadata_BlankNewResponseAndNewReactionUseLatestResponse() {
+		var parent = new Ref();
+		parent.setUrl("http://example.com/parent");
+		parent.setOrigin("");
+		parent.setCreated(Instant.parse("2025-01-01T00:00:00Z"));
+		parent.setMetadata(null);
+		refRepository.save(parent);
+		var response = new Ref();
+		response.setUrl("http://example.com/response");
+		response.setOrigin("");
+		response.setSources(List.of(parent.getUrl()));
+		response.setCreated(Instant.parse("2025-02-01T00:00:00.123456Z"));
+		response.setMetadata(Metadata.builder().build());
+		refRepository.save(response);
+		var vote = new Ref();
+		vote.setUrl("tag:/+user/tester?url=" + parent.getUrl());
+		vote.setOrigin("");
+		vote.setSources(List.of(parent.getUrl()));
+		vote.setCreated(Instant.parse("2025-03-01T00:00:00Z"));
+		refRepository.save(vote);
+		var voteModified = refRepository.findOneByUrlAndOrigin(vote.getUrl(), "").orElseThrow().getModified();
+
+		backfillRepository.backfillMetadata("", 10);
+
+		var metadata = refRepository.findOneByUrlAndOrigin(parent.getUrl(), "").orElseThrow().getMetadata();
+		assertThat(metadata.getNewResponse()).isEqualTo(Metadata.timestamp(Instant.parse("2025-02-01T00:00:00.123456Z")));
+		assertThat(metadata.getNewReaction()).isEqualTo(Metadata.timestamp(voteModified));
+	}
+
+	@Test
+	@DisabledOnSqlite
 	void testBackfillMetadata_RespectsOriginFilter() {
 		var ref1 = new Ref();
 		ref1.setUrl("http://example.com/ref1");

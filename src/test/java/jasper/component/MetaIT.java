@@ -19,7 +19,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static java.time.temporal.ChronoUnit.MICROS;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.within;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -281,7 +283,7 @@ public class MetaIT {
 
 	@Test
 	void testCreateUserUrlResponseOnlySetsNewReaction() {
-		var initial = saveSource(URL + "a").getMetadata().getNewResponse();
+		var initial = Metadata.timestamp(saveSource(URL + "a").getCreated());
 		var child = new Ref();
 		child.setUrl("tag:/+user/tester?url=" + URL + "a");
 		child.setSources(List.of(URL + "a"));
@@ -297,12 +299,14 @@ public class MetaIT {
 
 	@Test
 	void testUpdateResponseOnlySetsNewReaction() {
-		var initial = saveSource(URL + "a", URL + "child").getMetadata().getNewResponse();
+		var source = saveSource(URL + "a", URL + "child");
+		source.getMetadata().setNewResponse("2026-01-02T00:00:00Z");
+		refRepository.save(source);
 		var child = saveChild(URL + "a");
 
 		meta.sources("", child, existingChild(List.of("+user/tester"), URL + "a"));
 
-		assertThat(metadata(URL + "a").getNewResponse()).isEqualTo(initial);
+		assertThat(metadata(URL + "a").getNewResponse()).isEqualTo("2026-01-02T00:00:00Z");
 		assertThat(metadata(URL + "a").getNewReaction()).isNotNull();
 	}
 
@@ -313,28 +317,30 @@ public class MetaIT {
 
 		cascade.cascadeRef("", child);
 
-		assertThat(metadata(URL + "c").getNewResponse()).isEqualTo(Metadata.timestamp(child.getCreated()));
-		assertThat(metadata(URL + "c").getNewReaction()).isEqualTo(Metadata.timestamp(child.getModified()));
+		assertThat(Instant.parse(metadata(URL + "c").getNewResponse())).isCloseTo(child.getCreated(), within(1, MICROS));
+		assertThat(Instant.parse(metadata(URL + "c").getNewReaction())).isCloseTo(child.getModified(), within(1, MICROS));
 	}
 
 	@Test
 	void testCascadeEditedResponseOnlySetsNewReaction() {
 		for (var s : List.of("a", "b")) saveSource(URL + s);
-		var initial = saveSource(URL + "c").getMetadata().getNewResponse();
+		var source = saveSource(URL + "c");
+		source.getMetadata().setNewResponse("2026-01-02T00:00:00Z");
+		refRepository.save(source);
 		var child = saveChild(URL + "a", URL + "b", URL + "c");
 		child.setModified(child.getCreated().plusSeconds(60));
 		child = refRepository.save(child);
 
 		cascade.cascadeRef("", child);
 
-		assertThat(metadata(URL + "c").getNewResponse()).isEqualTo(initial);
-		assertThat(metadata(URL + "c").getNewReaction()).isEqualTo(Metadata.timestamp(child.getModified()));
+		assertThat(metadata(URL + "c").getNewResponse()).isEqualTo("2026-01-02T00:00:00Z");
+		assertThat(Instant.parse(metadata(URL + "c").getNewReaction())).isCloseTo(child.getModified(), within(1, MICROS));
 	}
 
 	@Test
 	void testCascadeUserUrlOnlySetsNewReaction() {
 		for (var s : List.of("a", "b")) saveSource(URL + s);
-		var initial = saveSource(URL + "c").getMetadata().getNewResponse();
+		var initial = Metadata.timestamp(saveSource(URL + "c").getCreated());
 		var child = new Ref();
 		child.setUrl("tag:/+user/tester?url=" + URL + "a");
 		child.setSources(List.of(URL + "a", URL + "b", URL + "c"));
@@ -345,7 +351,7 @@ public class MetaIT {
 		cascade.cascadeRef("", child);
 
 		assertThat(metadata(URL + "c").getNewResponse()).isEqualTo(initial);
-		assertThat(metadata(URL + "c").getNewReaction()).isEqualTo(Metadata.timestamp(child.getModified()));
+		assertThat(Instant.parse(metadata(URL + "c").getNewReaction())).isCloseTo(child.getModified(), within(1, MICROS));
 	}
 
 	@Test
@@ -366,14 +372,14 @@ public class MetaIT {
 	@Test
 	void testCascadeRemovedSourceDoesNotSetNewReaction() {
 		saveSource(URL + "a");
-		var initial = saveSource(URL + "x", URL + "child").getMetadata();
+		var created = Metadata.timestamp(saveSource(URL + "x", URL + "child").getCreated());
 		var child = saveChild(URL + "a");
 
 		cascade.cascadeRef("", child);
 
 		assertThat(metadata(URL + "x").getResponses()).isNullOrEmpty();
-		assertThat(metadata(URL + "x").getNewReaction()).isEqualTo(initial.getNewReaction());
-		assertThat(metadata(URL + "x").getNewResponse()).isEqualTo(initial.getNewResponse());
+		assertThat(metadata(URL + "x").getNewReaction()).isEqualTo(created);
+		assertThat(metadata(URL + "x").getNewResponse()).isEqualTo(created);
 	}
 
 	@Test
@@ -397,8 +403,31 @@ public class MetaIT {
 
 		meta.regen("", ref);
 
-		assertThat(ref.getMetadata().getNewResponse()).isNotNull();
-		assertThat(ref.getMetadata().getNewReaction()).isNotNull();
+		assertThat(ref.getMetadata().getNewResponse()).isEqualTo(Metadata.timestamp(ref.getCreated()));
+		assertThat(ref.getMetadata().getNewReaction()).isEqualTo(Metadata.timestamp(ref.getCreated()));
+	}
+
+	@Test
+	void testRegenBackfillsNewResponseAndNewReactionFromLatestResponse() {
+		var ref = saveSource(URL + "a");
+		var child = new Ref();
+		child.setUrl(URL + "child");
+		child.setSources(List.of(URL + "a"));
+		child.setTags(List.of("+user/tester"));
+		child.setCreated(ref.getCreated().plusSeconds(60));
+		child.setMetadata(Metadata.builder().build());
+		child = refRepository.save(child);
+		var vote = new Ref();
+		vote.setUrl("tag:/+user/tester?url=" + URL + "a");
+		vote.setSources(List.of(URL + "a"));
+		vote.setTags(List.of("+user/tester", "plugin/user/vote/up"));
+		vote.setCreated(ref.getCreated().plusSeconds(120));
+		refRepository.save(vote);
+
+		meta.regen("", ref);
+
+		assertThat(Instant.parse(ref.getMetadata().getNewResponse())).isCloseTo(child.getCreated(), within(1, MICROS));
+		assertThat(Instant.parse(ref.getMetadata().getNewReaction())).isCloseTo(vote.getModified(), within(1, MICROS));
 	}
 
 	@Test
