@@ -1098,8 +1098,8 @@ in the owning origin (usually `""`).
 There are two kinds of writes:
  * **Plugin data** on a Ref in a pulled origin, such as the `_plugin/cache` ban/error marker written after a failed cache
    fetch. It is written silently into the pulled origin (`Tagger.silentPlugin`). A new Ref is backdated to
-   `cursor - 1ms` and an existing Ref keeps its `modified`, so the pull cursor (`modifiedAfter`) never moves past
-   remote entries.
+   `cursor - 1ms` (or the epoch if the pulled origin is empty) and an existing Ref keeps its `modified`, so the pull
+   cursor (`modifiedAfter`) never moves past remote entries.
  * **Logs** (`+plugin/log` Refs with an `error:<uuid>` URL). They are stamped with `modified = now`, so they are never
    written into a pulled origin. They are redirected to the origin that owns the `+plugin/origin` Ref.
 

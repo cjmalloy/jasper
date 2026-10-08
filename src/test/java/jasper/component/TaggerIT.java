@@ -10,6 +10,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.util.AopTestUtils;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -183,6 +184,17 @@ public class TaggerIT {
 			.contains("plugin/test");
 		assertThat(fetched4.getTags())
 			.contains("plugin/test");
+	}
+
+	@Test
+	void testSilentPluginEmptyOriginDoesNotMoveCursor() {
+		tagger.silentPlugin(URL + 1, "Test", "@other", "plugin/test", objectMapper.createObjectNode());
+		tagger.silentPlugin(URL + 2, "Test", "@other", "plugin/test", objectMapper.createObjectNode());
+
+		assertThat(refRepository.getCursor("@other"))
+			.isEqualTo(Instant.EPOCH);
+		assertThat(refRepository.findOneByUrlAndOrigin(URL + 2, "@other").get().getModified())
+			.isBefore(Instant.EPOCH);
 	}
 
 	@Test
