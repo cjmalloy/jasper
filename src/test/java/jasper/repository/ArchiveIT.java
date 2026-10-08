@@ -392,7 +392,7 @@ public class ArchiveIT {
 		assertThat(target.getMetadata().getUserUrls())
 			.doesNotContainKey("plugin/user/vote/up");
 		assertThat(target.getMetadata().getUserUrls().get("plugin/user/vote/down"))
-			.containsExactly("tag:/+user/tester?url=" + URL);
+			.containsExactly("tag:/user/tester?url=" + URL);
 	}
 
 	@Test
@@ -414,7 +414,7 @@ public class ArchiveIT {
 			.containsEntry("plugin/user/vote/down", 1L)
 			.doesNotContainKey("plugin/user/vote/up");
 		assertThat(target.getMetadata().getUserUrls().get("plugin/user/vote/down"))
-			.containsExactly("tag:/+user/tester?url=" + URL);
+			.containsExactly("tag:/user/tester?url=" + URL);
 	}
 
 	@Test

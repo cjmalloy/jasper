@@ -9,7 +9,9 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.util.AopTestUtils.getTargetObject;
@@ -97,5 +99,18 @@ public class NoMetadataIT {
 
 		assertThat(refRepository.findOneByUrlAndOrigin(URL, "@a").orElseThrow().getMetadata().isObsolete())
 			.isFalse();
+	}
+
+	@Test
+	void testRegenDropsExistingUserUrls() {
+		ingest.create("", ref(URL, ""));
+		var ref = refRepository.findOneByUrlAndOrigin(URL, "").orElseThrow();
+		ref.getMetadata().setUserUrls(new HashMap<>(Map.of("plugin/user/vote/up", List.of("tag:/user/other@other"))));
+
+		meta.regen("", ref);
+
+		assertThat(ref.getMetadata().getUserUrls()).isNullOrEmpty();
+		assertThat(ref.getMetadata().getExpandedTags())
+			.containsExactlyInAnyOrder("public", "plugin/comment", "plugin");
 	}
 }

@@ -199,7 +199,7 @@ public class Meta {
 			ref.getMetadata().setNewResponse(original.getNewResponse());
 			ref.getMetadata().setNewReaction(original.getNewReaction());
 		}
-		keepOtherOriginUserUrls(rootOrigin, original, ref.getMetadata());
+		if (!noMetadata) keepOtherOriginUserUrls(rootOrigin, original, ref.getMetadata());
 		ref.getMetadata().setObsolete(refRepository.newerExists(ref.getUrl(), rootOrigin, ref.getModified()));
 		if (ref.getMetadata().isObsolete()) return;
 		refRepository.updateObsolete(ref.getUrl(), rootOrigin);
