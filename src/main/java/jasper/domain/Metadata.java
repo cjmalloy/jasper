@@ -38,11 +38,13 @@ public class Metadata implements Serializable {
 	/**
 	 * Last time a new response was created, ignoring user urls.
 	 */
-	private String newResponse;
+	@Builder.Default
+	private String newResponse = timestamp(Instant.now());
 	/**
 	 * Last time any response was created or updated, including user urls.
 	 */
-	private String newReaction;
+	@Builder.Default
+	private String newReaction = timestamp(Instant.now());
 	private List<String> expandedTags;
 	private List<String> responses;
 	private List<String> internalResponses;

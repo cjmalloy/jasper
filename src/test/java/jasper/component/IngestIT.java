@@ -550,7 +550,7 @@ public class IngestIT {
 			.modified("2026-01-01T00:00:00Z")
 			.responses(new ArrayList<>(List.of(URL)))
 			.build());
-		refRepository.save(source);
+		var initial = refRepository.save(source).getMetadata();
 		var existing = new Ref();
 		existing.setUrl(URL);
 		existing.setTitle("First");
@@ -568,15 +568,16 @@ public class IngestIT {
 
 		var fetched = refRepository.findOneByUrlAndOrigin(OTHER_URL, "").get();
 		assertThat(fetched.getMetadata().getNewReaction())
-			.isNotNull();
+			.isGreaterThan(initial.getNewReaction());
 		assertThat(fetched.getMetadata().getNewResponse())
-			.isNull();
+			.isEqualTo(initial.getNewResponse());
 		assertThat(fetched.getMetadata().getResponses())
 			.containsExactly(URL);
 	}
 
 	@Test
 	void testUpdateResponseWithSameTagsCascadesNewReaction() {
+		Metadata initial = null;
 		for (var url : List.of(URL + "a", URL + "b", URL + "c")) {
 			var source = new Ref();
 			source.setUrl(url);
@@ -585,7 +586,7 @@ public class IngestIT {
 				.modified("2026-01-01T00:00:00Z")
 				.responses(new ArrayList<>(List.of(URL)))
 				.build());
-			refRepository.save(source);
+			initial = refRepository.save(source).getMetadata();
 		}
 		var existing = new Ref();
 		existing.setUrl(URL);
@@ -607,15 +608,15 @@ public class IngestIT {
 		var fetched = refRepository.findOneByUrlAndOrigin(URL, "").get();
 		assertThat(fetched.getMetadata().isCascade()).isTrue();
 		assertThat(refRepository.findOneByUrlAndOrigin(URL + "c", "").get().getMetadata().getNewReaction())
-			.isNull();
+			.isEqualTo(initial.getNewReaction());
 
 		cascade.cascadeRef("", fetched);
 
 		var third = refRepository.findOneByUrlAndOrigin(URL + "c", "").get();
 		assertThat(third.getMetadata().getNewReaction())
-			.isNotNull();
+			.isGreaterThan(initial.getNewReaction());
 		assertThat(third.getMetadata().getNewResponse())
-			.isNull();
+			.isEqualTo(initial.getNewResponse());
 		assertThat(third.getMetadata().getResponses())
 			.containsExactly(URL);
 	}

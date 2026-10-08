@@ -174,8 +174,8 @@ public class Meta {
 		ref(rootOrigin, ref);
 		ref.getMetadata().setModified(original == null ? now().toString() : original.getModified());
 		if (original != null) {
-			ref.getMetadata().setNewResponse(original.getNewResponse());
-			ref.getMetadata().setNewReaction(original.getNewReaction());
+			if (original.getNewResponse() != null) ref.getMetadata().setNewResponse(original.getNewResponse());
+			if (original.getNewReaction() != null) ref.getMetadata().setNewReaction(original.getNewReaction());
 		}
 		keepOtherOriginUserUrls(rootOrigin, original, ref.getMetadata());
 		ref.getMetadata().setObsolete(refRepository.newerExists(ref.getUrl(), rootOrigin, ref.getModified()));
@@ -199,8 +199,8 @@ public class Meta {
 		ref(rootOrigin, source);
 		source.getMetadata().setModified(original == null ? now().toString() : original.getModified());
 		if (original != null) {
-			source.getMetadata().setNewResponse(original.getNewResponse());
-			source.getMetadata().setNewReaction(original.getNewReaction());
+			if (original.getNewResponse() != null) source.getMetadata().setNewResponse(original.getNewResponse());
+			if (original.getNewReaction() != null) source.getMetadata().setNewReaction(original.getNewReaction());
 			source.getMetadata().setRegen(original.isRegen());
 			source.getMetadata().setCascade(original.isCascade());
 		}
