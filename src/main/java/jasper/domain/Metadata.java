@@ -55,6 +55,12 @@ public class Metadata implements Serializable {
 	private boolean regen = false;
 	@JsonInclude(NON_DEFAULT)
 	private boolean cascade = false;
+	/**
+	 * Silent write to a replicated origin, not counted in the replication cursor.
+	 * Cleared when the Ref is overwritten.
+	 */
+	@JsonInclude(NON_DEFAULT)
+	private boolean ignored = false;
 
 	public void addResponse(String url) {
 		if (responses == null) {

@@ -1097,13 +1097,13 @@ in the owning origin (usually `""`).
 
 There are two kinds of writes:
  * **Plugin data** on a Ref in a pulled origin, such as the `_plugin/cache` ban/error marker written after a failed cache
-   fetch. It is written silently into the pulled origin (`Tagger.silentPlugin`). A new Ref is backdated to
-   `cursor - 1ms` (or the epoch if the pulled origin is empty) and an existing Ref keeps its `modified`, so the pull
-   cursor (`modifiedAfter`) never moves past remote entries.
+   fetch. It is written silently into the pulled origin (`Tagger.silentPlugin`). A new Ref is marked `ignored` in its
+   metadata, so it is not counted in the pull cursor (`modifiedAfter`) until a pulled entity overwrites it and clears
+   the flag. An existing Ref keeps its `modified`, so the pull cursor never moves past remote entries.
  * **Logs** (`+plugin/log` Refs with an `error:<uuid>` URL). They are stamped with `modified = now`, so they are never
    written into a pulled origin. They are redirected to the origin that owns the `+plugin/origin` Ref.
 
-Rule: pulled origins only get silent, backdated writes; anything stamped `now` goes to the owning origin. This depends
+Rule: pulled origins only get silent writes that do not move the pull cursor; logs go to the owning origin. This depends
 on whether the origin is a pull target, not on whether it is a sub origin. Local (non-replicated) sub origins keep their
 own logs.
 

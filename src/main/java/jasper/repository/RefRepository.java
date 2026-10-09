@@ -66,7 +66,7 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 			sources = :sources,
 			alternateUrls = :alternateUrls,
 			plugins = :plugins,
-			metadata = jsonb_concat(COALESCE(metadata, cast_to_jsonb('{}')), :partialMetadata),
+			metadata = jsonb_concat(jsonb_set(COALESCE(metadata, cast_to_jsonb('{}')), '{ignored}', cast_to_jsonb('false'), true), :partialMetadata),
 			published = :published,
 			modified = :modified
 		WHERE
@@ -88,7 +88,8 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 	@Query("""
 		SELECT max(r.modified)
 		FROM Ref r
-		WHERE r.origin = :origin""")
+		WHERE r.origin = :origin
+			AND COALESCE(jsonb_object_field_text(r.metadata, 'ignored'), 'false') != 'true'""")
 	Instant getCursor(String origin);
 
 	@Query(nativeQuery = true, value = "SELECT DISTINCT origin from ref")

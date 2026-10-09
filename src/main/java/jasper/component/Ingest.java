@@ -109,12 +109,14 @@ public class Ingest {
 
 	@Timed(value = "jasper.ref", histogram = true)
 	public void silent(String rootOrigin, Ref ref) {
+		var ignored = ref.getMetadata() != null && ref.getMetadata().isIgnored();
 		var maybeExisting = refRepository.findOneByUrlAndOrigin(ref.getUrl(), ref.getOrigin());
 		if (maybeExisting.isEmpty()) {
 			meta.ref(rootOrigin, ref);
 		} else {
 			meta.update(rootOrigin, ref, maybeExisting.get());
 		}
+		ref.getMetadata().setIgnored(ignored);
 		ensureSilentUniqueModified(ref);
 		meta.sources(rootOrigin, ref, maybeExisting.orElse(null));
 		messages.updateSilentRef(ref);

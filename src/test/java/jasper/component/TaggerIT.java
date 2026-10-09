@@ -11,6 +11,7 @@ import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.util.AopTestUtils;
 
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -28,6 +29,9 @@ public class TaggerIT {
 
 	@Autowired
 	ObjectMapper objectMapper;
+
+	@Autowired
+	Ingest ingest;
 
 	static final String URL = "https://www.example.com/";
 
@@ -192,9 +196,32 @@ public class TaggerIT {
 		tagger.silentPlugin(URL + 2, "Test", "@other", "plugin/test", objectMapper.createObjectNode());
 
 		assertThat(refRepository.getCursor("@other"))
-			.isEqualTo(Instant.EPOCH);
-		assertThat(refRepository.findOneByUrlAndOrigin(URL + 2, "@other").get().getModified())
-			.isBefore(Instant.EPOCH);
+			.isNull();
+		assertThat(refRepository.findOneByUrlAndOrigin(URL + 2, "@other").get().getMetadata().isIgnored())
+			.isTrue();
+	}
+
+	@Test
+	void testSilentPluginIgnoredUntilOverwritten() {
+		remoteRefWithTags(URL + 1, "@other");
+		var cursor = refRepository.getCursor("@other");
+		tagger.silentPlugin(URL + 2, "Test", "@other", "plugin/test", objectMapper.createObjectNode());
+
+		assertThat(refRepository.getCursor("@other"))
+			.isEqualTo(cursor);
+
+		var pulled = new Ref();
+		pulled.setUrl(URL + 2);
+		pulled.setOrigin("@other");
+		pulled.setTags(new ArrayList<>(List.of("test")));
+		pulled.setModified(Instant.now().plusSeconds(1).truncatedTo(ChronoUnit.MILLIS));
+		ingest.push("@other", pulled, false, false);
+
+		var fetched = refRepository.findOneByUrlAndOrigin(URL + 2, "@other").get();
+		assertThat(fetched.getMetadata().isIgnored())
+			.isFalse();
+		assertThat(refRepository.getCursor("@other"))
+			.isEqualTo(pulled.getModified());
 	}
 
 	@Test
