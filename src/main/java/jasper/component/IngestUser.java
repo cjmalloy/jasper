@@ -59,6 +59,11 @@ public class IngestUser {
 	public void create(User user) {
 		if (isDeletorTag(user.getTag())) {
 			if (userRepository.existsByQualifiedTag(deletedTag(user.getQualifiedTag()))) throw new AlreadyExistsException();
+			var existing = userRepository.findOneByQualifiedTag(user.getQualifiedTag());
+			if (existing.isPresent()) {
+				user.setModified(existing.get().getModified());
+				return;
+			}
 		} else {
 			delete(deletorTag(user.getQualifiedTag()));
 		}

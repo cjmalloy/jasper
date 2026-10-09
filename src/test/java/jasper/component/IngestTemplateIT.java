@@ -65,6 +65,23 @@ public class IngestTemplateIT {
 	}
 
 	@Test
+	void testCreateDuplicateTombstoneIdempotent() {
+		var existing = new Template();
+		existing.setTag("test/deleted");
+		templateRepository.save(existing);
+		var modified = templateRepository.findOneByQualifiedTag("test/deleted").get().getModified();
+		var template = new Template();
+		template.setTag("test/deleted");
+
+		ingest.create(template);
+
+		assertThat(template.getModified())
+			.isEqualTo(modified);
+		assertThat(templateRepository.findOneByQualifiedTag("test/deleted").get().getModified())
+			.isEqualTo(modified);
+	}
+
+	@Test
 	void testDoubleIngestExtFails() {
 		var ext1 = new Template();
 		ext1.setTag("test");
