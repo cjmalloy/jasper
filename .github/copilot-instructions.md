@@ -119,7 +119,7 @@ npm run down          # / down:sqlite — ALWAYS tear down (volumes keep state)
 # Iterate against a running stack:
 docker compose up --build -d --wait && docker compose --profile ci run --rm playwright
 ```
-- Stack: `client` (jasper-ui, :8080), `web` (:8081, JWT; tests use the jasper-ui debug HS256 secret or `?debug=ADMIN` in the UI), `repl-web` (:8083, `@repl`, default role admin), `tunnel-web` (:8085, ssh origins `@open,@tunnel`, default role admin) and `ssh` (jasper-ssh). Don't use `X-Jasper-Key` (Electron only).
+- Stack: `client` (jasper-ui, :8080), `web` (:8081, JWT; tests use the jasper-ui debug HS256 secret or `?debug=ADMIN` in the UI), `repl-web` (:8083, `@repl`, default role admin, file cache; install `_plugin/cache` before uploading), `tunnel-web` (:8085, ssh origins `@open,@tunnel`, default role admin) and `ssh` (jasper-ssh). Don't use `X-Jasper-Key` (Electron only).
 - Never use `docker compose up --exit-code-from`: jasper-ssh restarts itself when `authorized_keys` changes, which aborts the whole stack.
 - Report files are written by root inside the container: `sudo rm -rf e2e/reports e2e/test-results` locally.
 - Builds `..` (the root Dockerfile), so the PKIX sandbox workaround above applies.

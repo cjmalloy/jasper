@@ -1114,6 +1114,14 @@ never copied. `+plugin/error` is never added to a Ref in a pulled origin.
 Push errors (including a `403` from the remote) are logged on the `+plugin/origin` Ref and tag it `+plugin/error`,
 which disables push on change until the tag is removed. They never fail the request that saved the Ref.
 
+### Replication batches
+Entities are replicated in batches sorted by `modified`, starting after the cursor, until a batch is not full.
+On a `413 Payload Too Large` the batch size is halved (logged on the `+plugin/origin` Ref) and doubled again after
+each successful batch. A push skips an entity that is too large on its own. A pull can not skip entities on the
+remote, so it stops with `+plugin/error`. Errors that would fail the same way on every run (client errors other than
+`408` and `429`, unreadable responses, or a batch that does not advance the cursor) also add `+plugin/error`
+instead of being retried forever. Connection errors and `5xx` are retried on the next run.
+
 ## Random Number Generator
 
 The `plugin/rng` tag can be used to generate random numbers. Random numbers are generated whenever editing, creating, or
