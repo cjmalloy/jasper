@@ -1099,8 +1099,8 @@ There are two kinds of writes:
  * **Plugin data** on a Ref in a pulled origin, such as the `_plugin/cache` ban/error marker written after a failed cache
    fetch. It is written silently into the pulled origin (`Tagger.silentPlugin`). A new Ref is marked `ignored` in its
    metadata, so it is not counted in the pull cursor (`modifiedAfter`) and is never sent during replication (pull or
-   push). Ignored Refs are deleted before the next pulled Refs are added. An existing Ref keeps its `modified`, so the
-   pull cursor never moves past remote entries.
+   push). When a pulled batch arrives, the flag is cleared on ignored Refs older than the newest pulled Ref. An existing
+   Ref keeps its `modified`, so the pull cursor never moves past remote entries.
  * **Logs** (`+plugin/log` Refs with an `error:<uuid>` URL). They are stamped with `modified = now`, so they are never
    written into a pulled origin. They are redirected to the origin that owns the `+plugin/origin` Ref.
 

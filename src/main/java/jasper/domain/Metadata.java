@@ -57,7 +57,7 @@ public class Metadata implements Serializable {
 	private boolean cascade = false;
 	/**
 	 * Silent write to a replicated origin, not counted in the replication cursor
-	 * and not replicated. Deleted before pulled Refs are added.
+	 * and not replicated. Cleared once a newer Ref is pulled.
 	 */
 	@JsonInclude(NON_DEFAULT)
 	private boolean ignored = false;

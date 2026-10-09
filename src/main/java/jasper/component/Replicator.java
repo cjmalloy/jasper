@@ -263,7 +263,7 @@ public class Replicator {
 						"size", size,
 						"origin", remoteOrigin,
 						"modifiedAfter", after));
-					if (!refList.isEmpty()) ingestRef.clearIgnored(rootOrigin, localOrigin);
+					if (!refList.isEmpty()) refRepository.clearIgnored(localOrigin, refList.getLast().getModified());
 					for (var ref : refList) {
 						ref.setOrigin(localOrigin);
 						pull.migrate(ref, config);

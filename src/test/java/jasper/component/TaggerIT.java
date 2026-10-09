@@ -226,7 +226,7 @@ public class TaggerIT {
 	}
 
 	@Test
-	void testSilentPluginNotReplicatedAndClearedBeforePull() {
+	void testSilentPluginNotReplicatedUntilNewerPull() {
 		remoteRefWithTags(URL + 1, "@other");
 		tagger.silentPlugin(URL + 2, "Test", "@other", "plugin/test", objectMapper.createObjectNode());
 
@@ -234,12 +234,16 @@ public class TaggerIT {
 			.extracting(Ref::getUrl)
 			.containsExactly(URL + 1);
 
-		ingest.clearIgnored("", "@other");
-
-		assertThat(refRepository.existsByUrlAndOrigin(URL + 1, "@other"))
+		var silent = refRepository.findOneByUrlAndOrigin(URL + 2, "@other").get();
+		refRepository.clearIgnored("@other", silent.getModified());
+		assertThat(refRepository.findOneByUrlAndOrigin(URL + 2, "@other").get().getMetadata().isIgnored())
 			.isTrue();
-		assertThat(refRepository.existsByUrlAndOrigin(URL + 2, "@other"))
+
+		refRepository.clearIgnored("@other", silent.getModified().plusSeconds(1));
+		assertThat(refRepository.findOneByUrlAndOrigin(URL + 2, "@other").get().getMetadata().isIgnored())
 			.isFalse();
+		assertThat(refRepository.getCursor("@other"))
+			.isEqualTo(silent.getModified());
 	}
 
 	@Test
