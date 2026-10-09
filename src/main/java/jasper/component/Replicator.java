@@ -569,7 +569,9 @@ public class Replicator {
 				if (e.status() < 400 || e.status() == 408 || e.status() == 429) throw e;
 				if (e.status() != 413) throw new RuntimeException(e);
 				if (size == 1) {
-					if (!canSkip) throw new RuntimeException("Entity with modified date after " + modifiedAfter + " is too large to replicate", e);
+					if (!canSkip) throw new RuntimeException(modifiedAfter == null
+						? "First entity is too large to replicate"
+						: "Entity with modified date after " + modifiedAfter + " is too large to replicate", e);
 					logger.error("{} Skipping entity with modified date after {}", origin, modifiedAfter);
 					logs.add(new Log("Skipping entity with modified date after " + modifiedAfter, getMessage(e)));
 					skip++;
