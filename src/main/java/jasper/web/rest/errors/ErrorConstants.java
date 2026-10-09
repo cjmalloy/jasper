@@ -37,7 +37,6 @@ public final class ErrorConstants {
 	public static final String ERR_INVALID_USER_PROFILE = "error.invalidUserProfile";
 	public static final String ERR_ORIGIN_FORBIDDEN = "error.originForbidden";
 	public static final String ERR_PULL_LOCAL = "error.pullLocal";
-	public static final String ERR_READ_ONLY_ORIGIN = "error.readOnlyOrigin";
 	public static final String ERR_SCRIPT = "error.script";
 	public static final String ERR_UNTRUSTED_SCRIPT = "error.untrustedScript";
 	public static final String ERR_PUBLISH_DATE = "error.publishDate";

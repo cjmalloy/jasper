@@ -21,7 +21,6 @@ import jasper.errors.NotFoundException;
 import jasper.errors.OperationForbiddenOnOriginException;
 import jasper.errors.PublishDateException;
 import jasper.errors.PullLocalException;
-import jasper.errors.ReadOnlyOriginException;
 import jasper.errors.RetryableTunnelException;
 import jasper.errors.ScrapeProtocolException;
 import jasper.errors.ScriptException;
@@ -113,7 +112,6 @@ class ExceptionTranslatorIT {
 			Arguments.of(OperationForbiddenOnOriginException.class, "origin-forbidden", HttpStatus.FORBIDDEN, ERR_ORIGIN_FORBIDDEN, ORIGIN_ERROR_TYPE, "Origin @other is not whitelisted for this operation."),
 			Arguments.of(PublishDateException.class, "publish-date", HttpStatus.CONFLICT, ERR_PUBLISH_DATE, DATE_ERROR_TYPE, "Source https://www.example.com/source (1970-01-01T00:00:01Z) must predate response https://www.example.com/response (1970-01-01T00:00:00Z)"),
 			Arguments.of(PullLocalException.class, "pull-local", HttpStatus.FORBIDDEN, ERR_PULL_LOCAL, ORIGIN_ERROR_TYPE, "Can't pull into local origin (). You must pull into a nested origin."),
-			Arguments.of(ReadOnlyOriginException.class, "read-only-origin", HttpStatus.FORBIDDEN, ERR_READ_ONLY_ORIGIN, ORIGIN_ERROR_TYPE, "Origin (@pulled) is pulled from a remote and is read only. Only deletes are allowed."),
 			Arguments.of(RetryableTunnelException.class, "retryable-tunnel", HttpStatus.REQUEST_TIMEOUT, ERR_TUNNEL_TIMEOUT, PROTOCOL_ERROR_TYPE, "Tunnel timed out"),
 			Arguments.of(ScrapeProtocolException.class, "scrape-protocol", HttpStatus.BAD_REQUEST, ERR_SCRAPE_PROTOCOL, PROTOCOL_ERROR_TYPE, "Cannot scrape protocol: ftp"),
 			Arguments.of(ScriptException.class, "script", HttpStatus.INTERNAL_SERVER_ERROR, ERR_SCRIPT, SCRIPT_ERROR_TYPE, "Script failed"),

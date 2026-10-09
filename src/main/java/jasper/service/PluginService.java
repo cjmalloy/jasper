@@ -8,10 +8,8 @@ import com.github.fge.jsonpatch.Patch;
 import io.micrometer.core.annotation.Timed;
 import jasper.component.IngestPlugin;
 import jasper.domain.Plugin;
-import jasper.component.ConfigCache;
 import jasper.errors.InvalidPatchException;
 import jasper.errors.NotFoundException;
-import jasper.errors.ReadOnlyOriginException;
 import jasper.repository.PluginRepository;
 import jasper.repository.filter.TagFilter;
 import jasper.security.Auth;
@@ -35,9 +33,6 @@ import static org.springframework.data.domain.PageRequest.of;
 
 @Service
 public class PluginService {
-
-	@Autowired
-	ConfigCache configs;
 
 	@Autowired
 	PluginRepository pluginRepository;
@@ -64,7 +59,6 @@ public class PluginService {
 	@PreAuthorize("@auth.canEditConfig(#plugin)")
 	@Timed(value = "jasper.service", extraTags = {"service", "plugin"}, histogram = true)
 	public void push(Plugin plugin) {
-		if (configs.pulled(plugin.getOrigin())) throw new ReadOnlyOriginException(plugin.getOrigin());
 		ingest.push(plugin);
 	}
 

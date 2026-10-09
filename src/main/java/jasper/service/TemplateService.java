@@ -8,10 +8,8 @@ import com.github.fge.jsonpatch.Patch;
 import io.micrometer.core.annotation.Timed;
 import jasper.component.IngestTemplate;
 import jasper.domain.Template;
-import jasper.component.ConfigCache;
 import jasper.errors.InvalidPatchException;
 import jasper.errors.NotFoundException;
-import jasper.errors.ReadOnlyOriginException;
 import jasper.repository.TemplateRepository;
 import jasper.repository.filter.TagFilter;
 import jasper.security.Auth;
@@ -35,9 +33,6 @@ import static org.springframework.data.domain.PageRequest.of;
 
 @Service
 public class TemplateService {
-
-	@Autowired
-	ConfigCache configs;
 
 	@Autowired
 	TemplateRepository templateRepository;
@@ -64,7 +59,6 @@ public class TemplateService {
 	@PreAuthorize("@auth.canEditConfig(#template)")
 	@Timed(value = "jasper.service", extraTags = {"service", "template"}, histogram = true)
 	public void push(Template template) {
-		if (configs.pulled(template.getOrigin())) throw new ReadOnlyOriginException(template.getOrigin());
 		ingest.push(template);
 	}
 

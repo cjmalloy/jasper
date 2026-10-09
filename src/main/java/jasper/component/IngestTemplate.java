@@ -12,7 +12,6 @@ import jasper.errors.DuplicateModifiedDateException;
 import jasper.errors.InvalidPushException;
 import jasper.errors.ModifiedException;
 import jasper.errors.NotFoundException;
-import jasper.errors.ReadOnlyOriginException;
 import jasper.repository.TemplateRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,9 +37,6 @@ public class IngestTemplate {
 	private static final Logger logger = LoggerFactory.getLogger(IngestTemplate.class);
 
 	@Autowired
-	ConfigCache configs;
-
-	@Autowired
 	Props props;
 
 	@Autowired
@@ -63,7 +59,6 @@ public class IngestTemplate {
 
 	@Timed(value = "jasper.template", histogram = true)
 	public void create(Template template) {
-		if (configs.pulled(template.getOrigin())) throw new ReadOnlyOriginException(template.getOrigin());
 		if (isDeletorTag(template.getTag())) {
 			if (templateRepository.existsByQualifiedTag(deletedTag(template.getQualifiedTag()))) throw new AlreadyExistsException();
 		} else {
@@ -76,7 +71,6 @@ public class IngestTemplate {
 
 	@Timed(value = "jasper.template", histogram = true)
 	public void update(Template template) {
-		if (configs.pulled(template.getOrigin())) throw new ReadOnlyOriginException(template.getOrigin());
 		if (!templateRepository.existsByQualifiedTag(template.getQualifiedTag())) throw new NotFoundException("Template");
 		validate.template(template.getOrigin(), template);
 		ensureUpdateUniqueModified(template);

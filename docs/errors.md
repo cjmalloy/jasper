@@ -273,7 +273,6 @@ The operation is not allowed for this origin.
 |-------------------------|--------|---------------------------------------|--------------------------------------------------------|-------------------------------------------------|
 | `error.originForbidden` | 403    | `OperationForbiddenOnOriginException` | The origin is not whitelisted for this operation.      | Use a whitelisted origin.                       |
 | `error.pullLocal`       | 403    | `PullLocalException`                  | Remotes can't be pulled into the local origin.         | Pull into a nested origin instead.              |
-| `error.readOnlyOrigin`  | 403    | `ReadOnlyOriginException`             | The origin is pulled from a remote and is read only.   | Edit on the remote, or delete the entity.       |
 
 ## Script
 

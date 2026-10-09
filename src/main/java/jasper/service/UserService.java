@@ -9,10 +9,8 @@ import io.micrometer.core.annotation.Timed;
 import jasper.component.IngestUser;
 import jasper.config.Props;
 import jasper.domain.User;
-import jasper.component.ConfigCache;
 import jasper.errors.InvalidPatchException;
 import jasper.errors.NotFoundException;
-import jasper.errors.ReadOnlyOriginException;
 import jasper.repository.UserRepository;
 import jasper.repository.filter.TagFilter;
 import jasper.security.Auth;
@@ -54,9 +52,6 @@ import static org.springframework.data.domain.PageRequest.of;
 public class UserService {
 
 	@Autowired
-	ConfigCache configs;
-
-	@Autowired
 	Props props;
 
 	@Autowired
@@ -85,7 +80,6 @@ public class UserService {
 	@PreAuthorize("@auth.canWriteUser(#user)")
 	@Timed(value = "jasper.service", extraTags = {"service", "user"}, histogram = true)
 	public void push(User user) {
-		if (configs.pulled(user.getOrigin())) throw new ReadOnlyOriginException(user.getOrigin());
 		if (isBlank(user.getAuthorizedKeys()) && user.getPubKey() != null) {
 			user.setAuthorizedKeys(new String(user.getPubKey(), StandardCharsets.UTF_8));
 		}

@@ -13,7 +13,6 @@ import jasper.errors.DuplicateModifiedDateException;
 import jasper.errors.InvalidPushException;
 import jasper.errors.ModifiedException;
 import jasper.errors.NotFoundException;
-import jasper.errors.ReadOnlyOriginException;
 import jasper.repository.RefRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,9 +36,6 @@ import static jasper.util.DbConstraint.isUniqueModifiedOriginViolation;
 @Component
 public class Ingest {
 	private static final Logger logger = LoggerFactory.getLogger(Ingest.class);
-
-	@Autowired
-	ConfigCache configs;
 
 	@Autowired
 	Props props;
@@ -70,7 +66,6 @@ public class Ingest {
 
 	@Timed(value = "jasper.ref", histogram = true)
 	public void create(String rootOrigin, Ref ref) {
-		if (configs.pulled(ref.getOrigin())) throw new ReadOnlyOriginException(ref.getOrigin());
 		ref.setCreated(Instant.now());
 		validate.ref(rootOrigin, ref);
 		rng.update(rootOrigin, ref, null);
@@ -90,7 +85,6 @@ public class Ingest {
 	 */
 	@Timed(value = "jasper.ref", histogram = true)
 	public void update(String rootOrigin, Ref ref, boolean syncSources) {
-		if (configs.pulled(ref.getOrigin())) throw new ReadOnlyOriginException(ref.getOrigin());
 		var maybeExisting = refRepository.findOneByUrlAndOrigin(ref.getUrl(), ref.getOrigin());
 		if (maybeExisting.isEmpty()) throw new NotFoundException("Ref");
 		validate.ref(rootOrigin, ref);
@@ -103,7 +97,6 @@ public class Ingest {
 
 	@Timed(value = "jasper.ref", histogram = true)
 	public void updateResponse(String rootOrigin, Ref ref) {
-		if (configs.pulled(ref.getOrigin())) throw new ReadOnlyOriginException(ref.getOrigin());
 		var maybeExisting = refRepository.findOneByUrlAndOrigin(ref.getUrl(), ref.getOrigin());
 		if (maybeExisting.isEmpty()) throw new NotFoundException("Ref");
 		validate.response(rootOrigin, ref);
