@@ -263,6 +263,7 @@ public class Replicator {
 						"size", size,
 						"origin", remoteOrigin,
 						"modifiedAfter", after));
+					if (!refList.isEmpty()) ingestRef.clearIgnored(rootOrigin, localOrigin);
 					for (var ref : refList) {
 						ref.setOrigin(localOrigin);
 						pull.migrate(ref, config);
@@ -437,6 +438,7 @@ public class Replicator {
 							RefFilter.builder()
 								.origin(localOrigin)
 								.query(push.getQuery())
+								.ignored(false)
 								.modifiedAfter(after)
 								.build().spec(),
 							PageRequest.of(skip, size, by(Ref_.MODIFIED)))

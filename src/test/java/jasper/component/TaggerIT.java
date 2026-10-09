@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import jasper.IntegrationTest;
 import jasper.domain.Ref;
 import jasper.repository.RefRepository;
+import jasper.repository.filter.RefFilter;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -222,6 +223,23 @@ public class TaggerIT {
 			.isFalse();
 		assertThat(refRepository.getCursor("@other"))
 			.isEqualTo(pulled.getModified());
+	}
+
+	@Test
+	void testSilentPluginNotReplicatedAndClearedBeforePull() {
+		remoteRefWithTags(URL + 1, "@other");
+		tagger.silentPlugin(URL + 2, "Test", "@other", "plugin/test", objectMapper.createObjectNode());
+
+		assertThat(refRepository.findAll(RefFilter.builder().origin("@other").ignored(false).build().spec()))
+			.extracting(Ref::getUrl)
+			.containsExactly(URL + 1);
+
+		ingest.clearIgnored("", "@other");
+
+		assertThat(refRepository.existsByUrlAndOrigin(URL + 1, "@other"))
+			.isTrue();
+		assertThat(refRepository.existsByUrlAndOrigin(URL + 2, "@other"))
+			.isFalse();
 	}
 
 	@Test

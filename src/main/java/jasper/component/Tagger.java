@@ -111,8 +111,9 @@ public class Tagger {
 	/**
 	 * For monkey patching replicated origins.
 	 * Only plugin data belongs in a pulled origin, and it is written silently: a
-	 * new Ref is marked as ignored so it is not counted in the pull cursor until
-	 * it is overwritten, and an existing Ref keeps its modified, so the pull cursor
+	 * new Ref is marked as ignored so it is not counted in the pull cursor or
+	 * replicated, and is deleted before the next pulled Refs are added. An
+	 * existing Ref keeps its modified, so the pull cursor
 	 * never moves past remote entries. Logs go to the owning
 	 * origin instead, see {@link #attachLogs(String, Ref, String, String)}.
 	 */

@@ -14,6 +14,7 @@ import jasper.errors.InvalidPushException;
 import jasper.errors.ModifiedException;
 import jasper.errors.NotFoundException;
 import jasper.repository.RefRepository;
+import jasper.repository.filter.RefFilter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -156,6 +157,20 @@ public class Ingest {
 		messages.deleteRef(maybeExisting.get());
 		refRepository.deleteByUrlAndOrigin(url, origin);
 		meta.sources(rootOrigin, null, maybeExisting.get());
+	}
+
+	/**
+	 * Delete silent plugin Refs marked as ignored before pulled Refs are added.
+	 */
+	@Transactional
+	@Timed(value = "jasper.ref", histogram = true)
+	public void clearIgnored(String rootOrigin, String origin) {
+		for (var ref : refRepository.findAll(RefFilter.builder().origin(origin).ignored(true).build().spec())) {
+			logger.debug("{} Clearing ignored Ref {}", origin, ref.getUrl());
+			messages.deleteRef(ref);
+			refRepository.deleteByUrlAndOrigin(ref.getUrl(), origin);
+			meta.sources(rootOrigin, null, ref);
+		}
 	}
 
 	void ensureCreateUniqueModified(Ref ref) {
