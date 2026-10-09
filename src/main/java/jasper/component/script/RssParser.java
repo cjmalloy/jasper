@@ -125,7 +125,8 @@ public class RssParser {
 	private void scrape(Ref feed, String scriptTag) throws IOException, FeedException {
 		var config = getFeed(feed, scriptTag);
 
-		try (var client = httpClientFactory.getClient()) {
+		try (var progress = tagger.progress(feed.getUrl(), feed.getOrigin());
+			var client = httpClientFactory.getClient()) {
 			var request = new HttpGet(feed.getUrl());
 			if (!hostCheck.validHost(request.getURI())) {
 				logger.info("{} Invalid host {}", feed.getOrigin(), request.getURI().getHost());
@@ -176,7 +177,10 @@ public class RssParser {
 							ingest.update(feed.getOrigin(), feed);
 						}
 					}
-					for (var entry : syndFeed.getEntries().reversed()) {
+					var entries = syndFeed.getEntries().reversed();
+					var done = 0;
+					for (var entry : entries) {
+						progress.update(done++, entries.size());
 						try {
 							var link = entryLink(feed, config, entry);
 							if (refRepository.existsByUrlAndOrigin(link, feed.getOrigin())) {
