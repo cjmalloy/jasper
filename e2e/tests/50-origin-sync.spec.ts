@@ -243,6 +243,8 @@ test.describe.serial('Origin Sync', () => {
     const tag = `e2e/sync/push/${id}`;
     const originUrl = `https://e2e.jasper/origin/sync-push/${id}`;
     const expected = new Expected(`https://e2e.jasper/sync/push/${id}`);
+    const exts = new Map<string, string>();
+    const users = new Map<string, string>();
 
     async function create(request: APIRequestContext, title: string) {
       const url = expected.next();
@@ -265,6 +267,19 @@ test.describe.serial('Origin Sync', () => {
       expected.deleted.add(url);
     }
 
+    async function createExt(request: APIRequestContext, name: string) {
+      const extTag = `${tag}/${exts.size}`;
+      // Empty config skips the main server Root Template defaults, which the remote has no schema for
+      await ok(request.post(mainApi + '/api/v1/ext', { headers, data: { tag: extTag, name, config: {} } }), 'Create Ext');
+      exts.set(extTag, name);
+    }
+
+    async function createUser(request: APIRequestContext, name: string) {
+      const userTag = `+user/${tag}/${users.size}`;
+      await ok(request.post(mainApi + '/api/v1/user', { headers, data: { tag: userTag, name } }), 'Create User');
+      users.set(userTag, name);
+    }
+
     async function pushAndVerify(request: APIRequestContext) {
       await userRun(request, mainApi, headers, originUrl);
       await expect.poll(() => count(request, replApi, remoteHeaders(), `${tag}@repl`), {
@@ -277,12 +292,20 @@ test.describe.serial('Origin Sync', () => {
       for (const url of expected.deleted) {
         expect((await findRef(request, replApi, remoteHeaders(), url, '@repl'))?.tags, url).toContain('plugin/delete');
       }
+      for (const [extTag, name] of exts) {
+        await expect.poll(async () => (await findTag(request, replApi, remoteHeaders(), 'ext', extTag + '@repl'))?.name, extTag).toBe(name);
+      }
+      for (const [userTag, name] of users) {
+        await expect.poll(async () => (await findTag(request, replApi, remoteHeaders(), 'user', userTag + '@repl'))?.name, userTag).toBe(name);
+      }
     }
 
     test('pushes an origin that already has a lot of data', async ({ request }) => {
       for (let i = 0; i < 40; i++) await create(request, `Seed ${i}`);
       for (let i = 0; i < 10; i++) await retitle(request, `${expected.prefix}/${i * 3}`, `Seed ${i * 3} edited`);
       for (let i = 0; i < 5; i++) await remove(request, `${expected.prefix}/${i * 7 + 1}`);
+      for (let i = 0; i < 3; i++) await createExt(request, `Ext ${i}`);
+      for (let i = 0; i < 3; i++) await createUser(request, `User ${i}`);
 
       await createOrigin(request, {
         url: originUrl,
@@ -290,7 +313,7 @@ test.describe.serial('Origin Sync', () => {
         remote: '@repl',
         proxy: replApiProxy,
         // Tombstones lose the query tag, so also push delete notices
-        push: { query: `${tag}|plugin/delete:+user/debug`, batchSize },
+        push: { query: `${tag}|+user/${tag}|plugin/delete:+user/debug`, batchSize },
       });
       await pushAndVerify(request);
     });
@@ -301,6 +324,8 @@ test.describe.serial('Origin Sync', () => {
         const live = expected.live();
         for (let i = 0; i < 4; i++) await retitle(request, live[(round * 5 + i * 3) % live.length], `Round ${round} edit ${i}`);
         for (let i = 0; i < 3; i++) await remove(request, expected.live()[(round * 2 + i * 5) % expected.live().length]);
+        await createExt(request, `Round ${round} ext`);
+        await createUser(request, `Round ${round} user`);
         await pushAndVerify(request);
       }
     });
