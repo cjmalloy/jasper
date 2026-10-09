@@ -21,6 +21,7 @@ import jasper.errors.NotFoundException;
 import jasper.errors.OperationForbiddenOnOriginException;
 import jasper.errors.PublishDateException;
 import jasper.errors.PullLocalException;
+import jasper.errors.ReadOnlyOriginException;
 import jasper.errors.RetryableTunnelException;
 import jasper.errors.ScrapeProtocolException;
 import jasper.errors.ScriptException;
@@ -139,6 +140,7 @@ public class ExceptionTranslator extends ResponseEntityExceptionHandler {
 		// Origin
 		m.put(OperationForbiddenOnOriginException.class, new ErrorMapping(ERR_ORIGIN_FORBIDDEN, ORIGIN_ERROR_TYPE));
 		m.put(PullLocalException.class, new ErrorMapping(ERR_PULL_LOCAL, ORIGIN_ERROR_TYPE));
+		m.put(ReadOnlyOriginException.class, new ErrorMapping(ERR_READ_ONLY_ORIGIN, ORIGIN_ERROR_TYPE));
 		// Script
 		m.put(ScriptException.class, new ErrorMapping(ERR_SCRIPT, SCRIPT_ERROR_TYPE));
 		m.put(UntrustedScriptException.class, new ErrorMapping(ERR_UNTRUSTED_SCRIPT, SCRIPT_ERROR_TYPE));

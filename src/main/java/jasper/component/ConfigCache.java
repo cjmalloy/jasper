@@ -9,6 +9,7 @@ import jasper.config.Config.ServerConfig;
 import jasper.config.Props;
 import jasper.domain.External;
 import jasper.domain.Plugin;
+import jasper.domain.Ref;
 import jasper.domain.Template;
 import jasper.domain.User;
 import jasper.errors.AlreadyExistsException;
@@ -214,6 +215,22 @@ public class ConfigCache {
 
 	@Cacheable(value = "config-cache", key = "'+plugin/origin' + #local")
 	public RefDto getRemote(String local) {
+		return findRemote(local, "+plugin/origin")
+			.map(dtoMapper::domainToDto)
+			.orElse(null);
+	}
+
+	/**
+	 * Is this origin the target of a +plugin/origin/pull.
+	 * Pulled origins are read only, apart from deletes, metadata, silent plugins
+	 * and replication itself, since their pull cursor is the latest modified date.
+	 */
+	@Cacheable(value = "config-cache", key = "'+plugin/origin/pull' + #local")
+	public boolean pulled(String local) {
+		return findRemote(local, "+plugin/origin/pull").isPresent();
+	}
+
+	private Optional<Ref> findRemote(String local, String query) {
 		configCacheTags.add("+plugin/origin");
 		String origin = "";
 		while (isNotBlank(local)) {
@@ -221,19 +238,17 @@ public class ConfigCache {
 			var remote = refRepository.findAll(
 					RefFilter.builder()
 						.origin(origin)
-						.query("+plugin/origin").build().spec())
+						.query(query).build().spec())
 				.stream()
 				.filter(r -> finalLocal.equals(getOrigin(r).getLocal()))
-				.findFirst()
-				.map(dtoMapper::domainToDto)
-				.orElse(null);
-			if (remote != null) return remote;
+				.findFirst();
+			if (remote.isPresent()) return remote;
 			var p = parts(local);
 			origin = fromParts(origin, p[0]);
 			p[0] = "";
 			local = fromParts(p);
 		}
-		return null;
+		return empty();
 	}
 
 	public boolean isConfigTag(String tag) {

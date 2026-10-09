@@ -1111,6 +1111,11 @@ Redirected logs are tagged with the local owners of the `+plugin/origin` Ref, so
 mods, and everyone if the parent Ref is `public`). User tags from the pulled Ref belong to the remote server and are
 never copied. `+plugin/error` is never added to a Ref in a pulled origin.
 
+Pulled origins are read only. The pull cursor is the latest `modified` date in the pulled origin, so any local
+create, update or push into it (from users, scripts, bundles or other servers) would skip remote entries. These are
+rejected with `error.readOnlyOrigin` (403). Deleting entities, server generated metadata, silent plugins and the
+pull itself are still allowed.
+
 Push errors (including a `403` from the remote) are logged on the `+plugin/origin` Ref and tag it `+plugin/error`,
 which disables push on change until the tag is removed. They never fail the request that saved the Ref.
 

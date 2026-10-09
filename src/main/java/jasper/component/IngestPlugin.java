@@ -12,6 +12,7 @@ import jasper.errors.DuplicateModifiedDateException;
 import jasper.errors.InvalidPushException;
 import jasper.errors.ModifiedException;
 import jasper.errors.NotFoundException;
+import jasper.errors.ReadOnlyOriginException;
 import jasper.repository.PluginRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,6 +38,9 @@ public class IngestPlugin {
 	private static final Logger logger = LoggerFactory.getLogger(IngestPlugin.class);
 
 	@Autowired
+	ConfigCache configs;
+
+	@Autowired
 	Props props;
 
 	@Autowired
@@ -59,6 +63,7 @@ public class IngestPlugin {
 
 	@Timed(value = "jasper.plugin", histogram = true)
 	public void create(Plugin plugin) {
+		if (configs.pulled(plugin.getOrigin())) throw new ReadOnlyOriginException(plugin.getOrigin());
 		if (isDeletorTag(plugin.getTag())) {
 			if (pluginRepository.existsByQualifiedTag(deletedTag(plugin.getQualifiedTag()))) throw new AlreadyExistsException();
 		} else {
@@ -71,6 +76,7 @@ public class IngestPlugin {
 
 	@Timed(value = "jasper.plugin", histogram = true)
 	public void update(Plugin plugin) {
+		if (configs.pulled(plugin.getOrigin())) throw new ReadOnlyOriginException(plugin.getOrigin());
 		if (!pluginRepository.existsByQualifiedTag(plugin.getQualifiedTag())) throw new NotFoundException("Plugin");
 		validate.plugin(plugin.getOrigin(), plugin);
 		ensureUpdateUniqueModified(plugin);

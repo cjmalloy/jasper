@@ -12,6 +12,7 @@ import jasper.errors.DuplicateModifiedDateException;
 import jasper.errors.InvalidPushException;
 import jasper.errors.ModifiedException;
 import jasper.errors.NotFoundException;
+import jasper.errors.ReadOnlyOriginException;
 import jasper.repository.ExtRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,6 +38,9 @@ public class IngestExt {
 	private static final Logger logger = LoggerFactory.getLogger(IngestExt.class);
 
 	@Autowired
+	ConfigCache configs;
+
+	@Autowired
 	Props props;
 
 	@Autowired
@@ -59,6 +63,7 @@ public class IngestExt {
 
 	@Timed(value = "jasper.ext", histogram = true)
 	public void create(Ext ext) {
+		if (configs.pulled(ext.getOrigin())) throw new ReadOnlyOriginException(ext.getOrigin());
 		if (isDeletorTag(ext.getTag())) {
 			if (extRepository.existsByQualifiedTag(deletedTag(ext.getQualifiedTag()))) throw new AlreadyExistsException();
 		} else {
@@ -71,6 +76,7 @@ public class IngestExt {
 
 	@Timed(value = "jasper.ext", histogram = true)
 	public void update(Ext ext) {
+		if (configs.pulled(ext.getOrigin())) throw new ReadOnlyOriginException(ext.getOrigin());
 		if (!extRepository.existsByQualifiedTag(ext.getQualifiedTag())) throw new NotFoundException("Ext");
 		validate.ext(ext.getOrigin(), ext);
 		ensureUpdateUniqueModified(ext);

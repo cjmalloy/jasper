@@ -8,8 +8,10 @@ import com.github.fge.jsonpatch.Patch;
 import io.micrometer.core.annotation.Timed;
 import jasper.component.IngestExt;
 import jasper.domain.Ext;
+import jasper.component.ConfigCache;
 import jasper.errors.InvalidPatchException;
 import jasper.errors.NotFoundException;
+import jasper.errors.ReadOnlyOriginException;
 import jasper.repository.ExtRepository;
 import jasper.repository.filter.TagFilter;
 import jasper.security.Auth;
@@ -37,6 +39,9 @@ public class ExtService {
 	private static final Logger logger = LoggerFactory.getLogger(ExtService.class);
 
 	@Autowired
+	ConfigCache configs;
+
+	@Autowired
 	ExtRepository extRepository;
 
 	@Autowired
@@ -61,6 +66,7 @@ public class ExtService {
 	@PreAuthorize("@auth.canWriteTag(#ext.qualifiedTag)")
 	@Timed(value = "jasper.service", extraTags = {"service", "ext"}, histogram = true)
 	public void push(Ext ext) {
+		if (configs.pulled(ext.getOrigin())) throw new ReadOnlyOriginException(ext.getOrigin());
 		ingest.push(auth.getOrigin(), ext, true, false);
 	}
 

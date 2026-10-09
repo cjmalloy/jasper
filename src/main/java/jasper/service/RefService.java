@@ -13,6 +13,7 @@ import jasper.domain.Ref;
 import jasper.errors.InvalidPatchException;
 import jasper.errors.MaxSourcesException;
 import jasper.errors.NotFoundException;
+import jasper.errors.ReadOnlyOriginException;
 import jasper.repository.RefRepository;
 import jasper.repository.filter.RefFilter;
 import jasper.security.Auth;
@@ -81,6 +82,7 @@ public class RefService {
 	@PreAuthorize("@auth.canWriteRef(#ref)")
 	@Timed(value = "jasper.service", extraTags = {"service", "ref"}, histogram = true)
 	public void push(Ref ref) {
+		if (configs.pulled(ref.getOrigin())) throw new ReadOnlyOriginException(ref.getOrigin());
 		var root = configs.root();
 		if (ref.getSources() != null && ref.getSources().size() > root.getMaxSources()) {
 			logger.warn("Ignoring max count for push. Max count is set to {}. Ref contains {} sources.", root.getMaxSources(), ref.getSources().size());

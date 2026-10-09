@@ -23,6 +23,7 @@ import jasper.errors.NotFoundException;
 import jasper.errors.OperationForbiddenOnOriginException;
 import jasper.errors.PublishDateException;
 import jasper.errors.PullLocalException;
+import jasper.errors.ReadOnlyOriginException;
 import jasper.errors.RetryableTunnelException;
 import jasper.errors.ScrapeProtocolException;
 import jasper.errors.ScriptException;
@@ -243,6 +244,11 @@ public class ExceptionTranslatorTestController {
 	@GetMapping("/pull-local")
 	public void pullLocal() {
 		throw new PullLocalException("");
+	}
+
+	@GetMapping("/read-only-origin")
+	public void readOnlyOrigin() {
+		throw new ReadOnlyOriginException("@pulled");
 	}
 
 	@GetMapping("/retryable-tunnel")

@@ -12,6 +12,7 @@ import jasper.errors.DuplicateModifiedDateException;
 import jasper.errors.InvalidPushException;
 import jasper.errors.ModifiedException;
 import jasper.errors.NotFoundException;
+import jasper.errors.ReadOnlyOriginException;
 import jasper.repository.UserRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,6 +39,9 @@ public class IngestUser {
 	private static final Logger logger = LoggerFactory.getLogger(IngestUser.class);
 
 	@Autowired
+	ConfigCache configs;
+
+	@Autowired
 	Props props;
 
 	@Autowired
@@ -57,6 +61,7 @@ public class IngestUser {
 
 	@Timed(value = "jasper.user", histogram = true)
 	public void create(User user) {
+		if (configs.pulled(user.getOrigin())) throw new ReadOnlyOriginException(user.getOrigin());
 		if (isDeletorTag(user.getTag())) {
 			if (userRepository.existsByQualifiedTag(deletedTag(user.getQualifiedTag()))) throw new AlreadyExistsException();
 		} else {
@@ -68,6 +73,7 @@ public class IngestUser {
 
 	@Timed(value = "jasper.user", histogram = true)
 	public void update(User user) {
+		if (configs.pulled(user.getOrigin())) throw new ReadOnlyOriginException(user.getOrigin());
 		if (!userRepository.existsByQualifiedTag(user.getQualifiedTag())) throw new NotFoundException("User");
 		ensureUpdateUniqueModified(user);
 		messages.updateUser(user);
