@@ -1,6 +1,7 @@
 package jasper.component;
 
 import feign.FeignException;
+import feign.codec.DecodeException;
 import feign.RetryableException;
 import io.github.resilience4j.bulkhead.annotation.Bulkhead;
 import io.micrometer.core.annotation.Timed;
@@ -187,7 +188,7 @@ public class Replicator {
 		var logs = new ArrayList<Log>();
 		tunnel.proxy(remote, baseUri -> {
 			try {
-				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, pluginRepository.getCursor(localOrigin), (skip, size, after) -> {
+				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, pluginRepository.getCursor(localOrigin), false, (skip, size, after) -> {
 					var pluginList = client.pluginPull(baseUri, params(
 						"size", size,
 						"origin", remoteOrigin,
@@ -221,7 +222,7 @@ public class Replicator {
 					}
 					return pluginList.size() == size ? pluginList.getLast().getModified() : null;
 				}));
-				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, templateRepository.getCursor(localOrigin), (skip, size, after) -> {
+				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, templateRepository.getCursor(localOrigin), false, (skip, size, after) -> {
 					var templateList = client.templatePull(baseUri, params(
 						"size", size,
 						"origin", remoteOrigin,
@@ -255,7 +256,7 @@ public class Replicator {
 					}
 					return templateList.size() == size ? templateList.getLast().getModified() : null;
 				}));
-				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, refRepository.getCursor(localOrigin), (skip, size, after) -> {
+				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, refRepository.getCursor(localOrigin), false, (skip, size, after) -> {
 					logger.trace("{} Pulling batch {}", localOrigin, size);
 					var refList = client.refPull(baseUri, params(
 						"query", pull.getQuery(),
@@ -302,7 +303,7 @@ public class Replicator {
 					}
 					return refList.size() == size ? refList.getLast().getModified() : null;
 				}));
-				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, extRepository.getCursor(localOrigin), (skip, size, after) -> {
+				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, extRepository.getCursor(localOrigin), false, (skip, size, after) -> {
 					var extList = client.extPull(baseUri, params(
 						"size", size,
 						"origin", remoteOrigin,
@@ -335,7 +336,7 @@ public class Replicator {
 					}
 					return extList.size() == size ? extList.getLast().getModified() : null;
 				}));
-				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, userRepository.getCursor(localOrigin), (skip, size, after) -> {
+				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, userRepository.getCursor(localOrigin), false, (skip, size, after) -> {
 					var userList = client.userPull(baseUri, params(
 						"size", size,
 						"origin", remoteOrigin,
@@ -401,7 +402,7 @@ public class Replicator {
 		tunnel.proxy(remote, baseUri -> {
 			try {
 				var defaultBatchSize = push.getBatchSize() == 0 ? root.getMaxReplEntityBatch() : min(push.getBatchSize(), root.getMaxPushEntityBatch());
-				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, client.pluginCursor(baseUri, remoteOrigin), (skip, size, after) -> {
+				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, client.pluginCursor(baseUri, remoteOrigin), true, (skip, size, after) -> {
 					var pluginList = pluginRepository.findAll(
 							TagFilter.builder()
 								.origin(localOrigin)
@@ -416,7 +417,7 @@ public class Replicator {
 					}
 					return pluginList.size() == size ? pluginList.getLast().getModified() : null;
 				}));
-				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, client.templateCursor(baseUri, remoteOrigin), (skip, size, after) -> {
+				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, client.templateCursor(baseUri, remoteOrigin), true, (skip, size, after) -> {
 					var templateList = templateRepository.findAll(
 							TagFilter.builder()
 								.origin(localOrigin)
@@ -431,7 +432,7 @@ public class Replicator {
 					}
 					return templateList.size() == size ? templateList.getLast().getModified() : null;
 				}));
-				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, client.refCursor(baseUri, remoteOrigin), (skip, size, after) -> {
+				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, client.refCursor(baseUri, remoteOrigin), true, (skip, size, after) -> {
 					var refList = refRepository.findAll(
 							RefFilter.builder()
 								.origin(localOrigin)
@@ -479,7 +480,7 @@ public class Replicator {
 					}
 					return refList.size() == size ? refList.getLast().getModified() : null;
 				}));
-				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, client.extCursor(baseUri, remoteOrigin), (skip, size, after) -> {
+				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, client.extCursor(baseUri, remoteOrigin), true, (skip, size, after) -> {
 					var extList = extRepository.findAll(
 							TagFilter.builder()
 								.origin(localOrigin)
@@ -494,7 +495,7 @@ public class Replicator {
 					}
 					return extList.size() == size ? extList.getLast().getModified() : null;
 				}));
-				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, client.userCursor(baseUri, remoteOrigin), (skip, size, after) -> {
+				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, client.userCursor(baseUri, remoteOrigin), true, (skip, size, after) -> {
 					var userList = userRepository.findAll(
 							TagFilter.builder()
 								.origin(localOrigin)
@@ -532,15 +533,27 @@ public class Replicator {
 		});
 	}
 
-	private List<Log> expBackoff(String origin, int batchSize, Instant modifiedAfter, ExpBackoff fn) {
+	/**
+	 * Replicate in batches sorted by modified date until a batch is not full.
+	 * The cursor may be null when the origin is empty, so a 413 must not end the loop.
+	 * On 413 the batch size is halved, and once it reaches 1 the entity is skipped.
+	 * Every batch must advance the cursor, so this always terminates.
+	 * @param canSkip pulling can't skip an entity on the remote, so a 413 with a batch size of 1 is fatal
+	 */
+	private List<Log> expBackoff(String origin, int batchSize, Instant modifiedAfter, boolean canSkip, ExpBackoff fn) {
 		var logs = new ArrayList<Log>();
 		var skip = 0;
 		var size = batchSize;
-		do {
+		while (true) {
 			try {
 				logger.trace("{} BATCH ({}, {}): {}",
 					origin, skip, size, modifiedAfter);
-				modifiedAfter = fn.fetch(skip, size, modifiedAfter);
+				var next = fn.fetch(skip, size, modifiedAfter);
+				if (next == null) return logs;
+				if (modifiedAfter != null && !next.isAfter(modifiedAfter)) {
+					throw new IllegalStateException("Replication cursor did not advance past " + modifiedAfter);
+				}
+				modifiedAfter = next;
 				skip = 0;
 				if (size < batchSize) {
 					size = min(batchSize, size * 2);
@@ -551,18 +564,21 @@ public class Replicator {
 				if (e.getCause() instanceof HttpHostConnectException) throw new RuntimeException(e);
 				if (e.status() >= 500) throw e;
 				if (e.status() == 403) throw new RuntimeException(e);
-				if (e.status() != 413) throw e;
+				// Retrying a bad response or client error will fail the same way every time
+				if (e instanceof DecodeException) throw new RuntimeException(e);
+				if (e.status() < 400 || e.status() == 408 || e.status() == 429) throw e;
+				if (e.status() != 413) throw new RuntimeException(e);
 				if (size == 1) {
+					if (!canSkip) throw new RuntimeException("Entity with modified date after " + modifiedAfter + " is too large to replicate", e);
 					logger.error("{} Skipping entity with modified date after {}", origin, modifiedAfter);
 					logs.add(new Log("Skipping entity with modified date after " + modifiedAfter, getMessage(e)));
 					skip++;
 				} else {
 					size = max(1, size / 2);
-					logs.add(new Log("Error pulling entities, reducing batch size to " + size, getMessage(e)));
+					logs.add(new Log("Error replicating entities, reducing batch size to " + size, getMessage(e)));
 				}
 			}
-		} while (modifiedAfter != null);
-		return logs;
+		}
 	}
 
 	public static boolean isDeletorTag(String tag) {
