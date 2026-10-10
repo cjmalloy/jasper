@@ -686,13 +686,6 @@ and each disabled index is dropped.
 | `cascade`           | Partial index on Refs waiting for a metadata cascade.                            | `true`        |
 | `regen`             | Partial index on Refs waiting for metadata regeneration (background backfill).   | `true`        |
 
-**Upgrading:** the `ignored`, `cascade` and `regen` indices were added to the initial changelog, so its
-checksum changed. Before upgrading an existing database, clear the checksum so Liquibase accepts it
-(existing databases get the new indices from the startup index rebuild):
-```sql
-UPDATE databasechangelog SET md5sum = NULL WHERE id IN ('00000000000001', '00000000000003');
-```
-
 ### Profiles
 Setting the active profiles is done through the `SPRING_PROFILES_ACTIVE` environment
 variable. Multiple profiles can be activated by adding them all as a comma
