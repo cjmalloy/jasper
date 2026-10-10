@@ -263,7 +263,6 @@ public class Replicator {
 						"size", size,
 						"origin", remoteOrigin,
 						"modifiedAfter", after));
-					if (!refList.isEmpty()) refRepository.clearIgnored(localOrigin, refList.getLast().getModified());
 					for (var ref : refList) {
 						ref.setOrigin(localOrigin);
 						pull.migrate(ref, config);
@@ -274,7 +273,7 @@ public class Replicator {
 						logger.trace("{} Ingesting pulled ref {}: {}",
 							remote.getOrigin(), ref.getTitle(), ref.getUrl());
 						try {
-							ingestRef.push(rootOrigin, ref, pull.isValidatePlugins(), pull.isStripInvalidPlugins());
+							ingestRef.push(rootOrigin, ref, pull.isValidatePlugins(), pull.isStripInvalidPlugins(), true);
 						} catch (AlreadyExistsException e) {
 							// Indicates a double pull
 							logger.warn("{} Pulling batch skipped (double pull detected) {}: {}",
@@ -302,6 +301,7 @@ public class Replicator {
 									localOrigin, remote.getTitle(), remote.getUrl()), getMessage(e)));
 						}
 					}
+					if (!refList.isEmpty()) refRepository.clearIgnored(localOrigin, refList.getLast().getModified());
 					return refList.size() == size ? refList.getLast().getModified() : null;
 				}));
 				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, extRepository.getCursor(localOrigin), false, (skip, size, after) -> {

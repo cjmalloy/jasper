@@ -98,9 +98,9 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 		UPDATE Ref SET
 			metadata = jsonb_set(metadata, '{ignored}', cast_to_jsonb('false'), true)
 		WHERE origin = :origin
-			AND modified < :olderThan
+			AND modified <= :upTo
 			AND COALESCE(jsonb_object_field_text(metadata, 'ignored'), 'false') = 'true'""")
-	int clearIgnored(String origin, Instant olderThan);
+	int clearIgnored(String origin, Instant upTo);
 
 	@Query(nativeQuery = true, value = "SELECT DISTINCT origin from ref")
 	List<String> origins();

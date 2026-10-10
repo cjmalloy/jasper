@@ -204,7 +204,7 @@ jasper/
 - Treat `src/main/java/jasper/security/Auth.java` as the authoritative security specification; avoid cosmetic refactors that reduce locality or obscure authorization decisions.
 
 **Replicated origins:**
-- Pulled origins only get silent plugin data writes, new Refs marked `ignored` so they don't count in the pull cursor, are never replicated until a pulled batch has a newer Ref, which clears the flag (`Tagger.silentPlugin`); logs stamped `now` go to the origin owning the `+plugin/origin` Ref (`Tagger.attachLogs`). See "Logs and errors on replicated origins" in `README.md`.
+- Pulled origins only get silent plugin data writes, new Refs marked `ignored` so they don't count in the pull cursor, are never replicated until a pulled batch has a newer Ref (`Tagger.silentPlugin`); pulled Refs are also ingested as `ignored` and the whole batch is cleared in one update only after it is fully ingested, so a failed batch never moves the cursor; logs stamped `now` go to the origin owning the `+plugin/origin` Ref (`Tagger.attachLogs`). See "Logs and errors on replicated origins" in `README.md`.
 
 ## Truncated PR comments
 

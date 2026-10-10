@@ -226,6 +226,30 @@ public class TaggerIT {
 	}
 
 	@Test
+	void testPulledBatchIgnoredUntilCleared() {
+		remoteRefWithTags(URL + 1, "@other");
+		var cursor = refRepository.getCursor("@other");
+
+		var pulled = new Ref();
+		pulled.setUrl(URL + 2);
+		pulled.setOrigin("@other");
+		pulled.setTags(new ArrayList<>(List.of("test")));
+		pulled.setModified(Instant.now().plusSeconds(1).truncatedTo(ChronoUnit.MILLIS));
+		ingest.push("@other", pulled, false, false, true);
+
+		assertThat(refRepository.findOneByUrlAndOrigin(URL + 2, "@other").get().getMetadata().isIgnored())
+			.isTrue();
+		assertThat(refRepository.getCursor("@other"))
+			.isEqualTo(cursor);
+
+		refRepository.clearIgnored("@other", pulled.getModified());
+		assertThat(refRepository.findOneByUrlAndOrigin(URL + 2, "@other").get().getMetadata().isIgnored())
+			.isFalse();
+		assertThat(refRepository.getCursor("@other"))
+			.isEqualTo(pulled.getModified());
+	}
+
+	@Test
 	void testSilentPluginNotReplicatedUntilNewerPull() {
 		remoteRefWithTags(URL + 1, "@other");
 		tagger.silentPlugin(URL + 2, "Test", "@other", "plugin/test", objectMapper.createObjectNode());
@@ -235,11 +259,11 @@ public class TaggerIT {
 			.containsExactly(URL + 1);
 
 		var silent = refRepository.findOneByUrlAndOrigin(URL + 2, "@other").get();
-		refRepository.clearIgnored("@other", silent.getModified());
+		refRepository.clearIgnored("@other", silent.getModified().minusMillis(1));
 		assertThat(refRepository.findOneByUrlAndOrigin(URL + 2, "@other").get().getMetadata().isIgnored())
 			.isTrue();
 
-		refRepository.clearIgnored("@other", silent.getModified().plusSeconds(1));
+		refRepository.clearIgnored("@other", silent.getModified());
 		assertThat(refRepository.findOneByUrlAndOrigin(URL + 2, "@other").get().getMetadata().isIgnored())
 			.isFalse();
 		assertThat(refRepository.getCursor("@other"))
