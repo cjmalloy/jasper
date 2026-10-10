@@ -667,6 +667,32 @@ values if it does not exist. Security settings are inherited from parent origins
 | `maxConcurrentScripts`   | Maximum concurrent script executions per origin.                                                 | `5`                                       |
 | `scriptLimits`           | Per-origin script execution limits. Map of selector patterns to max concurrent value.            | `{}` (empty)                              |
 
+#### DB Indices (`_config/index` Template)
+The `_config/index` template is installed in the root origin and selects which `ref` table indices
+exist. On startup, and whenever the template changes, each enabled index is created if it is missing
+and each disabled index is dropped.
+
+| Field               | Description                                                                      | Default Value |
+|---------------------|----------------------------------------------------------------------------------|---------------|
+| `tags`              | GIN indices on tags and expanded tags (PostgreSQL only).                         | `true`        |
+| `sources`           | GIN index on sources (PostgreSQL only).                                          | `true`        |
+| `alts`              | GIN index on alternate URLs (PostgreSQL only).                                   | `true`        |
+| `responses`         | GIN index on responses metadata (PostgreSQL only).                               | `true`        |
+| `internalResponses` | GIN index on internal responses metadata (PostgreSQL only).                      | `true`        |
+| `fulltext`          | Full text search index.                                                          | `true`        |
+| `published`         | Index on the published date.                                                     | `true`        |
+| `modified`          | Index on the modified date.                                                      | `true`        |
+| `ignored`           | Partial index on Refs marked `ignored` during replication, used by pull batches. | `true`        |
+| `cascade`           | Partial index on Refs waiting for a metadata cascade.                            | `true`        |
+| `regen`             | Partial index on Refs waiting for metadata regeneration (background backfill).   | `true`        |
+
+**Upgrading:** the `ignored`, `cascade` and `regen` indices were added to the initial changelog, so its
+checksum changed. Before upgrading an existing database, clear the checksum so Liquibase accepts it
+(existing databases get the new indices from the startup index rebuild):
+```sql
+UPDATE databasechangelog SET md5sum = NULL WHERE id IN ('00000000000001', '00000000000003');
+```
+
 ### Profiles
 Setting the active profiles is done through the `SPRING_PROFILES_ACTIVE` environment
 variable. Multiple profiles can be activated by adding them all as a comma

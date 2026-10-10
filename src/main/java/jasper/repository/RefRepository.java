@@ -99,7 +99,7 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 			metadata = jsonb_set(metadata, '{ignored}', cast_to_jsonb('false'), true)
 		WHERE origin = :origin
 			AND modified <= :upTo
-			AND COALESCE(jsonb_object_field_text(metadata, 'ignored'), 'false') = 'true'""")
+			AND jsonb_object_field_text(metadata, 'ignored') = 'true'""")
 	int clearIgnored(String origin, Instant upTo);
 
 	@Query(nativeQuery = true, value = "SELECT DISTINCT origin from ref")
@@ -307,7 +307,7 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 
 	@Query("""
 		FROM Ref r
-		WHERE (r.metadata IS NULL OR jsonb_exists(r.metadata, 'modified') = false OR jsonb_object_field_text(r.metadata, 'regen') = 'true')
+		WHERE (r.metadata IS NULL OR jsonb_object_field_text(r.metadata, 'modified') IS NULL OR jsonb_object_field_text(r.metadata, 'regen') = 'true')
 			AND (:origin = '' OR r.origin = :origin OR r.origin LIKE concat(:origin, '.%'))
 		ORDER BY r.modified DESC
 		FETCH FIRST 1 ROW ONLY""")

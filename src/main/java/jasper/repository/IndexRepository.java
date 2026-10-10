@@ -23,4 +23,10 @@ public interface IndexRepository {
 	void buildPublished();
 	void dropModified();
 	void buildModified();
+	void dropIgnored();
+	void buildIgnored();
+	void dropCascade();
+	void buildCascade();
+	void dropRegen();
+	void buildRegen();
 }
