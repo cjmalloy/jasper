@@ -61,6 +61,11 @@ public class IngestExt {
 	public void create(Ext ext) {
 		if (isDeletorTag(ext.getTag())) {
 			if (extRepository.existsByQualifiedTag(deletedTag(ext.getQualifiedTag()))) throw new AlreadyExistsException();
+			var existing = extRepository.findOneByQualifiedTag(ext.getQualifiedTag());
+			if (existing.isPresent()) {
+				ext.setModified(existing.get().getModified());
+				return;
+			}
 		} else {
 			delete(deletorTag(ext.getQualifiedTag()));
 		}

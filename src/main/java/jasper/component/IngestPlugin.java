@@ -61,6 +61,11 @@ public class IngestPlugin {
 	public void create(Plugin plugin) {
 		if (isDeletorTag(plugin.getTag())) {
 			if (pluginRepository.existsByQualifiedTag(deletedTag(plugin.getQualifiedTag()))) throw new AlreadyExistsException();
+			var existing = pluginRepository.findOneByQualifiedTag(plugin.getQualifiedTag());
+			if (existing.isPresent()) {
+				plugin.setModified(existing.get().getModified());
+				return;
+			}
 		} else {
 			delete(deletorTag(plugin.getQualifiedTag()));
 		}
