@@ -156,6 +156,19 @@ class ReplicatorTest {
 	}
 
 	@Test
+	void pullShortBatchCursorMustAdvance() {
+		var cursor = Instant.parse("2020-01-01T00:00:00Z");
+		when(pluginRepository.getCursor("@local")).thenReturn(cursor);
+		when(client.pluginPull(any(URI.class), anyMap())).thenReturn(List.of(
+			plugin("plugin/a", cursor)));
+
+		assertTimeoutPreemptively(Duration.ofSeconds(10), () -> replicator.pull(remote));
+
+		verify(client, times(1)).pluginPull(any(URI.class), anyMap());
+		verify(tagger).attachError(eq(""), eq(remote), startsWith("Fatal error pulling"), any());
+	}
+
+	@Test
 	void pullTooLargeOnEmptyOriginReducesBatchSize() {
 		var e = status(413);
 		var a = plugin("plugin/a", Instant.parse("2020-01-01T00:00:00Z"));
