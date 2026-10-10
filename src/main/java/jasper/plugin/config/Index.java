@@ -30,4 +30,10 @@ public class Index implements Serializable {
 	private boolean published = true;
 	@Builder.Default
 	private boolean modified = true;
+	@Builder.Default
+	private boolean ignored = true;
+	@Builder.Default
+	private boolean cascade = true;
+	@Builder.Default
+	private boolean regen = true;
 }

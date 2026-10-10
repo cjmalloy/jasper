@@ -1,6 +1,7 @@
 package jasper.component;
 
 import io.micrometer.core.annotation.Timed;
+import jasper.domain.Metadata;
 import jasper.domain.Ref;
 import jasper.domain.proj.Tag;
 import jasper.errors.AlreadyExistsException;
@@ -110,8 +111,10 @@ public class Tagger {
 	/**
 	 * For monkey patching replicated origins.
 	 * Only plugin data belongs in a pulled origin, and it is written silently: a
-	 * new Ref is backdated to cursor - 1ms and an existing Ref keeps its modified,
-	 * so the pull cursor never moves past remote entries. Logs go to the owning
+	 * new Ref is marked as ignored so it is not counted in the pull cursor or
+	 * replicated until a pulled batch has a newer Ref, which clears the flag. An
+	 * existing Ref keeps its modified, so the pull cursor
+	 * never moves past remote entries. Logs go to the owning
 	 * origin instead, see {@link #attachLogs(String, Ref, String, String)}.
 	 */
 	Ref silentPlugin(String url, String title, String origin, String tag, Object plugin, String ...tags) {
@@ -120,13 +123,8 @@ public class Tagger {
 			var ref = from(url, origin, tags).setPlugin(tag, plugin);
 			ref.setTitle(title);
 			ref.addTag("internal");
-			var cursor = refRepository.getCursor(origin);
-			if (cursor == null) {
-				logger.warn("Silent plugin can't be first!");
-				ref.setModified(now().minusMillis(1));
-			} else {
-				ref.setModified(cursor.minusMillis(1));
-			}
+			ref.setModified(now());
+			ref.setMetadata(Metadata.builder().ignored(true).build());
 			ingest.silent(origin, ref);
 			return ref;
 		} else {

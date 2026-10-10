@@ -66,7 +66,8 @@ public class BackfillRepositoryImplPostgres implements BackfillRepository {
 					GROUP BY u.tag
 				) uu), CAST('{}' AS jsonb)),
 				'obsolete', EXISTS (SELECT 1 from ref n WHERE n.url = r.url AND n.modified > r.modified AND (:origin = '' OR n.origin = :origin OR n.origin LIKE concat(:origin, '.%'))),
-				'cascade', CASE WHEN jsonb_array_length(COALESCE(r.sources, '[]')) > 0 THEN true END
+				'cascade', CASE WHEN jsonb_array_length(COALESCE(r.sources, '[]')) > 0 THEN true END,
+				'ignored', CASE WHEN r.metadata->>'ignored' = 'true' THEN true END
 			))
 			WHERE EXISTS (SELECT * from rows WHERE r.url = rows.url AND r.origin = rows.origin)
 			""";

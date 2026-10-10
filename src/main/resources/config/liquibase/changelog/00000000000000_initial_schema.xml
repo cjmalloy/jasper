@@ -60,6 +60,9 @@
 										 setweight(to_tsvector('english', coalesce(comment, '')), 'B') ||
 										 setweight(to_tsvector('english', url), 'C')) STORED;
 			CREATE INDEX ref_fulltext_index ON ref USING GIN(textsearch_en);
+			CREATE INDEX ref_ignored_index ON ref (origin, modified) WHERE (metadata->>'ignored') = 'true';
+			CREATE INDEX ref_cascade_index ON ref (modified) WHERE (metadata->>'cascade') = 'true';
+			CREATE INDEX ref_regen_index ON ref (modified) WHERE metadata IS NULL OR (metadata->>'modified') IS NULL OR (metadata->>'regen') = 'true';
 		</sql>
 		<createIndex tableName="ref" indexName="ref_published_index">
 			<column name="published"/>

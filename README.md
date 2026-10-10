@@ -667,6 +667,25 @@ values if it does not exist. Security settings are inherited from parent origins
 | `maxConcurrentScripts`   | Maximum concurrent script executions per origin.                                                 | `5`                                       |
 | `scriptLimits`           | Per-origin script execution limits. Map of selector patterns to max concurrent value.            | `{}` (empty)                              |
 
+#### DB Indices (`_config/index` Template)
+The `_config/index` template is installed in the root origin and selects which `ref` table indices
+exist. On startup, and whenever the template changes, each enabled index is created if it is missing
+and each disabled index is dropped.
+
+| Field               | Description                                                                      | Default Value |
+|---------------------|----------------------------------------------------------------------------------|---------------|
+| `tags`              | GIN indices on tags and expanded tags (PostgreSQL only).                         | `true`        |
+| `sources`           | GIN index on sources (PostgreSQL only).                                          | `true`        |
+| `alts`              | GIN index on alternate URLs (PostgreSQL only).                                   | `true`        |
+| `responses`         | GIN index on responses metadata (PostgreSQL only).                               | `true`        |
+| `internalResponses` | GIN index on internal responses metadata (PostgreSQL only).                      | `true`        |
+| `fulltext`          | Full text search index.                                                          | `true`        |
+| `published`         | Index on the published date.                                                     | `true`        |
+| `modified`          | Index on the modified date.                                                      | `true`        |
+| `ignored`           | Partial index on Refs marked `ignored` during replication, used by pull batches. | `true`        |
+| `cascade`           | Partial index on Refs waiting for a metadata cascade.                            | `true`        |
+| `regen`             | Partial index on Refs waiting for metadata regeneration (background backfill).   | `true`        |
+
 ### Profiles
 Setting the active profiles is done through the `SPRING_PROFILES_ACTIVE` environment
 variable. Multiple profiles can be activated by adding them all as a comma
@@ -1097,13 +1116,17 @@ in the owning origin (usually `""`).
 
 There are two kinds of writes:
  * **Plugin data** on a Ref in a pulled origin, such as the `_plugin/cache` ban/error marker written after a failed cache
-   fetch. It is written silently into the pulled origin (`Tagger.silentPlugin`). A new Ref is backdated to
-   `cursor - 1ms` and an existing Ref keeps its `modified`, so the pull cursor (`modifiedAfter`) never moves past
-   remote entries.
+   fetch. It is written silently into the pulled origin (`Tagger.silentPlugin`). A new Ref is marked `ignored` in its
+   metadata, so it is not counted in the pull cursor (`modifiedAfter`) and is never sent during replication (pull or
+   push). Pulled Refs are also marked `ignored` while a batch is ingested. Once the whole batch is ingested, the flag is
+   cleared in one update on every ignored Ref up to the newest pulled Ref. A failed batch therefore never moves the
+   cursor, and the retry starts again from the last complete batch. Ignored Refs do not publish a cursor update; the
+   cursor update for the batch is published after the flag is cleared, so chained replication sees it. An existing
+   Ref keeps its `modified`, so the pull cursor never moves past remote entries.
  * **Logs** (`+plugin/log` Refs with an `error:<uuid>` URL). They are stamped with `modified = now`, so they are never
    written into a pulled origin. They are redirected to the origin that owns the `+plugin/origin` Ref.
 
-Rule: pulled origins only get silent, backdated writes; anything stamped `now` goes to the owning origin. This depends
+Rule: pulled origins only get silent writes that do not move the pull cursor; logs go to the owning origin. This depends
 on whether the origin is a pull target, not on whether it is a sub origin. Local (non-replicated) sub origins keep their
 own logs.
 
@@ -1113,6 +1136,14 @@ never copied. `+plugin/error` is never added to a Ref in a pulled origin.
 
 Push errors (including a `403` from the remote) are logged on the `+plugin/origin` Ref and tag it `+plugin/error`,
 which disables push on change until the tag is removed. They never fail the request that saved the Ref.
+
+### Replication batches
+Entities are replicated in batches sorted by `modified`, starting after the cursor, until a batch is not full.
+On a `413 Payload Too Large` the batch size is halved (logged on the `+plugin/origin` Ref) and doubled again after
+each successful batch. A push skips an entity that is too large on its own. A pull cannot skip entities on the
+remote, so it stops with `+plugin/error`. Errors that would fail the same way on every run (client errors other than
+`408` and `429`, unreadable responses, or a batch that does not advance the cursor) also add `+plugin/error`
+instead of being retried forever. Connection errors and `5xx` are retried on the next run.
 
 ## Random Number Generator
 
