@@ -158,11 +158,8 @@
 
 	</changeSet>
 
-	<changeSet author="chris" id="00000000000002" dbms="postgresql">
+	<changeSet author="chris" id="00000000000002" dbms="postgresql" runAlways="true" runOnChange="true">
 		<sql>CREATE OR REPLACE FUNCTION instr(text, text) RETURNS integer AS $$ SELECT strpos($1, $2) $$ LANGUAGE SQL IMMUTABLE;</sql>
-	</changeSet>
-
-	<changeSet author="chris" id="00000000000004" dbms="postgresql">
 		<!-- Tag value sorting: first sub-tag after "{tag}/" of the first tag with a value. IMMUTABLE so they can be indexed. -->
 		<sql splitStatements="false">
 			CREATE OR REPLACE FUNCTION tag_value(tags jsonb, tag text) RETURNS text AS $$
