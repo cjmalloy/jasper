@@ -19,6 +19,9 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.net.URI;
@@ -183,5 +186,20 @@ class ReplicatorTest {
 		verify(ingestPlugin).push(a);
 		verify(tagger).attachLogs(eq(""), eq(remote), startsWith("Error replicating entities, reducing batch size to 1"), any());
 		verify(tagger, never()).attachError(any(), any(Ref.class), any(), any());
+	}
+
+	@Test
+	void pushCursorClientErrorIsFatal() {
+		var e = status(400);
+		when(pluginRepository.findAll(any(Specification.class), any(Pageable.class))).thenReturn(Page.empty());
+		when(templateRepository.findAll(any(Specification.class), any(Pageable.class))).thenReturn(Page.empty());
+		when(client.refCursor(any(URI.class), eq("@target"))).thenThrow(e);
+
+		assertTimeoutPreemptively(Duration.ofSeconds(10), () -> replicator.push(remote));
+
+		verify(client, times(1)).refCursor(any(URI.class), eq("@target"));
+		verify(client, never()).refPush(any(URI.class), anyString(), any());
+		verify(client, never()).extCursor(any(URI.class), anyString());
+		verify(tagger).attachError(eq(""), eq(remote), startsWith("Fatal error pushing"), any());
 	}
 }

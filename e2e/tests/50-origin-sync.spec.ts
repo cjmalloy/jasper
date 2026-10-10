@@ -113,6 +113,21 @@ class Expected {
   live() {
     return [...this.titles.keys()].filter(url => !this.deleted.has(url));
   }
+
+  /**
+   * Every Ref that does not match yet, so a poll can wait until a sync is complete.
+   */
+  async mismatches(request: APIRequestContext, api: string, headers: Record<string, string>, origin: string) {
+    const live = this.live().map(async url => {
+      const title = (await findRef(request, api, headers, url, origin))?.title;
+      return title === this.titles.get(url) ? null : `${url} title ${title}`;
+    });
+    const deleted = [...this.deleted].map(async url => {
+      const tags = (await findRef(request, api, headers, url, origin))?.tags;
+      return tags?.includes('plugin/delete') ? null : `${url} not deleted`;
+    });
+    return (await Promise.all([...live, ...deleted])).filter(m => m);
+  }
 }
 
 test.describe.serial('Origin Sync', () => {
@@ -169,16 +184,11 @@ test.describe.serial('Origin Sync', () => {
 
     async function pullAndVerify(request: APIRequestContext) {
       await userRun(request, mainApi, headers, originUrl);
-      await expect.poll(() => count(request, mainApi, headers, `${tag}${local}`), {
-        message: 'Live Refs pulled',
+      await expect.poll(() => expected.mismatches(request, mainApi, headers, local), {
+        message: 'Refs pulled',
         timeout: 90_000,
-      }).toBe(expected.live().length);
-      for (const url of expected.live()) {
-        expect((await findRef(request, mainApi, headers, url, local))?.title, url).toBe(expected.titles.get(url));
-      }
-      for (const url of expected.deleted) {
-        expect((await findRef(request, mainApi, headers, url, local))?.tags, url).toContain('plugin/delete');
-      }
+      }).toEqual([]);
+      expect(await count(request, mainApi, headers, `${tag}${local}`), 'Live Refs pulled').toBe(expected.live().length);
       for (const [extTag, name] of exts) {
         await expect.poll(async () => (await findTag(request, mainApi, headers, 'ext', extTag + local))?.name, extTag).toBe(name);
       }
@@ -282,16 +292,11 @@ test.describe.serial('Origin Sync', () => {
 
     async function pushAndVerify(request: APIRequestContext) {
       await userRun(request, mainApi, headers, originUrl);
-      await expect.poll(() => count(request, replApi, remoteHeaders(), `${tag}@repl`), {
-        message: 'Live Refs pushed',
+      await expect.poll(() => expected.mismatches(request, replApi, remoteHeaders(), '@repl'), {
+        message: 'Refs pushed',
         timeout: 90_000,
-      }).toBe(expected.live().length);
-      for (const url of expected.live()) {
-        expect((await findRef(request, replApi, remoteHeaders(), url, '@repl'))?.title, url).toBe(expected.titles.get(url));
-      }
-      for (const url of expected.deleted) {
-        expect((await findRef(request, replApi, remoteHeaders(), url, '@repl'))?.tags, url).toContain('plugin/delete');
-      }
+      }).toEqual([]);
+      expect(await count(request, replApi, remoteHeaders(), `${tag}@repl`), 'Live Refs pushed').toBe(expected.live().length);
       for (const [extTag, name] of exts) {
         await expect.poll(async () => (await findTag(request, replApi, remoteHeaders(), 'ext', extTag + '@repl'))?.name, extTag).toBe(name);
       }
@@ -366,7 +371,11 @@ test.describe.serial('Origin Sync', () => {
         expect((await getRef(request, mainApi, headers, originUrl)).tags).not.toContain('+plugin/error');
       }
 
-      test('pulls an origin with the file cache already populated', async ({ request }) => {
+      /**
+       * Scripts are not enabled on the local origin, so _plugin/delta/cache prefetch does not run.
+       * Reading through the proxy fetches each file from the remote on a local cache miss.
+       */
+      test('pulls cache Refs from an origin with the file cache already populated and fetches the files', async ({ request }) => {
         await populate(request, 8);
         await createOrigin(request, {
           url: originUrl,
@@ -375,12 +384,12 @@ test.describe.serial('Origin Sync', () => {
           remote: '@repl',
           proxy: replApiProxy,
           // Larger than the remote max batch size, so the first batch on the empty origin is 413 Too Large
-          pull: { query: 'plugin/file', batchSize: 1000, cachePrefetch: true },
+          pull: { query: 'plugin/file', batchSize: 1000 },
         });
         await pullAndVerify(request);
       });
 
-      test('keeps pulling files cached after the first pull', async ({ request }) => {
+      test('keeps pulling cache Refs added after the first pull and fetches the files', async ({ request }) => {
         await populate(request, 4);
         await pullAndVerify(request);
       });

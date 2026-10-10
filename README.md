@@ -1121,7 +1121,7 @@ which disables push on change until the tag is removed. They never fail the requ
 ### Replication batches
 Entities are replicated in batches sorted by `modified`, starting after the cursor, until a batch is not full.
 On a `413 Payload Too Large` the batch size is halved (logged on the `+plugin/origin` Ref) and doubled again after
-each successful batch. A push skips an entity that is too large on its own. A pull can not skip entities on the
+each successful batch. A push skips an entity that is too large on its own. A pull cannot skip entities on the
 remote, so it stops with `+plugin/error`. Errors that would fail the same way on every run (client errors other than
 `408` and `429`, unreadable responses, or a batch that does not advance the cursor) also add `+plugin/error`
 instead of being retried forever. Connection errors and `5xx` are retried on the next run.
