@@ -1812,6 +1812,20 @@ public class RefServiceIT {
 	}
 
 	@Test
+	void testApplySortingSpec_WithTagValueDurationSort() {
+		refWithUrlTags("https://example.com/1", "plugin/duration/pt10m25s");
+		refWithUrlTags("https://example.com/2", "plugin/duration", "plugin/duration/pt1h/extra");
+		refWithUrlTags("https://example.com/3", "+user/tester");
+		refWithUrlTags("https://example.com/4", "plugin/duration/pt90m");
+		refWithUrlTags("https://example.com/5", "plugin/duration/p1dt1.5s");
+		refWithUrlTags("https://example.com/6", "plugin/duration/pt1x");
+		refWithUrlTags("https://example.com/7", "plugin/duration/pt9m");
+
+		assertThat(sortedUrls(Sort.Order.desc("tags->plugin/duration:dur")))
+			.containsExactly("https://example.com/5", "https://example.com/4", "https://example.com/2", "https://example.com/1", "https://example.com/7", "https://example.com/3", "https://example.com/6");
+	}
+
+	@Test
 	void testApplySortingSpec_WithInvalidTagValueSort() {
 		refWithUrlTags("https://example.com/1", "plugin/progress/37/100");
 		refWithUrlTags("https://example.com/2", "plugin/progress/5/100");

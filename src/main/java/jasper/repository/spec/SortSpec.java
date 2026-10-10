@@ -111,11 +111,39 @@ public class SortSpec {
 	}
 
 	/**
+	 * A sort on the value of a tag in the tags array, e.g. "tags->plugin/progress:num".
+	 *
+	 * @param function the SQL function: tag_value, tag_value_num or tag_value_dur
+	 * @param tag the tag prefix whose first sub-tag is the value
+	 */
+	public record TagValueSort(String function, String tag) {
+		/**
+		 * Parses "tags->{tag}", "tags->{tag}:num" or "tags->{tag}:dur". The "tags->" prefix is optional.
+		 *
+		 * @return the parsed sort, or null if the property is not a valid tag value sort
+		 */
+		public static TagValueSort parse(String property) {
+			if (property == null) return null;
+			if (property.startsWith("tags->")) property = property.substring("tags->".length());
+			var function = "tag_value";
+			if (property.endsWith(":num")) {
+				function = "tag_value_num";
+				property = property.substring(0, property.length() - ":num".length());
+			} else if (property.endsWith(":dur")) {
+				function = "tag_value_dur";
+				property = property.substring(0, property.length() - ":dur".length());
+			}
+			if (!property.matches(Tag.REGEX)) return null;
+			return new TagValueSort(function, property);
+		}
+	}
+
+	/**
 	 * Creates a sort expression on the value of a tag in the tags array.
-	 * For example, "tags->plugin/duration" sorts on "pt10m25s" for the tag "plugin/duration/pt10m25s",
+	 * For example, "tags->plugin/duration:dur" sorts on 625 seconds for the tag "plugin/duration/pt10m25s",
 	 * and "tags->plugin/progress:num" sorts numerically on 37 for the tag "plugin/progress/37/100".
 	 * Only the first sub-tag after the prefix is used, and only the first tag with a value is considered.
-	 * Uses COALESCE to handle nulls (0 for numeric, '' for string).
+	 * Missing values sort as 0 for numeric and duration, '' for string.
 	 *
 	 * @param root the query root
 	 * @param cb the criteria builder
@@ -123,14 +151,10 @@ public class SortSpec {
 	 * @return the sort expression, or null if the property is not a valid tag value sort
 	 */
 	public static Expression<?> createTagValueSortExpression(Root<?> root, CriteriaBuilder cb, String property) {
-		if (!property.startsWith("tags->")) return null;
-		var numericSort = property.endsWith(":num");
-		var tag = property.substring("tags->".length(), numericSort ? property.length() - ":num".length() : property.length());
-		if (!tag.matches(Tag.REGEX)) return null;
-		if (numericSort) {
-			return cb.coalesce(cb.function("tag_value_num", Double.class, root.get("tags"), cb.literal(tag + "/"), cb.literal(tag.length() + 2)), cb.literal(0.0));
-		}
-		return cb.coalesce(cb.function("tag_value", String.class, root.get("tags"), cb.literal(tag + "/"), cb.literal(tag.length() + 2)), cb.literal(""));
+		var sort = TagValueSort.parse(property);
+		if (sort == null) return null;
+		if ("tag_value".equals(sort.function())) return cb.function(sort.function(), String.class, root.get("tags"), cb.literal(sort.tag()));
+		return cb.function(sort.function(), Double.class, root.get("tags"), cb.literal(sort.tag()));
 	}
 
 	/**

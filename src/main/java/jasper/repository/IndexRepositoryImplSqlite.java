@@ -6,6 +6,8 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
+
 @Repository
 @Profile("sqlite")
 @Transactional
@@ -103,5 +105,10 @@ public class IndexRepositoryImplSqlite implements IndexRepository {
 	@Override
 	public void buildModified() {
 		em.createNativeQuery("CREATE INDEX ref_modified_index ON ref (modified)").executeUpdate();
+	}
+
+	@Override
+	public void updateHotTags(List<String> hotTags) {
+		// SQLite cannot index the tag value subqueries — no-op
 	}
 }

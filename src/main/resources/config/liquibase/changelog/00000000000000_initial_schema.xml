@@ -162,4 +162,31 @@
 		<sql>CREATE OR REPLACE FUNCTION instr(text, text) RETURNS integer AS $$ SELECT strpos($1, $2) $$ LANGUAGE SQL IMMUTABLE;</sql>
 	</changeSet>
 
+	<changeSet author="chris" id="00000000000004" dbms="postgresql">
+		<!-- Tag value sorting: first sub-tag after "{tag}/" of the first tag with a value. IMMUTABLE so they can be indexed. -->
+		<sql splitStatements="false">
+			CREATE OR REPLACE FUNCTION tag_value(tags jsonb, tag text) RETURNS text AS $$
+				SELECT COALESCE((
+					SELECT split_part(substr(tv.t, length(tag) + 2), '/', 1)
+					FROM jsonb_array_elements_text(tags) WITH ORDINALITY AS tv(t, i)
+					WHERE starts_with(tv.t, tag || '/')
+					ORDER BY tv.i
+					LIMIT 1), '')
+			$$ LANGUAGE SQL IMMUTABLE PARALLEL SAFE SET search_path FROM CURRENT;
+		</sql>
+		<sql splitStatements="false">
+			CREATE OR REPLACE FUNCTION tag_value_num(tags jsonb, tag text) RETURNS numeric AS $$
+				SELECT CASE WHEN tv.v ~ '^[0-9]{1,30}([.][0-9]{1,30})?$' THEN tv.v::numeric ELSE 0 END
+				FROM (SELECT tag_value(tags, tag) AS v) tv
+			$$ LANGUAGE SQL IMMUTABLE PARALLEL SAFE SET search_path FROM CURRENT;
+		</sql>
+		<sql splitStatements="false">
+			CREATE OR REPLACE FUNCTION tag_value_dur(tags jsonb, tag text) RETURNS numeric AS $$
+				SELECT CASE WHEN tv.v ~ '^P(?=[0-9]|T[0-9])([0-9]{1,6}Y)?([0-9]{1,6}M)?([0-9]{1,6}W)?([0-9]{1,6}D)?(T(?=[0-9])([0-9]{1,6}H)?([0-9]{1,6}M)?([0-9]{1,9}([.][0-9]{1,9})?S)?)?$'
+					THEN extract(epoch FROM tv.v::interval) ELSE 0 END
+				FROM (SELECT upper(tag_value(tags, tag)) AS v) tv
+			$$ LANGUAGE SQL IMMUTABLE PARALLEL SAFE SET search_path FROM CURRENT;
+		</sql>
+	</changeSet>
+
 </databaseChangeLog>
