@@ -123,6 +123,11 @@ public class Index {
 		} else {
 			indexRepository.dropRegen();
 		}
+		try {
+			indexRepository.updateHotTags(index.getHotTags());
+		} catch (Exception e) {
+			logger.error("Error updating hot tag indices", e);
+		}
 	}
 
 }

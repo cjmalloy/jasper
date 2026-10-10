@@ -140,6 +140,19 @@ database schema changes.
 The `:num` and `:len` suffixes are automatically applied to metadata fields, so you can use
 `metadata->responses` instead of `metadata->responses:len`.
 
+Refs can also be sorted by the value of a tag using `tags->{tag}`. The value is the first
+sub-tag after the prefix of the first tag that has one. For example, `tags->plugin/title`
+sorts on `hello` for the tag `plugin/title/hello`, and `tags->plugin/progress:num`
+sorts numerically on `37` for the tag `plugin/progress/37/100` (ignoring `100` and any further sub-tags).
+Append `:dur` to sort ISO-8601 durations (case-insensitive) by length, so
+`tags->plugin/duration:dur` sorts `plugin/duration/pt90m` after `plugin/duration/pt1h`.
+A bare `plugin/progress` tag is skipped. Refs without a matching tag, or with a value
+that cannot be parsed, sort as `''` or `0`.
+
+To index a tag value sort on PostgreSQL, add it to `hotTags` in the `_config/index` template config,
+for example `{"hotTags": ["plugin/progress:num", "plugin/duration:dur"]}`. Hot tag indexes that are
+removed from the list are dropped. Hot tags are ignored on SQLite.
+
 Metadata dates useful for sorting:
 - `metadata->modified`: updated whenever the responses, internal responses or plugin counts change.
 - `metadata->newResponse`: updated only when a new response is created (not updated), ignoring

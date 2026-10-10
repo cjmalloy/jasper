@@ -8,6 +8,8 @@ import lombok.Setter;
 import lombok.extern.jackson.Jacksonized;
 
 import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.List;
 
 @Getter
 @Setter
@@ -30,6 +32,11 @@ public class Index implements Serializable {
 	private boolean published = true;
 	@Builder.Default
 	private boolean modified = true;
+	/**
+	 * Tag value sorts to index, e.g. "plugin/progress:num" or "tags->plugin/duration:dur".
+	 */
+	@Builder.Default
+	private List<String> hotTags = new ArrayList<>();
 	@Builder.Default
 	private boolean ignored = true;
 	@Builder.Default

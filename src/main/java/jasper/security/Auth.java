@@ -626,7 +626,7 @@ public class Auth {
 	}
 
 	/**
-	 * Silently remove sorts that reference private plugins the user cannot read.
+	 * Silently remove sorts that reference private plugins or tags the user cannot read.
 	 */
 	public Pageable pageable(Pageable pageable) {
 		if (pageable == null || pageable.getSort().isUnsorted()) return pageable;
@@ -640,6 +640,8 @@ public class Auth {
 					afterPrefix = property.substring("plugins->".length());
 				} else if (property.startsWith("metadata->plugins->")) {
 					afterPrefix = property.substring("metadata->plugins->".length());
+				} else if (property.startsWith("tags->")) {
+					afterPrefix = property.substring("tags->".length());
 				} else {
 					return true;
 				}

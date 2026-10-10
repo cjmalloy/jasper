@@ -4,8 +4,10 @@ import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import jasper.DisabledOnSqlite;
 import jasper.IntegrationTest;
+import jasper.repository.spec.SortSpec.TagValueSort;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.junit.jupiter.EnabledIf;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,6 +21,9 @@ public class IndexRepositoryIT {
 
 	@Autowired
 	IndexRepository indexRepository;
+
+	@Autowired
+	JdbcTemplate jdbc;
 
 	@PersistenceContext
 	EntityManager em;
@@ -49,6 +54,16 @@ public class IndexRepositoryIT {
 		indexRepository.dropModified();
 		indexRepository.buildModified();
 		indexRepository.dropModified();
+	}
+
+	@Test
+	void testUpdateHotTags() {
+		indexRepository.updateHotTags(List.of("plugin/progress:num", "tags->plugin/duration:dur", "plugin/title", "invalid'tag"));
+		indexRepository.updateHotTags(List.of());
+	}
+
+	List<String> hotTagIndexes() {
+		return jdbc.queryForList("SELECT indexname FROM pg_indexes WHERE tablename = 'ref' AND indexname LIKE 'ref\\_hot\\_%' ORDER BY indexname", String.class);
 	}
 
 	@Test
@@ -102,6 +117,26 @@ public class IndexRepositoryIT {
 			update ref r1_0 set metadata=jsonb_set(r1_0.metadata, '{ignored}', 'false'::jsonb, true)
 			where r1_0.origin='@test' and r1_0.modified<=now() and ( r1_0.metadata )->>( 'ignored' )='true'"""))
 			.contains("ref_ignored_index");
+	}
+
+	@Test
+	@DisabledOnSqlite
+	void testBuildAndDropHotTags() {
+		var progress = IndexRepositoryImplPostgres.hotTagIndexName(TagValueSort.parse("plugin/progress:num"));
+		var duration = IndexRepositoryImplPostgres.hotTagIndexName(TagValueSort.parse("plugin/duration:dur"));
+		var progressText = IndexRepositoryImplPostgres.hotTagIndexName(TagValueSort.parse("plugin/progress"));
+		assertThat(progress).startsWith("ref_hot_plugin_progress_value_num_");
+		assertThat(progressText).isNotEqualTo(progress);
+		assertThat(IndexRepositoryImplPostgres.hotTagIndexName(TagValueSort.parse("a".repeat(200) + ":dur")).length()).isLessThanOrEqualTo(63);
+
+		indexRepository.updateHotTags(List.of("plugin/progress:num", "tags->plugin/duration:dur", "invalid'tag"));
+		assertThat(hotTagIndexes()).containsExactlyInAnyOrder(progress, duration);
+
+		indexRepository.updateHotTags(List.of("plugin/progress:num", "plugin/progress"));
+		assertThat(hotTagIndexes()).containsExactlyInAnyOrder(progress, progressText);
+
+		indexRepository.updateHotTags(List.of());
+		assertThat(hotTagIndexes()).isEmpty();
 	}
 
 	@Test

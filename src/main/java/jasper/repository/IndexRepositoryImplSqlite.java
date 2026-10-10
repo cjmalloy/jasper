@@ -6,6 +6,8 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
+
 @Repository
 @Profile("sqlite")
 @Transactional
@@ -141,5 +143,10 @@ public class IndexRepositoryImplSqlite implements IndexRepository {
 	private static String field(String key) {
 		var path = "'$.\"' || REPLACE('" + key + "', '\"', '\"\"') || '\"'";
 		return "(CASE WHEN json_type(metadata, " + path + ") IN ('true', 'false') THEN json_type(metadata, " + path + ") ELSE CAST(json_extract(metadata, " + path + ") AS TEXT) END)";
+	}
+
+	@Override
+	public void updateHotTags(List<String> hotTags) {
+		// SQLite cannot index the tag value subqueries — no-op
 	}
 }
