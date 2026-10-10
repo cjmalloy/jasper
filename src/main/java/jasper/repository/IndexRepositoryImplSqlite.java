@@ -6,6 +6,8 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
+
 @Repository
 @Profile("sqlite")
 @Transactional
@@ -92,7 +94,7 @@ public class IndexRepositoryImplSqlite implements IndexRepository {
 
 	@Override
 	public void buildPublished() {
-		em.createNativeQuery("CREATE INDEX ref_published_index ON ref (published)").executeUpdate();
+		em.createNativeQuery("CREATE INDEX IF NOT EXISTS ref_published_index ON ref (published)").executeUpdate();
 	}
 
 	@Override
@@ -102,6 +104,49 @@ public class IndexRepositoryImplSqlite implements IndexRepository {
 
 	@Override
 	public void buildModified() {
-		em.createNativeQuery("CREATE INDEX ref_modified_index ON ref (modified)").executeUpdate();
+		em.createNativeQuery("CREATE INDEX IF NOT EXISTS ref_modified_index ON ref (modified)").executeUpdate();
+	}
+
+	@Override
+	public void dropIgnored() {
+		em.createNativeQuery("DROP INDEX IF EXISTS ref_ignored_index").executeUpdate();
+	}
+
+	@Override
+	public void buildIgnored() {
+		em.createNativeQuery("CREATE INDEX IF NOT EXISTS ref_ignored_index ON ref (origin, modified) WHERE " + field("ignored") + " = 'true'").executeUpdate();
+	}
+
+	@Override
+	public void dropCascade() {
+		em.createNativeQuery("DROP INDEX IF EXISTS ref_cascade_index").executeUpdate();
+	}
+
+	@Override
+	public void buildCascade() {
+		em.createNativeQuery("CREATE INDEX IF NOT EXISTS ref_cascade_index ON ref (modified) WHERE " + field("cascade") + " = 'true'").executeUpdate();
+	}
+
+	@Override
+	public void dropRegen() {
+		em.createNativeQuery("DROP INDEX IF EXISTS ref_regen_index").executeUpdate();
+	}
+
+	@Override
+	public void buildRegen() {
+		em.createNativeQuery("CREATE INDEX IF NOT EXISTS ref_regen_index ON ref (modified) WHERE metadata IS NULL OR " + field("modified") + " IS NULL OR " + field("regen") + " = 'true'").executeUpdate();
+	}
+
+	/**
+	 * Same SQL as jsonb_object_field_text(metadata, key) in SQLiteDialect, so partial indexes match the queries.
+	 */
+	private static String field(String key) {
+		var path = "'$.\"' || REPLACE('" + key + "', '\"', '\"\"') || '\"'";
+		return "(CASE WHEN json_type(metadata, " + path + ") IN ('true', 'false') THEN json_type(metadata, " + path + ") ELSE CAST(json_extract(metadata, " + path + ") AS TEXT) END)";
+	}
+
+	@Override
+	public void updateHotTags(List<String> hotTags) {
+		// SQLite cannot index the tag value subqueries — no-op
 	}
 }

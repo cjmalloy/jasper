@@ -102,6 +102,32 @@ public class Index {
 		} else {
 			indexRepository.dropModified();
 		}
+		if (index.isIgnored()) {
+			try {
+				indexRepository.buildIgnored();
+			} catch (Exception ignored) {}
+		} else {
+			indexRepository.dropIgnored();
+		}
+		if (index.isCascade()) {
+			try {
+				indexRepository.buildCascade();
+			} catch (Exception ignored) {}
+		} else {
+			indexRepository.dropCascade();
+		}
+		if (index.isRegen()) {
+			try {
+				indexRepository.buildRegen();
+			} catch (Exception ignored) {}
+		} else {
+			indexRepository.dropRegen();
+		}
+		try {
+			indexRepository.updateHotTags(index.getHotTags());
+		} catch (Exception e) {
+			logger.error("Error updating hot tag indices", e);
+		}
 	}
 
 }

@@ -1,6 +1,7 @@
 package jasper.component;
 
 import feign.FeignException;
+import feign.codec.DecodeException;
 import feign.RetryableException;
 import io.github.resilience4j.bulkhead.annotation.Bulkhead;
 import io.micrometer.core.annotation.Timed;
@@ -8,6 +9,7 @@ import jasper.client.JasperClient;
 import jasper.client.dto.JasperMapper;
 import jasper.domain.Ref;
 import jasper.domain.Ref_;
+import jasper.domain.proj.Cursor;
 import jasper.domain.proj.HasTags;
 import jasper.errors.AlreadyExistsException;
 import jasper.errors.DuplicateModifiedDateException;
@@ -37,6 +39,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Supplier;
 
 import static jasper.client.JasperClient.params;
 import static jasper.domain.proj.HasOrigin.origin;
@@ -102,6 +105,9 @@ public class Replicator {
 
 	@Autowired
 	Tagger tagger;
+
+	@Autowired
+	Messages messages;
 
 	@Autowired
 	Optional<FileCache> fileCache;
@@ -187,7 +193,7 @@ public class Replicator {
 		var logs = new ArrayList<Log>();
 		tunnel.proxy(remote, baseUri -> {
 			try {
-				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, pluginRepository.getCursor(localOrigin), (skip, size, after) -> {
+				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, () -> pluginRepository.getCursor(localOrigin), false, (skip, size, after) -> {
 					var pluginList = client.pluginPull(baseUri, params(
 						"size", size,
 						"origin", remoteOrigin,
@@ -219,9 +225,9 @@ public class Replicator {
 									plugin.getName(), plugin.getTag()), ""+plugin.getModified()));
 						}
 					}
-					return pluginList.size() == size ? pluginList.getLast().getModified() : null;
+					return pluginList;
 				}));
-				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, templateRepository.getCursor(localOrigin), (skip, size, after) -> {
+				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, () -> templateRepository.getCursor(localOrigin), false, (skip, size, after) -> {
 					var templateList = client.templatePull(baseUri, params(
 						"size", size,
 						"origin", remoteOrigin,
@@ -253,9 +259,9 @@ public class Replicator {
 									template.getName(), template.getTag()), ""+template.getModified()));
 						}
 					}
-					return templateList.size() == size ? templateList.getLast().getModified() : null;
+					return templateList;
 				}));
-				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, refRepository.getCursor(localOrigin), (skip, size, after) -> {
+				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, () -> refRepository.getCursor(localOrigin), false, (skip, size, after) -> {
 					logger.trace("{} Pulling batch {}", localOrigin, size);
 					var refList = client.refPull(baseUri, params(
 						"query", pull.getQuery(),
@@ -272,7 +278,7 @@ public class Replicator {
 						logger.trace("{} Ingesting pulled ref {}: {}",
 							remote.getOrigin(), ref.getTitle(), ref.getUrl());
 						try {
-							ingestRef.push(rootOrigin, ref, pull.isValidatePlugins(), pull.isStripInvalidPlugins());
+							ingestRef.push(rootOrigin, ref, pull.isValidatePlugins(), pull.isStripInvalidPlugins(), true);
 						} catch (AlreadyExistsException e) {
 							// Indicates a double pull
 							logger.warn("{} Pulling batch skipped (double pull detected) {}: {}",
@@ -300,9 +306,12 @@ public class Replicator {
 									localOrigin, remote.getTitle(), remote.getUrl()), getMessage(e)));
 						}
 					}
-					return refList.size() == size ? refList.getLast().getModified() : null;
+					if (!refList.isEmpty() && refRepository.clearIgnored(localOrigin, refList.getLast().getModified()) > 0) {
+						messages.updateCursor(localOrigin, refList.getLast().getModified());
+					}
+					return refList;
 				}));
-				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, extRepository.getCursor(localOrigin), (skip, size, after) -> {
+				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, () -> extRepository.getCursor(localOrigin), false, (skip, size, after) -> {
 					var extList = client.extPull(baseUri, params(
 						"size", size,
 						"origin", remoteOrigin,
@@ -333,9 +342,9 @@ public class Replicator {
 									ext.getName(), ext.getQualifiedTag()), getMessage(e));
 						}
 					}
-					return extList.size() == size ? extList.getLast().getModified() : null;
+					return extList;
 				}));
-				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, userRepository.getCursor(localOrigin), (skip, size, after) -> {
+				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, () -> userRepository.getCursor(localOrigin), false, (skip, size, after) -> {
 					var userList = client.userPull(baseUri, params(
 						"size", size,
 						"origin", remoteOrigin,
@@ -369,7 +378,7 @@ public class Replicator {
 									user.getName(), user.getTag()), ""+user.getModified()));
 						}
 					}
-					return userList.size() == size ? userList.getLast().getModified() : null;
+					return userList;
 				}));
 			} catch (FeignException e) {
 				// Temporary connection issue, ignore
@@ -401,7 +410,7 @@ public class Replicator {
 		tunnel.proxy(remote, baseUri -> {
 			try {
 				var defaultBatchSize = push.getBatchSize() == 0 ? root.getMaxReplEntityBatch() : min(push.getBatchSize(), root.getMaxPushEntityBatch());
-				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, client.pluginCursor(baseUri, remoteOrigin), (skip, size, after) -> {
+				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, () -> client.pluginCursor(baseUri, remoteOrigin), true, (skip, size, after) -> {
 					var pluginList = pluginRepository.findAll(
 							TagFilter.builder()
 								.origin(localOrigin)
@@ -414,9 +423,9 @@ public class Replicator {
 					if (!pluginList.isEmpty()) {
 						client.pluginPush(baseUri, remoteOrigin, pluginList);
 					}
-					return pluginList.size() == size ? pluginList.getLast().getModified() : null;
+					return pluginList;
 				}));
-				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, client.templateCursor(baseUri, remoteOrigin), (skip, size, after) -> {
+				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, () -> client.templateCursor(baseUri, remoteOrigin), true, (skip, size, after) -> {
 					var templateList = templateRepository.findAll(
 							TagFilter.builder()
 								.origin(localOrigin)
@@ -429,13 +438,14 @@ public class Replicator {
 					if (!templateList.isEmpty()) {
 						client.templatePush(baseUri, remoteOrigin, templateList);
 					}
-					return templateList.size() == size ? templateList.getLast().getModified() : null;
+					return templateList;
 				}));
-				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, client.refCursor(baseUri, remoteOrigin), (skip, size, after) -> {
+				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, () -> client.refCursor(baseUri, remoteOrigin), true, (skip, size, after) -> {
 					var refList = refRepository.findAll(
 							RefFilter.builder()
 								.origin(localOrigin)
 								.query(push.getQuery())
+								.ignored(false)
 								.modifiedAfter(after)
 								.build().spec(),
 							PageRequest.of(skip, size, by(Ref_.MODIFIED)))
@@ -477,9 +487,9 @@ public class Replicator {
 							}
 						}
 					}
-					return refList.size() == size ? refList.getLast().getModified() : null;
+					return refList;
 				}));
-				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, client.extCursor(baseUri, remoteOrigin), (skip, size, after) -> {
+				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, () -> client.extCursor(baseUri, remoteOrigin), true, (skip, size, after) -> {
 					var extList = extRepository.findAll(
 							TagFilter.builder()
 								.origin(localOrigin)
@@ -492,9 +502,9 @@ public class Replicator {
 					if (!extList.isEmpty()) {
 						client.extPush(baseUri, remoteOrigin, extList);
 					}
-					return extList.size() == size ? extList.getLast().getModified() : null;
+					return extList;
 				}));
-				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, client.userCursor(baseUri, remoteOrigin), (skip, size, after) -> {
+				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, () -> client.userCursor(baseUri, remoteOrigin), true, (skip, size, after) -> {
 					var userList = userRepository.findAll(
 							TagFilter.builder()
 								.origin(localOrigin)
@@ -508,7 +518,7 @@ public class Replicator {
 					if (!userList.isEmpty()) {
 						client.userPush(baseUri, remoteOrigin, userList);
 					}
-					return userList.size() == size ? userList.getLast().getModified() : null;
+					return userList;
 				}));
 			} catch (FeignException.Forbidden e) {
 				logger.error("{} Access denied pushing {} to origin ({}) {}: {} {}",
@@ -532,37 +542,72 @@ public class Replicator {
 		});
 	}
 
-	private List<Log> expBackoff(String origin, int batchSize, Instant modifiedAfter, ExpBackoff fn) {
+	/**
+	 * Replicate in batches sorted by modified date until a batch is not full.
+	 * The cursor may be null when the origin is empty, so a 413 must not end the loop.
+	 * On 413 the batch size is halved, and once it reaches 1 the entity is skipped.
+	 * Every batch must advance the cursor, so this always terminates.
+	 * @param cursor the starting cursor, fetched with the same error rules as a batch
+	 * @param canSkip pulling can't skip an entity on the remote, so a 413 with a batch size of 1 is fatal
+	 */
+	private List<Log> expBackoff(String origin, int batchSize, Supplier<Instant> cursor, boolean canSkip, ExpBackoff fn) {
 		var logs = new ArrayList<Log>();
+		Instant modifiedAfter;
+		try {
+			modifiedAfter = cursor.get();
+		} catch (FeignException e) {
+			throwUnlessTooLarge(e);
+			throw new RuntimeException(e);
+		}
 		var skip = 0;
 		var size = batchSize;
-		do {
+		while (true) {
 			try {
 				logger.trace("{} BATCH ({}, {}): {}",
 					origin, skip, size, modifiedAfter);
-				modifiedAfter = fn.fetch(skip, size, modifiedAfter);
+				var list = fn.fetch(skip, size, modifiedAfter);
+				if (list == null || list.isEmpty()) return logs;
+				var next = list.getLast().getModified();
+				if (modifiedAfter != null && !next.isAfter(modifiedAfter)) {
+					throw new IllegalStateException("Replication cursor did not advance past " + modifiedAfter);
+				}
+				if (list.size() < size) return logs;
+				modifiedAfter = next;
 				skip = 0;
 				if (size < batchSize) {
 					size = min(batchSize, size * 2);
 				}
 			} catch (FeignException e) {
-				if (e instanceof RetryableException) throw e;
-				if (e.getCause() instanceof SSLHandshakeException) throw new RuntimeException(e);
-				if (e.getCause() instanceof HttpHostConnectException) throw new RuntimeException(e);
-				if (e.status() >= 500) throw e;
-				if (e.status() == 403) throw new RuntimeException(e);
-				if (e.status() != 413) throw e;
+				throwUnlessTooLarge(e);
 				if (size == 1) {
+					if (!canSkip) throw new RuntimeException(modifiedAfter == null
+						? "First entity is too large to replicate"
+						: "Entity with modified date after " + modifiedAfter + " is too large to replicate", e);
 					logger.error("{} Skipping entity with modified date after {}", origin, modifiedAfter);
 					logs.add(new Log("Skipping entity with modified date after " + modifiedAfter, getMessage(e)));
 					skip++;
 				} else {
 					size = max(1, size / 2);
-					logs.add(new Log("Error pulling entities, reducing batch size to " + size, getMessage(e)));
+					logs.add(new Log("Error replicating entities, reducing batch size to " + size, getMessage(e)));
 				}
 			}
-		} while (modifiedAfter != null);
-		return logs;
+		}
+	}
+
+	/**
+	 * Rethrow temporary errors so the next run retries, and wrap permanent errors so they are fatal.
+	 * Only returns on 413.
+	 */
+	private static void throwUnlessTooLarge(FeignException e) {
+		if (e instanceof RetryableException) throw e;
+		if (e.getCause() instanceof SSLHandshakeException) throw new RuntimeException(e);
+		if (e.getCause() instanceof HttpHostConnectException) throw new RuntimeException(e);
+		if (e.status() >= 500) throw e;
+		if (e.status() == 403) throw new RuntimeException(e);
+		// Retrying a bad response or client error will fail the same way every time
+		if (e instanceof DecodeException) throw new RuntimeException(e);
+		if (e.status() < 400 || e.status() == 408 || e.status() == 429) throw e;
+		if (e.status() != 413) throw new RuntimeException(e);
 	}
 
 	public static boolean isDeletorTag(String tag) {
@@ -582,7 +627,7 @@ public class Replicator {
 	}
 
 	interface ExpBackoff {
-		Instant fetch(int skip, int size, Instant after) throws FeignException;
+		List<? extends Cursor> fetch(int skip, int size, Instant after) throws FeignException;
 	}
 
 }
