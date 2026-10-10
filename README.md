@@ -1101,7 +1101,8 @@ There are two kinds of writes:
    metadata, so it is not counted in the pull cursor (`modifiedAfter`) and is never sent during replication (pull or
    push). Pulled Refs are also marked `ignored` while a batch is ingested. Once the whole batch is ingested, the flag is
    cleared in one update on every ignored Ref up to the newest pulled Ref. A failed batch therefore never moves the
-   cursor, and the retry starts again from the last complete batch. An existing
+   cursor, and the retry starts again from the last complete batch. Ignored Refs do not publish a cursor update; the
+   cursor update for the batch is published after the flag is cleared, so chained replication sees it. An existing
    Ref keeps its `modified`, so the pull cursor never moves past remote entries.
  * **Logs** (`+plugin/log` Refs with an `error:<uuid>` URL). They are stamped with `modified = now`, so they are never
    written into a pulled origin. They are redirected to the origin that owns the `+plugin/origin` Ref.

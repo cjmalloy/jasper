@@ -105,6 +105,9 @@ public class Replicator {
 	Tagger tagger;
 
 	@Autowired
+	Messages messages;
+
+	@Autowired
 	Optional<FileCache> fileCache;
 
 	boolean fileCacheMissingError = false;
@@ -301,7 +304,9 @@ public class Replicator {
 									localOrigin, remote.getTitle(), remote.getUrl()), getMessage(e)));
 						}
 					}
-					if (!refList.isEmpty()) refRepository.clearIgnored(localOrigin, refList.getLast().getModified());
+					if (!refList.isEmpty() && refRepository.clearIgnored(localOrigin, refList.getLast().getModified()) > 0) {
+						messages.updateCursor(localOrigin, refList.getLast().getModified());
+					}
 					return refList.size() == size ? refList.getLast().getModified() : null;
 				}));
 				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, extRepository.getCursor(localOrigin), false, (skip, size, after) -> {
