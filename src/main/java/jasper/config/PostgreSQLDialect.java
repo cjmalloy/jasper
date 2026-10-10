@@ -76,6 +76,9 @@ public class PostgreSQLDialect extends org.hibernate.dialect.PostgreSQLDialect {
 		functionRegistry.registerPattern("origin_nesting", "CASE WHEN ?1 = '' OR ?1 = '@' THEN 0 ELSE (LENGTH(?1) - LENGTH(REPLACE(?1, '.', '')) + 1) END", integer);
 		// tag_levels: returns 0 for blank tag, otherwise count of '/' + 1
 		functionRegistry.registerPattern("tag_levels", "CASE WHEN ?1 = '' THEN 0 ELSE (LENGTH(?1) - LENGTH(REPLACE(?1, '/', '')) + 1) END", integer);
+		// tag_value: first sub-tag value after the ?2 prefix (tag + '/') of the first matching tag, ?3 is the prefix length + 1
+		functionRegistry.registerPattern("tag_value", "(SELECT split_part(substr(tv.t, ?3), '/', 1) FROM jsonb_array_elements_text(?1) WITH ORDINALITY AS tv(t, i) WHERE starts_with(tv.t, ?2) ORDER BY tv.i LIMIT 1)", string);
+		functionRegistry.registerPattern("tag_value_num", "(SELECT CASE WHEN tvn.v ~ '^[0-9]+([.][0-9]+){0,1}$' THEN tvn.v::numeric END FROM (SELECT split_part(substr(tv.t, ?3), '/', 1) AS v FROM jsonb_array_elements_text(?1) WITH ORDINALITY AS tv(t, i) WHERE starts_with(tv.t, ?2) ORDER BY tv.i LIMIT 1) tvn)", doubleType);
 		// Vote sorting functions - kept together for consistency
 		functionRegistry.registerPattern("vote_top", "COALESCE((?1->'plugins'->>'plugin/user/vote/up')::int, 0) + COALESCE((?1->'plugins'->>'plugin/user/vote/down')::int, 0)", integer);
 		functionRegistry.registerPattern("vote_score", "COALESCE((?1->'plugins'->>'plugin/user/vote/up')::int, 0) - COALESCE((?1->'plugins'->>'plugin/user/vote/down')::int, 0)", integer);

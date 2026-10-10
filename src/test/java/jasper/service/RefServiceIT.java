@@ -1772,6 +1772,54 @@ public class RefServiceIT {
 		assertThat(result.getContent().get(1).getUrl()).isEqualTo("https://example.com/1");
 	}
 
+	Ref refWithUrlTags(String url, String... tags) {
+		var ref = new Ref();
+		ref.setUrl(url);
+		ref.setTags(new ArrayList<>(List.of(tags)));
+		return refRepository.save(ref);
+	}
+
+	List<String> sortedUrls(Sort.Order order) {
+		var spec = RefSpec.sort(
+			RefFilter.builder().build().spec(),
+			PageRequest.of(0, 10, Sort.by(order, Sort.Order.asc("url"))));
+		return refRepository.findAll(spec, PageRequest.ofSize(10)).getContent().stream().map(Ref::getUrl).toList();
+	}
+
+	@Test
+	void testApplySortingSpec_WithTagValueSort() {
+		refWithUrlTags("https://example.com/1", "+user/tester", "plugin/duration/pt5m");
+		refWithUrlTags("https://example.com/2", "plugin/duration", "plugin/duration/pt1m/extra", "plugin/duration/pt9m");
+		refWithUrlTags("https://example.com/3", "+user/tester");
+		refWithUrlTags("https://example.com/4", "plugin/durationx/pt0m", "plugin/duration/pt3m");
+
+		assertThat(sortedUrls(Sort.Order.asc("tags->plugin/duration")))
+			.containsExactly("https://example.com/3", "https://example.com/2", "https://example.com/4", "https://example.com/1");
+		assertThat(sortedUrls(Sort.Order.desc("tags->plugin/duration")))
+			.containsExactly("https://example.com/1", "https://example.com/4", "https://example.com/2", "https://example.com/3");
+	}
+
+	@Test
+	void testApplySortingSpec_WithTagValueNumericSort() {
+		refWithUrlTags("https://example.com/1", "plugin/progress/37/100");
+		refWithUrlTags("https://example.com/2", "plugin/progress", "plugin/progress/100/100", "plugin/progress/5/100");
+		refWithUrlTags("https://example.com/3", "+user/tester");
+		refWithUrlTags("https://example.com/4", "plugin/progress/9/10");
+		refWithUrlTags("https://example.com/5", "plugin/progress/abc");
+
+		assertThat(sortedUrls(Sort.Order.desc("tags->plugin/progress:num")))
+			.containsExactly("https://example.com/2", "https://example.com/1", "https://example.com/4", "https://example.com/3", "https://example.com/5");
+	}
+
+	@Test
+	void testApplySortingSpec_WithInvalidTagValueSort() {
+		refWithUrlTags("https://example.com/1", "plugin/progress/37/100");
+		refWithUrlTags("https://example.com/2", "plugin/progress/5/100");
+
+		assertThat(sortedUrls(Sort.Order.desc("tags->plugin/progress'; drop table ref; --")))
+			.containsExactly("https://example.com/1", "https://example.com/2");
+	}
+
 	Ref refWithSchemaPlugin(String defaults) throws JsonProcessingException {
 		var mapper = new ObjectMapper();
 		var plugin = new Plugin();

@@ -140,6 +140,12 @@ database schema changes.
 The `:num` and `:len` suffixes are automatically applied to metadata fields, so you can use
 `metadata->responses` instead of `metadata->responses:len`.
 
+Refs can also be sorted by the value of a tag using `tags->{tag}`. The value is the first
+sub-tag after the prefix of the first tag that has one. For example, `tags->plugin/duration`
+sorts on `pt10m25s` for the tag `plugin/duration/pt10m25s`, and `tags->plugin/progress:num`
+sorts numerically on `37` for the tag `plugin/progress/37/100` (ignoring `100` and any further sub-tags).
+A bare `plugin/progress` tag is skipped. Refs without a matching tag sort as `''` or `0`.
+
 Metadata dates useful for sorting:
 - `metadata->modified`: updated whenever the responses, internal responses or plugin counts change.
 - `metadata->newResponse`: updated only when a new response is created (not updated), ignoring

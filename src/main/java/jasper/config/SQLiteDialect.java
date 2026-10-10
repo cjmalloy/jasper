@@ -104,6 +104,9 @@ public class SQLiteDialect extends org.hibernate.community.dialect.SQLiteDialect
 		functionRegistry.registerPattern("origin_nesting", "CASE WHEN ?1 = '' OR ?1 = '@' THEN 0 ELSE (LENGTH(?1) - LENGTH(REPLACE(?1, '.', '')) + 1) END", integer);
 		// tag_levels: returns 0 for blank tag, otherwise count of '/' + 1
 		functionRegistry.registerPattern("tag_levels", "CASE WHEN ?1 = '' THEN 0 ELSE (LENGTH(?1) - LENGTH(REPLACE(?1, '/', '')) + 1) END", integer);
+		// tag_value: first sub-tag value after the ?2 prefix (tag + '/') of the first matching tag, ?3 is the prefix length + 1
+		functionRegistry.registerPattern("tag_value", "(SELECT CASE WHEN instr(tv.r, '/') > 0 THEN substr(tv.r, 1, instr(tv.r, '/') - 1) ELSE tv.r END FROM (SELECT substr(j.value, ?3) AS r FROM json_each(?1) AS j WHERE instr(j.value, ?2) = 1 ORDER BY j.key LIMIT 1) AS tv)", string);
+		functionRegistry.registerPattern("tag_value_num", "CAST((SELECT CASE WHEN instr(tv.r, '/') > 0 THEN substr(tv.r, 1, instr(tv.r, '/') - 1) ELSE tv.r END FROM (SELECT substr(j.value, ?3) AS r FROM json_each(?1) AS j WHERE instr(j.value, ?2) = 1 ORDER BY j.key LIMIT 1) AS tv) AS REAL)", doubleType);
 		// Vote sorting functions using SQLite's json_extract with quoted keys for paths containing '/'
 		functionRegistry.registerPattern("vote_top", "COALESCE(CAST(json_extract(?1, '$.plugins.\"plugin/user/vote/up\"') AS INTEGER), 0) + COALESCE(CAST(json_extract(?1, '$.plugins.\"plugin/user/vote/down\"') AS INTEGER), 0)", integer);
 		functionRegistry.registerPattern("vote_score", "COALESCE(CAST(json_extract(?1, '$.plugins.\"plugin/user/vote/up\"') AS INTEGER), 0) - COALESCE(CAST(json_extract(?1, '$.plugins.\"plugin/user/vote/down\"') AS INTEGER), 0)", doubleType);

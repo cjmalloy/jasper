@@ -3,6 +3,7 @@ package jasper.repository.spec;
 import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.Expression;
 import jakarta.persistence.criteria.Root;
+import jasper.domain.proj.Tag;
 
 import java.util.Set;
 import java.util.regex.Pattern;
@@ -107,6 +108,29 @@ public class SortSpec {
 		} else {
 			return cb.coalesce(expr, cb.literal(""));
 		}
+	}
+
+	/**
+	 * Creates a sort expression on the value of a tag in the tags array.
+	 * For example, "tags->plugin/duration" sorts on "pt10m25s" for the tag "plugin/duration/pt10m25s",
+	 * and "tags->plugin/progress:num" sorts numerically on 37 for the tag "plugin/progress/37/100".
+	 * Only the first sub-tag after the prefix is used, and only the first tag with a value is considered.
+	 * Uses COALESCE to handle nulls (0 for numeric, '' for string).
+	 *
+	 * @param root the query root
+	 * @param cb the criteria builder
+	 * @param property the sort property (e.g., "tags->plugin/progress:num")
+	 * @return the sort expression, or null if the property is not a valid tag value sort
+	 */
+	public static Expression<?> createTagValueSortExpression(Root<?> root, CriteriaBuilder cb, String property) {
+		if (!property.startsWith("tags->")) return null;
+		var numericSort = property.endsWith(":num");
+		var tag = property.substring("tags->".length(), numericSort ? property.length() - ":num".length() : property.length());
+		if (!tag.matches(Tag.REGEX)) return null;
+		if (numericSort) {
+			return cb.coalesce(cb.function("tag_value_num", Double.class, root.get("tags"), cb.literal(tag + "/"), cb.literal(tag.length() + 2)), cb.literal(0.0));
+		}
+		return cb.coalesce(cb.function("tag_value", String.class, root.get("tags"), cb.literal(tag + "/"), cb.literal(tag.length() + 2)), cb.literal(""));
 	}
 
 	/**

@@ -341,6 +341,8 @@ public class RefSpec {
 					} else {
 						expr = null;
 					}
+				} else if (property.startsWith("tags->")) {
+					expr = SortSpec.createTagValueSortExpression(root, cb, property);
 				} else if (isJsonbSortProperty(property, "metadata", "plugins")) {
 					expr = createJsonbSortExpression(root, cb, property, "metadata", "plugins");
 				} else if (property.endsWith(":len")) {
