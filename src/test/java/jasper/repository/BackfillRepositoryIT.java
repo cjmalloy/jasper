@@ -669,6 +669,27 @@ public class BackfillRepositoryIT {
 		assertThat(refRepository.findOneByUrlAndOrigin(response.getUrl(), response.getOrigin()).get().getMetadata().isCascade()).isTrue();
 	}
 
+	@Test
+	@DisabledOnSqlite
+	void testBackfillMetadata_PreservesIgnored() {
+		var ignored = new Ref();
+		ignored.setUrl("http://example.com/ignored");
+		ignored.setOrigin("");
+		ignored.setMetadata(Metadata.builder().regen(true).ignored(true).build());
+		refRepository.save(ignored);
+
+		var normal = new Ref();
+		normal.setUrl("http://example.com/normal");
+		normal.setOrigin("");
+		normal.setMetadata(Metadata.builder().regen(true).build());
+		refRepository.save(normal);
+
+		assertThat(backfillRepository.backfillMetadata("", 10)).isEqualTo(2);
+
+		assertThat(refRepository.findOneByUrlAndOrigin(ignored.getUrl(), ignored.getOrigin()).get().getMetadata().isIgnored()).isTrue();
+		assertThat(refRepository.findOneByUrlAndOrigin(normal.getUrl(), normal.getOrigin()).get().getMetadata().isIgnored()).isFalse();
+	}
+
 	private Object cascade(Ref ref) {
 		return em.createNativeQuery("""
 			SELECT metadata->>'cascade' FROM ref WHERE url = :url AND origin = :origin""")

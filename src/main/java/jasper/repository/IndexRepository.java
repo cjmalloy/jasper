@@ -31,4 +31,10 @@ public interface IndexRepository {
 	 * @param hotTags tag value sorts, e.g. "plugin/progress:num"
 	 */
 	void updateHotTags(List<String> hotTags);
+	void dropIgnored();
+	void buildIgnored();
+	void dropCascade();
+	void buildCascade();
+	void dropRegen();
+	void buildRegen();
 }

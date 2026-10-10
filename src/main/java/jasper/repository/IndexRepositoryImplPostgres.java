@@ -32,7 +32,7 @@ public class IndexRepositoryImplPostgres implements IndexRepository {
 
 	@Override
 	public void buildTags() {
-		em.createNativeQuery("CREATE INDEX ref_tags_index ON ref USING GIN(tags)").executeUpdate();
+		em.createNativeQuery("CREATE INDEX IF NOT EXISTS ref_tags_index ON ref USING GIN(tags)").executeUpdate();
 	}
 
 	@Override
@@ -42,7 +42,7 @@ public class IndexRepositoryImplPostgres implements IndexRepository {
 
 	@Override
 	public void buildExpandedTags() {
-		em.createNativeQuery("CREATE INDEX ref_expanded_tags_index ON ref USING GIN((metadata->'expandedTags'))").executeUpdate();
+		em.createNativeQuery("CREATE INDEX IF NOT EXISTS ref_expanded_tags_index ON ref USING GIN((metadata->'expandedTags'))").executeUpdate();
 	}
 
 	@Override
@@ -52,7 +52,7 @@ public class IndexRepositoryImplPostgres implements IndexRepository {
 
 	@Override
 	public void buildSources() {
-		em.createNativeQuery("CREATE INDEX ref_sources_index ON ref USING GIN(sources)").executeUpdate();
+		em.createNativeQuery("CREATE INDEX IF NOT EXISTS ref_sources_index ON ref USING GIN(sources)").executeUpdate();
 	}
 
 	@Override
@@ -62,7 +62,7 @@ public class IndexRepositoryImplPostgres implements IndexRepository {
 
 	@Override
 	public void buildAlts() {
-		em.createNativeQuery("CREATE INDEX ref_alternate_urls_index ON ref USING GIN(alternate_urls)").executeUpdate();
+		em.createNativeQuery("CREATE INDEX IF NOT EXISTS ref_alternate_urls_index ON ref USING GIN(alternate_urls)").executeUpdate();
 	}
 
 	@Override
@@ -72,7 +72,7 @@ public class IndexRepositoryImplPostgres implements IndexRepository {
 
 	@Override
 	public void buildResponses() {
-		em.createNativeQuery("CREATE INDEX ref_responses_index ON ref USING GIN((metadata->'responses'))").executeUpdate();
+		em.createNativeQuery("CREATE INDEX IF NOT EXISTS ref_responses_index ON ref USING GIN((metadata->'responses'))").executeUpdate();
 	}
 
 	@Override
@@ -82,7 +82,7 @@ public class IndexRepositoryImplPostgres implements IndexRepository {
 
 	@Override
 	public void buildInternalResponses() {
-		em.createNativeQuery("CREATE INDEX ref_internal_responses_index ON ref USING GIN((metadata->'internalResponses'))").executeUpdate();
+		em.createNativeQuery("CREATE INDEX IF NOT EXISTS ref_internal_responses_index ON ref USING GIN((metadata->'internalResponses'))").executeUpdate();
 	}
 
 	@Override
@@ -92,7 +92,7 @@ public class IndexRepositoryImplPostgres implements IndexRepository {
 
 	@Override
 	public void buildFulltext() {
-		em.createNativeQuery("CREATE INDEX ref_fulltext_index ON ref USING GIN(textsearch_en)").executeUpdate();
+		em.createNativeQuery("CREATE INDEX IF NOT EXISTS ref_fulltext_index ON ref USING GIN(textsearch_en)").executeUpdate();
 	}
 
 	@Override
@@ -102,7 +102,7 @@ public class IndexRepositoryImplPostgres implements IndexRepository {
 
 	@Override
 	public void buildPublished() {
-		em.createNativeQuery("CREATE INDEX ref_published_index ON ref (published)").executeUpdate();
+		em.createNativeQuery("CREATE INDEX IF NOT EXISTS ref_published_index ON ref (published)").executeUpdate();
 	}
 
 	@Override
@@ -112,7 +112,37 @@ public class IndexRepositoryImplPostgres implements IndexRepository {
 
 	@Override
 	public void buildModified() {
-		em.createNativeQuery("CREATE INDEX ref_modified_index ON ref (modified)").executeUpdate();
+		em.createNativeQuery("CREATE INDEX IF NOT EXISTS ref_modified_index ON ref (modified)").executeUpdate();
+	}
+
+	@Override
+	public void dropIgnored() {
+		em.createNativeQuery("DROP INDEX IF EXISTS ref_ignored_index").executeUpdate();
+	}
+
+	@Override
+	public void buildIgnored() {
+		em.createNativeQuery("CREATE INDEX IF NOT EXISTS ref_ignored_index ON ref (origin, modified) WHERE (metadata->>'ignored') = 'true'").executeUpdate();
+	}
+
+	@Override
+	public void dropCascade() {
+		em.createNativeQuery("DROP INDEX IF EXISTS ref_cascade_index").executeUpdate();
+	}
+
+	@Override
+	public void buildCascade() {
+		em.createNativeQuery("CREATE INDEX IF NOT EXISTS ref_cascade_index ON ref (modified) WHERE (metadata->>'cascade') = 'true'").executeUpdate();
+	}
+
+	@Override
+	public void dropRegen() {
+		em.createNativeQuery("DROP INDEX IF EXISTS ref_regen_index").executeUpdate();
+	}
+
+	@Override
+	public void buildRegen() {
+		em.createNativeQuery("CREATE INDEX IF NOT EXISTS ref_regen_index ON ref (modified) WHERE metadata IS NULL OR (metadata->>'modified') IS NULL OR (metadata->>'regen') = 'true'").executeUpdate();
 	}
 
 	@Override

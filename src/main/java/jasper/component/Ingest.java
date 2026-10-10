@@ -109,12 +109,14 @@ public class Ingest {
 
 	@Timed(value = "jasper.ref", histogram = true)
 	public void silent(String rootOrigin, Ref ref) {
+		var ignored = ref.getMetadata() != null && ref.getMetadata().isIgnored();
 		var maybeExisting = refRepository.findOneByUrlAndOrigin(ref.getUrl(), ref.getOrigin());
 		if (maybeExisting.isEmpty()) {
 			meta.ref(rootOrigin, ref);
 		} else {
 			meta.update(rootOrigin, ref, maybeExisting.get());
 		}
+		ref.getMetadata().setIgnored(ignored);
 		ensureSilentUniqueModified(ref);
 		meta.sources(rootOrigin, ref, maybeExisting.orElse(null));
 		messages.updateSilentRef(ref);
@@ -122,6 +124,14 @@ public class Ingest {
 
 	@Timed(value = "jasper.ref", histogram = true)
 	public void push(String rootOrigin, Ref ref, boolean validation, boolean stripInvalidPlugins) {
+		push(rootOrigin, ref, validation, stripInvalidPlugins, false);
+	}
+
+	/**
+	 * @param ignored mark the Ref as ignored until the whole pulled batch is ingested
+	 */
+	@Timed(value = "jasper.ref", histogram = true)
+	public void push(String rootOrigin, Ref ref, boolean validation, boolean stripInvalidPlugins, boolean ignored) {
 		var generateMetadata = ref.getModified() == null || ref.getModified().isAfter(Instant.now().minus(5, ChronoUnit.MINUTES));
 		if (validation) validate.ref(rootOrigin, ref, stripInvalidPlugins);
 		Ref maybeExisting = null;
@@ -141,6 +151,7 @@ public class Ingest {
 				.expandedTags(expandTags(ref.getTags()))
 				.build());
 		}
+		ref.getMetadata().setIgnored(ignored);
 		pushUniqueModified(ref);
 		if (generateMetadata) meta.sources(rootOrigin, ref, maybeExisting);
 		messages.updateRef(ref);

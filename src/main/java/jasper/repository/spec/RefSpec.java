@@ -65,6 +65,19 @@ public class RefSpec {
 					cb.literal("true")));
 	}
 
+	public static Specification<Ref> isNotIgnored() {
+		return (root, query, cb) ->
+			cb.or(
+				cb.isNull(root.get(Ref_.metadata)),
+				cb.isNull(cb.function("jsonb_object_field_text", String.class,
+					root.get(Ref_.metadata),
+					cb.literal("ignored"))),
+				cb.notEqual(cb.function("jsonb_object_field_text", String.class,
+					root.get(Ref_.metadata),
+					cb.literal("ignored")),
+					cb.literal("true")));
+	}
+
 	public static Specification<Ref> isScheme(String scheme) {
 		return (root, query, cb) ->
 			cb.like(

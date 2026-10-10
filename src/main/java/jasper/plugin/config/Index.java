@@ -37,4 +37,10 @@ public class Index implements Serializable {
 	 */
 	@Builder.Default
 	private List<String> hotTags = new ArrayList<>();
+	@Builder.Default
+	private boolean ignored = true;
+	@Builder.Default
+	private boolean cascade = true;
+	@Builder.Default
+	private boolean regen = true;
 }

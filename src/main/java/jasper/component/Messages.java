@@ -22,6 +22,7 @@ import org.springframework.messaging.MessageHeaders;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
@@ -99,7 +100,13 @@ public class Messages {
 				sendAndRetry(() -> responseTxChannel.send(createMessage(ref.getUrl(), responseHeaders(ref.getOrigin(), source))));
 			}
 		}
+		if (ref.getMetadata() != null && ref.getMetadata().isIgnored()) return;
 		sendAndRetry(() -> cursorTxChannel.send(createMessage(ref.getModified(), originHeaders(ref.getOrigin()))));
+	}
+
+	@Async
+	public void updateCursor(String origin, Instant cursor) {
+		sendAndRetry(() -> cursorTxChannel.send(createMessage(cursor, originHeaders(origin))));
 	}
 
 	@Async
