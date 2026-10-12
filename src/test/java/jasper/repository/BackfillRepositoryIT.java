@@ -710,4 +710,21 @@ public class BackfillRepositoryIT {
 		var pluginCount = loaded.getMetadata().getRemotePlugins() == null ? 0 : loaded.getMetadata().getRemotePlugins().getOrDefault("plugin/comment", 0L).intValue();
 		assertThat(pluginCount).isEqualTo(comments);
 	}
+
+	@Test
+	@DisabledOnSqlite
+	void testBackfillMetadata_ExpandsTags() {
+		var ref = new Ref();
+		ref.setUrl("http://example.com/secret");
+		ref.setOrigin("@city");
+		ref.setTags(List.of("+plugin/secret/openai", "internal", "+plugin/secret"));
+		ref.setMetadata(null);
+		refRepository.save(ref);
+
+		backfillRepository.backfillMetadata("@city", 10);
+
+		var result = refRepository.findOneByUrlAndOrigin(ref.getUrl(), ref.getOrigin()).orElseThrow();
+		assertThat(result.getMetadata().getExpandedTags())
+			.containsExactlyInAnyOrder("+plugin/secret/openai", "internal", "+plugin/secret", "+plugin");
+	}
 }
