@@ -142,4 +142,16 @@ class TagQueryIT {
 			.isEqualTo(exts("!a@city:!d@town"))
 			.containsExactly("a", "b", "c");
 	}
+
+	@Test
+	void testParentTagMatchesWithoutExpandedTags() {
+		ref("s1", "@city", "+plugin/secret/openai");
+		ref("s2", "@city", "+plugin/secretive");
+		ref("s3", "@city", "_plugin/secret/openai");
+
+		assertThat(refs("+plugin/secret@city")).containsExactly("s1");
+		assertThat(refs("+plugin@city")).containsExactly("s1", "s2");
+		assertThat(refs("+plugin/secret/openai@city")).containsExactly("s1");
+		assertThat(refs("!+plugin/secret:@city")).containsExactly("r6", "s2", "s3");
+	}
 }

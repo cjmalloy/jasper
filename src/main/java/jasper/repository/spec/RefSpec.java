@@ -211,7 +211,12 @@ public class RefSpec {
 			cb.and(
 				cb.isNull(expanded),
 				cb.isNotNull(root.get(Ref_.tags)),
-				cb.isTrue(cb.function("jsonb_exists", Boolean.class, root.get(Ref_.tags), cb.literal(tag)))));
+				cb.or(
+					cb.isTrue(cb.function("jsonb_exists", Boolean.class, root.get(Ref_.tags), cb.literal(tag))),
+					cb.like(
+						cb.function("jsonb_text", String.class, root.get(Ref_.tags)),
+						"%\"" + tag.replace("_", "\\_") + "/%",
+						'\\'))));
 	}
 
 	public static Specification<Ref> hasTag(String tag) {
