@@ -157,6 +157,11 @@ public class Props {
 	 */
 	private String storage = "/var/lib/jasper";
 	/**
+	 * Path to a second, read-only folder of backups, such as a mounted volume synced from another server.
+	 * Uses the same layout as the storage folder. Backups found here are added to the backup list.
+	 */
+	private String secondaryBackupStorage;
+	/**
 	 * Path to node binary for running javascript deltas.
 	 */
 	private String node = "/usr/local/bin/node";
