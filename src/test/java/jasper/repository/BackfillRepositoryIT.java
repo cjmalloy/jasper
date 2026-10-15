@@ -534,7 +534,7 @@ public class BackfillRepositoryIT {
 
 	@Test
 	@DisabledOnSqlite
-	void testBackfillMetadata_PinnedNeverObsolete() {
+	void testBackfillMetadata_PinnedRank() {
 		var plugin = new Plugin();
 		plugin.setTag("plugin/pinned");
 		plugin.setOrigin("");
@@ -568,12 +568,29 @@ public class BackfillRepositoryIT {
 		local.setMetadata(null);
 		refRepository.save(local);
 
+		var both = new Ref();
+		both.setUrl("http://example.com/both");
+		both.setOrigin("");
+		both.setTags(List.of("plugin/pinned"));
+		both.setModified(Instant.now().minusSeconds(60));
+		both.setMetadata(null);
+		refRepository.save(both);
+		var bothRemote = new Ref();
+		bothRemote.setUrl("http://example.com/both");
+		bothRemote.setOrigin("@other");
+		bothRemote.setTags(List.of("plugin/pinned"));
+		bothRemote.setModified(Instant.now().plusSeconds(2));
+		bothRemote.setMetadata(null);
+		refRepository.save(bothRemote);
+
 		while (backfillRepository.backfillMetadata("", 10) > 0);
 
 		assertThat(obsoleteFlag(pinned)).isEqualTo("false");
 		assertThat(obsoleteFlag(newer)).isEqualTo("true");
-		assertThat(obsoleteFlag(remotePinned)).isEqualTo("true");
-		assertThat(obsoleteFlag(local)).isEqualTo("false");
+		assertThat(obsoleteFlag(remotePinned)).isEqualTo("false");
+		assertThat(obsoleteFlag(local)).isEqualTo("true");
+		assertThat(obsoleteFlag(both)).isEqualTo("false");
+		assertThat(obsoleteFlag(bothRemote)).isEqualTo("true");
 	}
 
 	@Test

@@ -20,8 +20,8 @@ public class BackfillRepositoryImplPostgres implements BackfillRepository {
 	 * Only the user URLs of the given origin are rebuilt, user URLs from other origins are kept.
 	 * Blank newResponse and newReaction are filled from the latest response, or the Ref created date.
 	 * Expanded tags are regenerated from the tags so tag queries match parent tags.
-	 * Refs in the given origin tagged plugin/pinned are never obsolete while the plugin is installed,
-	 * and all other versions of a pinned Ref are obsolete.
+	 * Only the highest ranked version of a Ref is not obsolete: if plugin/pinned is installed, pinned
+	 * versions in the given origin rank highest, then pinned versions in other origins. The newest wins within a rank.
 	 */
 	@Override
 	public int backfillMetadata(String origin, int batchSize) {
@@ -70,14 +70,15 @@ public class BackfillRepositoryImplPostgres implements BackfillRepository {
 					) u
 					GROUP BY u.tag
 				) uu), CAST('{}' AS jsonb)),
-				'obsolete', CASE
-					WHEN EXISTS (SELECT 1 FROM plugin pp WHERE pp.tag = 'plugin/pinned' AND pp.origin = :origin)
-						AND EXISTS (SELECT 1 FROM ref pr
-							CROSS JOIN LATERAL jsonb_array_elements_text(COALESCE(pr.tags, '[]')) AS pt(tag)
-							WHERE pr.url = r.url AND pr.origin = :origin AND (pt.tag = 'plugin/pinned' OR pt.tag LIKE 'plugin/pinned/%'))
-					THEN r.origin != :origin
-					ELSE EXISTS (SELECT 1 from ref n WHERE n.url = r.url AND n.modified > r.modified AND (:origin = '' OR n.origin = :origin OR n.origin LIKE concat(:origin, '.%')))
-				END,
+				'obsolete', EXISTS (SELECT 1 FROM ref n
+					CROSS JOIN LATERAL (SELECT (CASE WHEN EXISTS (SELECT 1 FROM plugin pp WHERE pp.tag = 'plugin/pinned' AND pp.origin = :origin)
+						AND EXISTS (SELECT 1 FROM jsonb_array_elements_text(COALESCE(n.tags, '[]')) AS t(tag) WHERE t.tag = 'plugin/pinned' OR t.tag LIKE 'plugin/pinned/%')
+					THEN CASE WHEN n.origin = :origin THEN 2 ELSE 1 END ELSE 0 END) AS rank) AS nr
+					CROSS JOIN LATERAL (SELECT (CASE WHEN EXISTS (SELECT 1 FROM plugin pp WHERE pp.tag = 'plugin/pinned' AND pp.origin = :origin)
+						AND EXISTS (SELECT 1 FROM jsonb_array_elements_text(COALESCE(r.tags, '[]')) AS t(tag) WHERE t.tag = 'plugin/pinned' OR t.tag LIKE 'plugin/pinned/%')
+					THEN CASE WHEN r.origin = :origin THEN 2 ELSE 1 END ELSE 0 END) AS rank) AS rr
+					WHERE n.url = r.url AND (:origin = '' OR n.origin = :origin OR n.origin LIKE concat(:origin, '.%'))
+						AND (nr.rank > rr.rank OR (nr.rank = rr.rank AND n.modified > r.modified))),
 				'cascade', CASE WHEN jsonb_array_length(COALESCE(r.sources, '[]')) > 0 THEN true END,
 				'ignored', CASE WHEN r.metadata->>'ignored' = 'true' THEN true END
 			))

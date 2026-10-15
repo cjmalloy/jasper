@@ -185,9 +185,7 @@ public class Meta {
 		ref.getMetadata().setNewReaction(newReaction(rootOrigin, ref, original == null ? null : original.getNewReaction()));
 		keepOtherOriginUserUrls(rootOrigin, original, ref.getMetadata());
 		ref.getMetadata().setIgnored(original != null && original.isIgnored());
-		ref.getMetadata().setObsolete(!pinned(rootOrigin, ref) && (
-			pinned(rootOrigin) && refRepository.pinnedExists(ref.getUrl(), rootOrigin) ||
-			refRepository.newerExists(ref.getUrl(), rootOrigin, ref.getModified())));
+		ref.getMetadata().setObsolete(refRepository.higherRankExists(ref.getUrl(), rootOrigin, pinned(rootOrigin), rank(rootOrigin, ref), ref.getModified()));
 		if (ref.getMetadata().isObsolete()) return;
 		refRepository.updateObsolete(ref.getUrl(), rootOrigin, pinned(rootOrigin));
 		var sources = (ref.getSources() == null ? List.<String>of() : ref.getSources())
@@ -431,16 +429,19 @@ logger.error("{} Error updating source metadata for ({}) {}", rootOrigin, ref.ge
 	}
 
 	/**
-	 * Refs tagged plugin/pinned are never marked obsolete while the plugin is installed,
-	 * and every other version of a pinned Ref is obsolete, even if newer.
-	 * Only Refs in the root origin may be pinned, Refs from remotes ignore plugin/pinned.
+	 * Refs are only ranked by plugin/pinned if the plugin is installed in the root origin.
 	 */
 	private boolean pinned(String rootOrigin) {
 		return configs.getPlugin("plugin/pinned", rootOrigin).isPresent();
 	}
 
-	private boolean pinned(String rootOrigin, Ref ref) {
-		return ref.getOrigin().equals(rootOrigin) && ref.hasTag("plugin/pinned") && pinned(rootOrigin);
+	/**
+	 * Only the highest ranked version of a Ref is not obsolete, the newest version wins within a rank.
+	 * @return 2 if pinned in the root origin, 1 if pinned in another origin, otherwise 0
+	 */
+	private int rank(String rootOrigin, Ref ref) {
+		if (!ref.hasTag("plugin/pinned") || !pinned(rootOrigin)) return 0;
+		return ref.getOrigin().equals(rootOrigin) ? 2 : 1;
 	}
 
 	/**
