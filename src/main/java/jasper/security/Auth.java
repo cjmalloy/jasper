@@ -358,6 +358,23 @@ public class Auth {
 	}
 
 	/**
+	 * Can the user subscribe to updates of a Ref. The topic receives updates
+	 * for the URL in this origin and all sub origins.
+	 */
+	public boolean canSubscribeToRef(String url, String origin) {
+		if (canReadRef(url, origin)) return true;
+		// Only origin and sub origins can be read
+		if (!subOrigin(origin)) return false;
+		// Min Role
+		if (!minRole()) return false;
+		// An existing Ref in this origin must be readable
+		if (refRepository.existsByUrlAndOrigin(url, origin)) return false;
+		// Otherwise every copy in a sub origin must be readable
+		var refs = refRepository.findAllByUrlUnderOrigin(url, origin);
+		return !refs.isEmpty() && refs.stream().allMatch(this::canReadRef);
+	}
+
+	/**
 	 * Can subscribe to STOMP topic.
 	 */
 	public boolean canSubscribeTo(String destination) {
@@ -381,7 +398,7 @@ public class Auth {
 			if (origin.equals("default")) origin = "";
 			var url = topic.substring(topic.indexOf('/') + 1);
 			var decodedUrl = decode(url, StandardCharsets.UTF_8);
-			return canReadRef(decodedUrl, origin);
+			return canSubscribeToRef(decodedUrl, origin);
 		} else if (destination.startsWith("/topic/response/")) {
 			var topic = destination.substring("/topic/response/".length());
 			var origin = topic.substring(0, topic.indexOf('/'));

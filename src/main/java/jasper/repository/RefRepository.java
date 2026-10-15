@@ -26,6 +26,12 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 	void deleteByUrlAndOrigin(String url, String origin);
 	boolean existsByUrlAndOrigin(String url, String origin);
 
+	@Query("""
+		FROM Ref r
+		WHERE r.url = :url
+			AND (:origin = '' OR r.origin = :origin OR r.origin LIKE concat(:origin, '.%'))""")
+	List<Ref> findAllByUrlUnderOrigin(String url, String origin);
+
 	@Modifying
 	@Query("""
 		UPDATE Ref SET
