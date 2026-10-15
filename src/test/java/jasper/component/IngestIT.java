@@ -106,11 +106,63 @@ public class IngestIT {
 		ingest.create("", remote);
 
 		assertThat(refRepository.findOneByUrlAndOrigin(URL, "").get().getMetadata().isObsolete()).isFalse();
-		assertThat(refRepository.findOneByUrlAndOrigin(URL, "@remote").get().getMetadata().isObsolete()).isFalse();
+		assertThat(refRepository.findOneByUrlAndOrigin(URL, "@remote").get().getMetadata().isObsolete()).isTrue();
 
 		var regen = refRepository.findOneByUrlAndOrigin(URL, "").get();
 		meta.regen("", regen);
 		assertThat(regen.getMetadata().isObsolete()).isFalse();
+		var regenRemote = refRepository.findOneByUrlAndOrigin(URL, "@remote").get();
+		meta.regen("", regenRemote);
+		assertThat(regenRemote.getMetadata().isObsolete()).isTrue();
+
+		TimeUnit.MILLISECONDS.sleep(1);
+
+		var remoteUpdate = new Ref();
+		remoteUpdate.setUrl(URL);
+		remoteUpdate.setOrigin("@remote");
+		remoteUpdate.setTitle("Remote Updated");
+		remoteUpdate.setModified(refRepository.findOneByUrlAndOrigin(URL, "@remote").get().getModified());
+		ingest.update("", remoteUpdate);
+
+		assertThat(refRepository.findOneByUrlAndOrigin(URL, "").get().getMetadata().isObsolete()).isFalse();
+		assertThat(refRepository.findOneByUrlAndOrigin(URL, "@remote").get().getMetadata().isObsolete()).isTrue();
+	}
+
+	@Test
+	void testUnpinnedBecomesObsolete() throws InterruptedException {
+		installPinned();
+		var pinned = new Ref();
+		pinned.setUrl(URL);
+		pinned.setTags(new ArrayList<>(List.of("plugin/pinned")));
+		ingest.create("", pinned);
+
+		TimeUnit.MILLISECONDS.sleep(1);
+
+		var remote = new Ref();
+		remote.setUrl(URL);
+		remote.setOrigin("@remote");
+		ingest.create("", remote);
+
+		TimeUnit.MILLISECONDS.sleep(1);
+
+		var unpin = new Ref();
+		unpin.setUrl(URL);
+		unpin.setModified(refRepository.findOneByUrlAndOrigin(URL, "").get().getModified());
+		ingest.update("", unpin);
+
+		assertThat(refRepository.findOneByUrlAndOrigin(URL, "").get().getMetadata().isObsolete()).isFalse();
+		assertThat(refRepository.findOneByUrlAndOrigin(URL, "@remote").get().getMetadata().isObsolete()).isTrue();
+
+		TimeUnit.MILLISECONDS.sleep(1);
+
+		var remoteUpdate = new Ref();
+		remoteUpdate.setUrl(URL);
+		remoteUpdate.setOrigin("@remote");
+		remoteUpdate.setModified(refRepository.findOneByUrlAndOrigin(URL, "@remote").get().getModified());
+		ingest.update("", remoteUpdate);
+
+		assertThat(refRepository.findOneByUrlAndOrigin(URL, "").get().getMetadata().isObsolete()).isTrue();
+		assertThat(refRepository.findOneByUrlAndOrigin(URL, "@remote").get().getMetadata().isObsolete()).isFalse();
 	}
 
 	@Test

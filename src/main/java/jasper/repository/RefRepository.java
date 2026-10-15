@@ -236,6 +236,13 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 					AND r.origin = :rootOrigin
 					AND jsonb_exists(COALESCE(jsonb_object_field(r.metadata, 'expandedTags'), r.tags, cast_to_jsonb('[]')), 'plugin/pinned') = true
 				THEN cast_to_jsonb('false')
+				WHEN :pinned = true AND EXISTS (
+					SELECT 1 FROM Ref p
+					WHERE p.url = :url
+						AND p.origin = :rootOrigin
+						AND jsonb_exists(COALESCE(jsonb_object_field(p.metadata, 'expandedTags'), p.tags, cast_to_jsonb('[]')), 'plugin/pinned') = true
+				)
+				THEN cast_to_jsonb('true')
 				WHEN r.modified = (
 					SELECT MAX(r2.modified)
 					FROM Ref r2
@@ -258,6 +265,13 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 			AND r.modified > :newerThan
 			AND (:rootOrigin = '' OR r.origin = :rootOrigin OR r.origin LIKE concat(:rootOrigin, '.%'))""")
 	boolean newerExists(String url, String rootOrigin, Instant newerThan);
+
+	@Query("""
+		SELECT CASE WHEN COUNT(r) > 0 THEN true ELSE false END FROM Ref r
+		WHERE r.url = :url
+			AND r.origin = :rootOrigin
+			AND jsonb_exists(COALESCE(jsonb_object_field(r.metadata, 'expandedTags'), r.tags, cast_to_jsonb('[]')), 'plugin/pinned') = true""")
+	boolean pinnedExists(String url, String rootOrigin);
 
 	@Modifying(clearAutomatically = true, flushAutomatically = true)
 	@Transactional

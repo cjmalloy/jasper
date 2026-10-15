@@ -571,7 +571,7 @@ public class BackfillRepositoryIT {
 		while (backfillRepository.backfillMetadata("", 10) > 0);
 
 		assertThat(obsoleteFlag(pinned)).isEqualTo("false");
-		assertThat(obsoleteFlag(newer)).isEqualTo("false");
+		assertThat(obsoleteFlag(newer)).isEqualTo("true");
 		assertThat(obsoleteFlag(remotePinned)).isEqualTo("true");
 		assertThat(obsoleteFlag(local)).isEqualTo("false");
 	}

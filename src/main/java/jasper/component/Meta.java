@@ -185,7 +185,9 @@ public class Meta {
 		ref.getMetadata().setNewReaction(newReaction(rootOrigin, ref, original == null ? null : original.getNewReaction()));
 		keepOtherOriginUserUrls(rootOrigin, original, ref.getMetadata());
 		ref.getMetadata().setIgnored(original != null && original.isIgnored());
-		ref.getMetadata().setObsolete(!pinned(rootOrigin, ref) && refRepository.newerExists(ref.getUrl(), rootOrigin, ref.getModified()));
+		ref.getMetadata().setObsolete(!pinned(rootOrigin, ref) && (
+			pinned(rootOrigin) && refRepository.pinnedExists(ref.getUrl(), rootOrigin) ||
+			refRepository.newerExists(ref.getUrl(), rootOrigin, ref.getModified())));
 		if (ref.getMetadata().isObsolete()) return;
 		refRepository.updateObsolete(ref.getUrl(), rootOrigin, pinned(rootOrigin));
 		var sources = (ref.getSources() == null ? List.<String>of() : ref.getSources())
@@ -429,7 +431,8 @@ logger.error("{} Error updating source metadata for ({}) {}", rootOrigin, ref.ge
 	}
 
 	/**
-	 * Refs tagged plugin/pinned are never marked obsolete while the plugin is installed.
+	 * Refs tagged plugin/pinned are never marked obsolete while the plugin is installed,
+	 * and every other version of a pinned Ref is obsolete, even if newer.
 	 * Only Refs in the root origin may be pinned, Refs from remotes ignore plugin/pinned.
 	 */
 	private boolean pinned(String rootOrigin) {
