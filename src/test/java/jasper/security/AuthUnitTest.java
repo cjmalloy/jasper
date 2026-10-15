@@ -109,8 +109,6 @@ public class AuthUnitTest {
 		for (var ref : refs) {
 			when(mock.findOneByUrlAndOrigin(ref.getUrl(), ref.getOrigin()))
 				.thenReturn(Optional.of(ref));
-			when(mock.existsByUrlAndOrigin(ref.getUrl(), ref.getOrigin()))
-				.thenReturn(true);
 		}
 		when(mock.findAllByUrlUnderOrigin(anyString(), anyString()))
 			.thenAnswer(i -> Arrays.stream(refs)
@@ -1353,6 +1351,17 @@ public class AuthUnitTest {
 	void testCanSubscribeTo_RefParentOriginFailed() {
 		var ref = getRef("public");
 		ref.setOrigin("");
+		var auth = getAuth("@sub", getUser("+user/test"), EDITOR);
+		auth.refRepository = getRefRepo(ref);
+
+		assertThat(auth.canSubscribeTo(REF_TOPIC.formatted("default")))
+			.isFalse();
+	}
+
+	@Test
+	void testCanSubscribeTo_RefOnlyInSubOriginParentOriginFailed() {
+		var ref = getRef("public");
+		ref.setOrigin("@sub");
 		var auth = getAuth("@sub", getUser("+user/test"), EDITOR);
 		auth.refRepository = getRefRepo(ref);
 

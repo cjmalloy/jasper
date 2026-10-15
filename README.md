@@ -856,6 +856,8 @@ Some public tags have special significance:
 Users only have read-access to their own origin and sub-origins.
 For example, if a tenant has origin `@test`, they can also read `@test.other`. As usual, writing to
 origins other than your own is never allowed.
+A websocket topic for an origin also receives updates from its sub-origins. You can subscribe to a Ref's
+topic if you can read the Ref in that origin, or if it only exists in sub-origins and you can read every copy.
 
 ### Access Tokens
 When running the system with JWT authentication, roles may be added as claims.  

@@ -358,18 +358,14 @@ public class Auth {
 	}
 
 	/**
-	 * Can the user subscribe to updates of a Ref. The topic receives updates
-	 * for the URL in this origin and all sub origins.
+	 * Can the user subscribe to Ref updates.
+	 * The topic also receives updates from sub origins, so if the Ref is not
+	 * readable in this origin, every copy under this origin must be readable.
 	 */
 	public boolean canSubscribeToRef(String url, String origin) {
 		if (canReadRef(url, origin)) return true;
 		// Only origin and sub origins can be read
 		if (!subOrigin(origin)) return false;
-		// Min Role
-		if (!minRole()) return false;
-		// An existing Ref in this origin must be readable
-		if (refRepository.existsByUrlAndOrigin(url, origin)) return false;
-		// Otherwise every copy in a sub origin must be readable
 		var refs = refRepository.findAllByUrlUnderOrigin(url, origin);
 		return !refs.isEmpty() && refs.stream().allMatch(this::canReadRef);
 	}
