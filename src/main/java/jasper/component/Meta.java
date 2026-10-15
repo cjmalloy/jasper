@@ -185,9 +185,9 @@ public class Meta {
 		ref.getMetadata().setNewReaction(newReaction(rootOrigin, ref, original == null ? null : original.getNewReaction()));
 		keepOtherOriginUserUrls(rootOrigin, original, ref.getMetadata());
 		ref.getMetadata().setIgnored(original != null && original.isIgnored());
-		ref.getMetadata().setObsolete(refRepository.newerExists(ref.getUrl(), rootOrigin, ref.getModified()));
+		ref.getMetadata().setObsolete(!pinned(rootOrigin, ref) && refRepository.newerExists(ref.getUrl(), rootOrigin, ref.getModified()));
 		if (ref.getMetadata().isObsolete()) return;
-		refRepository.updateObsolete(ref.getUrl(), rootOrigin);
+		refRepository.updateObsolete(ref.getUrl(), rootOrigin, pinned(rootOrigin));
 		var sources = (ref.getSources() == null ? List.<String>of() : ref.getSources())
 			.stream()
 			.limit(SYNC_SOURCES)
@@ -306,7 +306,7 @@ public class Meta {
 
 		// Creating or updating (not deleting)
 		var cascade = false;
-		refRepository.updateObsolete(ref.getUrl(), rootOrigin);
+		refRepository.updateObsolete(ref.getUrl(), rootOrigin, pinned(rootOrigin));
 		if (ref.getSources() != null && ref.getSources().size() > limit) {
 			cascade = true;
 		}
@@ -426,6 +426,18 @@ logger.error("{} Error updating source metadata for ({}) {}", rootOrigin, ref.ge
 	private static String rootUserUrl(String rootOrigin, String url, String origin) {
 		if (!origin.equals(rootOrigin)) return null;
 		return qualifiedUserUrl(url, origin);
+	}
+
+	/**
+	 * Refs tagged plugin/pinned are never marked obsolete while the plugin is installed.
+	 * Only Refs in the root origin may be pinned, Refs from remotes ignore plugin/pinned.
+	 */
+	private boolean pinned(String rootOrigin) {
+		return configs.getPlugin("plugin/pinned", rootOrigin).isPresent();
+	}
+
+	private boolean pinned(String rootOrigin, Ref ref) {
+		return ref.getOrigin().equals(rootOrigin) && ref.hasTag("plugin/pinned") && pinned(rootOrigin);
 	}
 
 	/**

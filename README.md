@@ -911,7 +911,9 @@ Jasper generates the following metadata in Refs:
    Protected and private user URLs (`tag:/+user/alice` and `tag:/_user/alice`) are recorded as `tag:/user/alice`.
    Regenerating metadata for an origin only rebuilds the user URLs of that origin, user URLs from other
    origins are kept.
- * Obsolete: flag set if another origin contains the newest version of this Ref
+ * Obsolete: flag set if another origin contains the newest version of this Ref. If the `plugin/pinned` plugin is
+   installed, Refs in the root origin tagged `plugin/pinned` are never marked obsolete. Refs from remotes ignore
+   `plugin/pinned`, otherwise a remote could keep stale versions from ever being replaced.
 
 Metadata is never transferred during replication. A simplified version is sent over the client API, with
 counts for each response type, total plugin response counts from all origins (`remotePlugins`), and user plugin

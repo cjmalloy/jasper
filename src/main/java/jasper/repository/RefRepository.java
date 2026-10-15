@@ -232,6 +232,10 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 			coalesce(r.metadata, cast_to_jsonb('{}')),
 			'{obsolete}',
 			CASE
+				WHEN :pinned = true
+					AND r.origin = :rootOrigin
+					AND jsonb_exists(COALESCE(jsonb_object_field(r.metadata, 'expandedTags'), r.tags, cast_to_jsonb('[]')), 'plugin/pinned') = true
+				THEN cast_to_jsonb('false')
 				WHEN r.modified = (
 					SELECT MAX(r2.modified)
 					FROM Ref r2
@@ -246,7 +250,7 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 		WHERE r.url = :url
 			AND (:rootOrigin = '' OR r.origin = :rootOrigin OR r.origin LIKE CONCAT(:rootOrigin, '.%'))
 		""")
-	int updateObsolete(String url, String rootOrigin);
+	int updateObsolete(String url, String rootOrigin, boolean pinned);
 
 	@Query("""
 		SELECT CASE WHEN COUNT(r) > 0 THEN true ELSE false END FROM Ref r
