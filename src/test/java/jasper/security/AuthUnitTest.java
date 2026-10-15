@@ -23,7 +23,6 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import static jasper.domain.proj.HasOrigin.isSubOrigin;
 import static jasper.repository.spec.QualifiedTag.qt;
 import static jasper.repository.spec.QualifiedTag.selector;
 import static jasper.security.AuthoritiesConstants.ANONYMOUS;
@@ -110,11 +109,6 @@ public class AuthUnitTest {
 			when(mock.findOneByUrlAndOrigin(ref.getUrl(), ref.getOrigin()))
 				.thenReturn(Optional.of(ref));
 		}
-		when(mock.findAllByUrlUnderOrigin(anyString(), anyString()))
-			.thenAnswer(i -> Arrays.stream(refs)
-				.filter(r -> r.getUrl().equals(i.getArgument(0)))
-				.filter(r -> isSubOrigin(i.getArgument(1), r.getOrigin()))
-				.toList());
 		return mock;
 	}
 
@@ -1272,100 +1266,6 @@ public class AuthUnitTest {
 		var aliceMod = getUser("+user/alice");
 		aliceMod.getWriteAccess().add("_custom");
 		assertThat(auth.canWriteUser(aliceMod))
-			.isFalse();
-	}
-
-	static final String REF_TOPIC = "/topic/ref/%s/https%%3A%%2F%%2Fjasperkm.info%%2F";
-
-	@Test
-	void testCanSubscribeTo_Ref() {
-		var ref = getRef("public");
-		ref.setOrigin("");
-		var auth = getAuth(getUser("+user/test"), EDITOR);
-		auth.refRepository = getRefRepo(ref);
-
-		assertThat(auth.canSubscribeTo(REF_TOPIC.formatted("default")))
-			.isTrue();
-	}
-
-	@Test
-	void testCanSubscribeTo_RefSubOrigin() {
-		var ref = getRef("public");
-		ref.setOrigin("@sub");
-		var auth = getAuth(getUser("+user/test"), EDITOR);
-		auth.refRepository = getRefRepo(ref);
-
-		assertThat(auth.canSubscribeTo(REF_TOPIC.formatted("@sub")))
-			.isTrue();
-	}
-
-	@Test
-	void testCanSubscribeTo_RefOnlyInSubOrigin() {
-		var ref = getRef("public");
-		ref.setOrigin("@sub");
-		var auth = getAuth(getUser("+user/test"), EDITOR);
-		auth.refRepository = getRefRepo(ref);
-
-		assertThat(auth.canSubscribeTo(REF_TOPIC.formatted("default")))
-			.isTrue();
-	}
-
-	@Test
-	void testCanSubscribeTo_RefOnlyInPrivateSubOriginFailed() {
-		var pub = getRef("public");
-		pub.setOrigin("@sub");
-		var priv = getRef("+custom");
-		priv.setOrigin("@other");
-		var auth = getAuth(getUser("+user/test"), EDITOR);
-		auth.refRepository = getRefRepo(pub, priv);
-
-		assertThat(auth.canSubscribeTo(REF_TOPIC.formatted("default")))
-			.isFalse();
-	}
-
-	@Test
-	void testCanSubscribeTo_PrivateRefWithPublicSubOriginFailed() {
-		var priv = getRef("+custom");
-		priv.setOrigin("");
-		var pub = getRef("public");
-		pub.setOrigin("@sub");
-		var auth = getAuth(getUser("+user/test"), EDITOR);
-		auth.refRepository = getRefRepo(priv, pub);
-
-		assertThat(auth.canSubscribeTo(REF_TOPIC.formatted("default")))
-			.isFalse();
-	}
-
-	@Test
-	void testCanSubscribeTo_MissingRefFailed() {
-		var ref = getRef("public");
-		ref.setOrigin("@sub");
-		var auth = getAuth(getUser("+user/test"), EDITOR);
-		auth.refRepository = getRefRepo(ref);
-
-		assertThat(auth.canSubscribeTo(REF_TOPIC.formatted("@other")))
-			.isFalse();
-	}
-
-	@Test
-	void testCanSubscribeTo_RefParentOriginFailed() {
-		var ref = getRef("public");
-		ref.setOrigin("");
-		var auth = getAuth("@sub", getUser("+user/test"), EDITOR);
-		auth.refRepository = getRefRepo(ref);
-
-		assertThat(auth.canSubscribeTo(REF_TOPIC.formatted("default")))
-			.isFalse();
-	}
-
-	@Test
-	void testCanSubscribeTo_RefOnlyInSubOriginParentOriginFailed() {
-		var ref = getRef("public");
-		ref.setOrigin("@sub");
-		var auth = getAuth("@sub", getUser("+user/test"), EDITOR);
-		auth.refRepository = getRefRepo(ref);
-
-		assertThat(auth.canSubscribeTo(REF_TOPIC.formatted("default")))
 			.isFalse();
 	}
 }

@@ -864,27 +864,4 @@ public class RefRepositoryIT {
 			.extracting(Ref::getUrl)
 			.containsExactly("http://example.com/bare");
 	}
-
-	// --- findAllByUrlUnderOrigin ---
-
-	@Test
-	void testFindAllByUrlUnderOrigin() {
-		for (var origin : List.of("", "@sub", "@sub.child", "@subway", "@other")) {
-			var ref = new Ref();
-			ref.setUrl("http://example.com/under");
-			ref.setOrigin(origin);
-			refRepository.save(ref);
-		}
-		var other = new Ref();
-		other.setUrl("http://example.com/different");
-		other.setOrigin("@sub");
-		refRepository.save(other);
-
-		assertThat(refRepository.findAllByUrlUnderOrigin("http://example.com/under", "@sub"))
-			.extracting(Ref::getOrigin)
-			.containsExactlyInAnyOrder("@sub", "@sub.child");
-		assertThat(refRepository.findAllByUrlUnderOrigin("http://example.com/under", ""))
-			.extracting(Ref::getOrigin)
-			.containsExactlyInAnyOrder("", "@sub", "@sub.child", "@subway", "@other");
-	}
 }
