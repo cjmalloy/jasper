@@ -381,7 +381,12 @@ public class Auth {
 			if (origin.equals("default")) origin = "";
 			var url = topic.substring(topic.indexOf('/') + 1);
 			var decodedUrl = decode(url, StandardCharsets.UTF_8);
-			return canReadRef(decodedUrl, origin);
+			// Tag URLs are checked against the tag, existing Refs against the Ref
+			if (tagUrl(decodedUrl) || refRepository.existsByUrlAndOrigin(decodedUrl, origin)) {
+				return canReadRef(decodedUrl, origin);
+			}
+			// Allow watching for a Ref to be created in a readable origin
+			return canReadOrigin(origin);
 		} else if (destination.startsWith("/topic/response/")) {
 			var topic = destination.substring("/topic/response/".length());
 			var origin = topic.substring(0, topic.indexOf('/'));
