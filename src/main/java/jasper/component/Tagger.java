@@ -173,8 +173,7 @@ public class Tagger {
 			if (!enabled || max <= 0) return;
 			if (now().isBefore(last.plus(PROGRESS_THROTTLE))) return;
 			last = now();
-			written = true;
-			setProgress(url, origin, "plugin/progress/" + max(0, min(value, max)) + "/" + max);
+			if (setProgress(url, origin, "plugin/progress/" + max(0, min(value, max)) + "/" + max)) written = true;
 		}
 
 		@Override
@@ -186,18 +185,21 @@ public class Tagger {
 	/**
 	 * Progress is written silently: it does not move the modified cursor, so it
 	 * cannot trigger push on change or conflict with the job's own updates.
+	 * @return true if this call wrote the tag
 	 */
-	void setProgress(String url, String origin, String progress) {
+	boolean setProgress(String url, String origin, String progress) {
 		try {
 			var maybeRef = refRepository.findOneByUrlAndOrigin(url, origin);
-			if (maybeRef.isEmpty()) return;
+			if (maybeRef.isEmpty()) return false;
 			var ref = maybeRef.get();
-			if (progress == null ? !ref.hasTag("plugin/progress") : ref.hasTag(progress)) return;
+			if (progress == null ? !ref.hasTag("plugin/progress") : ref.hasTag(progress)) return false;
 			ref.removeTag("plugin/progress");
 			ref.addTag(progress);
 			ingest.silent(origin, ref);
+			return true;
 		} catch (Exception e) {
 			logger.warn("{} Failed to update progress {} on {}", origin, progress, url, e);
+			return false;
 		}
 	}
 

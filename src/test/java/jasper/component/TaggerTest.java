@@ -267,4 +267,34 @@ public class TaggerTest {
 		verify(ingest, times(2)).silent(eq(""), saved.capture());
 		assertThat(saved.getValue().getTags()).containsExactly("public");
 	}
+
+	@Test
+	void testProgressDoesNotClearTagItDidNotWrite() {
+		when(tagger.configs.getPlugin("plugin/progress", "")).thenReturn(Optional.of(new Plugin()));
+		var ref = from(URL, "", "public", "plugin/progress/1/2");
+		when(refRepository.findOneByUrlAndOrigin(URL, "")).thenReturn(Optional.of(ref));
+
+		try (var progress = tagger.progress(URL, "")) {
+			progress.last = Instant.EPOCH;
+			progress.update(1, 2);
+		}
+
+		verify(ingest, never()).silent(any(), any(Ref.class));
+		assertThat(ref.getTags()).containsExactly("public", "plugin/progress/1/2");
+	}
+
+	@Test
+	void testProgressDoesNotClearAfterFailedWrite() {
+		when(tagger.configs.getPlugin("plugin/progress", "")).thenReturn(Optional.of(new Plugin()));
+		when(refRepository.findOneByUrlAndOrigin(URL, "")).thenReturn(Optional.of(from(URL, "", "public")));
+		doThrow(new RuntimeException("fail")).when(ingest).silent(eq(""), any(Ref.class));
+
+		try (var progress = tagger.progress(URL, "")) {
+			progress.last = Instant.EPOCH;
+			progress.update(1, 2);
+			when(refRepository.findOneByUrlAndOrigin(URL, "")).thenReturn(Optional.of(from(URL, "", "public", "plugin/progress/1/2")));
+		}
+
+		verify(ingest, times(1)).silent(eq(""), any(Ref.class));
+	}
 }
