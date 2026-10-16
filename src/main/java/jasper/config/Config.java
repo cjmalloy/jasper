@@ -97,7 +97,8 @@ public interface Config {
 		@Builder.Default
 		private int maxPullEntityBatch = 5000;
 		/**
-		 * Whitelist selectors to run scripts on. No origin wildcards.
+		 * Whitelist selectors to run scripts on.
+		 * Supports "@*" and "@origin.*" wildcards, matching one nesting level.
 		 */
 		@Builder.Default
 		private List<String> scriptSelectors = List.of("");
