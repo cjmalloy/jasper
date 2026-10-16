@@ -35,10 +35,12 @@ import org.springframework.stereotype.Component;
 import javax.net.ssl.SSLHandshakeException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 import static jasper.client.JasperClient.params;
@@ -116,6 +118,12 @@ public class Replicator {
 
 	private record Log(String title, String message) {}
 
+	/**
+	 * Plugins, templates, refs, exts and users.
+	 */
+	private static final int STAGES = 5;
+	private static final int STAGE_STEPS = 100;
+
 	@Timed(value = "jasper.repl", histogram = true)
 	public Fetch.FileRequest fetch(String url, HasTags remote) {
 		var root = configs.root();
@@ -192,8 +200,9 @@ public class Replicator {
 		var defaultBatchSize = pull.getBatchSize() == 0 ? root.getMaxReplEntityBatch() : min(pull.getBatchSize(), root.getMaxPullEntityBatch());
 		var logs = new ArrayList<Log>();
 		tunnel.proxy(remote, baseUri -> {
+			var progress = tagger.progress(remote.getUrl(), remote.getOrigin());
 			try {
-				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, () -> pluginRepository.getCursor(localOrigin), false, (skip, size, after) -> {
+				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, () -> pluginRepository.getCursor(localOrigin), false, cursorProgress(remote.getOrigin(), progress, 0, () -> client.pluginCursor(baseUri, remoteOrigin)), (skip, size, after) -> {
 					var pluginList = client.pluginPull(baseUri, params(
 						"size", size,
 						"origin", remoteOrigin,
@@ -227,7 +236,7 @@ public class Replicator {
 					}
 					return pluginList;
 				}));
-				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, () -> templateRepository.getCursor(localOrigin), false, (skip, size, after) -> {
+				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, () -> templateRepository.getCursor(localOrigin), false, cursorProgress(remote.getOrigin(), progress, 1, () -> client.templateCursor(baseUri, remoteOrigin)), (skip, size, after) -> {
 					var templateList = client.templatePull(baseUri, params(
 						"size", size,
 						"origin", remoteOrigin,
@@ -261,7 +270,7 @@ public class Replicator {
 					}
 					return templateList;
 				}));
-				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, () -> refRepository.getCursor(localOrigin), false, (skip, size, after) -> {
+				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, () -> refRepository.getCursor(localOrigin), false, cursorProgress(remote.getOrigin(), progress, 2, () -> client.refCursor(baseUri, remoteOrigin)), (skip, size, after) -> {
 					logger.trace("{} Pulling batch {}", localOrigin, size);
 					var refList = client.refPull(baseUri, params(
 						"query", pull.getQuery(),
@@ -311,7 +320,7 @@ public class Replicator {
 					}
 					return refList;
 				}));
-				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, () -> extRepository.getCursor(localOrigin), false, (skip, size, after) -> {
+				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, () -> extRepository.getCursor(localOrigin), false, cursorProgress(remote.getOrigin(), progress, 3, () -> client.extCursor(baseUri, remoteOrigin)), (skip, size, after) -> {
 					var extList = client.extPull(baseUri, params(
 						"size", size,
 						"origin", remoteOrigin,
@@ -344,7 +353,7 @@ public class Replicator {
 					}
 					return extList;
 				}));
-				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, () -> userRepository.getCursor(localOrigin), false, (skip, size, after) -> {
+				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, () -> userRepository.getCursor(localOrigin), false, cursorProgress(remote.getOrigin(), progress, 4, () -> client.userCursor(baseUri, remoteOrigin)), (skip, size, after) -> {
 					var userList = client.userPull(baseUri, params(
 						"size", size,
 						"origin", remoteOrigin,
@@ -391,6 +400,7 @@ public class Replicator {
 					"Fatal error pulling %s from origin (%s) %s: %s".formatted(
 						localOrigin, remoteOrigin, remote.getTitle(), remote.getUrl()), getMessage(e));
 			} finally {
+				progress.close();
 				for (var log : logs) tagger.attachLogs(remote.getOrigin(), remote, log.title, log.message);
 			}
 		});
@@ -408,9 +418,10 @@ public class Replicator {
 		var remoteOrigin = origin(config.getRemote());
 		var logs = new ArrayList<Log>();
 		tunnel.proxy(remote, baseUri -> {
+			var progress = tagger.progress(remote.getUrl(), remote.getOrigin());
 			try {
 				var defaultBatchSize = push.getBatchSize() == 0 ? root.getMaxReplEntityBatch() : min(push.getBatchSize(), root.getMaxPushEntityBatch());
-				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, () -> client.pluginCursor(baseUri, remoteOrigin), true, (skip, size, after) -> {
+				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, () -> client.pluginCursor(baseUri, remoteOrigin), true, cursorProgress(remote.getOrigin(), progress, 0, () -> pluginRepository.getCursor(localOrigin)), (skip, size, after) -> {
 					var pluginList = pluginRepository.findAll(
 							TagFilter.builder()
 								.origin(localOrigin)
@@ -425,7 +436,7 @@ public class Replicator {
 					}
 					return pluginList;
 				}));
-				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, () -> client.templateCursor(baseUri, remoteOrigin), true, (skip, size, after) -> {
+				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, () -> client.templateCursor(baseUri, remoteOrigin), true, cursorProgress(remote.getOrigin(), progress, 1, () -> templateRepository.getCursor(localOrigin)), (skip, size, after) -> {
 					var templateList = templateRepository.findAll(
 							TagFilter.builder()
 								.origin(localOrigin)
@@ -440,7 +451,7 @@ public class Replicator {
 					}
 					return templateList;
 				}));
-				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, () -> client.refCursor(baseUri, remoteOrigin), true, (skip, size, after) -> {
+				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, () -> client.refCursor(baseUri, remoteOrigin), true, cursorProgress(remote.getOrigin(), progress, 2, () -> refRepository.getCursor(localOrigin)), (skip, size, after) -> {
 					var refList = refRepository.findAll(
 							RefFilter.builder()
 								.origin(localOrigin)
@@ -489,7 +500,7 @@ public class Replicator {
 					}
 					return refList;
 				}));
-				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, () -> client.extCursor(baseUri, remoteOrigin), true, (skip, size, after) -> {
+				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, () -> client.extCursor(baseUri, remoteOrigin), true, cursorProgress(remote.getOrigin(), progress, 3, () -> extRepository.getCursor(localOrigin)), (skip, size, after) -> {
 					var extList = extRepository.findAll(
 							TagFilter.builder()
 								.origin(localOrigin)
@@ -504,7 +515,7 @@ public class Replicator {
 					}
 					return extList;
 				}));
-				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, () -> client.userCursor(baseUri, remoteOrigin), true, (skip, size, after) -> {
+				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, () -> client.userCursor(baseUri, remoteOrigin), true, cursorProgress(remote.getOrigin(), progress, 4, () -> userRepository.getCursor(localOrigin)), (skip, size, after) -> {
 					var userList = userRepository.findAll(
 							TagFilter.builder()
 								.origin(localOrigin)
@@ -537,9 +548,37 @@ public class Replicator {
 					"Fatal error pushing %s to origin (%s) %s: %s".formatted(
 						localOrigin, remoteOrigin, remote.getTitle(), remote.getUrl()), getMessage(e));
 			} finally {
+				progress.close();
 				for (var log : logs) tagger.attachLogs(remote.getOrigin(), remote, log.title, log.message);
 			}
 		});
+	}
+
+	/**
+	 * Estimate progress within a stage from the relative position of the cursor
+	 * between where it started and the latest modified date on the source.
+	 */
+	Consumer<Instant> cursorProgress(String origin, Tagger.Progress progress, int stage, Supplier<Instant> end) {
+		if (!progress.isEnabled()) return after -> {};
+		Instant last;
+		try {
+			last = end.get();
+		} catch (Exception e) {
+			logger.debug("{} Could not get cursor for progress estimate", origin, e);
+			last = null;
+		}
+		var latest = last;
+		var start = new Instant[1];
+		return after -> {
+			if (start[0] == null) start[0] = after;
+			var value = stage * STAGE_STEPS;
+			if (after != null && start[0] != null && latest != null && latest.isAfter(start[0])) {
+				var total = Duration.between(start[0], latest).toMillis();
+				var done = Duration.between(start[0], after).toMillis();
+				value += (int) max(0, min(STAGE_STEPS - 1, done * STAGE_STEPS / max(1, total)));
+			}
+			progress.update(value, STAGES * STAGE_STEPS);
+		};
 	}
 
 	/**
@@ -549,8 +588,9 @@ public class Replicator {
 	 * Every batch must advance the cursor, so this always terminates.
 	 * @param cursor the starting cursor, fetched with the same error rules as a batch
 	 * @param canSkip pulling can't skip an entity on the remote, so a 413 with a batch size of 1 is fatal
+	 * @param onBatch called with the cursor before each batch
 	 */
-	private List<Log> expBackoff(String origin, int batchSize, Supplier<Instant> cursor, boolean canSkip, ExpBackoff fn) {
+	private List<Log> expBackoff(String origin, int batchSize, Supplier<Instant> cursor, boolean canSkip, Consumer<Instant> onBatch, ExpBackoff fn) {
 		var logs = new ArrayList<Log>();
 		Instant modifiedAfter;
 		try {
@@ -565,6 +605,7 @@ public class Replicator {
 			try {
 				logger.trace("{} BATCH ({}, {}): {}",
 					origin, skip, size, modifiedAfter);
+				onBatch.accept(modifiedAfter);
 				var list = fn.fetch(skip, size, modifiedAfter);
 				if (list == null || list.isEmpty()) return logs;
 				var next = list.getLast().getModified();

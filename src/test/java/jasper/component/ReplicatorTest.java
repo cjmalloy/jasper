@@ -94,6 +94,7 @@ class ReplicatorTest {
 		remote.setPlugin("+plugin/origin", Map.of("remote", "@target", "local", "@local"));
 		remote.setPlugin("+plugin/origin/pull", Map.of("batchSize", 2));
 		when(configs.root()).thenReturn(ServerConfig.builder().build());
+		when(tagger.progress(any(), any())).thenReturn(mock(Tagger.Progress.class));
 		doAnswer(i -> {
 			i.<TunnelClient.ProxyRequest>getArgument(1).go(URI.create(remote.getUrl()));
 			return null;

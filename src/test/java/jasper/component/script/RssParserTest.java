@@ -111,6 +111,7 @@ public class RssParserTest {
 		ReflectionTestUtils.setField(rssParser, "api", "http://localhost:8081");
 		when(httpClientFactory.getClient()).thenReturn(httpClient);
 		when(mapper.domainToDto(any(Ref.class))).thenReturn(new RefReplDto());
+		when(tagger.progress(any(), any())).thenReturn(mock(Tagger.Progress.class));
 	}
 
 	void setUpValidHttpResponse() throws Exception {
@@ -214,5 +215,49 @@ public class RssParserTest {
 
 		verify(jasperClient, never()).refPush(any(), any(), any(), any());
 		verify(tagger, never()).attachError(anyString(), anyString(), anyString(), anyString());
+	}
+
+	@Test
+	void testProgress_ReportsProcessedOfTotalIncludingSkipped() throws Exception {
+		setUpValidHttpResponse();
+		when(httpEntity.getContent()).thenAnswer(inv -> new ByteArrayInputStream("""
+			<?xml version="1.0" encoding="UTF-8"?>
+			<rss version="2.0">
+			  <channel>
+			    <title>Test Feed</title>
+			    <link>https://example.com</link>
+			    <description>Test</description>
+			    <item>
+			      <title>Entry 3</title>
+			      <link>https://example.com/entry3</link>
+			      <pubDate>Wed, 03 Jan 2024 00:00:00 GMT</pubDate>
+			    </item>
+			    <item>
+			      <title>Entry 2</title>
+			      <link>https://example.com/entry2</link>
+			      <pubDate>Tue, 02 Jan 2024 00:00:00 GMT</pubDate>
+			    </item>
+			    <item>
+			      <title>Entry 1</title>
+			      <link>https://example.com/entry1</link>
+			      <pubDate>Mon, 01 Jan 2024 00:00:00 GMT</pubDate>
+			    </item>
+			  </channel>
+			</rss>
+			""".getBytes()));
+		when(refRepository.existsByUrlAndOrigin(eq("https://example.com/entry2"), anyString())).thenReturn(true);
+		var progress = mock(Tagger.Progress.class);
+		when(tagger.progress(FEED_URL, ORIGIN)).thenReturn(progress);
+		var feed = feedWithAddTag("science", "+user/alice");
+
+		rssParser.runScript(feed, "plugin/script/feed");
+
+		var order = inOrder(progress);
+		order.verify(progress).update(0, 3);
+		order.verify(progress).update(1, 3);
+		order.verify(progress).update(2, 3);
+		order.verify(progress).close();
+		verify(progress, times(3)).update(anyInt(), anyInt());
+		verify(jasperClient, times(2)).refPush(any(), any(), any(), any());
 	}
 }
