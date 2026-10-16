@@ -134,6 +134,19 @@ class ConfigTest {
 	}
 
 	@Test
+	void testScriptWithPluginAndOrigin_WildcardMatchesOneNestingLevel() {
+		var all = Config.ServerConfig.builder()
+			.scriptSelectors(List.of("_plugin/delta/scrape@*"))
+			.build();
+		var sub = Config.ServerConfig.builder()
+			.scriptSelectors(List.of("_plugin/delta/scrape@navi.*"))
+			.build();
+
+		assertThat(all.script("_plugin/delta/scrape", "@alice.sub")).isFalse();
+		assertThat(sub.script("_plugin/delta/scrape", "@navi.sub.deep")).isFalse();
+	}
+
+	@Test
 	void testScriptWithPluginAndOrigin_EmptySelectors() {
 		var config = Config.ServerConfig.builder()
 			.scriptSelectors(null)
