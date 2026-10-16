@@ -916,6 +916,8 @@ Jasper generates the following metadata in Refs:
    versions tagged `plugin/pinned` in the root origin rank highest, followed by versions tagged `plugin/pinned` in
    other origins, followed by everything else. The newest version wins within a rank. Use the Add Tags of a
    `+plugin/origin/pull` or `plugin/script/feed` to pin everything from a remote origin or RSS feed.
+   Installing or removing `plugin/pinned` marks every Ref with a pinned version for regen, so existing versions
+   are ranked again by the backfill.
 
 Metadata is never transferred during replication. A simplified version is sent over the client API, with
 counts for each response type, total plugin response counts from all origins (`remotePlugins`), and user plugin

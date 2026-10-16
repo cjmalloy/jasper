@@ -285,6 +285,24 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 			AND (:origin = '' OR r.origin = :origin OR r.origin LIKE concat(:origin, '.%'))""")
 	void dropMetadata(String origin);
 
+	/**
+	 * Mark every version of a Ref for regen if any version has the given tag.
+	 */
+	@Modifying(clearAutomatically = true, flushAutomatically = true)
+	@Transactional
+	@Query("""
+		UPDATE Ref r
+		SET r.metadata = jsonb_set(r.metadata, '{regen}', cast_to_jsonb('true'), true)
+		WHERE r.metadata IS NOT NULL
+			AND COALESCE(jsonb_object_field_text(r.metadata, 'regen'), 'false') != 'true'
+			AND (:origin = '' OR r.origin = :origin OR r.origin LIKE concat(:origin, '.%'))
+			AND EXISTS (
+				SELECT 1 FROM Ref t
+				WHERE t.url = r.url
+					AND jsonb_exists(COALESCE(jsonb_object_field(t.metadata, 'expandedTags'), t.tags, cast_to_jsonb('[]')), :tag) = true
+					AND (:origin = '' OR t.origin = :origin OR t.origin LIKE concat(:origin, '.%')))""")
+	int regenTag(String origin, String tag);
+
 	// Latest wins: metadata is server-generated and recomputed by cascade/regen.
 	// Concurrent delta writes (addResponse/removePlugins on a stale copy) can lose
 	// an update; the next cascade/regen recompute fixes it.
