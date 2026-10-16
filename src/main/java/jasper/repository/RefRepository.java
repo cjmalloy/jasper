@@ -224,6 +224,12 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 			AND (:origin = '' OR r.origin = :origin OR r.origin LIKE concat(:origin, '.%'))""")
 	List<String> findRemovedSourceUrls(String url, String origin);
 
+	/**
+	 * Only the highest ranked version of a Ref is not obsolete.
+	 * Versions in the root origin tagged plugin/pinned rank highest, then versions in other origins
+	 * tagged plugin/pinned, then everything else. The newest version wins within a rank.
+	 * Refs are only ranked by plugin/pinned if the plugin is installed in the root origin.
+	 */
 	@Modifying
 	@Transactional
 	@Query("""
@@ -232,28 +238,42 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 			coalesce(r.metadata, cast_to_jsonb('{}')),
 			'{obsolete}',
 			CASE
-				WHEN r.modified = (
-					SELECT MAX(r2.modified)
-					FROM Ref r2
+				WHEN EXISTS (
+					SELECT 1 FROM Ref r2
 					WHERE r2.url = :url
 						AND (:rootOrigin = '' OR r2.origin = :rootOrigin OR r2.origin LIKE CONCAT(:rootOrigin, '.%'))
+						AND ((CASE WHEN :pinned = true AND jsonb_exists(COALESCE(jsonb_object_field(r2.metadata, 'expandedTags'), r2.tags, cast_to_jsonb('[]')), 'plugin/pinned') = true
+						THEN CASE WHEN r2.origin = :rootOrigin THEN 2 ELSE 1 END ELSE 0 END) > (CASE WHEN :pinned = true AND jsonb_exists(COALESCE(jsonb_object_field(r.metadata, 'expandedTags'), r.tags, cast_to_jsonb('[]')), 'plugin/pinned') = true
+						THEN CASE WHEN r.origin = :rootOrigin THEN 2 ELSE 1 END ELSE 0 END)
+							OR ((CASE WHEN :pinned = true AND jsonb_exists(COALESCE(jsonb_object_field(r2.metadata, 'expandedTags'), r2.tags, cast_to_jsonb('[]')), 'plugin/pinned') = true
+						THEN CASE WHEN r2.origin = :rootOrigin THEN 2 ELSE 1 END ELSE 0 END) = (CASE WHEN :pinned = true AND jsonb_exists(COALESCE(jsonb_object_field(r.metadata, 'expandedTags'), r.tags, cast_to_jsonb('[]')), 'plugin/pinned') = true
+						THEN CASE WHEN r.origin = :rootOrigin THEN 2 ELSE 1 END ELSE 0 END)
+								AND r2.modified > r.modified))
 				)
-				THEN cast_to_jsonb('false')
-				ELSE cast_to_jsonb('true')
+				THEN cast_to_jsonb('true')
+				ELSE cast_to_jsonb('false')
 			END,
 			true
 		)
 		WHERE r.url = :url
 			AND (:rootOrigin = '' OR r.origin = :rootOrigin OR r.origin LIKE CONCAT(:rootOrigin, '.%'))
 		""")
-	int updateObsolete(String url, String rootOrigin);
+	int updateObsolete(String url, String rootOrigin, boolean pinned);
 
+	/**
+	 * Check if a higher ranked version of a Ref exists.
+	 * @see #updateObsolete(String, String, boolean)
+	 */
 	@Query("""
 		SELECT CASE WHEN COUNT(r) > 0 THEN true ELSE false END FROM Ref r
 		WHERE r.url = :url
-			AND r.modified > :newerThan
-			AND (:rootOrigin = '' OR r.origin = :rootOrigin OR r.origin LIKE concat(:rootOrigin, '.%'))""")
-	boolean newerExists(String url, String rootOrigin, Instant newerThan);
+			AND (:rootOrigin = '' OR r.origin = :rootOrigin OR r.origin LIKE concat(:rootOrigin, '.%'))
+			AND ((CASE WHEN :pinned = true AND jsonb_exists(COALESCE(jsonb_object_field(r.metadata, 'expandedTags'), r.tags, cast_to_jsonb('[]')), 'plugin/pinned') = true
+						THEN CASE WHEN r.origin = :rootOrigin THEN 2 ELSE 1 END ELSE 0 END) > :rank
+				OR ((CASE WHEN :pinned = true AND jsonb_exists(COALESCE(jsonb_object_field(r.metadata, 'expandedTags'), r.tags, cast_to_jsonb('[]')), 'plugin/pinned') = true
+						THEN CASE WHEN r.origin = :rootOrigin THEN 2 ELSE 1 END ELSE 0 END) = :rank
+					AND r.modified > :modified))""")
+	boolean higherRankExists(String url, String rootOrigin, boolean pinned, int rank, Instant modified);
 
 	@Modifying(clearAutomatically = true, flushAutomatically = true)
 	@Transactional
@@ -264,6 +284,24 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 			AND COALESCE(jsonb_object_field_text(r.metadata, 'regen'), 'false') != 'true'
 			AND (:origin = '' OR r.origin = :origin OR r.origin LIKE concat(:origin, '.%'))""")
 	void dropMetadata(String origin);
+
+	/**
+	 * Mark every version of a Ref for regen if any version has the given tag.
+	 */
+	@Modifying(clearAutomatically = true, flushAutomatically = true)
+	@Transactional
+	@Query("""
+		UPDATE Ref r
+		SET r.metadata = jsonb_set(r.metadata, '{regen}', cast_to_jsonb('true'), true)
+		WHERE r.metadata IS NOT NULL
+			AND COALESCE(jsonb_object_field_text(r.metadata, 'regen'), 'false') != 'true'
+			AND (:origin = '' OR r.origin = :origin OR r.origin LIKE concat(:origin, '.%'))
+			AND EXISTS (
+				SELECT 1 FROM Ref t
+				WHERE t.url = r.url
+					AND jsonb_exists(COALESCE(jsonb_object_field(t.metadata, 'expandedTags'), t.tags, cast_to_jsonb('[]')), :tag) = true
+					AND (:origin = '' OR t.origin = :origin OR t.origin LIKE concat(:origin, '.%')))""")
+	int regenTag(String origin, String tag);
 
 	// Latest wins: metadata is server-generated and recomputed by cascade/regen.
 	// Concurrent delta writes (addResponse/removePlugins on a stale copy) can lose

@@ -534,6 +534,98 @@ public class BackfillRepositoryIT {
 
 	@Test
 	@DisabledOnSqlite
+	void testBackfillMetadata_PinnedRank() {
+		var plugin = new Plugin();
+		plugin.setTag("plugin/pinned");
+		plugin.setOrigin("");
+		pluginRepository.save(plugin);
+
+		var pinned = new Ref();
+		pinned.setUrl("http://example.com/pinned");
+		pinned.setOrigin("");
+		pinned.setTags(List.of("plugin/pinned"));
+		pinned.setModified(Instant.now().minusSeconds(60));
+		pinned.setMetadata(null);
+		refRepository.save(pinned);
+		var newer = new Ref();
+		newer.setUrl("http://example.com/pinned");
+		newer.setOrigin("@other");
+		newer.setModified(Instant.now());
+		newer.setMetadata(null);
+		refRepository.save(newer);
+
+		var remotePinned = new Ref();
+		remotePinned.setUrl("http://example.com/remote");
+		remotePinned.setOrigin("@other");
+		remotePinned.setTags(List.of("plugin/pinned"));
+		remotePinned.setModified(Instant.now().minusSeconds(60));
+		remotePinned.setMetadata(null);
+		refRepository.save(remotePinned);
+		var local = new Ref();
+		local.setUrl("http://example.com/remote");
+		local.setOrigin("");
+		local.setModified(Instant.now().plusSeconds(1));
+		local.setMetadata(null);
+		refRepository.save(local);
+
+		var both = new Ref();
+		both.setUrl("http://example.com/both");
+		both.setOrigin("");
+		both.setTags(List.of("plugin/pinned"));
+		both.setModified(Instant.now().minusSeconds(60));
+		both.setMetadata(null);
+		refRepository.save(both);
+		var bothRemote = new Ref();
+		bothRemote.setUrl("http://example.com/both");
+		bothRemote.setOrigin("@other");
+		bothRemote.setTags(List.of("plugin/pinned"));
+		bothRemote.setModified(Instant.now().plusSeconds(2));
+		bothRemote.setMetadata(null);
+		refRepository.save(bothRemote);
+
+		while (backfillRepository.backfillMetadata("", 10) > 0);
+
+		assertThat(obsoleteFlag(pinned)).isEqualTo("false");
+		assertThat(obsoleteFlag(newer)).isEqualTo("true");
+		assertThat(obsoleteFlag(remotePinned)).isEqualTo("false");
+		assertThat(obsoleteFlag(local)).isEqualTo("true");
+		assertThat(obsoleteFlag(both)).isEqualTo("false");
+		assertThat(obsoleteFlag(bothRemote)).isEqualTo("true");
+	}
+
+	@Test
+	@DisabledOnSqlite
+	void testBackfillMetadata_PinnedNotInstalled() {
+		var pinned = new Ref();
+		pinned.setUrl("http://example.com/pinned");
+		pinned.setOrigin("");
+		pinned.setTags(List.of("plugin/pinned"));
+		pinned.setModified(Instant.now().minusSeconds(60));
+		pinned.setMetadata(null);
+		refRepository.save(pinned);
+		var newer = new Ref();
+		newer.setUrl("http://example.com/pinned");
+		newer.setOrigin("@other");
+		newer.setModified(Instant.now());
+		newer.setMetadata(null);
+		refRepository.save(newer);
+
+		while (backfillRepository.backfillMetadata("", 10) > 0);
+
+		assertThat(obsoleteFlag(pinned)).isEqualTo("true");
+		assertThat(obsoleteFlag(newer)).isEqualTo("false");
+	}
+
+	private Object obsoleteFlag(Ref ref) {
+		return em.createNativeQuery("""
+			SELECT metadata->>'obsolete' FROM ref WHERE url = :url AND origin = :origin""")
+			.setParameter("url", ref.getUrl())
+			.setParameter("origin", ref.getOrigin())
+			.getSingleResult();
+	}
+
+	@Test
+	@DisabledOnSqlite
 	void testBackfillMetadata_AssumesLegacyObsoleteCountObsolete() {
 		var plugin = new Plugin();
 		plugin.setTag("plugin/comment");
