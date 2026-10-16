@@ -301,7 +301,8 @@ public class Auth {
 		// Tag URLs
 		if (tagUrl(url)) return canReadTag(urlToTag(url) + origin);
 		var maybeExisting = refRepository.findOneByUrlAndOrigin(url, origin);
-		return maybeExisting.filter(this::canReadRef).isPresent();
+		// Missing Refs can be watched for in a readable origin
+		return maybeExisting.map(this::canReadRef).orElseGet(() -> canReadOrigin(origin));
 	}
 
 	/**
