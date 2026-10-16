@@ -282,7 +282,9 @@ public class TunnelClient {
 			logger.debug("{} Error creating tunnel SSH client", origin, e);
 			if (e.getCause() instanceof SshException &&
 				getThrowableList(e).stream().noneMatch(cause ->
-					cause.getMessage() != null && cause.getMessage().contains("Broken pipe"))) throw e;
+					cause.getMessage() != null && (
+						cause.getMessage().contains("Broken pipe") ||
+						cause.getMessage().contains("Session is being closed")))) throw e;
 			throw new RetryableTunnelException("Error creating tunnel SSH client", e);
 		}
 	}

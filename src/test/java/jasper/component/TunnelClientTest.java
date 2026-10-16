@@ -93,6 +93,25 @@ class TunnelClientTest {
 	}
 
 	@Test
+	void sessionClosingAddsLogWithoutError() throws Exception {
+		var failure = new SshException("Session is being closed");
+		when(sshClient.connect(anyString(), anyString(), anyInt())).thenThrow(failure);
+
+		try (MockedStatic<SshClient> clients = mockStatic(SshClient.class)) {
+			clients.when(SshClient::setUpDefaultClient).thenReturn(sshClient);
+
+			tunnelClient.proxy(remote, uri -> fail("Proxy request should not run"));
+		}
+
+		verify(tagger).attachLogs(
+			eq(remote.getUrl()),
+			eq(remote.getOrigin()),
+			contains("Error creating SSH tunnel"),
+			contains("Session is being closed"));
+		verify(tagger, never()).attachError(anyString(), anyString(), anyString(), anyString());
+	}
+
+	@Test
 	void otherSshFailureRemainsFatal() throws Exception {
 		var failure = new SshException("No more authentication methods available");
 		when(sshClient.connect(anyString(), anyString(), anyInt())).thenThrow(failure);

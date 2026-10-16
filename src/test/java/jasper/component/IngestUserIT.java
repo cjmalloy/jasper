@@ -65,6 +65,23 @@ public class IngestUserIT {
 	}
 
 	@Test
+	void testCreateDuplicateTombstoneIdempotent() {
+		var existing = new User();
+		existing.setTag("+user/tester/deleted");
+		userRepository.save(existing);
+		var modified = userRepository.findOneByQualifiedTag("+user/tester/deleted").get().getModified();
+		var user = new User();
+		user.setTag("+user/tester/deleted");
+
+		ingest.create(user);
+
+		assertThat(user.getModified())
+			.isEqualTo(modified);
+		assertThat(userRepository.findOneByQualifiedTag("+user/tester/deleted").get().getModified())
+			.isEqualTo(modified);
+	}
+
+	@Test
 	void testDoubleIngestExtFails() {
 		var ext1 = new User();
 		ext1.setTag("+user/tester");

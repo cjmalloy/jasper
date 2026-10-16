@@ -19,6 +19,7 @@ public class BackfillRepositoryImplPostgres implements BackfillRepository {
 	 * metadata are assumed to be obsolete, except user URLs which are never obsolete.
 	 * Only the user URLs of the given origin are rebuilt, user URLs from other origins are kept.
 	 * Blank newResponse and newReaction are filled from the latest response, or the Ref created date.
+	 * Expanded tags are regenerated from the tags so tag queries match parent tags.
 	 */
 	@Override
 	public int backfillMetadata(String origin, int batchSize) {
@@ -32,6 +33,8 @@ public class BackfillRepositoryImplPostgres implements BackfillRepository {
 			UPDATE ref r
 			SET metadata = jsonb_strip_nulls(jsonb_build_object(
 				'modified', COALESCE(r.metadata->>'modified', to_char(NOW(), 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')),
+				'expandedTags', (SELECT jsonb_agg(DISTINCT x.tag) FROM jsonb_array_elements_text(COALESCE(r.tags, '[]')) AS t(tag)
+					CROSS JOIN LATERAL (SELECT t.tag UNION SELECT left(t.tag, g.n - 1) FROM generate_series(1, length(t.tag)) AS g(n) WHERE substr(t.tag, g.n, 1) = '/') AS x(tag)),
 				'newResponse', COALESCE(NULLIF(r.metadata->>'newResponse', ''), to_char(GREATEST(r.created, (SELECT MAX(nre.created) FROM ref nre WHERE (nre.sources @> jsonb_build_array(r.url)) AND nre.url != r.url AND (:origin = '' OR nre.origin = :origin OR nre.origin LIKE concat(:origin, '.%')) AND nre.url !~ '^tag:/[_+]?user([/?]|$)' AND nre.metadata IS NOT NULL AND COALESCE(nre.metadata->>'obsolete', 'false') IN ('false', '0'))), 'YYYY-MM-DD"T"HH24:MI:SS.US"000Z"')),
 				'newReaction', COALESCE(NULLIF(r.metadata->>'newReaction', ''), to_char(GREATEST(r.created, (SELECT MAX(nra.modified) FROM ref nra WHERE (nra.sources @> jsonb_build_array(r.url)) AND nra.url != r.url AND (:origin = '' OR nra.origin = :origin OR nra.origin LIKE concat(:origin, '.%')) AND (nra.url ~ '^tag:/[_+]?user([/?]|$)' OR (nra.metadata IS NOT NULL AND COALESCE(nra.metadata->>'obsolete', 'false') IN ('false', '0'))))), 'YYYY-MM-DD"T"HH24:MI:SS.US"000Z"')),
 				'responses', (SELECT jsonb_agg(re.url) FROM ref re WHERE (re.sources @> jsonb_build_array(r.url)) AND (:origin = '' OR re.origin = :origin OR re.origin LIKE concat(:origin, '.%')) AND re.metadata IS NOT NULL AND COALESCE(re.metadata->>'obsolete', 'false') IN ('false', '0') AND jsonb_exists(COALESCE(re.metadata->'expandedTags', re.tags), 'internal') = false),
@@ -66,7 +69,8 @@ public class BackfillRepositoryImplPostgres implements BackfillRepository {
 					GROUP BY u.tag
 				) uu), CAST('{}' AS jsonb)),
 				'obsolete', EXISTS (SELECT 1 from ref n WHERE n.url = r.url AND n.modified > r.modified AND (:origin = '' OR n.origin = :origin OR n.origin LIKE concat(:origin, '.%'))),
-				'cascade', CASE WHEN jsonb_array_length(COALESCE(r.sources, '[]')) > 0 THEN true END
+				'cascade', CASE WHEN jsonb_array_length(COALESCE(r.sources, '[]')) > 0 THEN true END,
+				'ignored', CASE WHEN r.metadata->>'ignored' = 'true' THEN true END
 			))
 			WHERE EXISTS (SELECT * from rows WHERE r.url = rows.url AND r.origin = rows.origin)
 			""";

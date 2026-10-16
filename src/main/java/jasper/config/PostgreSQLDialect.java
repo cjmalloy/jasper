@@ -5,10 +5,12 @@ import org.hibernate.dialect.function.StandardSQLFunction;
 import org.hibernate.metamodel.model.domain.ReturnableType;
 import org.hibernate.query.sqm.function.AbstractSqmSelfRenderingFunctionDescriptor;
 import org.hibernate.query.sqm.function.FunctionKind;
+import org.hibernate.query.sqm.function.SqmFunctionRegistry;
 import org.hibernate.sql.ast.SqlAstNodeRenderingMode;
 import org.hibernate.sql.ast.SqlAstTranslator;
 import org.hibernate.sql.ast.spi.SqlAppender;
 import org.hibernate.sql.ast.tree.SqlAstNode;
+import org.hibernate.type.BasicType;
 import org.hibernate.type.SqlTypes;
 import org.hibernate.type.StandardBasicTypes;
 
@@ -76,6 +78,10 @@ public class PostgreSQLDialect extends org.hibernate.dialect.PostgreSQLDialect {
 		functionRegistry.registerPattern("origin_nesting", "CASE WHEN ?1 = '' OR ?1 = '@' THEN 0 ELSE (LENGTH(?1) - LENGTH(REPLACE(?1, '.', '')) + 1) END", integer);
 		// tag_levels: returns 0 for blank tag, otherwise count of '/' + 1
 		functionRegistry.registerPattern("tag_levels", "CASE WHEN ?1 = '' THEN 0 ELSE (LENGTH(?1) - LENGTH(REPLACE(?1, '/', '')) + 1) END", integer);
+		// Tag value sorting functions defined in Liquibase, tag is inlined so expression indexes on hot tags match
+		registerTagValueFunction(functionRegistry, "tag_value", string);
+		registerTagValueFunction(functionRegistry, "tag_value_num", doubleType);
+		registerTagValueFunction(functionRegistry, "tag_value_dur", doubleType);
 		// Vote sorting functions - kept together for consistency
 		functionRegistry.registerPattern("vote_top", "COALESCE((?1->'plugins'->>'plugin/user/vote/up')::int, 0) + COALESCE((?1->'plugins'->>'plugin/user/vote/down')::int, 0)", integer);
 		functionRegistry.registerPattern("vote_score", "COALESCE((?1->'plugins'->>'plugin/user/vote/up')::int, 0) - COALESCE((?1->'plugins'->>'plugin/user/vote/down')::int, 0)", integer);
@@ -86,4 +92,23 @@ public class PostgreSQLDialect extends org.hibernate.dialect.PostgreSQLDialect {
 		functionRegistry.registerPattern("jsonb_array_append", "(?1 || to_jsonb(CAST(?2 AS text)))", jsonb);
 	}
 
+	private static void registerTagValueFunction(SqmFunctionRegistry functionRegistry, String name, BasicType<?> type) {
+		functionRegistry.register(name, new AbstractSqmSelfRenderingFunctionDescriptor(
+			name,
+			FunctionKind.NORMAL,
+			exactly(2),
+			invariant(type),
+			null
+		) {
+			@Override
+			public void render(SqlAppender appender, List<? extends SqlAstNode> args, ReturnableType<?> type, SqlAstTranslator<?> translator) {
+				appender.appendSql(name);
+				appender.appendSql("(");
+				translator.render(args.get(0), SqlAstNodeRenderingMode.DEFAULT);
+				appender.appendSql(", ");
+				translator.render(args.get(1), SqlAstNodeRenderingMode.INLINE_PARAMETERS);
+				appender.appendSql(")");
+			}
+		});
+	}
 }

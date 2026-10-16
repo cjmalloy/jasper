@@ -66,7 +66,7 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 			sources = :sources,
 			alternateUrls = :alternateUrls,
 			plugins = :plugins,
-			metadata = jsonb_concat(COALESCE(metadata, cast_to_jsonb('{}')), :partialMetadata),
+			metadata = jsonb_concat(jsonb_set(COALESCE(metadata, cast_to_jsonb('{}')), '{ignored}', cast_to_jsonb('false'), true), :partialMetadata),
 			published = :published,
 			modified = :modified
 		WHERE
@@ -88,8 +88,19 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 	@Query("""
 		SELECT max(r.modified)
 		FROM Ref r
-		WHERE r.origin = :origin""")
+		WHERE r.origin = :origin
+			AND COALESCE(jsonb_object_field_text(r.metadata, 'ignored'), 'false') != 'true'""")
 	Instant getCursor(String origin);
+
+	@Transactional
+	@Modifying
+	@Query("""
+		UPDATE Ref SET
+			metadata = jsonb_set(metadata, '{ignored}', cast_to_jsonb('false'), true)
+		WHERE origin = :origin
+			AND modified <= :upTo
+			AND jsonb_object_field_text(metadata, 'ignored') = 'true'""")
+	int clearIgnored(String origin, Instant upTo);
 
 	@Query(nativeQuery = true, value = "SELECT DISTINCT origin from ref")
 	List<String> origins();
@@ -296,7 +307,7 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 
 	@Query("""
 		FROM Ref r
-		WHERE (r.metadata IS NULL OR jsonb_exists(r.metadata, 'modified') = false OR jsonb_object_field_text(r.metadata, 'regen') = 'true')
+		WHERE (r.metadata IS NULL OR jsonb_object_field_text(r.metadata, 'modified') IS NULL OR jsonb_object_field_text(r.metadata, 'regen') = 'true')
 			AND (:origin = '' OR r.origin = :origin OR r.origin LIKE concat(:origin, '.%'))
 		ORDER BY r.modified DESC
 		FETCH FIRST 1 ROW ONLY""")

@@ -247,7 +247,8 @@ public class Props {
 		 */
 		private Integer maxPullEntityBatch;
 		/**
-		 * Override the server tags and origins that can run scripts. No wildcard origins.
+		 * Override the server tags and origins that can run scripts.
+		 * Supports "@*" and "@origin.*" wildcards, matching one nesting level.
 		 */
 		private List<String> scriptSelectors;
 		/**

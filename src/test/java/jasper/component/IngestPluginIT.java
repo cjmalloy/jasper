@@ -65,6 +65,23 @@ public class IngestPluginIT {
 	}
 
 	@Test
+	void testCreateDuplicateTombstoneIdempotent() {
+		var existing = new Plugin();
+		existing.setTag("plugin/test/deleted");
+		pluginRepository.save(existing);
+		var modified = pluginRepository.findOneByQualifiedTag("plugin/test/deleted").get().getModified();
+		var plugin = new Plugin();
+		plugin.setTag("plugin/test/deleted");
+
+		ingest.create(plugin);
+
+		assertThat(plugin.getModified())
+			.isEqualTo(modified);
+		assertThat(pluginRepository.findOneByQualifiedTag("plugin/test/deleted").get().getModified())
+			.isEqualTo(modified);
+	}
+
+	@Test
 	void testDoubleIngestExtFails() {
 		var ext1 = new Plugin();
 		ext1.setTag("plugin/test");

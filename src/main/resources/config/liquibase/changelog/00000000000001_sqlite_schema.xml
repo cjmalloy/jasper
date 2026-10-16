@@ -39,6 +39,10 @@
 			<column name="modified"/>
 		</createIndex>
 		<sql>CREATE UNIQUE INDEX ref_modified_origin_key ON ref (modified, origin);</sql>
+		<!-- Partial indexes must match the SQL that SQLiteDialect renders for jsonb_object_field_text -->
+		<sql>CREATE INDEX ref_ignored_index ON ref (origin, modified) WHERE (CASE WHEN json_type(metadata, '$."' || REPLACE('ignored', '"', '""') || '"') IN ('true', 'false') THEN json_type(metadata, '$."' || REPLACE('ignored', '"', '""') || '"') ELSE CAST(json_extract(metadata, '$."' || REPLACE('ignored', '"', '""') || '"') AS TEXT) END) = 'true';</sql>
+		<sql>CREATE INDEX ref_cascade_index ON ref (modified) WHERE (CASE WHEN json_type(metadata, '$."' || REPLACE('cascade', '"', '""') || '"') IN ('true', 'false') THEN json_type(metadata, '$."' || REPLACE('cascade', '"', '""') || '"') ELSE CAST(json_extract(metadata, '$."' || REPLACE('cascade', '"', '""') || '"') AS TEXT) END) = 'true';</sql>
+		<sql>CREATE INDEX ref_regen_index ON ref (modified) WHERE metadata IS NULL OR (CASE WHEN json_type(metadata, '$."' || REPLACE('modified', '"', '""') || '"') IN ('true', 'false') THEN json_type(metadata, '$."' || REPLACE('modified', '"', '""') || '"') ELSE CAST(json_extract(metadata, '$."' || REPLACE('modified', '"', '""') || '"') AS TEXT) END) IS NULL OR (CASE WHEN json_type(metadata, '$."' || REPLACE('regen', '"', '""') || '"') IN ('true', 'false') THEN json_type(metadata, '$."' || REPLACE('regen', '"', '""') || '"') ELSE CAST(json_extract(metadata, '$."' || REPLACE('regen', '"', '""') || '"') AS TEXT) END) = 'true';</sql>
 		<!-- FTS5 full-text search virtual table -->
 		<sql>CREATE VIRTUAL TABLE ref_fts USING fts5(title, comment, url, content=ref, content_rowid=rowid);</sql>
 		<!-- Triggers to keep FTS5 index in sync and store rowid in textsearch_en -->

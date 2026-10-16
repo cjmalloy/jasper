@@ -61,6 +61,11 @@ public class IngestTemplate {
 	public void create(Template template) {
 		if (isDeletorTag(template.getTag())) {
 			if (templateRepository.existsByQualifiedTag(deletedTag(template.getQualifiedTag()))) throw new AlreadyExistsException();
+			var existing = templateRepository.findOneByQualifiedTag(template.getQualifiedTag());
+			if (existing.isPresent()) {
+				template.setModified(existing.get().getModified());
+				return;
+			}
 		} else {
 			delete(deletorTag(template.getQualifiedTag()));
 		}

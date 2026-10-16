@@ -965,6 +965,37 @@ public class AuthUnitTest {
 	}
 
 	@Test
+	void testFilterSort_PrivateTagValueWithAccess() {
+		var user = getUser("+user/test");
+		user.getTagReadAccess().add("_custom");
+		var auth = getAuth(user, VIEWER);
+
+		var pageable = PageRequest.of(0, 20, Sort.by("tags->_custom/progress:num"));
+		assertThat(auth.pageable(pageable).getSort().isSorted())
+			.isTrue();
+	}
+
+	@Test
+	void testFilterSort_PrivateTagValueWithoutAccess() {
+		var user = getUser("+user/test");
+		var auth = getAuth(user, USER);
+
+		var pageable = PageRequest.of(0, 20, Sort.by("tags->_custom/progress:num"));
+		assertThat(auth.pageable(pageable).getSort().isUnsorted())
+			.isTrue();
+	}
+
+	@Test
+	void testFilterSort_PublicTagValue() {
+		var user = getUser("+user/test");
+		var auth = getAuth(user, VIEWER);
+
+		var pageable = PageRequest.of(0, 20, Sort.by("tags->plugin/duration"));
+		assertThat(auth.pageable(pageable).getSort().isSorted())
+			.isTrue();
+	}
+
+	@Test
 	void testFilterSort_MixedSortsKeepsAuthorized() {
 		var user = getUser("+user/test");
 		var auth = getAuth(user, USER);

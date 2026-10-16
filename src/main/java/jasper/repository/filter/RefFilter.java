@@ -29,6 +29,7 @@ public class RefFilter implements Query {
 	private Integer nesting;
 	private String url;
 	private Boolean obsolete;
+	private Boolean ignored;
 	private String scheme;
 	private String query;
 	private String noDescendents;
@@ -71,6 +72,13 @@ public class RefFilter implements Query {
 				result = result.and(isNotObsolete());
 			} else {
 				result = result.and(not(isNotObsolete()));
+			}
+		}
+		if (ignored != null) {
+			if (!ignored) {
+				result = result.and(isNotIgnored());
+			} else {
+				result = result.and(not(isNotIgnored()));
 			}
 		}
 		if (nesting != null) {

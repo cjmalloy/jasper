@@ -73,7 +73,7 @@ services:
       POSTGRES_USER: jasper
       POSTGRES_PASSWORD: jasper
       POSTGRES_DB: jasper
-  # Remote server for direct HTTP origin push and pull (@repl)
+  # Remote server for direct HTTP origin push and pull (@repl), with a file cache
   repl-web:
     build: ..
     ports:
@@ -84,7 +84,7 @@ services:
       retries: 60
     environment:
       SPRING_LOGGING_LEVEL_ROOT: WARN
-      SPRING_PROFILES_ACTIVE: prod
+      SPRING_PROFILES_ACTIVE: prod,storage,file-cache
       SPRING_DATASOURCE_URL: jdbc:postgresql://repl-db/jasper
       SPRING_DATASOURCE_USERNAME: jasper
       SPRING_DATASOURCE_PASSWORD: jasper
@@ -92,6 +92,7 @@ services:
       JASPER_LOCAL_ORIGIN: '@repl'
       JASPER_DEFAULT_ROLE: ROLE_ADMIN
       JASPER_OVERRIDE_SERVER_WEB_ORIGINS: '@repl'
+      JASPER_STORAGE: /var/lib/jasper
       JASPER_HEAP: 256m
     depends_on:
       - repl-db

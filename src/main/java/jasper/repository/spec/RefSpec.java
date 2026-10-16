@@ -65,6 +65,19 @@ public class RefSpec {
 					cb.literal("true")));
 	}
 
+	public static Specification<Ref> isNotIgnored() {
+		return (root, query, cb) ->
+			cb.or(
+				cb.isNull(root.get(Ref_.metadata)),
+				cb.isNull(cb.function("jsonb_object_field_text", String.class,
+					root.get(Ref_.metadata),
+					cb.literal("ignored"))),
+				cb.notEqual(cb.function("jsonb_object_field_text", String.class,
+					root.get(Ref_.metadata),
+					cb.literal("ignored")),
+					cb.literal("true")));
+	}
+
 	public static Specification<Ref> isScheme(String scheme) {
 		return (root, query, cb) ->
 			cb.like(
@@ -198,7 +211,12 @@ public class RefSpec {
 			cb.and(
 				cb.isNull(expanded),
 				cb.isNotNull(root.get(Ref_.tags)),
-				cb.isTrue(cb.function("jsonb_exists", Boolean.class, root.get(Ref_.tags), cb.literal(tag)))));
+				cb.or(
+					cb.isTrue(cb.function("jsonb_exists", Boolean.class, root.get(Ref_.tags), cb.literal(tag))),
+					cb.like(
+						cb.function("jsonb_text", String.class, root.get(Ref_.tags)),
+						"%\"" + tag.replace("_", "\\_") + "/%",
+						'\\'))));
 	}
 
 	public static Specification<Ref> hasTag(String tag) {
@@ -341,6 +359,8 @@ public class RefSpec {
 					} else {
 						expr = null;
 					}
+				} else if (property.startsWith("tags->")) {
+					expr = SortSpec.createTagValueSortExpression(root, cb, property);
 				} else if (isJsonbSortProperty(property, "metadata", "plugins")) {
 					expr = createJsonbSortExpression(root, cb, property, "metadata", "plugins");
 				} else if (property.endsWith(":len")) {
