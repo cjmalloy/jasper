@@ -108,8 +108,6 @@ public class AuthUnitTest {
 		for (var ref : refs) {
 			when(mock.findOneByUrlAndOrigin(ref.getUrl(), ref.getOrigin()))
 				.thenReturn(Optional.of(ref));
-			when(mock.existsByUrlAndOrigin(ref.getUrl(), ref.getOrigin()))
-				.thenReturn(true);
 		}
 		return mock;
 	}
