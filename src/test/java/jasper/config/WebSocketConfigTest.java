@@ -9,6 +9,7 @@ import jasper.security.jwt.TokenProviderImplDefault;
 import jasper.service.dto.UserDto;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageChannel;
 import org.springframework.messaging.simp.stomp.StompCommand;
@@ -18,7 +19,10 @@ import org.springframework.security.access.hierarchicalroles.RoleHierarchy;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.socket.CloseStatus;
+import org.springframework.web.socket.WebSocketHandler;
 import org.springframework.web.socket.WebSocketSession;
+import org.springframework.web.socket.config.annotation.WebSocketTransportRegistration;
+import org.springframework.web.socket.handler.WebSocketHandlerDecoratorFactory;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -28,6 +32,8 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static jasper.component.Messages.tagHeaders;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -164,6 +170,76 @@ class WebSocketConfigTest {
 
 		verify(local, never()).close(any());
 		verify(remote).close(CloseStatus.SERVICE_RESTARTED);
+	}
+
+	@Test
+	void userUpdateClosesHandshakeUsersSessionWithoutSubscriptions() throws Exception {
+		when(config.authFactory.create()).thenAnswer(invocation -> new SubscribingAuth());
+		when(config.defaultTokenProvider.getAuthentication(null, "")).thenReturn(authentication("+user/alice"));
+		var attributes = handshakeAttributes();
+		config.new StompDefaultHandshakeHandler().determineUser(null, null, attributes);
+		var alice = session(attributes);
+		config.sessions.add(alice);
+
+		config.handleUserUpdate(MessageBuilder.createMessage(new UserDto(), tagHeaders("", "+user/alice")));
+
+		verify(alice).close(CloseStatus.SERVICE_RESTARTED);
+		assertThat(config.sessions).isEmpty();
+	}
+
+	@Test
+	void userUpdateDuringHandshakeClosesSession() throws Exception {
+		when(config.authFactory.create()).thenAnswer(invocation -> new SubscribingAuth());
+		when(config.defaultTokenProvider.getAuthentication(null, "")).thenReturn(authentication("+user/alice"));
+		var registration = mock(WebSocketTransportRegistration.class);
+		var factory = ArgumentCaptor.forClass(WebSocketHandlerDecoratorFactory.class);
+		config.configureWebSocketTransport(registration);
+		verify(registration).addDecoratorFactory(factory.capture());
+		var handler = factory.getValue().decorate(mock(WebSocketHandler.class));
+		var stale = handshakeAttributes();
+		config.new StompDefaultHandshakeHandler().determineUser(null, null, stale);
+		config.handleUserUpdate(MessageBuilder.createMessage(new UserDto(), tagHeaders("", "+user/alice")));
+		var fresh = handshakeAttributes();
+		config.new StompDefaultHandshakeHandler().determineUser(null, null, fresh);
+		var staleSession = session(stale);
+		var freshSession = session(fresh);
+
+		handler.afterConnectionEstablished(staleSession);
+		handler.afterConnectionEstablished(freshSession);
+
+		verify(staleSession).close(CloseStatus.SERVICE_RESTARTED);
+		verify(freshSession, never()).close(any());
+		assertThat(config.sessions).containsExactly(freshSession);
+	}
+
+	@Test
+	void userUpdateDuringSubscriptionReauthorizes() {
+		var revoked = new AtomicBoolean();
+		var auths = new AtomicInteger();
+		when(config.authFactory.create()).thenAnswer(invocation -> {
+			auths.incrementAndGet();
+			return new SubscribingAuth() {
+				@Override
+				public boolean canSubscribeTo(String destination) {
+					var allowed = !revoked.get();
+					if (!revoked.getAndSet(true)) {
+						config.handleUserUpdate(MessageBuilder.createMessage(new UserDto(), tagHeaders("", "+user/alice")));
+					}
+					return allowed;
+				}
+			};
+		});
+		var attributes = sessionAttributes();
+		config.sessions.add(session(attributes));
+
+		assertThat(config.new JwtChannelInterceptor().preSend(subscribe("/topic/+user/alice", authentication("+user/alice"), null, attributes), channel)).isNull();
+		assertThat(auths).hasValue(2);
+	}
+
+	private HashMap<String, Object> handshakeAttributes() {
+		var attributes = sessionAttributes();
+		attributes.put("origin", "");
+		return attributes;
 	}
 
 	private WebSocketSession session(Map<String, Object> attributes) {
