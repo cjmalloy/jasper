@@ -12,6 +12,8 @@ import jasper.repository.PluginRepository;
 import jasper.repository.RefRepository;
 import jasper.repository.TemplateRepository;
 import jasper.repository.UserRepository;
+import jasper.security.Auth;
+import jasper.security.AuthFactory;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -38,6 +40,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.startsWith;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -80,6 +83,9 @@ class ReplicatorTest {
 	@Mock
 	IngestPlugin ingestPlugin;
 
+	@Mock
+	AuthFactory authFactory;
+
 	Ref remote;
 
 	@BeforeAll
@@ -94,15 +100,24 @@ class ReplicatorTest {
 		remote.setPlugin("+plugin/origin", Map.of("remote", "@target", "local", "@local"));
 		remote.setPlugin("+plugin/origin/pull", Map.of("batchSize", 2));
 		when(configs.root()).thenReturn(ServerConfig.builder().build());
-		when(tagger.progress(any(), any())).thenReturn(mock(Tagger.Progress.class));
-		doAnswer(i -> {
+		lenient().when(tagger.progress(any(), any())).thenReturn(mock(Tagger.Progress.class));
+		lenient().doAnswer(i -> {
 			i.<TunnelClient.ProxyRequest>getArgument(1).go(URI.create(remote.getUrl()));
 			return null;
 		}).when(tunnel).proxy(eq(remote), any());
 	}
 
+	void readable() {
+		var auth = mock(Auth.class);
+		when(auth.canReadOrigin("@local")).thenReturn(true);
+		when(auth.refReadSpec()).thenReturn(mock(Specification.class));
+		when(auth.tagReadSpec()).thenReturn(mock(Specification.class));
+		when(authFactory.create("", "")).thenReturn(auth);
+	}
+
 	@Test
 	void pushAccessDeniedIsLoggedOnRemoteOrigin() {
+		readable();
 		when(client.pluginCursor(any(URI.class), eq("@target"))).thenThrow(mock(FeignException.Forbidden.class));
 
 		replicator.push(remote);
@@ -191,6 +206,7 @@ class ReplicatorTest {
 
 	@Test
 	void pushCursorClientErrorIsFatal() {
+		readable();
 		var e = status(400);
 		when(pluginRepository.findAll(any(Specification.class), any(Pageable.class))).thenReturn(Page.empty());
 		when(templateRepository.findAll(any(Specification.class), any(Pageable.class))).thenReturn(Page.empty());
@@ -202,5 +218,18 @@ class ReplicatorTest {
 		verify(client, never()).refPush(any(URI.class), anyString(), any());
 		verify(client, never()).extCursor(any(URI.class), anyString());
 		verify(tagger).attachError(eq(""), eq(remote), startsWith("Fatal error pushing"), any());
+	}
+
+	@Test
+	void pushNothingWhenNoSigningUserCanRead() {
+		var auth = mock(Auth.class);
+		when(auth.canReadOrigin("@local")).thenReturn(false);
+		when(authFactory.create("+user/alice", "")).thenReturn(auth);
+		remote.addTag("+user/alice");
+
+		replicator.push(remote);
+
+		verify(tunnel, never()).proxy(any(), any());
+		verify(tagger).attachError(eq(""), eq(remote), startsWith("No signing user can read"), any());
 	}
 }

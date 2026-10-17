@@ -1135,6 +1135,11 @@ a time. If you want to combine multiple origins into one, create multiple `+plug
 **Push On Change:** Push entities immediately after modification.
 **Cache:** Also push cached files.  
 
+Only entities that the signing users of the `+plugin/origin/push` Ref (its `+user` or `_user` tags) can read are
+pushed. Each signing user is given the default roles and the role on their local user entity. If there are several
+signing users, anything one of them can read is pushed. An unsigned Ref pushes only what the default (logged out) user
+can read. If no signing user can read the local origin, nothing is pushed and the Ref is tagged `+plugin/error`.
+
 ### Logs and errors on replicated origins
 A pulled origin is a copy of a remote server. Its users and user tags (`_user/*`, `+user/*`) belong to the remote
 server and mean nothing locally. The local users that matter are the owners of the `+plugin/origin` Ref, which lives
