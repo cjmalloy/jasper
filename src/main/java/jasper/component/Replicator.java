@@ -7,8 +7,12 @@ import io.github.resilience4j.bulkhead.annotation.Bulkhead;
 import io.micrometer.core.annotation.Timed;
 import jasper.client.JasperClient;
 import jasper.client.dto.JasperMapper;
+import jasper.domain.Ext;
+import jasper.domain.Plugin;
 import jasper.domain.Ref;
 import jasper.domain.Ref_;
+import jasper.domain.Template;
+import jasper.domain.User;
 import jasper.domain.proj.Cursor;
 import jasper.domain.proj.HasTags;
 import jasper.errors.AlreadyExistsException;
@@ -25,11 +29,16 @@ import jasper.repository.TemplateRepository;
 import jasper.repository.UserRepository;
 import jasper.repository.filter.RefFilter;
 import jasper.repository.filter.TagFilter;
+import jasper.security.Auth;
+import jasper.security.AuthFactory;
+import jasper.service.dto.RefReplDto;
+import jasper.service.dto.UserDto;
 import org.apache.http.conn.HttpHostConnectException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Component;
 
 import javax.net.ssl.SSLHandshakeException;
@@ -44,6 +53,7 @@ import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 import static jasper.client.JasperClient.params;
+import static jasper.domain.proj.HasTags.authors;
 import static jasper.domain.proj.HasOrigin.origin;
 import static jasper.domain.proj.HasOrigin.subOrigin;
 import static jasper.domain.proj.Tag.localTag;
@@ -52,6 +62,7 @@ import static jasper.plugin.Cache.getCache;
 import static jasper.plugin.Origin.getOrigin;
 import static jasper.plugin.Pull.getPull;
 import static jasper.plugin.Push.getPush;
+import static jasper.security.AuthoritiesConstants.MOD;
 import static jasper.util.Logging.getMessage;
 import static java.io.InputStream.nullInputStream;
 import static java.lang.Math.max;
@@ -110,6 +121,9 @@ public class Replicator {
 
 	@Autowired
 	Messages messages;
+
+	@Autowired
+	AuthFactory authFactory;
 
 	@Autowired
 	Optional<FileCache> fileCache;
@@ -412,10 +426,23 @@ public class Replicator {
 		var root = configs.root();
 		if (!root.script("+plugin/origin/push", remote.getOrigin())) throw new OperationForbiddenOnOriginException(remote.getOrigin());
 		var push = getPush(remote);
-		// TODO: only push what user can see
 		var config = getOrigin(remote);
 		var localOrigin = subOrigin(remote.getOrigin(), config.getLocal());
 		var remoteOrigin = origin(config.getRemote());
+		var readers = readers(remote, localOrigin);
+		if (readers.isEmpty()) {
+			logger.error("{} No signing user can read {}, skipping push to origin ({}) {}: {}",
+				remote.getOrigin(), localOrigin, remoteOrigin, remote.getTitle(), remote.getUrl());
+			tagger.attachError(remote.getOrigin(), remote,
+				"No signing user can read %s, skipping push to origin (%s) %s: %s".formatted(
+					localOrigin, remoteOrigin, remote.getTitle(), remote.getUrl()), "");
+			return;
+		}
+		Specification<Ref> refReadSpec = readers.stream().map(Auth::refReadSpec).reduce(Specification::or).get();
+		Specification<Plugin> pluginReadSpec = readers.stream().map(Auth::<Plugin>tagReadSpec).reduce(Specification::or).get();
+		Specification<Template> templateReadSpec = readers.stream().map(Auth::<Template>tagReadSpec).reduce(Specification::or).get();
+		Specification<Ext> extReadSpec = readers.stream().map(Auth::<Ext>tagReadSpec).reduce(Specification::or).get();
+		Specification<User> userReadSpec = readers.stream().map(Auth::<User>tagReadSpec).reduce(Specification::or).get();
 		var logs = new ArrayList<Log>();
 		tunnel.proxy(remote, baseUri -> {
 			var progress = tagger.progress(remote.getUrl(), remote.getOrigin());
@@ -427,7 +454,8 @@ public class Replicator {
 								.origin(localOrigin)
 								.query(push.getQuery())
 								.modifiedAfter(after)
-								.build().spec(),
+								.build().<Plugin>spec()
+								.and(pluginReadSpec),
 							PageRequest.of(skip, size, by(Ref_.MODIFIED)))
 						.getContent();
 					logger.debug("{} Pushing {} plugins to {}", remote.getOrigin(), pluginList.size(), remoteOrigin);
@@ -442,7 +470,8 @@ public class Replicator {
 								.origin(localOrigin)
 								.query(push.getQuery())
 								.modifiedAfter(after)
-								.build().spec(),
+								.build().<Template>spec()
+								.and(templateReadSpec),
 							PageRequest.of(skip, size, by(Ref_.MODIFIED)))
 						.getContent();
 					logger.debug("{} Pushing {} templates to {}", remote.getOrigin(), templateList.size(), remoteOrigin);
@@ -452,16 +481,21 @@ public class Replicator {
 					return templateList;
 				}));
 				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, () -> client.refCursor(baseUri, remoteOrigin), true, cursorProgress(remote.getOrigin(), progress, 2, () -> refRepository.getCursor(localOrigin)), (skip, size, after) -> {
-					var refList = refRepository.findAll(
+					var fetched = refRepository.findAll(
 							RefFilter.builder()
 								.origin(localOrigin)
 								.query(push.getQuery())
 								.ignored(false)
 								.modifiedAfter(after)
-								.build().spec(),
+								.build().spec()
+								.and(refReadSpec),
 							PageRequest.of(skip, size, by(Ref_.MODIFIED)))
 						.map(mapper::domainToDto)
 						.getContent();
+					var refList = fetched.stream()
+						.filter(ref -> readers.stream().anyMatch(auth -> auth.canReadRef(ref)))
+						.map(ref -> filter(readers, ref))
+						.toList();
 					logger.debug("{} Pushing {} refs to {}", remote.getOrigin(), refList.size(), remoteOrigin);
 					if (!refList.isEmpty()) {
 						client.refPush(baseUri, remoteOrigin, refList);
@@ -498,7 +532,7 @@ public class Replicator {
 							}
 						}
 					}
-					return refList;
+					return fetched;
 				}));
 				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, () -> client.extCursor(baseUri, remoteOrigin), true, cursorProgress(remote.getOrigin(), progress, 3, () -> extRepository.getCursor(localOrigin)), (skip, size, after) -> {
 					var extList = extRepository.findAll(
@@ -506,7 +540,8 @@ public class Replicator {
 								.origin(localOrigin)
 								.query(push.getQuery())
 								.modifiedAfter(after)
-								.build().spec(),
+								.build().<Ext>spec()
+								.and(extReadSpec),
 							PageRequest.of(skip, size, by(Ref_.MODIFIED)))
 						.getContent();
 					logger.debug("{} Pushing {} exts to {}", remote.getOrigin(), extList.size(), remoteOrigin);
@@ -521,9 +556,11 @@ public class Replicator {
 								.origin(localOrigin)
 								.query(push.getQuery())
 								.modifiedAfter(after)
-								.build().spec(),
+								.build().<User>spec()
+								.and(userReadSpec),
 							PageRequest.of(skip, size, by(Ref_.MODIFIED)))
 						.map(mapper::domainToDto)
+						.map(user -> filter(readers, user))
 						.getContent();
 					logger.debug("{} Pushing {} users to {}", remote.getOrigin(), userList.size(), remoteOrigin);
 					if (!userList.isEmpty()) {
@@ -552,6 +589,60 @@ public class Replicator {
 				for (var log : logs) tagger.attachLogs(remote.getOrigin(), remote, log.title, log.message);
 			}
 		});
+	}
+
+	/**
+	 * The signing users of the remote origin Ref, or the default user if unsigned,
+	 * that can read the local origin being pushed.
+	 * Only entities that one of these users can read will be pushed.
+	 */
+	private List<Auth> readers(Ref remote, String localOrigin) {
+		var users = authors(remote);
+		return (users.isEmpty() ? List.of("") : users).stream()
+			.map(user -> authFactory.create(user, remote.getOrigin()))
+			.filter(auth -> auth.canReadOrigin(localOrigin))
+			.toList();
+	}
+
+	/**
+	 * Can any of the readers see this tag. Matches {@link jasper.service.dto.DtoMapper}.
+	 */
+	private static boolean canReadTag(List<Auth> readers, String tag) {
+		return readers.stream().anyMatch(auth -> auth.canReadTag(tag + auth.getOrigin()));
+	}
+
+	private static List<String> filterTags(List<Auth> readers, List<String> tags) {
+		if (tags == null) return null;
+		return new ArrayList<>(tags.stream().filter(tag -> canReadTag(readers, tag)).toList());
+	}
+
+	/**
+	 * Remove tags and plugins hidden to all readers that can read this Ref.
+	 */
+	private static RefReplDto filter(List<Auth> signers, RefReplDto ref) {
+		var readers = signers.stream().filter(auth -> auth.canReadRef(ref)).toList();
+		ref.setTags(filterTags(readers, ref.getTags()));
+		if (ref.getPlugins() != null) {
+			var plugins = ref.getPlugins().deepCopy();
+			ref.getPlugins().fieldNames().forEachRemaining(tag -> {
+				if (!canReadTag(readers, tag)) plugins.remove(tag);
+			});
+			ref.setPlugins(plugins.isEmpty() ? null : plugins);
+		}
+		return ref;
+	}
+
+	/**
+	 * Remove access tags and external IDs hidden to all readers that can read this User.
+	 */
+	private static UserDto filter(List<Auth> signers, UserDto user) {
+		var readers = signers.stream().filter(auth -> auth.canReadTag(user.getQualifiedTag())).toList();
+		user.setReadAccess(filterTags(readers, user.getReadAccess()));
+		user.setWriteAccess(filterTags(readers, user.getWriteAccess()));
+		if (readers.stream().noneMatch(auth -> auth.hasRole(MOD) || auth.canWriteUserTag(user.getQualifiedTag()))) {
+			user.setExternal(null);
+		}
+		return user;
 	}
 
 	/**
