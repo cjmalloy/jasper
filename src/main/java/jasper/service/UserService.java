@@ -17,7 +17,9 @@ import jasper.security.Auth;
 import jasper.service.dto.DtoMapper;
 import jasper.service.dto.RolesDto;
 import jasper.service.dto.UserDto;
+import jasper.util.Archive;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.data.domain.Page;
@@ -69,6 +71,9 @@ public class UserService {
 	@Autowired
 	ObjectMapper objectMapper;
 
+	@Value("#{environment.matchesProfiles('archive')}")
+	boolean archive;
+
 	@PreAuthorize("@auth.canWriteUser(#user)")
 	@Timed(value = "jasper.service", extraTags = {"service", "user"}, histogram = true)
 	public Instant create(User user) {
@@ -84,7 +89,8 @@ public class UserService {
 			user.setAuthorizedKeys(new String(user.getPubKey(), StandardCharsets.UTF_8));
 		}
 		var maybeExisting = userRepository.findOneByQualifiedTag(user.getQualifiedTag());
-		if (maybeExisting.isPresent()) {
+		// In archive mode a blank version is a tombstone, so keep it blank
+		if (maybeExisting.isPresent() && !(archive && Archive.isBlank(user))) {
 			if (user.getKey() == null) user.setKey(maybeExisting.get().getKey());
 			if (user.getPubKey() == null) user.setPubKey(maybeExisting.get().getPubKey());
 			if (user.getExternal() == null) user.setExternal(maybeExisting.get().getExternal());
@@ -98,7 +104,7 @@ public class UserService {
 	@Cacheable(value = "user-dto-cache", key = "#qualifiedTag", condition = "@auth.hasRole('MOD')")
 	@Timed(value = "jasper.service", extraTags = {"service", "user"}, histogram = true)
 	public UserDto get(String qualifiedTag) {
-		return userRepository.findOneByQualifiedTag(qualifiedTag)
+		return ingest.current(qualifiedTag)
 							 .map(mapper::domainToDto)
 							 .map(auth::filterUser)
 							 .orElseThrow(() -> new NotFoundException("User " + qualifiedTag));
@@ -130,7 +136,7 @@ public class UserService {
 	@PreAuthorize("@auth.canWriteUser(#user)")
 	@Timed(value = "jasper.service", extraTags = {"service", "user"}, histogram = true)
 	public Instant update(User user) {
-		var maybeExisting = userRepository.findOneByQualifiedTag(user.getQualifiedTag());
+		var maybeExisting = ingest.current(user.getQualifiedTag());
 		if (maybeExisting.isEmpty()) throw new NotFoundException("User " + user.getQualifiedTag());
 		var existing = maybeExisting.get();
 		user.addReadAccess(auth.hiddenTags(existing.getReadAccess()));
@@ -146,7 +152,7 @@ public class UserService {
 	@Timed(value = "jasper.service", extraTags = {"service", "user"}, histogram = true)
 	public Instant patch(String qualifiedTag, Instant cursor, Patch patch) {
 		var created = false;
-		var user = userRepository.findOneByQualifiedTag(qualifiedTag).orElse(null);
+		var user = ingest.current(qualifiedTag).orElse(null);
 		if (user == null) {
 			created = true;
 			user = new User();
@@ -172,7 +178,7 @@ public class UserService {
 	@PreAuthorize("@auth.canWriteUserTag(#qualifiedTag)")
 	@Timed(value = "jasper.service", extraTags = {"service", "user"}, histogram = true)
 	public Instant keygen(String qualifiedTag) throws NoSuchAlgorithmException, IOException {
-		var maybeExisting = userRepository.findOneByQualifiedTag(qualifiedTag);
+		var maybeExisting = ingest.current(qualifiedTag);
 		if (maybeExisting.isEmpty()) throw new NotFoundException("User " + qualifiedTag);
 		var user = maybeExisting.get();
 		var kp = keyPair();

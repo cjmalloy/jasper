@@ -39,6 +39,40 @@ public class IngestPluginIT {
 	}
 
 	@Test
+	void testPushDeletorDeletesTag() {
+		var existing = new Plugin();
+		existing.setTag("plugin/test");
+		existing.setModified(Instant.now().minusSeconds(10));
+		ingest.push(existing);
+		var deletor = new Plugin();
+		deletor.setTag("plugin/test/deleted");
+		deletor.setModified(Instant.now());
+
+		ingest.push(deletor);
+
+		assertThat(pluginRepository.existsByQualifiedTag("plugin/test"))
+			.isFalse();
+		assertThat(pluginRepository.existsByQualifiedTag("plugin/test/deleted"))
+			.isTrue();
+	}
+
+	@Test
+	void testCreateDeletesDeletor() {
+		var deletor = new Plugin();
+		deletor.setTag("plugin/test/deleted");
+		pluginRepository.save(deletor);
+		var plugin = new Plugin();
+		plugin.setTag("plugin/test");
+
+		ingest.create(plugin);
+
+		assertThat(pluginRepository.existsByQualifiedTag("plugin/test"))
+			.isTrue();
+		assertThat(pluginRepository.existsByQualifiedTag("plugin/test/deleted"))
+			.isFalse();
+	}
+
+	@Test
 	void testIngestExt() {
 		var plugin = new Plugin();
 		plugin.setTag("plugin/test");

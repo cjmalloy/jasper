@@ -58,6 +58,9 @@ public class Messages {
 	MessageChannel userTxChannel;
 
 	@Autowired
+	MessageChannel userRxChannel;
+
+	@Autowired
 	MessageChannel extTxChannel;
 
 	@Autowired
@@ -65,6 +68,9 @@ public class Messages {
 
 	@Autowired
 	MessageChannel templateTxChannel;
+
+	@Autowired
+	MessageChannel templateRxChannel;
 
 	@Autowired
 	ComponentDtoMapper mapper;
@@ -149,6 +155,12 @@ public class Messages {
 		sendAndRetry(() -> userTxChannel.send(createMessage(deleteNotice(tag, origin, UserDto.class), tagHeaders(origin, tag))));
 	}
 
+	public void invalidateUser(String qualifiedTag) {
+		var tag = localTag(qualifiedTag);
+		var origin = tagOrigin(qualifiedTag);
+		userRxChannel.send(createMessage(deleteNotice(tag, origin, UserDto.class), tagHeaders(origin, tag)));
+	}
+
 	@Async
 	public void updatePlugin(Plugin plugin) {
 		var update = mapper.domainToDto(plugin);
@@ -175,6 +187,12 @@ public class Messages {
 		var tag = localTag(qualifiedTag);
 		var origin = tagOrigin(qualifiedTag);
 		sendAndRetry(() -> templateTxChannel.send(createMessage(deleteNotice(tag, origin, TemplateDto.class), tagHeaders(origin, tag))));
+	}
+
+	public void invalidateTemplate(String qualifiedTag) {
+		var tag = localTag(qualifiedTag);
+		var origin = tagOrigin(qualifiedTag);
+		templateRxChannel.send(createMessage(deleteNotice(tag, origin, TemplateDto.class), tagHeaders(origin, tag)));
 	}
 
 	private <T> T deleteNotice(String tag, String origin, Class<T> type) {
