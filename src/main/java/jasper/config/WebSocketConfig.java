@@ -149,7 +149,8 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 		sessions.forEach(s -> {
 			@SuppressWarnings("unchecked")
 			var userTags = (Set<String>) s.getAttributes().get(USER_TAGS_ATTRIBUTE);
-			if (userTags == null || !userTags.contains(userTag)) return;
+			if (userTags == null || (!userTags.contains("+" + userTag.substring(1))
+				&& !userTags.contains("_" + userTag.substring(1)))) return;
 			sessions.remove(s);
 			try {
 				s.close(CloseStatus.SERVICE_RESTARTED);
