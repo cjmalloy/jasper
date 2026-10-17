@@ -9,7 +9,6 @@ import jasper.security.jwt.TokenProviderImplDefault;
 import jasper.service.dto.UserDto;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.ArgumentCaptor;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageChannel;
 import org.springframework.messaging.simp.stomp.StompCommand;
@@ -19,10 +18,7 @@ import org.springframework.security.access.hierarchicalroles.RoleHierarchy;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.socket.CloseStatus;
-import org.springframework.web.socket.WebSocketHandler;
 import org.springframework.web.socket.WebSocketSession;
-import org.springframework.web.socket.config.annotation.WebSocketTransportRegistration;
-import org.springframework.web.socket.handler.WebSocketHandlerDecoratorFactory;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -59,6 +55,8 @@ class WebSocketConfigTest {
 		config.authFactory = mock(AuthFactory.class);
 		channel = mock(MessageChannel.class);
 		when(config.configs.root()).thenReturn(new Config.ServerConfig());
+		when(config.tokenProvider.validateToken(anyString(), anyString())).thenReturn(true);
+		when(config.tokenProvider.getAuthentication(anyString(), anyString())).thenAnswer(invocation -> authentication(invocation.getArgument(0)));
 	}
 
 	@Test
@@ -79,8 +77,8 @@ class WebSocketConfigTest {
 		});
 		var firstAuthentication = authentication("first");
 		var secondAuthentication = authentication("second");
-		var first = subscribe("/topic/first", firstAuthentication, null);
-		var second = subscribe("/topic/second", secondAuthentication, null);
+		var first = subscribe("/topic/first", firstAuthentication, null, sessionAttributes("first"));
+		var second = subscribe("/topic/second", secondAuthentication, null, sessionAttributes("second"));
 
 		assertThat(authorizeConcurrently(first, second)).containsExactly(first, second);
 		assertThat(auths).hasSize(2).allSatisfy(auth -> assertThat(auth.authentications).hasSize(1));
@@ -101,10 +99,9 @@ class WebSocketConfigTest {
 		});
 		var firstJwtAuthentication = authentication("first-jwt");
 		var secondJwtAuthentication = authentication("second-jwt");
-		when(config.tokenProvider.validateToken(anyString(), anyString())).thenReturn(true);
 		when(config.tokenProvider.getAuthentication("first-token", "")).thenReturn(firstJwtAuthentication);
 		when(config.tokenProvider.getAuthentication("second-token", "")).thenReturn(secondJwtAuthentication);
-		var sessionAttributes = sessionAttributes();
+		var sessionAttributes = sessionAttributes("session");
 		var first = subscribe("/topic/first-jwt", authentication("session"), "first-token", sessionAttributes);
 		var second = subscribe("/topic/second-jwt", authentication("session"), "second-token", sessionAttributes);
 
@@ -133,8 +130,8 @@ class WebSocketConfigTest {
 	@Test
 	void userUpdateOnlyClosesThatUsersSessions() throws Exception {
 		when(config.authFactory.create()).thenAnswer(invocation -> new SubscribingAuth());
-		var aliceAttributes = sessionAttributes();
-		var bobAttributes = sessionAttributes();
+		var aliceAttributes = sessionAttributes("+user/alice");
+		var bobAttributes = sessionAttributes("+user/bob");
 		var interceptor = config.new JwtChannelInterceptor();
 		assertThat(interceptor.preSend(subscribe("/topic/+user/alice", authentication("+user/alice"), null, aliceAttributes), channel)).isNotNull();
 		assertThat(interceptor.preSend(subscribe("/topic/+user/bob", authentication("+user/bob"), null, bobAttributes), channel)).isNotNull();
@@ -157,8 +154,8 @@ class WebSocketConfigTest {
 		root.setWebOrigins(List.of("", "@other"));
 		when(config.configs.root()).thenReturn(root);
 		when(config.authFactory.create()).thenAnswer(invocation -> new SubscribingAuth());
-		var localAttributes = sessionAttributes();
-		var remoteAttributes = sessionAttributes();
+		var localAttributes = sessionAttributes("+user/alice");
+		var remoteAttributes = sessionAttributes("+user/alice@other");
 		var interceptor = config.new JwtChannelInterceptor();
 		interceptor.preSend(subscribe("/topic/+user/alice", authentication("+user/alice"), null, localAttributes), channel);
 		interceptor.preSend(subscribe("/topic/+user/alice@other", authentication("+user/alice@other"), null, remoteAttributes), channel);
@@ -173,84 +170,30 @@ class WebSocketConfigTest {
 	}
 
 	@Test
-	void userUpdateClosesHandshakeUsersSessionWithoutSubscriptions() throws Exception {
-		when(config.authFactory.create()).thenAnswer(invocation -> new SubscribingAuth());
-		when(config.defaultTokenProvider.getAuthentication(null, "")).thenReturn(authentication("+user/alice"));
-		var attributes = handshakeAttributes();
-		config.new StompDefaultHandshakeHandler().determineUser(null, null, attributes);
-		var alice = session(attributes);
-		config.sessions.add(alice);
-
+	void subscriptionReauthenticatesSockJsHttpSession() {
+		var auth = new TrackingAuth(new CyclicBarrier(1));
+		when(config.authFactory.create()).thenReturn(auth);
+		// SockJS HTTP transports take the principal from the HTTP request without calling determineUser
+		var stale = authentication("+user/alice");
+		var fresh = authentication("+user/alice");
+		when(config.tokenProvider.getAuthentication("token", "")).thenReturn(fresh);
 		config.handleUserUpdate(MessageBuilder.createMessage(new UserDto(), tagHeaders("", "+user/alice")));
+		var attributes = sessionAttributes("token");
 
-		verify(alice).close(CloseStatus.SERVICE_RESTARTED);
-		assertThat(config.sessions).isEmpty();
+		assertThat(config.new JwtChannelInterceptor().preSend(subscribe("/topic/+user/alice", stale, null, attributes), channel)).isNotNull();
+		assertThat(auth.authentications).containsExactly(fresh);
 	}
 
 	@Test
-	void userUpdateDuringHandshakeClosesSession() throws Exception {
-		when(config.authFactory.create()).thenAnswer(invocation -> new SubscribingAuth());
-		when(config.defaultTokenProvider.getAuthentication(null, "")).thenReturn(authentication("+user/alice"));
-		var registration = mock(WebSocketTransportRegistration.class);
-		var factory = ArgumentCaptor.forClass(WebSocketHandlerDecoratorFactory.class);
-		config.configureWebSocketTransport(registration);
-		verify(registration).addDecoratorFactory(factory.capture());
-		var handler = factory.getValue().decorate(mock(WebSocketHandler.class));
-		var stale = handshakeAttributes();
-		config.new StompDefaultHandshakeHandler().determineUser(null, null, stale);
-		config.handleUserUpdate(MessageBuilder.createMessage(new UserDto(), tagHeaders("", "+user/alice")));
-		var fresh = handshakeAttributes();
-		config.new StompDefaultHandshakeHandler().determineUser(null, null, fresh);
-		var staleSession = session(stale);
-		var freshSession = session(fresh);
+	void subscriptionWithExpiredSessionTokenUsesDefaultAuthentication() {
+		var auth = new TrackingAuth(new CyclicBarrier(1));
+		when(config.authFactory.create()).thenReturn(auth);
+		when(config.tokenProvider.validateToken("expired", "")).thenReturn(false);
+		when(config.defaultTokenProvider.getAuthentication(null, "")).thenReturn(authentication("default"));
+		var attributes = sessionAttributes("expired");
 
-		handler.afterConnectionEstablished(staleSession);
-		handler.afterConnectionEstablished(freshSession);
-
-		verify(staleSession).close(CloseStatus.SERVICE_RESTARTED);
-		verify(freshSession, never()).close(any());
-		assertThat(config.sessions).containsExactly(freshSession);
-	}
-
-	@Test
-	void unrelatedUserUpdateDuringHandshakeKeepsSession() throws Exception {
-		when(config.authFactory.create()).thenAnswer(invocation -> new SubscribingAuth());
-		when(config.defaultTokenProvider.getAuthentication(null, "")).thenReturn(authentication("+user/alice"));
-		var registration = mock(WebSocketTransportRegistration.class);
-		var factory = ArgumentCaptor.forClass(WebSocketHandlerDecoratorFactory.class);
-		config.configureWebSocketTransport(registration);
-		verify(registration).addDecoratorFactory(factory.capture());
-		var handler = factory.getValue().decorate(mock(WebSocketHandler.class));
-		var attributes = handshakeAttributes();
-		config.new StompDefaultHandshakeHandler().determineUser(null, null, attributes);
-		config.handleUserUpdate(MessageBuilder.createMessage(new UserDto(), tagHeaders("", "+user/bob")));
-		config.handleUserUpdate(MessageBuilder.createMessage(new UserDto(), tagHeaders("@other", "+user/alice")));
-		var alice = session(attributes);
-
-		handler.afterConnectionEstablished(alice);
-
-		verify(alice, never()).close(any());
-		assertThat(config.sessions).containsExactly(alice);
-	}
-
-	@Test
-	void privateUserUpdateDuringHandshakeClosesSession() throws Exception {
-		when(config.authFactory.create()).thenAnswer(invocation -> new SubscribingAuth());
-		when(config.defaultTokenProvider.getAuthentication(null, "")).thenReturn(authentication("+user/alice"));
-		var registration = mock(WebSocketTransportRegistration.class);
-		var factory = ArgumentCaptor.forClass(WebSocketHandlerDecoratorFactory.class);
-		config.configureWebSocketTransport(registration);
-		verify(registration).addDecoratorFactory(factory.capture());
-		var handler = factory.getValue().decorate(mock(WebSocketHandler.class));
-		var attributes = handshakeAttributes();
-		config.new StompDefaultHandshakeHandler().determineUser(null, null, attributes);
-		config.handleUserUpdate(MessageBuilder.createMessage(new UserDto(), tagHeaders("", "_user/alice")));
-		var alice = session(attributes);
-
-		handler.afterConnectionEstablished(alice);
-
-		verify(alice).close(CloseStatus.SERVICE_RESTARTED);
-		assertThat(config.sessions).isEmpty();
+		assertThat(config.new JwtChannelInterceptor().preSend(subscribe("/topic/+user/alice", authentication("+user/alice"), null, attributes), channel)).isNull();
+		assertThat(auth.principals()).containsExactly("default");
 	}
 
 	@Test
@@ -270,16 +213,17 @@ class WebSocketConfigTest {
 				}
 			};
 		});
-		var attributes = sessionAttributes();
+		var attributes = sessionAttributes("+user/alice");
 		config.sessions.add(session(attributes));
 
 		assertThat(config.new JwtChannelInterceptor().preSend(subscribe("/topic/+user/alice", authentication("+user/alice"), null, attributes), channel)).isNull();
 		assertThat(auths).hasValue(2);
 	}
 
-	private HashMap<String, Object> handshakeAttributes() {
+	private HashMap<String, Object> sessionAttributes(String jwt) {
 		var attributes = sessionAttributes();
 		attributes.put("origin", "");
+		attributes.put("jwt", jwt);
 		return attributes;
 	}
 

@@ -72,8 +72,6 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
 	public static final String AUTHORIZATION_HEADER = "Authorization";
 	private static final String USER_TAGS_ATTRIBUTE = "userTags";
-	private static final String USER_REVISION_ATTRIBUTE = "userRevision";
-	private static final String HANDSHAKE_USER_ATTRIBUTE = "handshakeUser";
 
 	@Autowired
 	Props props;
@@ -92,8 +90,6 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
 	Set<WebSocketSession> sessions = ConcurrentHashMap.newKeySet();
 	final AtomicLong userRevision = new AtomicLong();
-	// Last revision each user was updated at, keyed without the +/_ prefix
-	final Map<String, Long> userUpdates = new ConcurrentHashMap<>();
 
 	@Bean
 	public TomcatServletWebServerFactory tomcatContainerFactory() {
@@ -136,13 +132,6 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 			public void afterConnectionEstablished(WebSocketSession session) throws Exception {
 				sessions.add(session);
 				super.afterConnectionEstablished(session);
-				var revision = (Long) session.getAttributes().get(USER_REVISION_ATTRIBUTE);
-				var user = (String) session.getAttributes().get(HANDSHAKE_USER_ATTRIBUTE);
-				if (revision != null && user != null && userUpdates.getOrDefault(user, 0L) > revision) {
-					// The handshake user was updated while authenticating the handshake
-					sessions.remove(session);
-					session.close(CloseStatus.SERVICE_RESTARTED);
-				}
 			}
 			@Override
 			public void afterConnectionClosed(WebSocketSession session, CloseStatus closeStatus) throws Exception {
@@ -160,7 +149,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 		var tag = (String) message.getHeaders().get("tag");
 		if (isBlank(tag) || "~".equals(tag)) return;
 		var userTag = qt(tag + ("default".equals(origin) ? "" : origin)).toString();
-		userUpdates.merge(userTag.substring(1), userRevision.incrementAndGet(), Math::max);
+		userRevision.incrementAndGet();
 		sessions.forEach(s -> {
 			Set<String> userTags;
 			synchronized (s.getAttributes()) {
@@ -183,6 +172,19 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 			var userTags = (Set<String>) attributes.computeIfAbsent(USER_TAGS_ATTRIBUTE, k -> ConcurrentHashMap.newKeySet());
 			userTags.add(userTag);
 		}
+	}
+
+	/**
+	 * Authenticate the session from its handshake headers. Called for every
+	 * subscription so that user changes since the handshake are applied
+	 * regardless of the SockJS transport.
+	 */
+	private Authentication sessionAuthentication(Map<String, Object> attributes) {
+		var origin = (String) attributes.get("origin");
+		var token = (String) attributes.get("jwt");
+		return token != null && tokenProvider.validateToken(token, origin)
+			? tokenProvider.getAuthentication(token, origin)
+			: defaultTokenProvider.getAuthentication(null, origin);
 	}
 
 	class StompHandshakeInterceptor implements HandshakeInterceptor {
@@ -240,20 +242,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 			try {
 				var wsAttributes = (WebSocketRequestAttributes) attributes.get("wsAttributes");
 				RequestContextHolder.setRequestAttributes(wsAttributes);
-				var revision = userRevision.get();
-				var token = (String) attributes.get("jwt");
-				var authentication = token != null && tokenProvider.validateToken(token, origin)
-					? tokenProvider.getAuthentication(token, origin)
-					: defaultTokenProvider.getAuthentication(null, origin);
-				var auth = authFactory.create();
-				auth.clear(authentication);
-				if (auth.isLoggedIn()) {
-					var userTag = auth.getUserTag().toString();
-					addUserTag(attributes, userTag);
-					attributes.put(HANDSHAKE_USER_ATTRIBUTE, userTag.substring(1));
-					attributes.put(USER_REVISION_ATTRIBUTE, revision);
-				}
-				return authentication;
+				return sessionAuthentication(attributes);
 			} finally {
 				RequestContextHolder.resetRequestAttributes();
 			}
@@ -276,8 +265,9 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 				do {
 					revision = userRevision.get();
 					auth = authFactory.create();
-					if (accessor.getUser() instanceof Authentication authentication) {
-						auth.clear(authentication);
+					if (accessor.getUser() instanceof Authentication) {
+						// Re-authenticate instead of using the handshake principal, which may predate a user update
+						auth.clear(sessionAuthentication(accessor.getSessionAttributes()));
 						logger.debug("{} STOMP User Set {}", auth.getOrigin(), auth.getUserTag());
 						@SuppressWarnings("unchecked")
 						var headers = (Map<String, ArrayList<String>>) message.getHeaders().get("nativeHeaders", Map.class);
