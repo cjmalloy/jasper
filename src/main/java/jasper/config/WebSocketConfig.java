@@ -73,6 +73,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 	public static final String AUTHORIZATION_HEADER = "Authorization";
 	private static final String USER_TAGS_ATTRIBUTE = "userTags";
 	private static final String USER_REVISION_ATTRIBUTE = "userRevision";
+	private static final String HANDSHAKE_USER_ATTRIBUTE = "handshakeUser";
 
 	@Autowired
 	Props props;
@@ -91,6 +92,8 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
 	Set<WebSocketSession> sessions = ConcurrentHashMap.newKeySet();
 	final AtomicLong userRevision = new AtomicLong();
+	// Last revision each user was updated at, keyed without the +/_ prefix
+	final Map<String, Long> userUpdates = new ConcurrentHashMap<>();
 
 	@Bean
 	public TomcatServletWebServerFactory tomcatContainerFactory() {
@@ -133,9 +136,10 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 			public void afterConnectionEstablished(WebSocketSession session) throws Exception {
 				sessions.add(session);
 				super.afterConnectionEstablished(session);
-				var revision = session.getAttributes().get(USER_REVISION_ATTRIBUTE);
-				if (revision != null && (long) revision != userRevision.get()) {
-					// A user was updated while authenticating the handshake
+				var revision = (Long) session.getAttributes().get(USER_REVISION_ATTRIBUTE);
+				var user = (String) session.getAttributes().get(HANDSHAKE_USER_ATTRIBUTE);
+				if (revision != null && user != null && userUpdates.getOrDefault(user, 0L) > revision) {
+					// The handshake user was updated while authenticating the handshake
 					sessions.remove(session);
 					session.close(CloseStatus.SERVICE_RESTARTED);
 				}
@@ -156,7 +160,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 		var tag = (String) message.getHeaders().get("tag");
 		if (isBlank(tag) || "~".equals(tag)) return;
 		var userTag = qt(tag + ("default".equals(origin) ? "" : origin)).toString();
-		userRevision.incrementAndGet();
+		userUpdates.merge(userTag.substring(1), userRevision.incrementAndGet(), Math::max);
 		sessions.forEach(s -> {
 			Set<String> userTags;
 			synchronized (s.getAttributes()) {
@@ -244,7 +248,9 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 				var auth = authFactory.create();
 				auth.clear(authentication);
 				if (auth.isLoggedIn()) {
-					addUserTag(attributes, auth.getUserTag().toString());
+					var userTag = auth.getUserTag().toString();
+					addUserTag(attributes, userTag);
+					attributes.put(HANDSHAKE_USER_ATTRIBUTE, userTag.substring(1));
 					attributes.put(USER_REVISION_ATTRIBUTE, revision);
 				}
 				return authentication;

@@ -213,6 +213,47 @@ class WebSocketConfigTest {
 	}
 
 	@Test
+	void unrelatedUserUpdateDuringHandshakeKeepsSession() throws Exception {
+		when(config.authFactory.create()).thenAnswer(invocation -> new SubscribingAuth());
+		when(config.defaultTokenProvider.getAuthentication(null, "")).thenReturn(authentication("+user/alice"));
+		var registration = mock(WebSocketTransportRegistration.class);
+		var factory = ArgumentCaptor.forClass(WebSocketHandlerDecoratorFactory.class);
+		config.configureWebSocketTransport(registration);
+		verify(registration).addDecoratorFactory(factory.capture());
+		var handler = factory.getValue().decorate(mock(WebSocketHandler.class));
+		var attributes = handshakeAttributes();
+		config.new StompDefaultHandshakeHandler().determineUser(null, null, attributes);
+		config.handleUserUpdate(MessageBuilder.createMessage(new UserDto(), tagHeaders("", "+user/bob")));
+		config.handleUserUpdate(MessageBuilder.createMessage(new UserDto(), tagHeaders("@other", "+user/alice")));
+		var alice = session(attributes);
+
+		handler.afterConnectionEstablished(alice);
+
+		verify(alice, never()).close(any());
+		assertThat(config.sessions).containsExactly(alice);
+	}
+
+	@Test
+	void privateUserUpdateDuringHandshakeClosesSession() throws Exception {
+		when(config.authFactory.create()).thenAnswer(invocation -> new SubscribingAuth());
+		when(config.defaultTokenProvider.getAuthentication(null, "")).thenReturn(authentication("+user/alice"));
+		var registration = mock(WebSocketTransportRegistration.class);
+		var factory = ArgumentCaptor.forClass(WebSocketHandlerDecoratorFactory.class);
+		config.configureWebSocketTransport(registration);
+		verify(registration).addDecoratorFactory(factory.capture());
+		var handler = factory.getValue().decorate(mock(WebSocketHandler.class));
+		var attributes = handshakeAttributes();
+		config.new StompDefaultHandshakeHandler().determineUser(null, null, attributes);
+		config.handleUserUpdate(MessageBuilder.createMessage(new UserDto(), tagHeaders("", "_user/alice")));
+		var alice = session(attributes);
+
+		handler.afterConnectionEstablished(alice);
+
+		verify(alice).close(CloseStatus.SERVICE_RESTARTED);
+		assertThat(config.sessions).isEmpty();
+	}
+
+	@Test
 	void userUpdateDuringSubscriptionReauthorizes() {
 		var revoked = new AtomicBoolean();
 		var auths = new AtomicInteger();
