@@ -965,6 +965,37 @@ public class AuthUnitTest {
 	}
 
 	@Test
+	void testFilterSort_PrivateTagValueWithAccess() {
+		var user = getUser("+user/test");
+		user.getTagReadAccess().add("_custom");
+		var auth = getAuth(user, VIEWER);
+
+		var pageable = PageRequest.of(0, 20, Sort.by("tags->_custom/progress:num"));
+		assertThat(auth.pageable(pageable).getSort().isSorted())
+			.isTrue();
+	}
+
+	@Test
+	void testFilterSort_PrivateTagValueWithoutAccess() {
+		var user = getUser("+user/test");
+		var auth = getAuth(user, USER);
+
+		var pageable = PageRequest.of(0, 20, Sort.by("tags->_custom/progress:num"));
+		assertThat(auth.pageable(pageable).getSort().isUnsorted())
+			.isTrue();
+	}
+
+	@Test
+	void testFilterSort_PublicTagValue() {
+		var user = getUser("+user/test");
+		var auth = getAuth(user, VIEWER);
+
+		var pageable = PageRequest.of(0, 20, Sort.by("tags->plugin/duration"));
+		assertThat(auth.pageable(pageable).getSort().isSorted())
+			.isTrue();
+	}
+
+	@Test
 	void testFilterSort_MixedSortsKeepsAuthorized() {
 		var user = getUser("+user/test");
 		var auth = getAuth(user, USER);
@@ -1235,6 +1266,69 @@ public class AuthUnitTest {
 		var aliceMod = getUser("+user/alice");
 		aliceMod.getWriteAccess().add("_custom");
 		assertThat(auth.canWriteUser(aliceMod))
+			.isFalse();
+	}
+
+	@Test
+	void testCanSubscribeToRef_Readable() {
+		var auth = getAuth(getUser("+user/test"), VIEWER);
+		var ref = getRef("public");
+		auth.refRepository = getRefRepo(ref);
+
+		assertThat(auth.canSubscribeTo("/topic/ref/default/https%3A%2F%2Fjasperkm.info%2F"))
+			.isTrue();
+	}
+
+	@Test
+	void testCanSubscribeToRef_NotReadableFailed() {
+		var auth = getAuth(getUser("+user/test"), VIEWER);
+		var ref = getRef("_secret");
+		auth.refRepository = getRefRepo(ref);
+
+		assertThat(auth.canSubscribeTo("/topic/ref/default/https%3A%2F%2Fjasperkm.info%2F"))
+			.isFalse();
+	}
+
+	@Test
+	void testCanSubscribeToRef_Missing() {
+		var auth = getAuth(getUser("+user/test"), VIEWER);
+
+		assertThat(auth.canSubscribeTo("/topic/ref/default/https%3A%2F%2Fjasperkm.info%2F"))
+			.isTrue();
+	}
+
+	@Test
+	void testCanSubscribeToRef_MissingSubOrigin() {
+		var auth = getAuth(getUser("+user/test"), VIEWER);
+
+		assertThat(auth.canSubscribeTo("/topic/ref/@sub/https%3A%2F%2Fjasperkm.info%2F"))
+			.isTrue();
+	}
+
+	@Test
+	void testCanSubscribeToRef_MissingSubOriginNotReadableFailed() {
+		var auth = getAuth(getUser("+user/test"), VIEWER);
+		var ref = getRef("_secret");
+		ref.setOrigin("@sub");
+		auth.refRepository = getRefRepo(ref);
+
+		assertThat(auth.canSubscribeTo("/topic/ref/@sub/https%3A%2F%2Fjasperkm.info%2F"))
+			.isFalse();
+	}
+
+	@Test
+	void testCanSubscribeToRef_MissingOtherOriginFailed() {
+		var auth = getAuth("@other", getUser("+user/test"), VIEWER);
+
+		assertThat(auth.canSubscribeTo("/topic/ref/default/https%3A%2F%2Fjasperkm.info%2F"))
+			.isFalse();
+	}
+
+	@Test
+	void testCanSubscribeToRef_MissingPrivateTagUrlFailed() {
+		var auth = getAuth(getUser("+user/test"), VIEWER);
+
+		assertThat(auth.canSubscribeTo("/topic/ref/default/tag%3A%2F_secret"))
 			.isFalse();
 	}
 }

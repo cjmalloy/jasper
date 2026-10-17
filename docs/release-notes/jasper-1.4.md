@@ -14,10 +14,12 @@ This release includes changes accumulated since v1.3.0. Features marked *Experim
 * Improved source metadata updates, backfill, and filtering of obsolete Refs.
 * Added JSON support for using a non-object value as plugin data and improved plugin data handling when patching Refs.
 * Added audio and video support to the HTML sanitizer.
+* Added sorting Refs by tag value: `tags->plugin/title` (text), `tags->plugin/progress:num` (numeric, e.g. `37` from `plugin/progress/37/100`) and `tags->plugin/duration:dur` (ISO-8601 durations such as `pt10m25s`, sorted by length). See the [README sorting section](../../README.md#sorting).
+* Added `hotTags` to the `_config/index` template to index tag value sorts on PostgreSQL, e.g. `{"hotTags": ["plugin/duration:dur"]}`. Removing a hot tag drops its index.
 
 ## Upgrading
 
-* Before starting v1.4.0 with PostgreSQL, clear the stored Liquibase checksum for the changed schema changeset: `UPDATE DATABASECHANGELOG SET MD5SUM = NULL;`. Liquibase will recalculate the checksum on startup. A database migration also adds a small `instr()` SQL function.
+* Before starting v1.4.0 with PostgreSQL, clear the stored Liquibase checksum for the changed schema changeset: `UPDATE DATABASECHANGELOG SET MD5SUM = NULL;`. Liquibase will recalculate the checksum on startup and re-run the SQL function changeset, which adds a small `instr()` function and the `tag_value`, `tag_value_num` and `tag_value_dur` functions used for tag value sorting.
 * If you rely on deleted items being included in backups, set `tombstones: true` in your backup options.
 * The SCIM integration no longer depends on a third-party SDK. No configuration changes are needed.
 * Cloud storage needs credentials: GCS uses Application Default Credentials (e.g. GKE Workload Identity), and S3 uses the default AWS credential chain (e.g. EKS IRSA). Set `APPLICATION_STORAGE_S3_REGION` / `APPLICATION_STORAGE_S3_ENDPOINT` as needed, and `APPLICATION_STORAGE_TMP_DIR` for zip staging space.

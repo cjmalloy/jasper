@@ -140,6 +140,19 @@ database schema changes.
 The `:num` and `:len` suffixes are automatically applied to metadata fields, so you can use
 `metadata->responses` instead of `metadata->responses:len`.
 
+Refs can also be sorted by the value of a tag using `tags->{tag}`. The value is the first
+sub-tag after the prefix of the first tag that has one. For example, `tags->plugin/title`
+sorts on `hello` for the tag `plugin/title/hello`, and `tags->plugin/progress:num`
+sorts numerically on `37` for the tag `plugin/progress/37/100` (ignoring `100` and any further sub-tags).
+Append `:dur` to sort ISO-8601 durations (case-insensitive) by length, so
+`tags->plugin/duration:dur` sorts `plugin/duration/pt90m` after `plugin/duration/pt1h`.
+A bare `plugin/progress` tag is skipped. Refs without a matching tag, or with a value
+that cannot be parsed, sort as `''` or `0`.
+
+To index a tag value sort on PostgreSQL, add it to `hotTags` in the `_config/index` template config,
+for example `{"hotTags": ["plugin/progress:num", "plugin/duration:dur"]}`. Hot tag indexes that are
+removed from the list are dropped. Hot tags are ignored on SQLite.
+
 Metadata dates useful for sorting:
 - `metadata->modified`: updated whenever the responses, internal responses or plugin counts change.
 - `metadata->newResponse`: updated only when a new response is created (not updated), ignoring
@@ -170,6 +183,13 @@ stored in Ext entities and similarly validated according to their schema.
 See [Jasper-UI](https://github.com/cjmalloy/jasper-ui) for examples of Plugins and Templates, such as:
 * `plugin/thumbnail`: [This plugin](https://github.com/cjmalloy/jasper-ui/blob/master/src/app/mods/thumbnail.ts)
 allows a Ref to include a URL to a thumbnail image.
+* `plugin/progress`: Shows a progress bar for a tag like `plugin/progress/3/5`. If this plugin is
+installed in an origin, the server tags origin push/pull Refs and RSS feed Refs with their progress while
+long-running jobs are running, and removes the tag when they finish. Push/pull progress is estimated
+from where the modified cursor is between its starting position and the latest modified date on the
+source. These updates are silent: they do
+not change the Ref's modified date. Updates are sent at most once every 5 seconds, so jobs that finish in
+under 5 seconds add no tag.
 * `user` Template: 
 [This template](https://github.com/cjmalloy/jasper-ui/blob/master/src/app/mods/user.ts)
 allows a user tag to customize their experience, such as subscribing to a list of tags to show
@@ -564,7 +584,7 @@ It supports the following configuration options:
 | `JASPER_OVERRIDE_SERVER_SSH_ORIGINS`                | Override the server origins with SSH access.                                                                                   |                                                                                                                                                                                                               |
 | `JASPER_OVERRIDE_SERVER_MAX_PUSH_ENTITY_BATCH`      | Override the server maximum batch size for push replicate.                                                                     |                                                                                                                                                                                                               |
 | `JASPER_OVERRIDE_SERVER_MAX_PULL_ENTITY_BATCH`      | Override the server maximum batch size for pull replicate.                                                                     |                                                                                                                                                                                                               |
-| `JASPER_OVERRIDE_SERVER_SCRIPT_SELECTORS`           | Override the server tags and origins that can run scripts. No wildcard origins.                                                |                                                                                                                                                                                                               |
+| `JASPER_OVERRIDE_SERVER_SCRIPT_SELECTORS`           | Override the server tags and origins that can run scripts. Supports `@*`, `@origin.*` (one level).                             |                                                                                                                                                                                                               |
 | `JASPER_OVERRIDE_SERVER_SCRIPT_WHITELIST`           | Override the server list of whitelisted script SHA-256 hashes.                                                                 |                                                                                                                                                                                                               |
 | `JASPER_OVERRIDE_SERVER_HOST_WHITELIST`             | Override the server list of whitelisted hosts.                                                                                 |                                                                                                                                                                                                               |
 | `JASPER_OVERRIDE_SERVER_HOST_BLACKLIST`             | Override the server list of blacklisted hosts.                                                                                 |                                                                                                                                                                                                               |
@@ -615,7 +635,7 @@ different nodes to run different workloads.
 | `sshOrigins`               | Whitelist of origins allowed to open SSH tunnels.                                               | `[""]` (root origin only)                  |
 | `maxPushEntityBatch`       | Maximum batch size for push replication.                                                        | `5000`                                     |
 | `maxPullEntityBatch`       | Maximum batch size for pull replication.                                                        | `5000`                                     |
-| `scriptSelectors`          | Whitelist of selectors (tag + origin) allowed to run scripts. No origin wildcards.              | `[""]` (root origin only)                  |
+| `scriptSelectors`          | Whitelist of selectors (tag + origin) to run scripts. Supports `@*`, `@origin.*` (one level).   | `[""]` (root origin only)                  |
 | `scriptWhitelist`          | Whitelist of script SHA-256 hashes allowed to run. If empty, all scripts are allowed.           | `null` (all allowed)                       |
 | `hostWhitelist`            | Whitelist of domains allowed to fetch from. If empty, all hosts are allowed (except blacklist). | `null` (all allowed)                       |
 | `hostBlacklist`            | Blacklist of domains not allowed to fetch from. Takes precedence over whitelist.                | `["*.local"]`                              |
@@ -666,6 +686,25 @@ values if it does not exist. Security settings are inherited from parent origins
 | `maxRequests`            | Maximum HTTP requests per origin every 500 nanoseconds for this origin.                          | `50`                                      |
 | `maxConcurrentScripts`   | Maximum concurrent script executions per origin.                                                 | `5`                                       |
 | `scriptLimits`           | Per-origin script execution limits. Map of selector patterns to max concurrent value.            | `{}` (empty)                              |
+
+#### DB Indices (`_config/index` Template)
+The `_config/index` template is installed in the root origin and selects which `ref` table indices
+exist. On startup, and whenever the template changes, each enabled index is created if it is missing
+and each disabled index is dropped.
+
+| Field               | Description                                                                      | Default Value |
+|---------------------|----------------------------------------------------------------------------------|---------------|
+| `tags`              | GIN indices on tags and expanded tags (PostgreSQL only).                         | `true`        |
+| `sources`           | GIN index on sources (PostgreSQL only).                                          | `true`        |
+| `alts`              | GIN index on alternate URLs (PostgreSQL only).                                   | `true`        |
+| `responses`         | GIN index on responses metadata (PostgreSQL only).                               | `true`        |
+| `internalResponses` | GIN index on internal responses metadata (PostgreSQL only).                      | `true`        |
+| `fulltext`          | Full text search index.                                                          | `true`        |
+| `published`         | Index on the published date.                                                     | `true`        |
+| `modified`          | Index on the modified date.                                                      | `true`        |
+| `ignored`           | Partial index on Refs marked `ignored` during replication, used by pull batches. | `true`        |
+| `cascade`           | Partial index on Refs waiting for a metadata cascade.                            | `true`        |
+| `regen`             | Partial index on Refs waiting for metadata regeneration (background backfill).   | `true`        |
 
 ### Profiles
 Setting the active profiles is done through the `SPRING_PROFILES_ACTIVE` environment
@@ -910,7 +949,13 @@ Jasper generates the following metadata in Refs:
    Protected and private user URLs (`tag:/+user/alice` and `tag:/_user/alice`) are recorded as `tag:/user/alice`.
    Regenerating metadata for an origin only rebuilds the user URLs of that origin, user URLs from other
    origins are kept.
- * Obsolete: flag set if another origin contains the newest version of this Ref
+ * Obsolete: flag set if another origin contains a higher ranked version of this Ref. Only one version of each
+   Ref is not obsolete: the newest one, unless the `plugin/pinned` plugin is installed in the root origin. Then
+   versions tagged `plugin/pinned` in the root origin rank highest, followed by versions tagged `plugin/pinned` in
+   other origins, followed by everything else. The newest version wins within a rank. Use the Add Tags of a
+   `+plugin/origin/pull` or `plugin/script/feed` to pin everything from a remote origin or RSS feed.
+   Installing or removing `plugin/pinned` marks every Ref with a pinned version for regen, so existing versions
+   are ranked again by the backfill.
 
 Metadata is never transferred during replication. A simplified version is sent over the client API, with
 counts for each response type, total plugin response counts from all origins (`remotePlugins`), and user plugin
@@ -1125,6 +1170,14 @@ a time. If you want to combine multiple origins into one, create multiple `+plug
 **Push On Change:** Push entities immediately after modification.
 **Cache:** Also push cached files.  
 
+Only entities that the signing users of the `+plugin/origin/push` Ref (its `+user` or `_user` tags) can read are
+pushed. Each signing user is given the default roles and the role on their local user entity. If there are several
+signing users, anything one of them can read is pushed. An unsigned Ref pushes only what the default (logged out) user
+can read. If no signing user can read the local origin, nothing is pushed and the Ref is tagged `+plugin/error`.
+The data in pushed entities is filtered the same way as API responses: tags and plugins that no signing user can read
+are removed from Refs, and hidden read/write access tags and external IDs are removed from Users. Only signing users
+that can read the Ref or User itself are considered when filtering its data.
+
 ### Logs and errors on replicated origins
 A pulled origin is a copy of a remote server. Its users and user tags (`_user/*`, `+user/*`) belong to the remote
 server and mean nothing locally. The local users that matter are the owners of the `+plugin/origin` Ref, which lives
@@ -1132,13 +1185,17 @@ in the owning origin (usually `""`).
 
 There are two kinds of writes:
  * **Plugin data** on a Ref in a pulled origin, such as the `_plugin/cache` ban/error marker written after a failed cache
-   fetch. It is written silently into the pulled origin (`Tagger.silentPlugin`). A new Ref is backdated to
-   `cursor - 1ms` and an existing Ref keeps its `modified`, so the pull cursor (`modifiedAfter`) never moves past
-   remote entries.
+   fetch. It is written silently into the pulled origin (`Tagger.silentPlugin`). A new Ref is marked `ignored` in its
+   metadata, so it is not counted in the pull cursor (`modifiedAfter`) and is never sent during replication (pull or
+   push). Pulled Refs are also marked `ignored` while a batch is ingested. Once the whole batch is ingested, the flag is
+   cleared in one update on every ignored Ref up to the newest pulled Ref. A failed batch therefore never moves the
+   cursor, and the retry starts again from the last complete batch. Ignored Refs do not publish a cursor update; the
+   cursor update for the batch is published after the flag is cleared, so chained replication sees it. An existing
+   Ref keeps its `modified`, so the pull cursor never moves past remote entries.
  * **Logs** (`+plugin/log` Refs with an `error:<uuid>` URL). They are stamped with `modified = now`, so they are never
    written into a pulled origin. They are redirected to the origin that owns the `+plugin/origin` Ref.
 
-Rule: pulled origins only get silent, backdated writes; anything stamped `now` goes to the owning origin. This depends
+Rule: pulled origins only get silent writes that do not move the pull cursor; logs go to the owning origin. This depends
 on whether the origin is a pull target, not on whether it is a sub origin. Local (non-replicated) sub origins keep their
 own logs.
 
@@ -1148,6 +1205,14 @@ never copied. `+plugin/error` is never added to a Ref in a pulled origin.
 
 Push errors (including a `403` from the remote) are logged on the `+plugin/origin` Ref and tag it `+plugin/error`,
 which disables push on change until the tag is removed. They never fail the request that saved the Ref.
+
+### Replication batches
+Entities are replicated in batches sorted by `modified`, starting after the cursor, until a batch is not full.
+On a `413 Payload Too Large` the batch size is halved (logged on the `+plugin/origin` Ref) and doubled again after
+each successful batch. A push skips an entity that is too large on its own. A pull cannot skip entities on the
+remote, so it stops with `+plugin/error`. Errors that would fail the same way on every run (client errors other than
+`408` and `429`, unreadable responses, or a batch that does not advance the cursor) also add `+plugin/error`
+instead of being retried forever. Connection errors and `5xx` are retried on the next run.
 
 ## Random Number Generator
 

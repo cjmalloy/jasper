@@ -13,6 +13,7 @@ import jasper.errors.InvalidPushException;
 import jasper.errors.ModifiedException;
 import jasper.errors.NotFoundException;
 import jasper.repository.PluginRepository;
+import jasper.repository.RefRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -49,6 +50,9 @@ public class IngestPlugin {
 	PluginRepository pluginRepository;
 
 	@Autowired
+	RefRepository refRepository;
+
+	@Autowired
 	EntityManager em;
 
 	@Autowired
@@ -68,16 +72,20 @@ public class IngestPlugin {
 
 	@Timed(value = "jasper.plugin", histogram = true)
 	public void create(Plugin plugin) {
-		// In archive mode the current version is checked when appending
-		if (!archive) {
-			if (isDeletorTag(plugin.getTag())) {
-				if (pluginRepository.existsByQualifiedTag(deletedTag(plugin.getQualifiedTag()))) throw new AlreadyExistsException();
-			} else {
-				delete(deletorTag(plugin.getQualifiedTag()));
+		if (isDeletorTag(plugin.getTag())) {
+			if (archive ? current(deletedTag(plugin.getQualifiedTag())).isPresent() : pluginRepository.existsByQualifiedTag(deletedTag(plugin.getQualifiedTag()))) throw new AlreadyExistsException();
+			var existing = pluginRepository.findOneByQualifiedTag(plugin.getQualifiedTag());
+			if (existing.isPresent()) {
+				plugin.setModified(existing.get().getModified());
+				return;
 			}
+		} else if (!archive) {
+			// In archive mode the deletor tag is kept
+			delete(deletorTag(plugin.getQualifiedTag()));
 		}
 		validate.plugin(plugin.getOrigin(), plugin);
 		ensureCreateUniqueModified(plugin, true);
+		rerank(plugin.getQualifiedTag());
 		messages.updatePlugin(plugin);
 	}
 
@@ -109,6 +117,7 @@ public class IngestPlugin {
 		if (!archive && isDeletorTag(plugin.getTag())) {
 			delete(deletedTag(plugin.getQualifiedTag()));
 		}
+		rerank(plugin.getQualifiedTag());
 		messages.updatePlugin(plugin);
 	}
 
@@ -119,6 +128,7 @@ public class IngestPlugin {
 			return;
 		}
 		pluginRepository.deleteByQualifiedTag(qualifiedTag);
+		rerank(qualifiedTag);
 		messages.deletePlugin(qualifiedTag);
 	}
 
@@ -145,13 +155,25 @@ public class IngestPlugin {
 			var deletor = isDeletorTag(qualifiedTag) ? qualifiedTag : deletorTag(qualifiedTag);
 			pluginRepository.deleteByQualifiedTagAndModifiedLessThanEqual(tag, startedAt);
 			pluginRepository.deleteByQualifiedTagAndModifiedLessThanEqual(deletor, startedAt);
+			rerank(tag);
 			return;
 		}
 		var tombstone = new Plugin();
 		tombstone.setTag(localTag(qualifiedTag));
 		tombstone.setOrigin(tagOrigin(qualifiedTag));
 		ensureCreateUniqueModified(tombstone);
+		rerank(qualifiedTag);
 		messages.deletePlugin(qualifiedTag);
+	}
+
+	/**
+	 * Installing or removing plugin/pinned changes which version of a Ref is visible,
+	 * so regenerate the metadata of every Ref with a pinned version.
+	 */
+	private void rerank(String qualifiedTag) {
+		if (!localTag(qualifiedTag).equals("plugin/pinned")) return;
+		var count = refRepository.regenTag(tagOrigin(qualifiedTag), "plugin/pinned");
+		logger.info("{} Marked {} Refs for regen after changing plugin/pinned", tagOrigin(qualifiedTag), count);
 	}
 
 	void ensureCreateUniqueModified(Plugin plugin) {

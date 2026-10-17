@@ -4,7 +4,6 @@ import io.micrometer.core.annotation.Timed;
 import jakarta.persistence.EntityManager;
 import jasper.domain.Metadata;
 import jasper.domain.Ref;
-import jasper.domain.Ref_;
 import jasper.repository.RefRepository;
 import jasper.repository.RefRepositoryCustom;
 import org.slf4j.Logger;
@@ -12,7 +11,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataAccessException;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Component;
 
 import java.time.Duration;
@@ -27,14 +25,17 @@ import static jasper.domain.proj.Tag.matchesTemplate;
 import static jasper.domain.proj.Tag.qualifiedUserUrl;
 import static jasper.domain.proj.Tag.userUrl;
 import static jasper.domain.proj.Tag.userUrlOrigin;
+import static jasper.repository.spec.OriginSpec.isOrigin;
 import static jasper.repository.spec.OriginSpec.isUnderOrigin;
 import static jasper.repository.spec.RefSpec.isNotObsolete;
 import static jasper.repository.spec.RefSpec.isUrl;
 import static jasper.repository.spec.RefSpec.isUrls;
 import static java.time.Instant.now;
+import static java.util.Comparator.comparing;
+import static java.util.Comparator.comparingInt;
+import static java.util.function.BinaryOperator.maxBy;
 import static java.util.stream.Collectors.toMap;
-import static org.springframework.data.domain.Sort.Order.desc;
-import static org.springframework.data.domain.Sort.by;
+import static org.springframework.data.jpa.domain.Specification.not;
 
 @Component
 public class Meta {
@@ -98,6 +99,8 @@ public class Meta {
 			.remotePlugins(refRepositoryCustom.countPluginTagsInResponses(ref.getUrl(), rootOrigin)
 				.stream()
 				.collect(toMap(r -> (String) r[0], r -> ((Number) r[1]).longValue())))
+			.newResponse(orCreated(null, ref))
+			.newReaction(orCreated(null, ref))
 			.build()
 		);
 	}
@@ -109,9 +112,16 @@ public class Meta {
 			return;
 		}
 		if (ref == null) return;
+		if (noMetadata) {
+			expandedTagsOnly(ref);
+			return;
+		}
 		ref.setMetadata(existing.getMetadata().toBuilder()
 			.expandedTags(expandTags(ref.getTags()))
+			.newResponse(newResponse(rootOrigin, existing, existing.getMetadata().getNewResponse()))
+			.newReaction(newReaction(rootOrigin, existing, existing.getMetadata().getNewReaction()))
 			.obsolete(false)
+			.ignored(false)
 			.build()
 		);
 	}
@@ -122,13 +132,17 @@ public class Meta {
 		ref.setMetadata(Metadata
 			.builder()
 			.expandedTags(expandTags(ref.getTags()))
+			.newResponse(orCreated(null, ref))
+			.newReaction(orCreated(null, ref))
 			.build()
 		);
 	}
 
 	@Timed(value = "jasper.meta", histogram = true)
 	public void responseSource(String rootOrigin, Ref ref, Ref existing) {
-		if (ref != null && existing != null && existing.getTags() != null && existing.getTags().equals(ref.getTags())) {
+		// A hidden version may now be the newest in its rank, so it must be ranked again
+		if (ref != null && existing != null && existing.getTags() != null && existing.getTags().equals(ref.getTags())
+			&& (existing.getMetadata() == null || !existing.getMetadata().isObsolete())) {
 			reaction(rootOrigin, ref);
 			return;
 		}
@@ -150,7 +164,7 @@ public class Meta {
 	 * Sources past {@link #SYNC_SOURCES} are updated by the cascade.
 	 */
 	private void reaction(String rootOrigin, Ref ref) {
-		if (archive) refRepository.updateObsolete(ref.getUrl(), rootOrigin);
+		if (archive) refRepository.updateObsolete(ref.getUrl(), rootOrigin, pinned(rootOrigin));
 		if (noMetadata) return;
 		var timestamp = timestamp(now());
 		var sources = (ref.getSources() == null ? List.<String>of() : ref.getSources())
@@ -162,6 +176,7 @@ public class Meta {
 		if (!sources.isEmpty()) for (var source : refRepository.findAll(isUrls(sources).and(isNotObsolete()).and(isUnderOrigin(rootOrigin)))) {
 			if (source.getMetadata() == null) continue;
 			detach(source);
+			source.getMetadata().setNewResponse(newResponse(rootOrigin, source, source.getMetadata().getNewResponse()));
 			source.getMetadata().setNewReaction(timestamp);
 			try {
 				updateMetadata(source, source.getMetadata());
@@ -195,14 +210,20 @@ public class Meta {
 		var original = ref.getMetadata();
 		ref(rootOrigin, ref);
 		ref.getMetadata().setModified(original == null ? now().toString() : original.getModified());
-		if (original != null) {
-			ref.getMetadata().setNewResponse(original.getNewResponse());
-			ref.getMetadata().setNewReaction(original.getNewReaction());
+		if (noMetadata) {
+			if (original != null) {
+				ref.getMetadata().setNewResponse(original.getNewResponse());
+				ref.getMetadata().setNewReaction(original.getNewReaction());
+			}
+		} else {
+			ref.getMetadata().setNewResponse(newResponse(rootOrigin, ref, original == null ? null : original.getNewResponse()));
+			ref.getMetadata().setNewReaction(newReaction(rootOrigin, ref, original == null ? null : original.getNewReaction()));
+			keepOtherOriginUserUrls(rootOrigin, original, ref.getMetadata());
 		}
-		if (!noMetadata) keepOtherOriginUserUrls(rootOrigin, original, ref.getMetadata());
-		ref.getMetadata().setObsolete(refRepository.newerExists(ref.getUrl(), rootOrigin, ref.getModified()));
+		ref.getMetadata().setIgnored(original != null && original.isIgnored());
+		ref.getMetadata().setObsolete(obsolete(rootOrigin, ref));
 		if (ref.getMetadata().isObsolete()) return;
-		refRepository.updateObsolete(ref.getUrl(), rootOrigin);
+		refRepository.updateObsolete(ref.getUrl(), rootOrigin, pinned(rootOrigin));
 		if (noMetadata) return;
 		var sources = (ref.getSources() == null ? List.<String>of() : ref.getSources())
 			.stream()
@@ -221,11 +242,12 @@ public class Meta {
 		var original = source.getMetadata();
 		ref(rootOrigin, source);
 		source.getMetadata().setModified(original == null ? now().toString() : original.getModified());
+		source.getMetadata().setNewResponse(newResponse(rootOrigin, source, original == null ? null : original.getNewResponse()));
+		source.getMetadata().setNewReaction(newReaction(rootOrigin, source, original == null ? null : original.getNewReaction()));
 		if (original != null) {
-			source.getMetadata().setNewResponse(original.getNewResponse());
-			source.getMetadata().setNewReaction(original.getNewReaction());
 			source.getMetadata().setRegen(original.isRegen());
 			source.getMetadata().setCascade(original.isCascade());
+			source.getMetadata().setIgnored(original.isIgnored());
 		}
 		keepOtherOriginUserUrls(rootOrigin, original, source.getMetadata());
 		if (ref.getSources() != null && ref.getSources().contains(source.getUrl())) {
@@ -246,6 +268,30 @@ public class Meta {
 	private static boolean isNew(Ref ref) {
 		if (ref.getCreated() == null || ref.getModified() == null) return false;
 		return Duration.between(ref.getCreated(), ref.getModified()).abs().compareTo(NEW_TOLERANCE) <= 0;
+	}
+
+	/**
+	 * Use the Ref created date when a metadata timestamp is blank.
+	 */
+	private static String orCreated(String value, Ref ref) {
+		if (value != null && !value.isBlank()) return value;
+		return timestamp(ref.getCreated() == null ? now() : ref.getCreated());
+	}
+
+	/**
+	 * Backfill a blank newResponse from the latest response, or the Ref created date.
+	 */
+	private String newResponse(String rootOrigin, Ref ref, String value) {
+		if (value != null && !value.isBlank()) return value;
+		return latest(orCreated(null, ref), refRepository.latestResponseCreated(ref.getUrl(), rootOrigin));
+	}
+
+	/**
+	 * Backfill a blank newReaction from the latest response, or the Ref created date.
+	 */
+	private String newReaction(String rootOrigin, Ref ref, String value) {
+		if (value != null && !value.isBlank()) return value;
+		return latest(orCreated(null, ref), refRepository.latestResponseModified(ref.getUrl(), rootOrigin));
 	}
 
 	/**
@@ -274,10 +320,16 @@ public class Meta {
 		var limit = sync ? configs.root().getMaxSources() : SYNC_SOURCES;
 		if (ref == null) {
 			// Deleting
-			var maybeLatest = refRepository.findAll(isUrl(existing.getUrl()).and(isUnderOrigin(rootOrigin)), PageRequest.of(0, 1, by(desc(Ref_.MODIFIED))));
-			if (!maybeLatest.isEmpty()) {
+			// In archive mode only the latest version in each origin is ranked
+			var maybeLatest = refRepository.findAll(isUrl(existing.getUrl()).and(isUnderOrigin(rootOrigin)))
+				.stream()
+				.collect(toMap(Ref::getOrigin, r -> r, maxBy(comparing(Ref::getModified))))
+				.values()
+				.stream()
+				.max(comparingInt((Ref r) -> rank(rootOrigin, r)).thenComparing(Ref::getModified));
+			if (maybeLatest.isPresent()) {
 				// Deleting make a shadowed Ref visible
-				var latest = maybeLatest.getContent().getFirst();
+				var latest = maybeLatest.get();
 				detach(latest);
 				if (latest.getMetadata() != null && existing.getMetadata() != null) {
 					latest.getMetadata().setModified(existing.getMetadata().getModified());
@@ -297,8 +349,32 @@ public class Meta {
 
 		// Creating or updating (not deleting)
 		var cascade = false;
-		refRepository.updateObsolete(ref.getUrl(), rootOrigin);
+		var wasVisible = existing != null && (existing.getMetadata() == null || !existing.getMetadata().isObsolete());
+		var shadowed = refRepository.exists(isUrl(ref.getUrl()).and(isNotObsolete()).and(isUnderOrigin(rootOrigin)).and(not(isOrigin(ref.getOrigin()))));
+		refRepository.updateObsolete(ref.getUrl(), rootOrigin, pinned(rootOrigin));
+		var obsolete = obsolete(rootOrigin, ref);
+		if (ref.getMetadata() != null) ref.getMetadata().setObsolete(obsolete);
 		if (noMetadata) return;
+		// Obsolete user URLs are still counted in their sources
+		if (!userUrl(ref.getUrl())) {
+			if (obsolete) {
+				// A higher ranked version is visible, only update sources if it was this version
+				if (wasVisible) {
+					for (var winner : refRepository.findAll(isUrl(ref.getUrl()).and(isNotObsolete()).and(isUnderOrigin(rootOrigin)))) {
+						detach(winner);
+						if (winner.getMetadata() != null) winner.getMetadata().setObsolete(false);
+						rebuildSources(rootOrigin, winner, SYNC_SOURCES);
+						messages.updateMetadata(winner);
+					}
+				}
+				return;
+			}
+			if (shadowed) {
+				// This version replaced a different visible version
+				rebuildSources(rootOrigin, ref, limit);
+				return;
+			}
+		}
 		if (ref.getSources() != null && ref.getSources().size() > limit) {
 			cascade = true;
 		}
@@ -325,6 +401,7 @@ public class Meta {
 					.remotePlugins(new HashMap<>())
 					.build();
 			}
+			metadata.setNewResponse(newResponse(rootOrigin, source, metadata.getNewResponse()));
 			if (ref.hasTag("internal")) {
 				metadata.addInternalResponse(ref.getUrl());
 			} else {
@@ -381,7 +458,7 @@ logger.error("{} Error updating source metadata for ({}) {}", rootOrigin, ref.ge
 	 * Queue a Ref for the cascade. In archive mode only the given version is marked.
 	 */
 	private void markCascade(Ref ref) {
-		ref.getMetadata().setCascade(true);
+		if (ref.getMetadata() != null) ref.getMetadata().setCascade(true);
 		if (archive) {
 			refRepository.markCascadeVersion(ref.getUrl(), ref.getOrigin(), ref.getModified());
 		} else {
@@ -436,6 +513,52 @@ logger.error("{} Error updating source metadata for ({}) {}", rootOrigin, ref.ge
 		return archive
 			? refRepository.updateMetadataVersion(ref.getUrl(), ref.getOrigin(), ref.getModified(), metadata)
 			: refRepository.updateMetadata(ref.getUrl(), ref.getOrigin(), metadata);
+	}
+
+	/**
+	 * Rebuild the source metadata when the visible version of a Ref changes.
+	 * Sources only cited by the previously visible version are rebuilt as well.
+	 * Sources past the limit are updated by the cascade.
+	 */
+	private void rebuildSources(String rootOrigin, Ref ref, int limit) {
+		var sources = new ArrayList<String>();
+		if (ref.getSources() != null) ref.getSources().stream()
+			.limit(limit)
+			.filter(s -> !s.equals(ref.getUrl()))
+			.distinct()
+			.forEach(sources::add);
+		refRepository.findRemovedSourceUrls(ref.getUrl(), rootOrigin).stream()
+			.filter(s -> !sources.contains(s))
+			.forEach(sources::add);
+		if (!sources.isEmpty()) for (var source : refRepository.findAll(isUrls(sources).and(isNotObsolete()).and(isUnderOrigin(rootOrigin)))) {
+			cascadeSource(rootOrigin, ref, source);
+		}
+		if (ref.getSources() != null && ref.getSources().size() > limit) {
+			markCascade(ref);
+		}
+	}
+
+	/**
+	 * Check if a higher ranked version of a Ref exists, or a newer version in the same origin.
+	 */
+	private boolean obsolete(String rootOrigin, Ref ref) {
+		return refRepository.higherRankExists(ref.getUrl(), ref.getOrigin(), rootOrigin, pinned(rootOrigin), rank(rootOrigin, ref), ref.getModified());
+	}
+
+	/**
+	 * Refs are only ranked by plugin/pinned if the plugin is installed in the root origin.
+	 */
+	private boolean pinned(String rootOrigin) {
+		return configs.getPlugin("plugin/pinned", rootOrigin).isPresent();
+	}
+
+	/**
+	 * Only the highest ranked version of a Ref is not obsolete, the newest version wins within a rank.
+	 * @return 2 if pinned in the root origin, 1 if pinned in another origin, otherwise 0
+	 */
+	private int rank(String rootOrigin, Ref ref) {
+		if (!ref.hasTag("plugin/pinned") || !pinned(rootOrigin)) return 0;
+		return ref.getOrigin().equals(rootOrigin) ? 2 : 1;
 	}
 
 	/**

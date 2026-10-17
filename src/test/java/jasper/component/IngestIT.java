@@ -4,11 +4,14 @@ import jasper.IntegrationTest;
 import jasper.component.channel.Cascade;
 import jasper.component.dto.ComponentDtoMapper;
 import jasper.domain.Metadata;
+import jasper.domain.Plugin;
 import jasper.domain.Ref;
 import jasper.errors.AlreadyExistsException;
 import jasper.errors.DuplicateModifiedDateException;
 import jasper.errors.ModifiedException;
+import jasper.repository.PluginRepository;
 import jasper.repository.RefRepository;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -27,8 +30,10 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static jasper.repository.spec.RefSpec.isUrl;
+import static java.time.temporal.ChronoUnit.MICROS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.within;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -53,12 +58,412 @@ public class IngestIT {
 	@Autowired
 	Cascade cascade;
 
+	@Autowired
+	Meta meta;
+
+	@Autowired
+	PluginRepository pluginRepository;
+
+	@Autowired
+	ConfigCache configCache;
+
+	@Autowired
+	IngestPlugin ingestPlugin;
+
 	static final String URL = "https://www.example.com/";
 	static final String OTHER_URL = "https://www.example.com/other";
 
 	@BeforeEach
 	void init() {
 		refRepository.deleteAll();
+		pluginRepository.deleteAll();
+		configCache.clearPluginCache();
+	}
+
+	@AfterEach
+	void cleanup() {
+		pluginRepository.deleteAll();
+		configCache.clearPluginCache();
+	}
+
+	void installPinned() {
+		var plugin = new Plugin();
+		plugin.setTag("plugin/pinned");
+		pluginRepository.save(plugin);
+		configCache.clearPluginCache();
+	}
+
+	@Test
+	void testPinnedNeverObsolete() throws InterruptedException {
+		installPinned();
+		var pinned = new Ref();
+		pinned.setUrl(URL);
+		pinned.setTags(new ArrayList<>(List.of("plugin/pinned")));
+		ingest.create("", pinned);
+
+		TimeUnit.MILLISECONDS.sleep(1);
+
+		var remote = new Ref();
+		remote.setUrl(URL);
+		remote.setOrigin("@remote");
+		ingest.create("", remote);
+
+		assertThat(refRepository.findOneByUrlAndOrigin(URL, "").get().getMetadata().isObsolete()).isFalse();
+		assertThat(refRepository.findOneByUrlAndOrigin(URL, "@remote").get().getMetadata().isObsolete()).isTrue();
+
+		var regen = refRepository.findOneByUrlAndOrigin(URL, "").get();
+		meta.regen("", regen);
+		assertThat(regen.getMetadata().isObsolete()).isFalse();
+		var regenRemote = refRepository.findOneByUrlAndOrigin(URL, "@remote").get();
+		meta.regen("", regenRemote);
+		assertThat(regenRemote.getMetadata().isObsolete()).isTrue();
+
+		TimeUnit.MILLISECONDS.sleep(1);
+
+		var remoteUpdate = new Ref();
+		remoteUpdate.setUrl(URL);
+		remoteUpdate.setOrigin("@remote");
+		remoteUpdate.setTitle("Remote Updated");
+		remoteUpdate.setModified(refRepository.findOneByUrlAndOrigin(URL, "@remote").get().getModified());
+		ingest.update("", remoteUpdate);
+
+		assertThat(refRepository.findOneByUrlAndOrigin(URL, "").get().getMetadata().isObsolete()).isFalse();
+		assertThat(refRepository.findOneByUrlAndOrigin(URL, "@remote").get().getMetadata().isObsolete()).isTrue();
+	}
+
+	@Test
+	void testUnpinnedBecomesObsolete() throws InterruptedException {
+		installPinned();
+		var pinned = new Ref();
+		pinned.setUrl(URL);
+		pinned.setTags(new ArrayList<>(List.of("plugin/pinned")));
+		ingest.create("", pinned);
+
+		TimeUnit.MILLISECONDS.sleep(1);
+
+		var remote = new Ref();
+		remote.setUrl(URL);
+		remote.setOrigin("@remote");
+		ingest.create("", remote);
+
+		TimeUnit.MILLISECONDS.sleep(1);
+
+		var unpin = new Ref();
+		unpin.setUrl(URL);
+		unpin.setModified(refRepository.findOneByUrlAndOrigin(URL, "").get().getModified());
+		ingest.update("", unpin);
+
+		assertThat(refRepository.findOneByUrlAndOrigin(URL, "").get().getMetadata().isObsolete()).isFalse();
+		assertThat(refRepository.findOneByUrlAndOrigin(URL, "@remote").get().getMetadata().isObsolete()).isTrue();
+
+		TimeUnit.MILLISECONDS.sleep(1);
+
+		var remoteUpdate = new Ref();
+		remoteUpdate.setUrl(URL);
+		remoteUpdate.setOrigin("@remote");
+		remoteUpdate.setModified(refRepository.findOneByUrlAndOrigin(URL, "@remote").get().getModified());
+		ingest.update("", remoteUpdate);
+
+		assertThat(refRepository.findOneByUrlAndOrigin(URL, "").get().getMetadata().isObsolete()).isTrue();
+		assertThat(refRepository.findOneByUrlAndOrigin(URL, "@remote").get().getMetadata().isObsolete()).isFalse();
+	}
+
+	@Test
+	void testPinnedNotInstalled() throws InterruptedException {
+		var pinned = new Ref();
+		pinned.setUrl(URL);
+		pinned.setTags(new ArrayList<>(List.of("plugin/pinned")));
+		ingest.create("", pinned);
+
+		TimeUnit.MILLISECONDS.sleep(1);
+
+		var remote = new Ref();
+		remote.setUrl(URL);
+		remote.setOrigin("@remote");
+		ingest.create("", remote);
+
+		assertThat(refRepository.findOneByUrlAndOrigin(URL, "").get().getMetadata().isObsolete()).isTrue();
+		assertThat(refRepository.findOneByUrlAndOrigin(URL, "@remote").get().getMetadata().isObsolete()).isFalse();
+
+		var regen = refRepository.findOneByUrlAndOrigin(URL, "").get();
+		meta.regen("", regen);
+		assertThat(regen.getMetadata().isObsolete()).isTrue();
+	}
+
+	@Test
+	void testRemotePinnedBeatsNewerUnpinned() throws InterruptedException {
+		installPinned();
+		var pinned = new Ref();
+		pinned.setUrl(URL);
+		pinned.setOrigin("@remote");
+		pinned.setTags(new ArrayList<>(List.of("plugin/pinned")));
+		ingest.create("", pinned);
+
+		TimeUnit.MILLISECONDS.sleep(1);
+
+		var local = new Ref();
+		local.setUrl(URL);
+		ingest.create("", local);
+
+		TimeUnit.MILLISECONDS.sleep(1);
+
+		var other = new Ref();
+		other.setUrl(URL);
+		other.setOrigin("@other");
+		ingest.create("", other);
+
+		assertThat(refRepository.findOneByUrlAndOrigin(URL, "@remote").get().getMetadata().isObsolete()).isFalse();
+		assertThat(refRepository.findOneByUrlAndOrigin(URL, "").get().getMetadata().isObsolete()).isTrue();
+		assertThat(refRepository.findOneByUrlAndOrigin(URL, "@other").get().getMetadata().isObsolete()).isTrue();
+
+		var regen = refRepository.findOneByUrlAndOrigin(URL, "@remote").get();
+		meta.regen("", regen);
+		assertThat(regen.getMetadata().isObsolete()).isFalse();
+		var regenLocal = refRepository.findOneByUrlAndOrigin(URL, "").get();
+		meta.regen("", regenLocal);
+		assertThat(regenLocal.getMetadata().isObsolete()).isTrue();
+	}
+
+	@Test
+	void testRootPinnedBeatsNewerRemotePinned() throws InterruptedException {
+		installPinned();
+		var local = new Ref();
+		local.setUrl(URL);
+		local.setTags(new ArrayList<>(List.of("plugin/pinned")));
+		ingest.create("", local);
+
+		TimeUnit.MILLISECONDS.sleep(1);
+
+		var remote = new Ref();
+		remote.setUrl(URL);
+		remote.setOrigin("@remote");
+		remote.setTags(new ArrayList<>(List.of("plugin/pinned")));
+		ingest.create("", remote);
+
+		assertThat(refRepository.findOneByUrlAndOrigin(URL, "").get().getMetadata().isObsolete()).isFalse();
+		assertThat(refRepository.findOneByUrlAndOrigin(URL, "@remote").get().getMetadata().isObsolete()).isTrue();
+
+		var regen = refRepository.findOneByUrlAndOrigin(URL, "@remote").get();
+		meta.regen("", regen);
+		assertThat(regen.getMetadata().isObsolete()).isTrue();
+	}
+
+	@Test
+	void testRemotePinnedNewestWins() throws InterruptedException {
+		installPinned();
+		var first = new Ref();
+		first.setUrl(URL);
+		first.setOrigin("@a");
+		first.setTags(new ArrayList<>(List.of("plugin/pinned")));
+		ingest.create("", first);
+
+		TimeUnit.MILLISECONDS.sleep(1);
+
+		var second = new Ref();
+		second.setUrl(URL);
+		second.setOrigin("@b");
+		second.setTags(new ArrayList<>(List.of("plugin/pinned")));
+		ingest.create("", second);
+
+		assertThat(refRepository.findOneByUrlAndOrigin(URL, "@a").get().getMetadata().isObsolete()).isTrue();
+		assertThat(refRepository.findOneByUrlAndOrigin(URL, "@b").get().getMetadata().isObsolete()).isFalse();
+	}
+
+	@Test
+	void testRemotePinnedInSubOriginRoot() throws InterruptedException {
+		var plugin = new Plugin();
+		plugin.setTag("plugin/pinned");
+		plugin.setOrigin("@a");
+		pluginRepository.save(plugin);
+		configCache.clearPluginCache();
+		var root = new Ref();
+		root.setUrl(URL);
+		root.setOrigin("@a");
+		root.setTags(new ArrayList<>(List.of("plugin/pinned")));
+		ingest.create("@a", root);
+
+		TimeUnit.MILLISECONDS.sleep(1);
+
+		var remote = new Ref();
+		remote.setUrl(URL);
+		remote.setOrigin("@a.remote");
+		remote.setTags(new ArrayList<>(List.of("plugin/pinned")));
+		ingest.create("@a", remote);
+
+		assertThat(refRepository.findOneByUrlAndOrigin(URL, "@a").get().getMetadata().isObsolete()).isFalse();
+		assertThat(refRepository.findOneByUrlAndOrigin(URL, "@a.remote").get().getMetadata().isObsolete()).isTrue();
+	}
+
+	void backfill() {
+		for (var i = 0; i < 100; i++) {
+			var ref = refRepository.getRefBackfill("").orElse(null);
+			if (ref == null) return;
+			meta.regen("", ref);
+			refRepository.updateMetadata(ref.getUrl(), ref.getOrigin(), ref.getMetadata());
+		}
+	}
+
+	@Test
+	void testDeleteRootPinnedPromotesRemotePinned() throws InterruptedException {
+		installPinned();
+		var remote = new Ref();
+		remote.setUrl(URL);
+		remote.setOrigin("@remote");
+		remote.setTags(new ArrayList<>(List.of("plugin/pinned")));
+		ingest.create("", remote);
+
+		TimeUnit.MILLISECONDS.sleep(1);
+
+		var root = new Ref();
+		root.setUrl(URL);
+		root.setTags(new ArrayList<>(List.of("plugin/pinned")));
+		ingest.create("", root);
+
+		TimeUnit.MILLISECONDS.sleep(1);
+
+		var other = new Ref();
+		other.setUrl(URL);
+		other.setOrigin("@other");
+		ingest.create("", other);
+
+		ingest.delete("", URL, "");
+
+		assertThat(refRepository.findOneByUrlAndOrigin(URL, "@remote").get().getMetadata().isObsolete()).isFalse();
+		assertThat(refRepository.findOneByUrlAndOrigin(URL, "@other").get().getMetadata().isObsolete()).isTrue();
+	}
+
+	@Test
+	void testHiddenCopyDoesNotUpdateSources() throws InterruptedException {
+		installPinned();
+		createSources(OTHER_URL, OTHER_URL + "/b");
+		var root = new Ref();
+		root.setUrl(URL);
+		root.setSources(new ArrayList<>(List.of(OTHER_URL)));
+		root.setTags(new ArrayList<>(List.of("plugin/pinned")));
+		ingest.create("", root);
+
+		TimeUnit.MILLISECONDS.sleep(1);
+
+		var remote = new Ref();
+		remote.setUrl(URL);
+		remote.setOrigin("@remote");
+		remote.setSources(new ArrayList<>(List.of(OTHER_URL + "/b")));
+		ingest.create("", remote);
+
+		assertThat(remote.getMetadata().isObsolete()).isTrue();
+		assertThat(refRepository.findOneByUrlAndOrigin(URL, "@remote").get().getMetadata().isObsolete()).isTrue();
+		assertThat(responses(OTHER_URL)).containsExactly(URL);
+		assertThat(responses(OTHER_URL + "/b")).isNullOrEmpty();
+	}
+
+	@Test
+	void testWinnerChangeRebuildsSources() throws InterruptedException {
+		installPinned();
+		createSources(OTHER_URL, OTHER_URL + "/b");
+		var remote = new Ref();
+		remote.setUrl(URL);
+		remote.setOrigin("@remote");
+		remote.setSources(new ArrayList<>(List.of(OTHER_URL + "/b")));
+		remote.setTags(new ArrayList<>(List.of("plugin/pinned")));
+		ingest.create("", remote);
+
+		assertThat(responses(OTHER_URL + "/b")).containsExactly(URL);
+
+		TimeUnit.MILLISECONDS.sleep(1);
+
+		var root = new Ref();
+		root.setUrl(URL);
+		root.setSources(new ArrayList<>(List.of(OTHER_URL)));
+		root.setTags(new ArrayList<>(List.of("plugin/pinned")));
+		ingest.create("", root);
+
+		assertThat(root.getMetadata().isObsolete()).isFalse();
+		assertThat(refRepository.findOneByUrlAndOrigin(URL, "@remote").get().getMetadata().isObsolete()).isTrue();
+		assertThat(responses(OTHER_URL)).containsExactly(URL);
+		assertThat(responses(OTHER_URL + "/b")).isNullOrEmpty();
+
+		TimeUnit.MILLISECONDS.sleep(1);
+
+		var unpin = new Ref();
+		unpin.setUrl(URL);
+		unpin.setSources(new ArrayList<>(List.of(OTHER_URL)));
+		unpin.setModified(refRepository.findOneByUrlAndOrigin(URL, "").get().getModified());
+		ingest.update("", unpin);
+
+		assertThat(unpin.getMetadata().isObsolete()).isTrue();
+		assertThat(refRepository.findOneByUrlAndOrigin(URL, "").get().getMetadata().isObsolete()).isTrue();
+		assertThat(refRepository.findOneByUrlAndOrigin(URL, "@remote").get().getMetadata().isObsolete()).isFalse();
+		assertThat(responses(OTHER_URL)).isNullOrEmpty();
+		assertThat(responses(OTHER_URL + "/b")).containsExactly(URL);
+	}
+
+	@Test
+	void testUpdateHiddenResponseStaysObsolete() throws InterruptedException {
+		installPinned();
+		var root = new Ref();
+		root.setUrl(URL);
+		root.setTags(new ArrayList<>(List.of("plugin/pinned")));
+		ingest.create("", root);
+
+		TimeUnit.MILLISECONDS.sleep(1);
+
+		var remote = new Ref();
+		remote.setUrl(URL);
+		remote.setOrigin("@remote");
+		remote.setTags(new ArrayList<>(List.of("test")));
+		ingest.create("", remote);
+
+		TimeUnit.MILLISECONDS.sleep(1);
+
+		var update = new Ref();
+		update.setUrl(URL);
+		update.setOrigin("@remote");
+		update.setTitle("Updated");
+		update.setTags(new ArrayList<>(List.of("test")));
+		update.setModified(refRepository.findOneByUrlAndOrigin(URL, "@remote").get().getModified());
+		ingest.updateResponse("", update);
+
+		assertThat(update.getMetadata().isObsolete()).isTrue();
+		assertThat(refRepository.findOneByUrlAndOrigin(URL, "").get().getMetadata().isObsolete()).isFalse();
+		assertThat(refRepository.findOneByUrlAndOrigin(URL, "@remote").get().getMetadata().isObsolete()).isTrue();
+	}
+
+	@Test
+	void testInstallAndRemovePinnedReranksExisting() throws InterruptedException {
+		var root = new Ref();
+		root.setUrl(URL);
+		root.setTags(new ArrayList<>(List.of("plugin/pinned")));
+		ingest.create("", root);
+
+		TimeUnit.MILLISECONDS.sleep(1);
+
+		var remote = new Ref();
+		remote.setUrl(URL);
+		remote.setOrigin("@remote");
+		ingest.create("", remote);
+
+		assertThat(refRepository.findOneByUrlAndOrigin(URL, "").get().getMetadata().isObsolete()).isTrue();
+		assertThat(refRepository.findOneByUrlAndOrigin(URL, "@remote").get().getMetadata().isObsolete()).isFalse();
+
+		var plugin = new Plugin();
+		plugin.setTag("plugin/pinned");
+		ingestPlugin.create(plugin);
+		configCache.clearPluginCache();
+
+		assertThat(refRepository.findOneByUrlAndOrigin(URL, "").get().getMetadata().isRegen()).isTrue();
+		assertThat(refRepository.findOneByUrlAndOrigin(URL, "@remote").get().getMetadata().isRegen()).isTrue();
+		backfill();
+		assertThat(refRepository.findOneByUrlAndOrigin(URL, "").get().getMetadata().isObsolete()).isFalse();
+		assertThat(refRepository.findOneByUrlAndOrigin(URL, "@remote").get().getMetadata().isObsolete()).isTrue();
+
+		ingestPlugin.delete("plugin/pinned");
+		configCache.clearPluginCache();
+
+		assertThat(refRepository.findOneByUrlAndOrigin(URL, "").get().getMetadata().isRegen()).isTrue();
+		assertThat(refRepository.findOneByUrlAndOrigin(URL, "@remote").get().getMetadata().isRegen()).isTrue();
+		backfill();
+		assertThat(refRepository.findOneByUrlAndOrigin(URL, "").get().getMetadata().isObsolete()).isTrue();
+		assertThat(refRepository.findOneByUrlAndOrigin(URL, "@remote").get().getMetadata().isObsolete()).isFalse();
 	}
 
 	@Test
@@ -603,7 +1008,7 @@ public class IngestIT {
 		assertThat(fetched.getMetadata().getNewReaction())
 			.isNotNull();
 		assertThat(fetched.getMetadata().getNewResponse())
-			.isNull();
+			.isNotNull();
 		assertThat(fetched.getMetadata().getResponses())
 			.containsExactly(URL);
 	}
@@ -647,8 +1052,8 @@ public class IngestIT {
 		var third = refRepository.findOneByUrlAndOrigin(URL + "c", "").get();
 		assertThat(third.getMetadata().getNewReaction())
 			.isNotNull();
-		assertThat(third.getMetadata().getNewResponse())
-			.isNull();
+		assertThat(Instant.parse(third.getMetadata().getNewResponse()))
+			.isCloseTo(third.getCreated(), within(1, MICROS));
 		assertThat(third.getMetadata().getResponses())
 			.containsExactly(URL);
 	}

@@ -68,13 +68,16 @@ public class IngestExt {
 
 	@Timed(value = "jasper.ext", histogram = true)
 	public void create(Ext ext) {
-		// In archive mode the current version is checked when appending
-		if (!archive) {
-			if (isDeletorTag(ext.getTag())) {
-				if (extRepository.existsByQualifiedTag(deletedTag(ext.getQualifiedTag()))) throw new AlreadyExistsException();
-			} else {
-				delete(deletorTag(ext.getQualifiedTag()));
+		if (isDeletorTag(ext.getTag())) {
+			if (archive ? current(deletedTag(ext.getQualifiedTag())).isPresent() : extRepository.existsByQualifiedTag(deletedTag(ext.getQualifiedTag()))) throw new AlreadyExistsException();
+			var existing = extRepository.findOneByQualifiedTag(ext.getQualifiedTag());
+			if (existing.isPresent()) {
+				ext.setModified(existing.get().getModified());
+				return;
 			}
+		} else if (!archive) {
+			// In archive mode the deletor tag is kept
+			delete(deletorTag(ext.getQualifiedTag()));
 		}
 		validate.ext(ext.getOrigin(), ext);
 		ensureCreateUniqueModified(ext, true);

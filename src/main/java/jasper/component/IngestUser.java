@@ -66,13 +66,16 @@ public class IngestUser {
 
 	@Timed(value = "jasper.user", histogram = true)
 	public void create(User user) {
-		// In archive mode the current version is checked when appending
-		if (!archive) {
-			if (isDeletorTag(user.getTag())) {
-				if (userRepository.existsByQualifiedTag(deletedTag(user.getQualifiedTag()))) throw new AlreadyExistsException();
-			} else {
-				delete(deletorTag(user.getQualifiedTag()));
+		if (isDeletorTag(user.getTag())) {
+			if (archive ? current(deletedTag(user.getQualifiedTag())).isPresent() : userRepository.existsByQualifiedTag(deletedTag(user.getQualifiedTag()))) throw new AlreadyExistsException();
+			var existing = userRepository.findOneByQualifiedTag(user.getQualifiedTag());
+			if (existing.isPresent()) {
+				user.setModified(existing.get().getModified());
+				return;
 			}
+		} else if (!archive) {
+			// In archive mode the deletor tag is kept
+			delete(deletorTag(user.getQualifiedTag()));
 		}
 		ensureCreateUniqueModified(user, true);
 		messages.updateUser(user);

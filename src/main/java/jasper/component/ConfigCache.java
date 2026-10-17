@@ -1,6 +1,7 @@
 package jasper.component;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.github.benmanes.caffeine.cache.Cache;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import jakarta.annotation.PostConstruct;
 import jasper.component.dto.ComponentDtoMapper;
@@ -26,6 +27,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.integration.annotation.ServiceActivator;
@@ -42,9 +44,12 @@ import java.util.function.Consumer;
 
 import static jasper.domain.User.merge;
 import static jasper.domain.proj.HasOrigin.fromParts;
+import static jasper.domain.proj.HasOrigin.isSubOrigin;
+import static jasper.domain.proj.HasOrigin.origin;
 import static jasper.domain.proj.HasOrigin.parentOrigin;
 import static jasper.domain.proj.HasOrigin.parts;
 import static jasper.domain.proj.HasOrigin.subOrigin;
+import static jasper.domain.proj.Tag.tagOrigin;
 import static jasper.plugin.Origin.getOrigin;
 import static jasper.repository.spec.QualifiedTag.concat;
 import static jasper.util.Crypto.keyPair;
@@ -93,8 +98,13 @@ public class ConfigCache {
 	@Autowired
 	ConfigCache self;
 
+	@Autowired
+	CacheManager cacheManager;
+
 	@Value("#{environment.matchesProfiles('archive')}")
 	boolean archive;
+
+	private static final Set<String> LOCAL_KEYS = Set.of("+user", "_config/server", "_config/index");
 
 	Set<String> configCacheTags = ConcurrentHashMap.newKeySet();
 	Set<Consumer<ServerConfig>> rootListeners = ConcurrentHashMap.newKeySet();
@@ -169,6 +179,62 @@ public class ConfigCache {
 		logger.debug("Cleared template cache.");
 	}
 
+	public void clearUserCache(String origin) {
+		evict(origin, false, "user-cache", "user-dto-cache", "external-user-cache");
+		clear("user-dto-page-cache");
+		logger.debug("{} Cleared user cache.", origin);
+	}
+
+	public void clearPluginCache(String origin) {
+		evict(origin, false, "plugin-cache", "plugin-config-cache", "plugin-dto-cache");
+		clear("plugin-dto-page-cache");
+		logger.debug("{} Cleared plugin cache.", origin);
+	}
+
+	public void clearTemplateCache(String origin) {
+		evict(origin, false, "template-cache", "template-config-cache", "template-schemas-cache", "template-defaults-cache", "template-dto-cache");
+		// Security config is inherited by sub-origins
+		evict(origin, true, "template-cache-wrapped");
+		clear("template-dto-page-cache");
+		logger.debug("{} Cleared template cache.", origin);
+	}
+
+	private void clear(String name) {
+		var cache = cacheManager.getCache(name);
+		if (cache != null) cache.clear();
+	}
+
+	private void evict(String origin, boolean nested, String ...names) {
+		var o = origin(origin);
+		for (var name : names) {
+			var cache = cacheManager.getCache(name);
+			if (cache == null) continue;
+			if (cache.getNativeCache() instanceof Cache<?, ?> c) {
+				c.asMap().keySet().removeIf(key -> keyMatches(key, o, nested));
+			} else {
+				cache.clear();
+			}
+		}
+	}
+
+	/**
+	 * Cache keys are either a qualified tag (tag + origin), a list starting with
+	 * the origin, or one of the fixed keys for the local origin.
+	 */
+	private boolean keyMatches(Object key, String origin, boolean nested) {
+		if (key instanceof List<?> l && !l.isEmpty() && l.getFirst() instanceof String o) return originMatches(o, origin, nested);
+		if (key instanceof String s) {
+			if (LOCAL_KEYS.contains(s) && originMatches(props.getLocalOrigin(), origin, nested)) return true;
+			return originMatches(tagOrigin(s), origin, nested);
+		}
+		return true;
+	}
+
+	private boolean originMatches(String keyOrigin, String origin, boolean nested) {
+		if (nested) return isSubOrigin(origin, keyOrigin);
+		return origin.equals(origin(keyOrigin));
+	}
+
 	@Cacheable("user-cache")
 	public User getUser(String qualifiedTag) {
 		if (isEmpty(qualifiedTag)) return null;
@@ -176,7 +242,7 @@ public class ConfigCache {
 			.orElse(null);
 	}
 
-	@Cacheable("external-user-cache")
+	@Cacheable(value = "external-user-cache", key = "{#origin, #externalId}")
 	public Optional<User> getUserByExternalId(String origin, String externalId) {
 		return merge(current(userRepository.findAllByOriginAndExternalId(origin, externalId), externalId));
 	}
@@ -359,7 +425,7 @@ public class ConfigCache {
 		return new SecurityConfig().wrap(props);
 	}
 
-	@Cacheable("template-schemas-cache")
+	@Cacheable(value = "template-schemas-cache", key = "#tag + #origin")
 	public List<TemplateDto> getSchemas(String tag, String origin) {
 		return templateRepository.findAllForTagAndOriginWithSchema(tag, origin)
 			.stream()
@@ -367,7 +433,7 @@ public class ConfigCache {
 			.toList();
 	}
 
-	@Cacheable("template-defaults-cache")
+	@Cacheable(value = "template-defaults-cache", key = "#tag + #origin")
 	public List<TemplateDto> getDefaults(String tag, String origin) {
 		return templateRepository.findAllForTagAndOriginWithDefaults(tag, origin)
 			.stream()

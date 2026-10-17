@@ -11,7 +11,7 @@ services:
         required: false
   repl-web:
     environment:
-      SPRING_PROFILES_ACTIVE: prod,sqlite
+      SPRING_PROFILES_ACTIVE: prod,storage,file-cache,sqlite
       SPRING_DATASOURCE_URL: jdbc:sqlite:file:jasper-test?mode=memory&cache=shared
       SPRING_DATASOURCE_USERNAME: ''
       SPRING_DATASOURCE_PASSWORD: ''

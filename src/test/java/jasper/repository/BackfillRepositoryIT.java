@@ -102,6 +102,67 @@ public class BackfillRepositoryIT {
 
 	@Test
 	@DisabledOnSqlite
+	void testBackfillMetadata_BlankNewResponseAndNewReactionUseCreated() {
+		var created = Instant.parse("2025-03-04T05:06:07.123456Z");
+		var parent = new Ref();
+		parent.setUrl("http://example.com/parent");
+		parent.setOrigin("");
+		parent.setCreated(created);
+		parent.setMetadata(null);
+		refRepository.save(parent);
+		var kept = new Ref();
+		kept.setUrl("http://example.com/kept");
+		kept.setOrigin("");
+		kept.setMetadata(Metadata.builder()
+			.regen(true)
+			.newResponse("2026-01-02T00:00:00Z")
+			.newReaction("2026-01-03T00:00:00Z")
+			.build());
+		refRepository.save(kept);
+
+		backfillRepository.backfillMetadata("", 10);
+
+		var metadata = refRepository.findOneByUrlAndOrigin(parent.getUrl(), "").orElseThrow().getMetadata();
+		assertThat(metadata.getNewResponse()).isEqualTo(Metadata.timestamp(created));
+		assertThat(metadata.getNewReaction()).isEqualTo(Metadata.timestamp(created));
+		var keptMetadata = refRepository.findOneByUrlAndOrigin(kept.getUrl(), "").orElseThrow().getMetadata();
+		assertThat(keptMetadata.getNewResponse()).isEqualTo("2026-01-02T00:00:00Z");
+		assertThat(keptMetadata.getNewReaction()).isEqualTo("2026-01-03T00:00:00Z");
+	}
+
+	@Test
+	@DisabledOnSqlite
+	void testBackfillMetadata_BlankNewResponseAndNewReactionUseLatestResponse() {
+		var parent = new Ref();
+		parent.setUrl("http://example.com/parent");
+		parent.setOrigin("");
+		parent.setCreated(Instant.parse("2025-01-01T00:00:00Z"));
+		parent.setMetadata(null);
+		refRepository.save(parent);
+		var response = new Ref();
+		response.setUrl("http://example.com/response");
+		response.setOrigin("");
+		response.setSources(List.of(parent.getUrl()));
+		response.setCreated(Instant.parse("2025-02-01T00:00:00.123456Z"));
+		response.setMetadata(Metadata.builder().build());
+		refRepository.save(response);
+		var vote = new Ref();
+		vote.setUrl("tag:/+user/tester?url=" + parent.getUrl());
+		vote.setOrigin("");
+		vote.setSources(List.of(parent.getUrl()));
+		vote.setCreated(Instant.parse("2025-03-01T00:00:00Z"));
+		refRepository.save(vote);
+		var voteModified = refRepository.findOneByUrlAndOrigin(vote.getUrl(), "").orElseThrow().getModified();
+
+		backfillRepository.backfillMetadata("", 10);
+
+		var metadata = refRepository.findOneByUrlAndOrigin(parent.getUrl(), "").orElseThrow().getMetadata();
+		assertThat(metadata.getNewResponse()).isEqualTo(Metadata.timestamp(Instant.parse("2025-02-01T00:00:00.123456Z")));
+		assertThat(metadata.getNewReaction()).isEqualTo(Metadata.timestamp(voteModified));
+	}
+
+	@Test
+	@DisabledOnSqlite
 	void testBackfillMetadata_RespectsOriginFilter() {
 		var ref1 = new Ref();
 		ref1.setUrl("http://example.com/ref1");
@@ -473,6 +534,98 @@ public class BackfillRepositoryIT {
 
 	@Test
 	@DisabledOnSqlite
+	void testBackfillMetadata_PinnedRank() {
+		var plugin = new Plugin();
+		plugin.setTag("plugin/pinned");
+		plugin.setOrigin("");
+		pluginRepository.save(plugin);
+
+		var pinned = new Ref();
+		pinned.setUrl("http://example.com/pinned");
+		pinned.setOrigin("");
+		pinned.setTags(List.of("plugin/pinned"));
+		pinned.setModified(Instant.now().minusSeconds(60));
+		pinned.setMetadata(null);
+		refRepository.save(pinned);
+		var newer = new Ref();
+		newer.setUrl("http://example.com/pinned");
+		newer.setOrigin("@other");
+		newer.setModified(Instant.now());
+		newer.setMetadata(null);
+		refRepository.save(newer);
+
+		var remotePinned = new Ref();
+		remotePinned.setUrl("http://example.com/remote");
+		remotePinned.setOrigin("@other");
+		remotePinned.setTags(List.of("plugin/pinned"));
+		remotePinned.setModified(Instant.now().minusSeconds(60));
+		remotePinned.setMetadata(null);
+		refRepository.save(remotePinned);
+		var local = new Ref();
+		local.setUrl("http://example.com/remote");
+		local.setOrigin("");
+		local.setModified(Instant.now().plusSeconds(1));
+		local.setMetadata(null);
+		refRepository.save(local);
+
+		var both = new Ref();
+		both.setUrl("http://example.com/both");
+		both.setOrigin("");
+		both.setTags(List.of("plugin/pinned"));
+		both.setModified(Instant.now().minusSeconds(60));
+		both.setMetadata(null);
+		refRepository.save(both);
+		var bothRemote = new Ref();
+		bothRemote.setUrl("http://example.com/both");
+		bothRemote.setOrigin("@other");
+		bothRemote.setTags(List.of("plugin/pinned"));
+		bothRemote.setModified(Instant.now().plusSeconds(2));
+		bothRemote.setMetadata(null);
+		refRepository.save(bothRemote);
+
+		while (backfillRepository.backfillMetadata("", 10) > 0);
+
+		assertThat(obsoleteFlag(pinned)).isEqualTo("false");
+		assertThat(obsoleteFlag(newer)).isEqualTo("true");
+		assertThat(obsoleteFlag(remotePinned)).isEqualTo("false");
+		assertThat(obsoleteFlag(local)).isEqualTo("true");
+		assertThat(obsoleteFlag(both)).isEqualTo("false");
+		assertThat(obsoleteFlag(bothRemote)).isEqualTo("true");
+	}
+
+	@Test
+	@DisabledOnSqlite
+	void testBackfillMetadata_PinnedNotInstalled() {
+		var pinned = new Ref();
+		pinned.setUrl("http://example.com/pinned");
+		pinned.setOrigin("");
+		pinned.setTags(List.of("plugin/pinned"));
+		pinned.setModified(Instant.now().minusSeconds(60));
+		pinned.setMetadata(null);
+		refRepository.save(pinned);
+		var newer = new Ref();
+		newer.setUrl("http://example.com/pinned");
+		newer.setOrigin("@other");
+		newer.setModified(Instant.now());
+		newer.setMetadata(null);
+		refRepository.save(newer);
+
+		while (backfillRepository.backfillMetadata("", 10) > 0);
+
+		assertThat(obsoleteFlag(pinned)).isEqualTo("true");
+		assertThat(obsoleteFlag(newer)).isEqualTo("false");
+	}
+
+	private Object obsoleteFlag(Ref ref) {
+		return em.createNativeQuery("""
+			SELECT metadata->>'obsolete' FROM ref WHERE url = :url AND origin = :origin""")
+			.setParameter("url", ref.getUrl())
+			.setParameter("origin", ref.getOrigin())
+			.getSingleResult();
+	}
+
+	@Test
+	@DisabledOnSqlite
 	void testBackfillMetadata_AssumesLegacyObsoleteCountObsolete() {
 		var plugin = new Plugin();
 		plugin.setTag("plugin/comment");
@@ -608,6 +761,27 @@ public class BackfillRepositoryIT {
 		assertThat(refRepository.findOneByUrlAndOrigin(response.getUrl(), response.getOrigin()).get().getMetadata().isCascade()).isTrue();
 	}
 
+	@Test
+	@DisabledOnSqlite
+	void testBackfillMetadata_PreservesIgnored() {
+		var ignored = new Ref();
+		ignored.setUrl("http://example.com/ignored");
+		ignored.setOrigin("");
+		ignored.setMetadata(Metadata.builder().regen(true).ignored(true).build());
+		refRepository.save(ignored);
+
+		var normal = new Ref();
+		normal.setUrl("http://example.com/normal");
+		normal.setOrigin("");
+		normal.setMetadata(Metadata.builder().regen(true).build());
+		refRepository.save(normal);
+
+		assertThat(backfillRepository.backfillMetadata("", 10)).isEqualTo(2);
+
+		assertThat(refRepository.findOneByUrlAndOrigin(ignored.getUrl(), ignored.getOrigin()).get().getMetadata().isIgnored()).isTrue();
+		assertThat(refRepository.findOneByUrlAndOrigin(normal.getUrl(), normal.getOrigin()).get().getMetadata().isIgnored()).isFalse();
+	}
+
 	private Object cascade(Ref ref) {
 		return em.createNativeQuery("""
 			SELECT metadata->>'cascade' FROM ref WHERE url = :url AND origin = :origin""")
@@ -627,5 +801,22 @@ public class BackfillRepositoryIT {
 		var loaded = refRepository.findOneByUrlAndOrigin(parent.getUrl(), parent.getOrigin()).get();
 		var pluginCount = loaded.getMetadata().getRemotePlugins() == null ? 0 : loaded.getMetadata().getRemotePlugins().getOrDefault("plugin/comment", 0L).intValue();
 		assertThat(pluginCount).isEqualTo(comments);
+	}
+
+	@Test
+	@DisabledOnSqlite
+	void testBackfillMetadata_ExpandsTags() {
+		var ref = new Ref();
+		ref.setUrl("http://example.com/secret");
+		ref.setOrigin("@city");
+		ref.setTags(List.of("+plugin/secret/openai", "internal", "+plugin/secret"));
+		ref.setMetadata(null);
+		refRepository.save(ref);
+
+		backfillRepository.backfillMetadata("@city", 10);
+
+		var result = refRepository.findOneByUrlAndOrigin(ref.getUrl(), ref.getOrigin()).orElseThrow();
+		assertThat(result.getMetadata().getExpandedTags())
+			.containsExactlyInAnyOrder("+plugin/secret/openai", "internal", "+plugin/secret", "+plugin");
 	}
 }

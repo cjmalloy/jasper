@@ -68,13 +68,16 @@ public class IngestTemplate {
 
 	@Timed(value = "jasper.template", histogram = true)
 	public void create(Template template) {
-		// In archive mode the current version is checked when appending
-		if (!archive) {
-			if (isDeletorTag(template.getTag())) {
-				if (templateRepository.existsByQualifiedTag(deletedTag(template.getQualifiedTag()))) throw new AlreadyExistsException();
-			} else {
-				delete(deletorTag(template.getQualifiedTag()));
+		if (isDeletorTag(template.getTag())) {
+			if (archive ? current(deletedTag(template.getQualifiedTag())).isPresent() : templateRepository.existsByQualifiedTag(deletedTag(template.getQualifiedTag()))) throw new AlreadyExistsException();
+			var existing = templateRepository.findOneByQualifiedTag(template.getQualifiedTag());
+			if (existing.isPresent()) {
+				template.setModified(existing.get().getModified());
+				return;
 			}
+		} else if (!archive) {
+			// In archive mode the deletor tag is kept
+			delete(deletorTag(template.getQualifiedTag()));
 		}
 		validate.template(template.getOrigin(), template);
 		ensureCreateUniqueModified(template, true);

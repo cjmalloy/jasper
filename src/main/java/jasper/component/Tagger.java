@@ -1,6 +1,7 @@
 package jasper.component;
 
 import io.micrometer.core.annotation.Timed;
+import jasper.domain.Metadata;
 import jasper.domain.Ref;
 import jasper.domain.proj.Tag;
 import jasper.errors.AlreadyExistsException;
@@ -13,6 +14,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -20,6 +23,8 @@ import java.util.UUID;
 import static jasper.domain.Ref.from;
 import static jasper.domain.proj.Tag.capturesDownwards;
 import static jasper.domain.proj.Tag.urlForTag;
+import static java.lang.Math.max;
+import static java.lang.Math.min;
 import static java.time.Instant.now;
 import static java.util.Arrays.asList;
 import static org.apache.commons.lang3.exception.ExceptionUtils.getStackTrace;
@@ -30,6 +35,7 @@ import static org.apache.commons.lang3.StringUtils.isNotBlank;
 public class Tagger {
 	private static final Logger logger = LoggerFactory.getLogger(Tagger.class);
 	static final int INIT_PLUGIN_RETRIES = 5;
+	static final Duration PROGRESS_THROTTLE = Duration.ofSeconds(5);
 
 	@Autowired
 	ConfigCache configs;
@@ -110,8 +116,10 @@ public class Tagger {
 	/**
 	 * For monkey patching replicated origins.
 	 * Only plugin data belongs in a pulled origin, and it is written silently: a
-	 * new Ref is backdated to cursor - 1ms and an existing Ref keeps its modified,
-	 * so the pull cursor never moves past remote entries. Logs go to the owning
+	 * new Ref is marked as ignored so it is not counted in the pull cursor or
+	 * replicated until a pulled batch has a newer Ref, which clears the flag. An
+	 * existing Ref keeps its modified, so the pull cursor
+	 * never moves past remote entries. Logs go to the owning
 	 * origin instead, see {@link #attachLogs(String, Ref, String, String)}.
 	 */
 	Ref silentPlugin(String url, String title, String origin, String tag, Object plugin, String ...tags) {
@@ -120,13 +128,8 @@ public class Tagger {
 			var ref = from(url, origin, tags).setPlugin(tag, plugin);
 			ref.setTitle(title);
 			ref.addTag("internal");
-			var cursor = refRepository.getCursor(origin);
-			if (cursor == null) {
-				logger.warn("Silent plugin can't be first!");
-				ref.setModified(now().minusMillis(1));
-			} else {
-				ref.setModified(cursor.minusMillis(1));
-			}
+			ref.setModified(now());
+			ref.setMetadata(Metadata.builder().ignored(true).build());
 			ingest.silent(origin, ref);
 			return ref;
 		} else {
@@ -136,6 +139,67 @@ public class Tagger {
 			ref.addTags(asList(tags));
 			ingest.silent(origin, ref);
 			return ref;
+		}
+	}
+
+	/**
+	 * Report progress on a long-running job as a <code>plugin/progress/value/max</code> tag.
+	 * Only active if the <code>plugin/progress</code> plugin is installed in the origin.
+	 * Updates are throttled, so jobs that finish quickly never write anything.
+	 */
+	public Progress progress(String url, String origin) {
+		return new Progress(url, origin,
+			configs.getRemote(origin) == null && configs.getPlugin("plugin/progress", origin).isPresent());
+	}
+
+	public class Progress implements AutoCloseable {
+		private final String url;
+		private final String origin;
+		private final boolean enabled;
+		Instant last = now();
+		private boolean written = false;
+
+		Progress(String url, String origin, boolean enabled) {
+			this.url = url;
+			this.origin = origin;
+			this.enabled = enabled;
+		}
+
+		public boolean isEnabled() {
+			return enabled;
+		}
+
+		public void update(int value, int max) {
+			if (!enabled || max <= 0) return;
+			if (now().isBefore(last.plus(PROGRESS_THROTTLE))) return;
+			last = now();
+			if (setProgress(url, origin, "plugin/progress/" + max(0, min(value, max)) + "/" + max)) written = true;
+		}
+
+		@Override
+		public void close() {
+			if (written) setProgress(url, origin, null);
+		}
+	}
+
+	/**
+	 * Progress is written silently: it does not move the modified cursor, so it
+	 * cannot trigger push on change or conflict with the job's own updates.
+	 * @return true if this call wrote the tag
+	 */
+	boolean setProgress(String url, String origin, String progress) {
+		try {
+			var maybeRef = refRepository.findOneByUrlAndOrigin(url, origin);
+			if (maybeRef.isEmpty()) return false;
+			var ref = maybeRef.get();
+			if (progress == null ? !ref.hasTag("plugin/progress") : ref.hasTag(progress)) return false;
+			ref.removeTag("plugin/progress");
+			ref.addTag(progress);
+			ingest.silent(origin, ref);
+			return true;
+		} catch (Exception e) {
+			logger.warn("{} Failed to update progress {} on {}", origin, progress, url, e);
+			return false;
 		}
 	}
 
