@@ -6,7 +6,9 @@ import jasper.domain.Ref;
 import jasper.domain.User;
 import jasper.repository.RefRepository;
 import jasper.repository.UserRepository;
+import jasper.domain.External;
 import jasper.service.dto.RefReplDto;
+import jasper.service.dto.UserDto;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -44,6 +46,8 @@ public class ReplicatorPushIT {
 	Object originalClient;
 	Object originalTunnel;
 	List<String> pushed;
+	List<RefReplDto> pushedRefs;
+	List<UserDto> pushedUsers;
 
 	@BeforeEach
 	void init() {
@@ -54,10 +58,17 @@ public class ReplicatorPushIT {
 		originalTunnel = getField(target, "tunnel");
 		client = mock(JasperClient.class);
 		pushed = new ArrayList<>();
+		pushedRefs = new ArrayList<>();
+		pushedUsers = new ArrayList<>();
 		doAnswer(i -> {
 			for (var ref : i.<List<RefReplDto>>getArgument(2)) pushed.add(ref.getUrl());
+			pushedRefs.addAll(i.getArgument(2));
 			return null;
 		}).when(client).refPush(any(URI.class), anyString(), any());
+		doAnswer(i -> {
+			pushedUsers.addAll(i.getArgument(2));
+			return null;
+		}).when(client).userPush(any(URI.class), anyString(), any());
 		var tunnel = mock(TunnelClient.class);
 		doAnswer(i -> {
 			i.<TunnelClient.ProxyRequest>getArgument(1).go(URI.create("https://remote.example.com"));
@@ -150,5 +161,69 @@ public class ReplicatorPushIT {
 		verify(client, never()).refPush(any(URI.class), anyString(), any());
 		verify(client, never()).pluginPush(any(URI.class), anyString(), any());
 		assertThat(pushed).isEmpty();
+	}
+
+	RefReplDto pushedRef(String url) {
+		return pushedRefs.stream().filter(r -> r.getUrl().equals(url)).findFirst().orElseThrow();
+	}
+
+	UserDto pushedUser(String tag) {
+		return pushedUsers.stream().filter(u -> u.getTag().equals(tag)).findFirst().orElseThrow();
+	}
+
+	@Test
+	void testPushFiltersHiddenTagsAndPlugins() {
+		user("+user/alice", "ROLE_USER");
+		var ref = new Ref();
+		ref.setUrl("https://example.com/mixed");
+		ref.setTags(new ArrayList<>(List.of("public", "_secret", "+user/alice", "_plugin/hidden", "plugin/shown")));
+		ref.setPlugin("_plugin/hidden", Map.of("a", 1));
+		ref.setPlugin("plugin/shown", Map.of("b", 2));
+		refRepository.save(ref);
+
+		replicator.push(remote("+user/alice"));
+
+		var pushedRef = pushedRef("https://example.com/mixed");
+		assertThat(pushedRef.getTags())
+			.containsExactlyInAnyOrder("public", "+user/alice", "plugin/shown");
+		assertThat(pushedRef.getPlugins().has("plugin/shown")).isTrue();
+		assertThat(pushedRef.getPlugins().has("_plugin/hidden")).isFalse();
+	}
+
+	@Test
+	void testPushModKeepsHiddenTagsAndPlugins() {
+		user("+user/mod", "ROLE_MOD");
+		var ref = new Ref();
+		ref.setUrl("https://example.com/mixed");
+		ref.setTags(new ArrayList<>(List.of("public", "_secret", "_plugin/hidden")));
+		ref.setPlugin("_plugin/hidden", Map.of("a", 1));
+		refRepository.save(ref);
+
+		replicator.push(remote("+user/mod"));
+
+		var pushedRef = pushedRef("https://example.com/mixed");
+		assertThat(pushedRef.getTags())
+			.containsExactlyInAnyOrder("public", "_secret", "_plugin/hidden");
+		assertThat(pushedRef.getPlugins().has("_plugin/hidden")).isTrue();
+	}
+
+	@Test
+	void testPushFiltersUserData() {
+		user("+user/alice", "ROLE_USER");
+		var bob = new User();
+		bob.setTag("+user/bob");
+		bob.setReadAccess(new ArrayList<>(List.of("public", "_secret")));
+		bob.setWriteAccess(new ArrayList<>(List.of("news", "_secret")));
+		var external = new External();
+		external.setIds(new ArrayList<>(List.of("bob@example.com")));
+		bob.setExternal(external);
+		userRepository.save(bob);
+
+		replicator.push(remote("+user/alice"));
+
+		var pushedBob = pushedUser("+user/bob");
+		assertThat(pushedBob.getReadAccess()).containsExactly("public");
+		assertThat(pushedBob.getWriteAccess()).containsExactly("news");
+		assertThat(pushedBob.getExternal()).isNull();
 	}
 }

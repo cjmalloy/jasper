@@ -31,6 +31,8 @@ import jasper.repository.filter.RefFilter;
 import jasper.repository.filter.TagFilter;
 import jasper.security.Auth;
 import jasper.security.AuthFactory;
+import jasper.service.dto.RefReplDto;
+import jasper.service.dto.UserDto;
 import org.apache.http.conn.HttpHostConnectException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -60,6 +62,7 @@ import static jasper.plugin.Cache.getCache;
 import static jasper.plugin.Origin.getOrigin;
 import static jasper.plugin.Pull.getPull;
 import static jasper.plugin.Push.getPush;
+import static jasper.security.AuthoritiesConstants.MOD;
 import static jasper.util.Logging.getMessage;
 import static java.io.InputStream.nullInputStream;
 import static java.lang.Math.max;
@@ -488,6 +491,7 @@ public class Replicator {
 								.and(refReadSpec),
 							PageRequest.of(skip, size, by(Ref_.MODIFIED)))
 						.map(mapper::domainToDto)
+						.map(ref -> filter(readers, ref))
 						.getContent();
 					logger.debug("{} Pushing {} refs to {}", remote.getOrigin(), refList.size(), remoteOrigin);
 					if (!refList.isEmpty()) {
@@ -553,6 +557,7 @@ public class Replicator {
 								.and(userReadSpec),
 							PageRequest.of(skip, size, by(Ref_.MODIFIED)))
 						.map(mapper::domainToDto)
+						.map(user -> filter(readers, user))
 						.getContent();
 					logger.debug("{} Pushing {} users to {}", remote.getOrigin(), userList.size(), remoteOrigin);
 					if (!userList.isEmpty()) {
@@ -594,6 +599,45 @@ public class Replicator {
 			.map(user -> authFactory.create(user, remote.getOrigin()))
 			.filter(auth -> auth.canReadOrigin(localOrigin))
 			.toList();
+	}
+
+	/**
+	 * Can any of the readers see this tag. Matches {@link jasper.service.dto.DtoMapper}.
+	 */
+	private static boolean canReadTag(List<Auth> readers, String tag) {
+		return readers.stream().anyMatch(auth -> auth.canReadTag(tag + auth.getOrigin()));
+	}
+
+	private static List<String> filterTags(List<Auth> readers, List<String> tags) {
+		if (tags == null) return null;
+		return new ArrayList<>(tags.stream().filter(tag -> canReadTag(readers, tag)).toList());
+	}
+
+	/**
+	 * Remove tags and plugins hidden to all readers.
+	 */
+	private static RefReplDto filter(List<Auth> readers, RefReplDto ref) {
+		ref.setTags(filterTags(readers, ref.getTags()));
+		if (ref.getPlugins() != null) {
+			var plugins = ref.getPlugins().deepCopy();
+			ref.getPlugins().fieldNames().forEachRemaining(tag -> {
+				if (!canReadTag(readers, tag)) plugins.remove(tag);
+			});
+			ref.setPlugins(plugins.isEmpty() ? null : plugins);
+		}
+		return ref;
+	}
+
+	/**
+	 * Remove access tags and external IDs hidden to all readers.
+	 */
+	private static UserDto filter(List<Auth> readers, UserDto user) {
+		user.setReadAccess(filterTags(readers, user.getReadAccess()));
+		user.setWriteAccess(filterTags(readers, user.getWriteAccess()));
+		if (readers.stream().noneMatch(auth -> auth.hasRole(MOD) || auth.canWriteUserTag(user.getQualifiedTag()))) {
+			user.setExternal(null);
+		}
+		return user;
 	}
 
 	/**
