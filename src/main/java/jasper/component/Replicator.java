@@ -614,9 +614,10 @@ public class Replicator {
 	}
 
 	/**
-	 * Remove tags and plugins hidden to all readers.
+	 * Remove tags and plugins hidden to all readers that can read this Ref.
 	 */
-	private static RefReplDto filter(List<Auth> readers, RefReplDto ref) {
+	private static RefReplDto filter(List<Auth> signers, RefReplDto ref) {
+		var readers = signers.stream().filter(auth -> auth.canReadRef(ref)).toList();
 		ref.setTags(filterTags(readers, ref.getTags()));
 		if (ref.getPlugins() != null) {
 			var plugins = ref.getPlugins().deepCopy();
@@ -629,9 +630,10 @@ public class Replicator {
 	}
 
 	/**
-	 * Remove access tags and external IDs hidden to all readers.
+	 * Remove access tags and external IDs hidden to all readers that can read this User.
 	 */
-	private static UserDto filter(List<Auth> readers, UserDto user) {
+	private static UserDto filter(List<Auth> signers, UserDto user) {
+		var readers = signers.stream().filter(auth -> auth.canReadTag(user.getQualifiedTag())).toList();
 		user.setReadAccess(filterTags(readers, user.getReadAccess()));
 		user.setWriteAccess(filterTags(readers, user.getWriteAccess()));
 		if (readers.stream().noneMatch(auth -> auth.hasRole(MOD) || auth.canWriteUserTag(user.getQualifiedTag()))) {

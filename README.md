@@ -1140,7 +1140,8 @@ pushed. Each signing user is given the default roles and the role on their local
 signing users, anything one of them can read is pushed. An unsigned Ref pushes only what the default (logged out) user
 can read. If no signing user can read the local origin, nothing is pushed and the Ref is tagged `+plugin/error`.
 The data in pushed entities is filtered the same way as API responses: tags and plugins that no signing user can read
-are removed from Refs, and hidden read/write access tags and external IDs are removed from Users.
+are removed from Refs, and hidden read/write access tags and external IDs are removed from Users. Only signing users
+that can read the Ref or User itself are considered when filtering its data.
 
 ### Logs and errors on replicated origins
 A pulled origin is a copy of a remote server. Its users and user tags (`_user/*`, `+user/*`) belong to the remote

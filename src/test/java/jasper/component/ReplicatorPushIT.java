@@ -226,4 +226,49 @@ public class ReplicatorPushIT {
 		assertThat(pushedBob.getWriteAccess()).containsExactly("news");
 		assertThat(pushedBob.getExternal()).isNull();
 	}
+
+	@Test
+	void testPushIgnoresPluginAccessFromSignerThatCannotReadRef() {
+		user("+user/alice", "ROLE_USER");
+		var bob = new User();
+		bob.setTag("+user/bob");
+		bob.setRole("ROLE_USER");
+		bob.setTagReadAccess(new ArrayList<>(List.of("_plugin/secret")));
+		userRepository.save(bob);
+		var ref = new Ref();
+		ref.setUrl("https://example.com/split");
+		ref.setTags(new ArrayList<>(List.of("+user/alice", "_plugin/secret")));
+		ref.setPlugin("_plugin/secret", Map.of("a", 1));
+		refRepository.save(ref);
+
+		replicator.push(remote("+user/alice", "+user/bob"));
+
+		var pushedRef = pushedRef("https://example.com/split");
+		assertThat(pushedRef.getTags()).containsExactly("+user/alice");
+		assertThat(pushedRef.getPlugins()).isNull();
+	}
+
+	@Test
+	void testPushIgnoresExternalFromSignerThatCannotReadUser() {
+		var alice = new User();
+		alice.setTag("+user/alice");
+		alice.setRole("ROLE_USER");
+		alice.setTagReadAccess(new ArrayList<>(List.of("_user/carol")));
+		userRepository.save(alice);
+		var bob = new User();
+		bob.setTag("+user/bob");
+		bob.setRole("ROLE_USER");
+		bob.setTagWriteAccess(new ArrayList<>(List.of("_user/carol")));
+		userRepository.save(bob);
+		var carol = new User();
+		carol.setTag("_user/carol");
+		var external = new External();
+		external.setIds(new ArrayList<>(List.of("carol@example.com")));
+		carol.setExternal(external);
+		userRepository.save(carol);
+
+		replicator.push(remote("+user/alice", "+user/bob"));
+
+		assertThat(pushedUser("_user/carol").getExternal()).isNull();
+	}
 }
