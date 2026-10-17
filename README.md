@@ -804,7 +804,8 @@ non-archive mode requires manually deleting old versions and restoring the origi
    date as a new version, and a regular server pulling from an archive receives every version in modified
    order, keeping the latest.
  * Older versions of Refs are marked obsolete, the same as obsolete copies of a Ref from other origins.
-   Lookups by URL and origin return the latest version.
+   Lookups by URL and origin return the latest version. Only the latest version in each origin is ranked by
+   `plugin/pinned`, so an older pinned version never outranks a newer one.
  * Every write adds a new version. Pushes and pulls are stored exactly as received, including deletor tags
    and `plugin/delete` Refs, and never remove rows.
  * Local writes are dated after the newest version in their origin, even if a pushed version is dated later

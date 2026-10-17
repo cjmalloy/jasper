@@ -143,6 +143,7 @@ public class ArchiveIT {
 		pluginRepository.deleteAll();
 		templateRepository.deleteAll();
 		now = Instant.now().truncatedTo(ChronoUnit.MILLIS);
+		configCache.clearPluginCache();
 		clearInvocations(messages);
 	}
 
@@ -415,6 +416,86 @@ public class ArchiveIT {
 			.doesNotContainKey("plugin/user/vote/up");
 		assertThat(target.getMetadata().getUserUrls().get("plugin/user/vote/down"))
 			.containsExactly("tag:/user/tester?url=" + URL);
+	}
+
+	void installPinned() {
+		var plugin = new Plugin();
+		plugin.setTag("plugin/pinned");
+		plugin.setName("Pinned");
+		plugin.setModified(now.minusSeconds(60));
+		ingestPlugin.push(plugin);
+		configCache.clearPluginCache();
+	}
+
+	@Test
+	void testOlderPinnedVersionIsObsolete() {
+		installPinned();
+		push("", "Pinned", now.minusSeconds(20), "plugin/pinned");
+		push("@other", "Other", now.minusSeconds(10));
+
+		assertThat(version("", now.minusSeconds(20)).getMetadata().isObsolete())
+			.isFalse();
+		assertThat(version("@other", now.minusSeconds(10)).getMetadata().isObsolete())
+			.isTrue();
+
+		push("", "Unpinned", now);
+
+		assertThat(version("", now).getMetadata().isObsolete())
+			.isFalse();
+		assertThat(version("", now.minusSeconds(20)).getMetadata().isObsolete())
+			.isTrue();
+		assertThat(version("@other", now.minusSeconds(10)).getMetadata().isObsolete())
+			.isTrue();
+	}
+
+	@Test
+	void testBackfillOlderPinnedVersionIsObsolete() {
+		installPinned();
+		// An old modified date skips metadata generation on push and flags the Ref for regen
+		var old = now.minus(1, ChronoUnit.DAYS);
+		push("", "Pinned", old.minusSeconds(20), "plugin/pinned");
+		push("@other", "Other", old.minusSeconds(10));
+		push("", "Unpinned", old);
+
+		assertThat(backfillRepository.backfillMetadata("", 10))
+			.isEqualTo(3);
+
+		assertThat(version("", old).getMetadata().isObsolete())
+			.isFalse();
+		assertThat(version("", old.minusSeconds(20)).getMetadata().isObsolete())
+			.isTrue();
+		assertThat(version("@other", old.minusSeconds(10)).getMetadata().isObsolete())
+			.isTrue();
+	}
+
+	@Test
+	void testBackfillIgnoresDeletedPinnedPlugin() {
+		installPinned();
+		ingestPlugin.delete("plugin/pinned");
+		var old = now.minus(1, ChronoUnit.DAYS);
+		push("", "Pinned", old.minusSeconds(10), "plugin/pinned");
+		push("@other", "Other", old);
+
+		assertThat(backfillRepository.backfillMetadata("", 10))
+			.isEqualTo(2);
+
+		assertThat(version("@other", old).getMetadata().isObsolete())
+			.isFalse();
+		assertThat(version("", old.minusSeconds(10)).getMetadata().isObsolete())
+			.isTrue();
+	}
+
+	@Test
+	void testCreateExistingDeletorIsIdempotent() {
+		ingestExt.create(ext("test/deleted", null, null));
+		var deletor = ext("test/deleted", null, null);
+
+		ingestExt.create(deletor);
+
+		assertThat(extRepository.count())
+			.isEqualTo(1);
+		assertThat(deletor.getModified())
+			.isEqualTo(extRepository.findOneByQualifiedTag("test/deleted").orElseThrow().getModified());
 	}
 
 	@Test
