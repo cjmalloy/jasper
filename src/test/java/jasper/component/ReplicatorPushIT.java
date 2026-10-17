@@ -249,6 +249,19 @@ public class ReplicatorPushIT {
 	}
 
 	@Test
+	void testPushSkipsUnreadableTagUrlAndContinues() {
+		ref("tag:/_secret", "public");
+		ref("https://example.com/later", "public");
+		var remote = remote();
+		remote.setPlugin("+plugin/origin/push", Map.of("batchSize", 1));
+
+		replicator.push(remote);
+
+		assertThat(pushed)
+			.containsExactly("https://example.com/public", "https://example.com/later");
+	}
+
+	@Test
 	void testPushIgnoresExternalFromSignerThatCannotReadUser() {
 		var alice = new User();
 		alice.setTag("+user/alice");

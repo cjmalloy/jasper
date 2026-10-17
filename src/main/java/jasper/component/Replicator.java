@@ -481,7 +481,7 @@ public class Replicator {
 					return templateList;
 				}));
 				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, () -> client.refCursor(baseUri, remoteOrigin), true, cursorProgress(remote.getOrigin(), progress, 2, () -> refRepository.getCursor(localOrigin)), (skip, size, after) -> {
-					var refList = refRepository.findAll(
+					var fetched = refRepository.findAll(
 							RefFilter.builder()
 								.origin(localOrigin)
 								.query(push.getQuery())
@@ -491,8 +491,11 @@ public class Replicator {
 								.and(refReadSpec),
 							PageRequest.of(skip, size, by(Ref_.MODIFIED)))
 						.map(mapper::domainToDto)
-						.map(ref -> filter(readers, ref))
 						.getContent();
+					var refList = fetched.stream()
+						.filter(ref -> readers.stream().anyMatch(auth -> auth.canReadRef(ref)))
+						.map(ref -> filter(readers, ref))
+						.toList();
 					logger.debug("{} Pushing {} refs to {}", remote.getOrigin(), refList.size(), remoteOrigin);
 					if (!refList.isEmpty()) {
 						client.refPush(baseUri, remoteOrigin, refList);
@@ -529,7 +532,7 @@ public class Replicator {
 							}
 						}
 					}
-					return refList;
+					return fetched;
 				}));
 				logs.addAll(expBackoff(remote.getOrigin(), defaultBatchSize, () -> client.extCursor(baseUri, remoteOrigin), true, cursorProgress(remote.getOrigin(), progress, 3, () -> extRepository.getCursor(localOrigin)), (skip, size, after) -> {
 					var extList = extRepository.findAll(
