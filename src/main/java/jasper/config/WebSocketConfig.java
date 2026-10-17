@@ -52,6 +52,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 import static jasper.domain.proj.HasOrigin.isSubOrigin;
+import static jasper.repository.spec.QualifiedTag.qt;
 import static jasper.security.Auth.LOCAL_ORIGIN_HEADER;
 import static jasper.security.Auth.READ_ACCESS_HEADER;
 import static jasper.security.Auth.TAG_READ_ACCESS_HEADER;
@@ -59,6 +60,7 @@ import static jasper.security.Auth.TAG_WRITE_ACCESS_HEADER;
 import static jasper.security.Auth.USER_ROLE_HEADER;
 import static jasper.security.Auth.USER_TAG_HEADER;
 import static jasper.security.Auth.WRITE_ACCESS_HEADER;
+import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 @Profile("!no-websocket")
@@ -68,6 +70,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 	private static final Logger logger = LoggerFactory.getLogger(WebSocketConfig.class);
 
 	public static final String AUTHORIZATION_HEADER = "Authorization";
+	private static final String USER_TAGS_ATTRIBUTE = "userTags";
 
 	@Autowired
 	Props props;
@@ -84,7 +87,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 	@Autowired
 	AuthFactory authFactory;
 
-	private Set<WebSocketSession> sessions = ConcurrentHashMap.newKeySet();
+	Set<WebSocketSession> sessions = ConcurrentHashMap.newKeySet();
 
 	@Bean
 	public TomcatServletWebServerFactory tomcatContainerFactory() {
@@ -139,15 +142,21 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
 	@ServiceActivator(inputChannel = "userRxChannel")
 	public void handleUserUpdate(Message<UserDto> message) {
-		// Just drop all sessions for now
+		var origin = (String) message.getHeaders().get("origin");
+		var tag = (String) message.getHeaders().get("tag");
+		if (isBlank(tag) || "~".equals(tag)) return;
+		var userTag = qt(tag + ("default".equals(origin) ? "" : origin)).toString();
 		sessions.forEach(s -> {
-            try {
-                s.close(CloseStatus.SERVICE_RESTARTED);
-            } catch (IOException e) {
-                logger.warn("Could not close websocket session.", e);
-            }
-        });
-		sessions.clear();
+			@SuppressWarnings("unchecked")
+			var userTags = (Set<String>) s.getAttributes().get(USER_TAGS_ATTRIBUTE);
+			if (userTags == null || !userTags.contains(userTag)) return;
+			sessions.remove(s);
+			try {
+				s.close(CloseStatus.SERVICE_RESTARTED);
+			} catch (IOException e) {
+				logger.warn("{} Could not close websocket session for {}.", origin, userTag, e);
+			}
+		});
 	}
 
 	class StompHandshakeInterceptor implements HandshakeInterceptor {
@@ -247,7 +256,17 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 					logger.error("{} No web access for origin", auth.getOrigin());
 					return null;
 				}
-				if (auth.canSubscribeTo(accessor.getDestination())) return message;
+				if (auth.canSubscribeTo(accessor.getDestination())) {
+					if (auth.isLoggedIn()) {
+						var attributes = accessor.getSessionAttributes();
+						synchronized (attributes) {
+							@SuppressWarnings("unchecked")
+							var userTags = (Set<String>) attributes.computeIfAbsent(USER_TAGS_ATTRIBUTE, k -> ConcurrentHashMap.newKeySet());
+							userTags.add(auth.getUserTag().toString());
+						}
+					}
+					return message;
+				}
 				logger.warn("{} {} can't subscribe to {}", auth.getOrigin(), auth.getUserTag(), accessor.getDestination());
 			} catch (Exception e) {
 				logger.error("{} Cannot authorize websocket subscription.", auth == null ? props.getOrigin() : auth.getOrigin(), e);

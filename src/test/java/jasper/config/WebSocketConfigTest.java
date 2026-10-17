@@ -6,6 +6,7 @@ import jasper.security.Auth;
 import jasper.security.AuthFactory;
 import jasper.security.jwt.TokenProvider;
 import jasper.security.jwt.TokenProviderImplDefault;
+import jasper.service.dto.UserDto;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.messaging.Message;
@@ -16,18 +17,24 @@ import org.springframework.messaging.support.MessageBuilder;
 import org.springframework.security.access.hierarchicalroles.RoleHierarchy;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.web.socket.CloseStatus;
+import org.springframework.web.socket.WebSocketSession;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
+import static jasper.component.Messages.tagHeaders;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -117,6 +124,54 @@ class WebSocketConfigTest {
 		verify(config.defaultTokenProvider).getAuthentication(null, "");
 	}
 
+	@Test
+	void userUpdateOnlyClosesThatUsersSessions() throws Exception {
+		when(config.authFactory.create()).thenAnswer(invocation -> new SubscribingAuth());
+		var aliceAttributes = sessionAttributes();
+		var bobAttributes = sessionAttributes();
+		var interceptor = config.new JwtChannelInterceptor();
+		assertThat(interceptor.preSend(subscribe("/topic/+user/alice", authentication("+user/alice"), null, aliceAttributes), channel)).isNotNull();
+		assertThat(interceptor.preSend(subscribe("/topic/+user/bob", authentication("+user/bob"), null, bobAttributes), channel)).isNotNull();
+		var alice = session(aliceAttributes);
+		var bob = session(bobAttributes);
+		var anonymous = session(sessionAttributes());
+		config.sessions.addAll(List.of(alice, bob, anonymous));
+
+		config.handleUserUpdate(MessageBuilder.createMessage(new UserDto(), tagHeaders("", "+user/alice")));
+
+		verify(alice).close(CloseStatus.SERVICE_RESTARTED);
+		verify(bob, never()).close(any());
+		verify(anonymous, never()).close(any());
+		assertThat(config.sessions).containsExactlyInAnyOrder(bob, anonymous);
+	}
+
+	@Test
+	void userUpdateMatchesOrigin() throws Exception {
+		var root = new Config.ServerConfig();
+		root.setWebOrigins(List.of("", "@other"));
+		when(config.configs.root()).thenReturn(root);
+		when(config.authFactory.create()).thenAnswer(invocation -> new SubscribingAuth());
+		var localAttributes = sessionAttributes();
+		var remoteAttributes = sessionAttributes();
+		var interceptor = config.new JwtChannelInterceptor();
+		interceptor.preSend(subscribe("/topic/+user/alice", authentication("+user/alice"), null, localAttributes), channel);
+		interceptor.preSend(subscribe("/topic/+user/alice@other", authentication("+user/alice@other"), null, remoteAttributes), channel);
+		var local = session(localAttributes);
+		var remote = session(remoteAttributes);
+		config.sessions.addAll(List.of(local, remote));
+
+		config.handleUserUpdate(MessageBuilder.createMessage(new UserDto(), tagHeaders("@other", "+user/alice")));
+
+		verify(local, never()).close(any());
+		verify(remote).close(CloseStatus.SERVICE_RESTARTED);
+	}
+
+	private WebSocketSession session(Map<String, Object> attributes) {
+		var session = mock(WebSocketSession.class);
+		when(session.getAttributes()).thenReturn(attributes);
+		return session;
+	}
+
 	private List<Message<?>> authorizeConcurrently(Message<?> first, Message<?> second) throws Exception {
 		var interceptor = config.new JwtChannelInterceptor();
 		try (var executor = Executors.newFixedThreadPool(2)) {
@@ -147,6 +202,17 @@ class WebSocketConfigTest {
 
 	private Authentication authentication(String principal) {
 		return new UsernamePasswordAuthenticationToken(principal, null, List.of());
+	}
+
+	private static class SubscribingAuth extends Auth {
+		SubscribingAuth() {
+			super(null, null, null, null);
+		}
+
+		@Override
+		public boolean canSubscribeTo(String destination) {
+			return true;
+		}
 	}
 
 	private static class TrackingAuth extends Auth {
