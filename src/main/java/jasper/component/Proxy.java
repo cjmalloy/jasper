@@ -56,9 +56,7 @@ public class Proxy {
 			return new String(res.getInputStream().readAllBytes());
 		} catch (Exception e) {
 			if (refRepository.existsByUrlAndOrigin(url, origin)) {
-				tagger.attachError(origin,
-					tagger.plugin(url, origin, "_plugin/cache", null),
-					"Error Fetching String", getMessage(e));
+				tagger.attachError(url, origin, "Error Fetching String", getMessage(e));
 			}
 		}
 		return null;
