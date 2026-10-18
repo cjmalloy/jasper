@@ -63,7 +63,7 @@ services:
       JASPER_OVERRIDE_SECURITY_CLIENT_ID: ''
       # Debug secret shared with jasper-ui ?debug=ADMIN tokens (DO NOT USE IN PRODUCTION)
       JASPER_OVERRIDE_SECURITY_BASE64_SECRET: 'MjY0ZWY2ZTZhYmJhMTkyMmE5MTAxMTg3Zjc2ZDlmZWUwYjk0MDgzODA0MDJiOTgyNTk4MmNjYmQ4Yjg3MmVhYjk0MmE0OGFmNzE2YTQ5ZjliMTEyN2NlMWQ4MjA5OTczYjU2NzAxYTc4YThkMzYxNzdmOTk5MTIxODZhMTkwMDM='
-      JASPER_HEAP: 256m
+      JASPER_HEAP: 512m
       JASPER_CACHE_API: http://web
     depends_on:
       - db
@@ -93,7 +93,7 @@ services:
       JASPER_DEFAULT_ROLE: ROLE_ADMIN
       JASPER_OVERRIDE_SERVER_WEB_ORIGINS: '@repl'
       JASPER_STORAGE: /var/lib/jasper
-      JASPER_HEAP: 256m
+      JASPER_HEAP: 512m
     depends_on:
       - repl-db
   repl-db:
@@ -123,7 +123,7 @@ services:
       JASPER_ALLOW_USER_TAG_HEADER: true
       JASPER_OVERRIDE_SERVER_SSH_ORIGINS: '@open,@tunnel'
       JASPER_STORAGE: /var/lib/jasper
-      JASPER_HEAP: 256m
+      JASPER_HEAP: 512m
     volumes:
       - tunnel-storage:/var/lib/jasper
     depends_on:
