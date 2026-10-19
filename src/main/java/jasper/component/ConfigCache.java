@@ -42,6 +42,8 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 
+import static jasper.component.Replicator.deletedTag;
+import static jasper.component.Replicator.isDeletorTag;
 import static jasper.domain.User.merge;
 import static jasper.domain.proj.HasOrigin.fromParts;
 import static jasper.domain.proj.HasOrigin.isSubOrigin;
@@ -402,7 +404,9 @@ public class ConfigCache {
 		var template = message.getPayload();
 		if (isBlank(template.getTag())) return;
 		if (isNotBlank(template.getOrigin())) return;
-		if (concat("_config/server", props.getWorkerOrigin()).equals(template.getTag() + template.getOrigin())) {
+		// Delete notices are tagged with the deletor tag
+		var tag = isDeletorTag(template.getTag()) ? deletedTag(template.getTag()) : template.getTag();
+		if (concat("_config/server", props.getWorkerOrigin()).equals(tag + template.getOrigin())) {
 			logger.debug("Server config template updated, updating listeners");
 			rootListeners.forEach(listener -> listener.accept(self.root()));
 		}

@@ -11,6 +11,7 @@ public interface RefView {
 	String getTitle();
 	String getComment();
 	List<String> getTags();
+	List<String> getSources();
 	List<String> getAlternateUrls();
 	ObjectNode getPlugins();
 	Instant getPublished();

@@ -61,6 +61,7 @@ public interface TemplateRepository extends JpaRepository<Template, TagId>, Qual
 		WHERE t.origin = :origin
 			AND t.schema IS NOT NULL
 			AND COALESCE(CAST(jsonb_object_field(t.config, 'disabled') as boolean), false) = false
+			AND NOT EXISTS (SELECT 1 FROM Template n WHERE n.tag = t.tag AND n.origin = t.origin AND n.modified > t.modified)
 			AND (t.tag = ''
 				OR t.tag = :tag
 				OR (:tag LIKE '+%' AND concat('+', t.tag) = :tag)
@@ -75,6 +76,7 @@ public interface TemplateRepository extends JpaRepository<Template, TagId>, Qual
 		WHERE t.origin = :origin
 			AND t.defaults IS NOT NULL
 			AND COALESCE(CAST(jsonb_object_field(t.config, 'disabled') as boolean), false) = false
+			AND NOT EXISTS (SELECT 1 FROM Template n WHERE n.tag = t.tag AND n.origin = t.origin AND n.modified > t.modified)
 			AND (t.tag = ''
 				OR t.tag = :tag
 				OR (:tag LIKE '+%' AND concat('+', t.tag) = :tag)

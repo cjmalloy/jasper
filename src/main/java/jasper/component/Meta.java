@@ -86,7 +86,7 @@ public class Meta {
 				.stream()
 				.map(tag -> new UserUrlResponse(
 					tag,
-					refRepository.findAllResponseIdsWithTag(ref.getUrl(), rootOrigin, tag)
+					refRepository.findAllResponseIdsWithTag(ref.getUrl(), rootOrigin, tag, archive)
 						.stream()
 						.filter(id -> id.getOrigin().equals(rootOrigin))
 						.map(id -> qualifiedUserUrl(id.getUrl(), id.getOrigin()))
@@ -355,6 +355,8 @@ public class Meta {
 		var obsolete = obsolete(rootOrigin, ref);
 		if (ref.getMetadata() != null) ref.getMetadata().setObsolete(obsolete);
 		if (noMetadata) return;
+		// In archive mode an out-of-order version is stored as obsolete without changing its sources
+		if (archive && existing != null && ref.getModified() != null && ref.getModified().isBefore(existing.getModified())) return;
 		// Obsolete user URLs are still counted in their sources
 		if (!userUrl(ref.getUrl())) {
 			if (obsolete) {

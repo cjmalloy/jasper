@@ -107,7 +107,7 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 			sources = :sources,
 			alternateUrls = :alternateUrls,
 			plugins = :plugins,
-			metadata = jsonb_concat(COALESCE(metadata, cast_to_jsonb('{}')), :partialMetadata),
+			metadata = jsonb_concat(jsonb_set(COALESCE(metadata, cast_to_jsonb('{}')), '{ignored}', cast_to_jsonb('false'), true), :partialMetadata),
 			published = :published
 		WHERE
 			url = :url AND
@@ -198,6 +198,22 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 		WHERE r.url != :url
 			AND jsonb_exists(r.sources, :url) = true
 			AND jsonb_exists(COALESCE(jsonb_object_field(r.metadata, 'expandedTags'), r.tags), :tag) = true
+			AND (r.url IN ('tag:/user', 'tag:/+user', 'tag:/_user')
+				OR r.url LIKE 'tag:/user/%' OR r.url LIKE 'tag:/user?%'
+				OR r.url LIKE 'tag:/+user/%' OR r.url LIKE 'tag:/+user?%'
+				OR r.url LIKE 'tag:/\\_user/%' ESCAPE '\\' OR r.url LIKE 'tag:/\\_user?%' ESCAPE '\\'
+				OR COALESCE(jsonb_object_field_text(r.metadata, 'obsolete'), 'false') != 'true')
+			AND (:origin = '' OR r.origin = :origin OR r.origin LIKE concat(:origin, '.%'))""")
+	List<RefId> findAllResponseIdsWithTag(String url, String origin, String tag);
+
+	/**
+	 * Archive mode version of {@link #findAllResponseIdsWithTag}: older versions of a user URL are skipped.
+	 */
+	@Query("""
+		SELECT new jasper.domain.RefId(r.url, r.origin) FROM Ref r
+		WHERE r.url != :url
+			AND jsonb_exists(r.sources, :url) = true
+			AND jsonb_exists(COALESCE(jsonb_object_field(r.metadata, 'expandedTags'), r.tags), :tag) = true
 			AND ((r.url IN ('tag:/user', 'tag:/+user', 'tag:/_user')
 					OR r.url LIKE 'tag:/user/%' OR r.url LIKE 'tag:/user?%'
 					OR r.url LIKE 'tag:/+user/%' OR r.url LIKE 'tag:/+user?%'
@@ -205,7 +221,13 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 				AND NOT EXISTS (SELECT 1 FROM Ref n WHERE n.url = r.url AND n.origin = r.origin AND n.modified > r.modified)
 				OR COALESCE(jsonb_object_field_text(r.metadata, 'obsolete'), 'false') != 'true')
 			AND (:origin = '' OR r.origin = :origin OR r.origin LIKE concat(:origin, '.%'))""")
-	List<RefId> findAllResponseIdsWithTag(String url, String origin, String tag);
+	List<RefId> findAllLatestResponseIdsWithTag(String url, String origin, String tag);
+
+	default List<RefId> findAllResponseIdsWithTag(String url, String origin, String tag, boolean archive) {
+		return archive
+			? findAllLatestResponseIdsWithTag(url, origin, tag)
+			: findAllResponseIdsWithTag(url, origin, tag);
+	}
 
 	@Query("""
 		SELECT r.url FROM Ref r

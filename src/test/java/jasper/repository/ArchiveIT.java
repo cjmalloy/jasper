@@ -1,7 +1,10 @@
 package jasper.repository;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import jasper.IntegrationTest;
+import jasper.component.Backup;
 import jasper.component.ConfigCache;
 import jasper.component.Ingest;
 import jasper.component.IngestExt;
@@ -11,6 +14,7 @@ import jasper.component.IngestUser;
 import jasper.component.Messages;
 import jasper.component.Meta;
 import jasper.domain.Ext;
+import jasper.domain.External;
 import jasper.domain.Plugin;
 import jasper.domain.Ref;
 import jasper.domain.Ref_;
@@ -18,8 +22,10 @@ import jasper.domain.Template;
 import jasper.domain.User;
 import jasper.domain.proj.RefView;
 import jasper.errors.AlreadyExistsException;
+import jasper.errors.InvalidTemplateException;
 import jasper.errors.ModifiedException;
 import jasper.errors.NotFoundException;
+import jasper.errors.ValidationErrors;
 import jasper.repository.filter.RefFilter;
 import jasper.repository.filter.TagFilter;
 import jasper.service.ExtService;
@@ -27,6 +33,7 @@ import jasper.service.PluginService;
 import jasper.service.RefService;
 import jasper.service.TemplateService;
 import jasper.service.UserService;
+import jasper.service.dto.RefDto;
 import jasper.util.Archive;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -37,6 +44,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.verification.VerificationMode;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.IncorrectResultSizeDataAccessException;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.ActiveProfiles;
@@ -45,12 +53,15 @@ import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static jasper.repository.spec.OriginSpec.isOrigin;
 import static jasper.repository.spec.RefSpec.isUrl;
@@ -62,6 +73,8 @@ import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.verify;
 import static org.springframework.data.domain.Sort.by;
+import static org.springframework.test.util.AopTestUtils.getUltimateTargetObject;
+import static org.springframework.test.util.ReflectionTestUtils.invokeMethod;
 
 @IntegrationTest
 @ActiveProfiles({"archive", "test"})
@@ -128,6 +141,9 @@ public class ArchiveIT {
 	ConfigCache configCache;
 
 	@Autowired
+	Backup backup;
+
+	@Autowired
 	Meta meta;
 
 	@MockitoSpyBean
@@ -154,7 +170,7 @@ public class ArchiveIT {
 
 	List<VersionKind> kinds() {
 		return VersionKind.all(
-			ingest, refRepository,
+			ingest, refRepository, refService,
 			ingestExt, extRepository, extService,
 			ingestUser, userRepository, userService,
 			ingestPlugin, pluginRepository, pluginService,
@@ -1155,5 +1171,272 @@ public class ArchiveIT {
 			.get()
 			.satisfies(r -> assertThat(r.getTitle()).isEqualTo("Silent"))
 			.satisfies(r -> assertThat(r.getModified()).isEqualTo(now.minusSeconds(10).plus(1, ChronoUnit.MICROS)));
+	}
+
+	ObjectNode json(String json) {
+		try {
+			return (ObjectNode) new ObjectMapper().readTree(json);
+		} catch (JsonProcessingException e) {
+			throw new RuntimeException(e);
+		}
+	}
+
+	@Test
+	void testTemplateSchemaUsesNewestVersion() {
+		var template = new Template();
+		template.setTag("foo");
+		template.setName("Foo");
+		template.setSchema(json("""
+			{ "optionalProperties": { "x": { "type": "string" } } }"""));
+		template.setDefaults(json("""
+			{ "x": "default" }"""));
+		template.setModified(now.minusSeconds(10));
+		ingestTemplate.push(template);
+		configCache.clearTemplateCache();
+
+		assertThat(configCache.getSchemas("foo", ""))
+			.hasSize(1);
+
+		var blank = new Template();
+		blank.setTag("foo");
+		blank.setModified(now);
+		ingestTemplate.push(blank);
+		configCache.clearTemplateCache();
+
+		assertThat(configCache.getSchemas("foo", ""))
+			.isEmpty();
+		assertThat(configCache.getDefaults("foo", ""))
+			.isEmpty();
+		var ext = ext("foo", null, "Foo");
+		ext.setConfig(json("""
+			{ "x": "a" }"""));
+		assertThatThrownBy(() -> ingestExt.create(ext))
+			.isInstanceOf(InvalidTemplateException.class)
+			.hasFieldOrPropertyWithValue("reason", ValidationErrors.SCHEMALESS);
+	}
+
+	@Test
+	void testOutOfOrderVoteDoesNotChangeSources() {
+		push("", "Target", now.minusSeconds(20));
+		pushVote(now, "plugin/user/vote/down");
+		pushVote(now.minusSeconds(10), "plugin/user/vote/up");
+
+		// Before any regen
+		assertThat(version("", now.minusSeconds(20)).getMetadata())
+			.satisfies(m -> assertThat(m.getPlugins())
+				.containsEntry("plugin/user/vote/down", 1L)
+				.doesNotContainKey("plugin/user/vote/up"))
+			.satisfies(m -> assertThat(m.getUserUrls())
+				.doesNotContainKey("plugin/user/vote/up"));
+		assertThat(refRepository.findOneByUrlAndOrigin("tag:/+user/tester?url=" + URL, ""))
+			.get()
+			.satisfies(r -> assertThat(r.getTags()).containsExactly("plugin/user/vote/down"));
+	}
+
+	@Test
+	void testRepeatedPushResetsIgnored() {
+		ingest.push("", ref("", "First", now), false, false, true);
+
+		assertThat(version("", now).getMetadata().isIgnored())
+			.isTrue();
+
+		ingest.push("", ref("", "First", now), false, false);
+
+		assertThat(version("", now).getMetadata().isIgnored())
+			.isFalse();
+
+		ingest.push("", ref("", "First", now), false, false, true);
+
+		assertThat(version("", now).getMetadata().isIgnored())
+			.isTrue();
+	}
+
+	@Test
+	void testNextModifiedReturnsMicros() {
+		var nanos = now.plusNanos(1001);
+
+		assertThat(Archive.nextModified(nanos, null))
+			.isEqualTo(now.plusNanos(1000));
+		assertThat(Archive.nextModified(nanos, now.minusSeconds(1)))
+			.isEqualTo(now.plusNanos(1000));
+	}
+
+	@Test
+	void testReturnedCursorMatchesStoredVersion() {
+		VersionKind.clock(ingestExt, Clock.fixed(now.plusNanos(1001), ZoneOffset.UTC));
+		var ext = ext("test", null, "First");
+		ingestExt.create(ext);
+
+		ingestExt.update(ext("test", ext.getModified(), "Second"));
+
+		assertThat(ingestExt.current("test"))
+			.get()
+			.extracting(Ext::getName)
+			.isEqualTo("Second");
+	}
+
+	@Test
+	void testEmptyExternalIsBlank() {
+		var user = new User();
+		user.setTag("+user/blank");
+
+		user.setExternal(External.builder().build());
+		assertThat(Archive.isBlank(user))
+			.isTrue();
+		user.setExternal(External.builder().ids(List.of()).build());
+		assertThat(Archive.isBlank(user))
+			.isTrue();
+		user.setExternal(External.builder().ids(List.of("ext")).build());
+		assertThat(Archive.isBlank(user))
+			.isFalse();
+	}
+
+	@Test
+	void testServicePushBlankUserWithEmptyExternalIsTombstone() {
+		var user = new User();
+		user.setTag("+user/blank");
+		user.setRole("ROLE_USER");
+		user.setPubKey("ssh-rsa AAAA".getBytes());
+		user.setExternal(External.builder().ids(List.of("ext")).build());
+		user.setModified(now.minusSeconds(10));
+		userService.push(user);
+		var blank = new User();
+		blank.setTag("+user/blank");
+		blank.setExternal(External.builder().ids(List.of()).build());
+		blank.setModified(now);
+
+		userService.push(blank);
+
+		assertThat(ingestUser.current("+user/blank"))
+			.isEmpty();
+	}
+
+	@Test
+	void testPruningPluginDeletorInvalidatesCachedPlugin() {
+		var plugin = new Plugin();
+		plugin.setTag("plugin/test");
+		plugin.setName("Test");
+		plugin.setModified(now.minusSeconds(10));
+		ingestPlugin.push(plugin);
+		var deletor = new Plugin();
+		deletor.setTag("plugin/test/deleted");
+		deletor.setModified(now);
+		ingestPlugin.push(deletor);
+
+		assertThat(configCache.getPlugin("plugin/test", ""))
+			.isPresent();
+		clearInvocations(messages);
+
+		ingestPlugin.delete("plugin/test/deleted");
+
+		assertThat(configCache.getPlugin("plugin/test", ""))
+			.isEmpty();
+		verify(messages).invalidatePlugin("plugin/test");
+		verify(messages, notSent()).deletePlugin(any());
+	}
+
+	@Test
+	void testTemplateInvalidationRefreshesRootListeners() {
+		var calls = new AtomicInteger();
+		configCache.rootUpdate(c -> calls.incrementAndGet());
+		calls.set(0);
+
+		messages.invalidateTemplate("_config/server");
+
+		assertThat(calls.get())
+			.isEqualTo(1);
+	}
+
+	Ref alias(String url, String title, Instant modified, String ...alternateUrls) {
+		var ref = ref("", title, modified);
+		ref.setUrl(url);
+		ref.setAlternateUrls(new ArrayList<>(List.of(alternateUrls)));
+		return ref;
+	}
+
+	@Test
+	void testAlternateUrlUsesLatestVersion() {
+		ingest.push("", alias(URL, "First", now.minusSeconds(20), "https://alias.example.com/"), false, false);
+		ingest.push("", alias(URL, "Second", now.minusSeconds(10), "https://alias.example.com/"), false, false);
+
+		assertThat(refService.get("https://alias.example.com/", ""))
+			.extracting(RefDto::getTitle)
+			.isEqualTo("Second");
+	}
+
+	@Test
+	void testRemovedAlternateUrlNotFound() {
+		ingest.push("", alias(URL, "First", now.minusSeconds(20), "https://alias.example.com/"), false, false);
+		ingest.push("", alias(URL, "Second", now.minusSeconds(10)), false, false);
+
+		assertThatThrownBy(() -> refService.get("https://alias.example.com/", ""))
+			.isInstanceOf(NotFoundException.class);
+	}
+
+	@Test
+	void testDeletedAlternateUrlNotFound() {
+		ingest.push("", alias(URL, "First", now.minusSeconds(20), "https://alias.example.com/"), false, false);
+		ingest.delete("", URL, "");
+
+		assertThatThrownBy(() -> refService.get("https://alias.example.com/", ""))
+			.isInstanceOf(NotFoundException.class);
+	}
+
+	@Test
+	void testAlternateUrlCollisionFails() {
+		ingest.push("", alias(URL, "First", now.minusSeconds(20), "https://alias.example.com/"), false, false);
+		ingest.push("", alias("https://www.example.com/other", "Other", now.minusSeconds(10), "https://alias.example.com/"), false, false);
+
+		assertThatThrownBy(() -> refService.get("https://alias.example.com/", ""))
+			.isInstanceOf(IncorrectResultSizeDataAccessException.class);
+	}
+
+	@ParameterizedTest(name = "{0}")
+	@MethodSource("kinds")
+	void testServiceDeleteTwicePrunes(VersionKind kind) {
+		kind.push("", now.minusSeconds(30), "First");
+		kind.pushDeleteNotice("", now.minusSeconds(20));
+		kind.push("", now.minusSeconds(10), "Second");
+
+		kind.serviceDelete("");
+
+		assertThat(kind.current(""))
+			.isEmpty();
+		assertThat(kind.count(""))
+			.isEqualTo(kind.hasDeletor() ? 3 : 4);
+		kind.verifyDeleteNotice(messages, sent());
+		clearInvocations(messages);
+
+		kind.serviceDelete("");
+
+		assertThat(kind.count(""))
+			.isZero();
+		assertThat(kind.countDeletor(""))
+			.isZero();
+		kind.verifyDeleteNotice(messages, notSent());
+	}
+
+	List<String> backupRefTitles(boolean tombstones) {
+		var out = new ByteArrayOutputStream();
+		new TransactionTemplate(transactionManager).executeWithoutResult(status ->
+			invokeMethod((Object) getUltimateTargetObject(backup), "backupRepo", refRepository, "", null, tombstones, out, false));
+		try {
+			var titles = new ArrayList<String>();
+			new ObjectMapper().readTree(out.toByteArray()).forEach(r -> titles.add(r.path("title").asText()));
+			return titles;
+		} catch (IOException e) {
+			throw new RuntimeException(e);
+		}
+	}
+
+	@Test
+	void testBackupSkipsBlankVersionsWithoutTombstones() {
+		push("", "First", now.minusSeconds(10));
+		ingest.delete("", URL, "");
+
+		assertThat(backupRefTitles(false))
+			.containsExactly("First");
+		assertThat(backupRefTitles(true))
+			.hasSize(2);
 	}
 }

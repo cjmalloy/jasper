@@ -156,6 +156,7 @@ public class IngestPlugin {
 			pluginRepository.deleteByQualifiedTagAndModifiedLessThanEqual(tag, startedAt);
 			pluginRepository.deleteByQualifiedTagAndModifiedLessThanEqual(deletor, startedAt);
 			rerank(tag);
+			messages.invalidatePlugin(tag);
 			return;
 		}
 		var tombstone = new Plugin();

@@ -17,6 +17,7 @@ import jasper.errors.NotFoundException;
 import jasper.repository.filter.TagFilter;
 import jasper.service.ExtService;
 import jasper.service.PluginService;
+import jasper.service.RefService;
 import jasper.service.TemplateService;
 import jasper.service.UserService;
 import org.mockito.verification.VerificationMode;
@@ -74,6 +75,9 @@ public abstract class VersionKind {
 
 	public abstract void delete(String origin);
 
+	/** Delete through the service, the same as the delete API. */
+	public abstract void serviceDelete(String origin);
+
 	/** Delete the deletor tag directly. Not supported for Refs. */
 	public abstract void deleteDeletor(String origin);
 
@@ -122,7 +126,7 @@ public abstract class VersionKind {
 	}
 
 	public static List<VersionKind> all(
-		Ingest ingest, RefRepository refRepository,
+		Ingest ingest, RefRepository refRepository, RefService refService,
 		IngestExt ingestExt, ExtRepository extRepository, ExtService extService,
 		IngestUser ingestUser, UserRepository userRepository, UserService userService,
 		IngestPlugin ingestPlugin, PluginRepository pluginRepository, PluginService pluginService,
@@ -130,7 +134,7 @@ public abstract class VersionKind {
 		ConfigCache configCache
 	) {
 		return List.of(
-			new RefKind(ingest, refRepository),
+			new RefKind(ingest, refRepository, refService),
 			new TagKind<Ext>("Ext", "test", extRepository, ingestExt) {
 				Ext make(String tag, String origin, Instant modified, String title) {
 					var ext = new Ext();
@@ -143,6 +147,7 @@ public abstract class VersionKind {
 				void doPush(Ext e) { ingestExt.push("", e, false, false); }
 				void doCreate(Ext e) { ingestExt.create(e); }
 				void doDelete(String qt) { ingestExt.delete(qt); }
+				public void serviceDelete(String origin) { extService.delete(key + origin); }
 				Optional<Ext> doCurrent(String qt) { return ingestExt.current(qt); }
 				Object doGet(String qt) { return extService.get(qt); }
 				String title(Ext e) { return e.getName(); }
@@ -165,6 +170,7 @@ public abstract class VersionKind {
 				void doPush(User u) { ingestUser.push(u); }
 				void doCreate(User u) { ingestUser.create(u); }
 				void doDelete(String qt) { ingestUser.delete(qt); }
+				public void serviceDelete(String origin) { userService.delete(key + origin); }
 				Optional<User> doCurrent(String qt) { return ingestUser.current(qt); }
 				Object doGet(String qt) {
 					configCache.clearUserCache();
@@ -191,6 +197,7 @@ public abstract class VersionKind {
 				void doPush(Plugin p) { ingestPlugin.push(p); }
 				void doCreate(Plugin p) { ingestPlugin.create(p); }
 				void doDelete(String qt) { ingestPlugin.delete(qt); }
+				public void serviceDelete(String origin) { pluginService.delete(key + origin); }
 				Optional<Plugin> doCurrent(String qt) { return ingestPlugin.current(qt); }
 				Object doGet(String qt) {
 					configCache.clearPluginCache();
@@ -217,6 +224,7 @@ public abstract class VersionKind {
 				void doPush(Template t) { ingestTemplate.push(t); }
 				void doCreate(Template t) { ingestTemplate.create(t); }
 				void doDelete(String qt) { ingestTemplate.delete(qt); }
+				public void serviceDelete(String origin) { templateService.delete(key + origin); }
 				Optional<Template> doCurrent(String qt) { return ingestTemplate.current(qt); }
 				Object doGet(String qt) {
 					configCache.clearTemplateCache();
@@ -237,11 +245,13 @@ public abstract class VersionKind {
 	static class RefKind extends VersionKind {
 		final Ingest ingest;
 		final RefRepository refRepository;
+		final RefService refService;
 
-		RefKind(Ingest ingest, RefRepository refRepository) {
+		RefKind(Ingest ingest, RefRepository refRepository, RefService refService) {
 			super("Ref", "https://www.example.com/");
 			this.ingest = ingest;
 			this.refRepository = refRepository;
+			this.refService = refService;
 		}
 
 		Ref make(String origin, Instant modified, String title, String ...tags) {
@@ -276,6 +286,10 @@ public abstract class VersionKind {
 
 		public void delete(String origin) {
 			ingest.delete("", key, origin);
+		}
+
+		public void serviceDelete(String origin) {
+			refService.delete(key, origin);
 		}
 
 		public void deleteDeletor(String origin) {

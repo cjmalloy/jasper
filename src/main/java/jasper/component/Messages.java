@@ -67,6 +67,9 @@ public class Messages {
 	MessageChannel pluginTxChannel;
 
 	@Autowired
+	MessageChannel pluginRxChannel;
+
+	@Autowired
 	MessageChannel templateTxChannel;
 
 	@Autowired
@@ -173,6 +176,12 @@ public class Messages {
 		var tag = localTag(qualifiedTag);
 		var origin = tagOrigin(qualifiedTag);
 		sendAndRetry(() -> pluginTxChannel.send(createMessage(deleteNotice(tag, origin, PluginDto.class), tagHeaders(origin, tag))));
+	}
+
+	public void invalidatePlugin(String qualifiedTag) {
+		var tag = localTag(qualifiedTag);
+		var origin = tagOrigin(qualifiedTag);
+		pluginRxChannel.send(createMessage(deleteNotice(tag, origin, PluginDto.class), tagHeaders(origin, tag)));
 	}
 
 	@Async

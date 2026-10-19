@@ -10,6 +10,7 @@ import jasper.component.IngestUser;
 import jasper.component.Messages;
 import jasper.service.ExtService;
 import jasper.service.PluginService;
+import jasper.service.RefService;
 import jasper.service.TemplateService;
 import jasper.service.UserService;
 import org.junit.jupiter.api.BeforeEach;
@@ -41,6 +42,8 @@ public class RegularDeleteIT {
 	Ingest ingest;
 	@Autowired
 	RefRepository refRepository;
+	@Autowired
+	RefService refService;
 	@Autowired
 	IngestExt ingestExt;
 	@Autowired
@@ -86,7 +89,7 @@ public class RegularDeleteIT {
 
 	List<VersionKind> kinds() {
 		return VersionKind.all(
-			ingest, refRepository,
+			ingest, refRepository, refService,
 			ingestExt, extRepository, extService,
 			ingestUser, userRepository, userService,
 			ingestPlugin, pluginRepository, pluginService,

@@ -6,6 +6,7 @@ import jasper.domain.Plugin;
 import jasper.domain.Ref;
 import jasper.domain.Template;
 import jasper.domain.User;
+import jasper.domain.proj.RefView;
 
 import java.time.Instant;
 import java.util.Collection;
@@ -24,6 +25,16 @@ public final class Archive {
 	private Archive() {}
 
 	public static boolean isBlank(Ref ref) {
+		if (ref.getTags() != null && ref.getTags().contains("plugin/delete")) return true;
+		return isEmpty(ref.getTitle())
+			&& isEmpty(ref.getComment())
+			&& empty(ref.getTags())
+			&& empty(ref.getSources())
+			&& empty(ref.getAlternateUrls())
+			&& empty(ref.getPlugins());
+	}
+
+	public static boolean isBlank(RefView ref) {
 		if (ref.getTags() != null && ref.getTags().contains("plugin/delete")) return true;
 		return isEmpty(ref.getTitle())
 			&& isEmpty(ref.getComment())
@@ -62,7 +73,7 @@ public final class Archive {
 			&& (user.getKey() == null || user.getKey().length == 0)
 			&& (user.getPubKey() == null || user.getPubKey().length == 0)
 			&& isEmpty(user.getAuthorizedKeys())
-			&& user.getExternal() == null;
+			&& (user.getExternal() == null || empty(user.getExternal().getIds()));
 	}
 
 	/**
@@ -71,7 +82,7 @@ public final class Archive {
 	 * Postgres stores microseconds.
 	 */
 	public static Instant nextModified(Instant now, Instant cursor) {
-		if (cursor == null || now.truncatedTo(MICROS).isAfter(cursor)) return now;
+		if (cursor == null || now.truncatedTo(MICROS).isAfter(cursor)) return now.truncatedTo(MICROS);
 		return cursor.truncatedTo(MICROS).plus(1, MICROS);
 	}
 
