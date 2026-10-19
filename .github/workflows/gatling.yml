@@ -57,6 +57,15 @@ jobs:
       - name: Generate Report Index
         if: always()
         run: (cd gatling; sudo chown $(whoami) -R report; ./gen-index.sh)
+      - name: Patch HTML report
+        if: always()
+        working-directory: gatling
+        # language=bash
+        run: |
+          # Playwright reports on the same Pages origin share the localStorage "theme" key with values dark-mode|light-mode|system;
+          # convert them to Gatling's dark|light and clear anything else so Gatling falls back to the OS preference
+          [ -d report ] || exit 0
+          find report -mindepth 2 -type f -name '*.html' -print0 | xargs -0 -r sed -i "0,/<head>/s//<head><script>try{const t=localStorage.getItem('theme');if(t==='dark-mode'||t==='light-mode')localStorage.setItem('theme',t.slice(0,-5));else if(!['dark','light',null].includes(t))localStorage.removeItem('theme')}catch(e){}<\/script>/"
       - name: Generate Load Test Summary
         if: always()
         id: load_test_summary
