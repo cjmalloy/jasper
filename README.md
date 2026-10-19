@@ -810,7 +810,7 @@ non-archive mode requires manually deleting old versions and restoring the origi
    and `plugin/delete` Refs, and never remove rows.
  * Local writes are dated after the newest version in their origin, even if a pushed version is dated later
    than the local clock, so they always become the current version. Silent Ref writes add a version dated
-   1µs after the Ref's newest version, so they move the origin cursor as little as possible.
+   1µs after the Ref's newest version.
  * A blank version (only the key and dates set) is a tombstone. A Ref tagged `plugin/delete` is also a
    tombstone. If the current version is a tombstone, single lookups treat the item as deleted. This includes
    items that were created blank.
@@ -819,8 +819,12 @@ non-archive mode requires manually deleting old versions and restoring the origi
  * Deleting adds a blank version and sends the regular delete notice. Re-creating a deleted item adds another
    version, and the tombstone stays in the history.
  * Deleting a tombstone, or a deletor tag, prunes every version of the item and its deletor tag in that
-   origin. Only versions modified at or before the start of the prune are removed. This is a local admin
-   action: no delete notice is sent and it is not replicated.
+   origin. Only versions modified at or before the start of the prune are removed. This is a local action
+   using the existing delete permissions: no delete notice is sent and it is not replicated.
+ * Once a Ref is deleted, only moderators and admins can re-create or prune it, since its tombstone has no tags.
+   Replication is not affected.
+ * Writing to pulled origins is not supported, including silent writes, which can move the pull cursor.
+ * Concurrent local creates or updates of the same item are not serialized. Both may succeed; no data is lost.
  * Page and count results for Exts, Users, Plugins and Templates include older and deleted versions.
  * A regular server pulling from an archive stores blank versions as normal, empty items.
  * Do not serve SSH (tunnels) or user logins from an archive server, since older user versions, including

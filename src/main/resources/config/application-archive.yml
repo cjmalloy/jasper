@@ -11,7 +11,7 @@
 # - Local writes are dated after the newest version in their origin,
 #   even if a pushed version is dated later than the local clock.
 #   Silent Ref writes add a version dated 1 microsecond after the Ref's newest
-#   version, so they move the origin cursor as little as possible.
+#   version.
 # - A blank version (or a plugin/delete Ref) is a tombstone. Single
 #   lookups treat an item whose current version is a tombstone as
 #   deleted, including items that were created blank.
@@ -21,7 +21,14 @@
 # - Deleting adds a blank version and sends the regular delete notice.
 # - Deleting a tombstone or a deletor tag prunes every version of the
 #   item and its deletor tag in that origin, modified at or before the
-#   start of the prune. No notice is sent and it is not replicated.
+#   start of the prune. This is a local action using the existing delete
+#   permissions: no notice is sent and it is not replicated.
+# - Once a Ref is deleted, only moderators and admins can re-create or
+#   prune it, since its tombstone has no tags. Replication is not affected.
+# - Writing to pulled origins is not supported, including silent writes,
+#   which can move the pull cursor.
+# - Concurrent local creates or updates of the same item are not
+#   serialized. Both may succeed; no data is lost.
 # - Page and count results for Exts, Users, Plugins and Templates
 #   include older and deleted versions.
 # - Regular servers pulling from an archive store blank versions as
