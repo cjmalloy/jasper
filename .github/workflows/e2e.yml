@@ -54,9 +54,10 @@ jobs:
         if: always()
         # language=bash
         run: |
-          # Expand all test steps by default
+          # Gatling reports on the same Pages origin share the localStorage "theme" key with values dark|light;
+          # convert them to Playwright's dark-mode|light-mode|system and clear anything else
           if [ -f reports/html/index.html ]; then
-            sed -i 's/mergeFiles",!1/mergeFiles",!0/g' reports/html/index.html
+            sed -i "0,/<head>/s//<head><script>try{const t=localStorage.getItem('theme');if(t==='dark'||t==='light')localStorage.setItem('theme',t+'-mode');else if(!['dark-mode','light-mode','system',null].includes(t))localStorage.removeItem('theme')}catch(e){}<\/script>/" reports/html/index.html
           fi
       - name: Summarize results
         id: summary
