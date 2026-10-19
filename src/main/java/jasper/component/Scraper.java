@@ -92,9 +92,7 @@ public class Scraper {
 		if (config == null) return null;
 		var existing = refRepository.findOneByUrlAndOrigin(url, origin);
 		existing.ifPresent(ref -> tagger.debug(ref, "Scraping existing Ref"));
-		// Only read through the file cache if the Ref is already a cached file,
-		// otherwise scraping would turn every existing Ref into a cached webpage
-		var data = proxy.fetchString(url, origin, existing.map(ref -> ref.hasPlugin("_plugin/cache")).orElse(false));
+		var data = proxy.fetchString(url, origin, existing.isPresent());
 		if (isBlank(data) || !data.trim().startsWith("<")) return from(url, origin);
 		var result = refRepository.findOneByUrlAndOrigin(url, origin).orElse(from(url, origin));
 		// Update ref but don't persist changes
