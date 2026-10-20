@@ -45,7 +45,7 @@ curl http://localhost:8081/api/v1/ref/page          # {"content":[],"page":{...}
 - The `dev` profile already points at `jdbc:postgresql://localhost:5432/jasper` (user/pass `jasper`), so the `SPRING_DATASOURCE_*` variables are optional.
 - Run `spring-boot:run` as a background/async process and stop it before running `./mvnw test` or `clean`; both use `target/`.
 - Redis is only used when the `redis` profile is active. Neither `dev` nor the compose `web` service enables it, so the `redis` container is optional.
-- Profiles are opt-in feature switches (`@Profile`): `scripts`, `storage`, `proxy`, `file-cache`, `jwt`, `redis`, `sqlite`, `kubernetes`, `gcs`, `scim`, `preload`, `api-docs`, and opt-outs such as `no-websocket`, `no-cascade`, `no-backfill`, `no-ssl`. Search `@Profile` in `src/main/java/jasper` before assuming a component is loaded.
+- Profiles are opt-in feature switches (`@Profile`): `scripts`, `storage`, `proxy`, `file-cache`, `jwt`, `redis`, `sqlite`, `kubernetes`, `gcs`, `scim`, `preload`, `api-docs`, and opt-outs such as `no-websocket`, `no-cascade`, `no-backfill`, `no-metadata`, `no-ssl`. Search `@Profile` in `src/main/java/jasper` before assuming a component is loaded.
 
 **Full stack in Docker:**
 ```bash
@@ -119,7 +119,7 @@ npm run down          # / down:sqlite — ALWAYS tear down (volumes keep state)
 # Iterate against a running stack:
 docker compose up --build -d --wait && docker compose --profile ci run --rm playwright
 ```
-- Stack: `client` (jasper-ui, :8080), `web` (:8081, JWT; tests use the jasper-ui debug HS256 secret or `?debug=ADMIN` in the UI), `repl-web` (:8083, `@repl`, default role admin, file cache; install `_plugin/cache` before uploading), `tunnel-web` (:8085, ssh origins `@open,@tunnel`, default role admin) and `ssh` (jasper-ssh). Don't use `X-Jasper-Key` (Electron only).
+- Stack: `client` (jasper-ui, :8080), `web` (:8081, JWT; tests use the jasper-ui debug HS256 secret or `?debug=ADMIN` in the UI), `repl-web` (:8083, `@repl`, default role admin, file cache; install `_plugin/cache` before uploading), `tunnel-web` (:8085, ssh origins `@open,@tunnel`, default role admin), `ssh` (jasper-ssh) and `archive-web` (:8087, `@archive`, `prod,archive`, default role admin, `User-Tag` header allowed; Postgres only, so it is left out of the SQLite stack and `60-archive.spec.ts` skips without `ARCHIVE_API`). Don't use `X-Jasper-Key` (Electron only).
 - Never use `docker compose up --exit-code-from`: jasper-ssh restarts itself when `authorized_keys` changes, which aborts the whole stack.
 - Report files are written by root inside the container: `sudo rm -rf e2e/reports e2e/test-results` locally.
 - Builds `..` (the root Dockerfile), so the PKIX sandbox workaround above applies.
@@ -142,6 +142,7 @@ docker compose up --build -d --wait && docker compose --profile ci run --rm play
 | Docker build `PKIX path building failed` | Sandbox TLS-intercepting proxy | See "PKIX error inside Docker" above. |
 | `bind: address already in use` on 8081 | Local app, root compose and gatling compose all use 8081 | Run only one at a time; `docker compose down` / stop the async shell. |
 | Maven seems hung on first build | Downloading dependencies | Wait; first build downloads hundreds of MB. Use `-B` to avoid progress spam. |
+| `./mvnw` fails with `wget: Failed to fetch .../apache-maven-3.10.0-bin.zip`, or `Non-resolvable import POM ... (absent)` | `repo.maven.apache.org` returns 404 through the sandbox proxy in some sessions | Use the preinstalled `mvn` (same Maven version) with a temporary mirror: write `<settings><mirrors><mirror><id>gcs</id><mirrorOf>*</mirrorOf><url>https://maven-central.storage-download.googleapis.com/maven2</url></mirror></mirrors></settings>` to `/tmp/settings.xml` and run `mvn -B -s /tmp/settings.xml ...`. Don't commit it. |
 | Lockfile / dependency-version drift | The `e2e/` module has an npm lockfile; elsewhere, drift happens between Bun versions (Dockerfile pins `oven/bun:1.4.2-slim`; CI `setup-bun` and the install script take latest) and between Maven image tags (`Dockerfile` vs `gatling/Dockerfile`) | Don't add `package.json`/lockfiles outside `e2e/`. If a JS test behaves differently locally vs Docker, install the pinned version: `curl -fsSL https://bun.sh/install \| bash -s bun-v1.4.2`. Versions in `pom.xml` are the source of truth; Dependabot updates them. |
 
 ## CI (`.github/workflows/`)

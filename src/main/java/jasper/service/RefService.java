@@ -21,6 +21,8 @@ import jasper.service.dto.RefDto;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.dao.IncorrectResultSizeDataAccessException;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -33,6 +35,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
+import java.util.Optional;
 
 import static jasper.component.Meta.expandTags;
 import static jasper.repository.spec.OriginSpec.isOrigin;
@@ -67,6 +70,9 @@ public class RefService {
 	@Autowired
 	ConfigCache configs;
 
+	@Value("#{environment.matchesProfiles('archive')}")
+	boolean archive;
+
 	@PreAuthorize("@auth.canWriteRef(#ref)")
 	@Timed(value = "jasper.service", extraTags = {"service", "ref"}, histogram = true)
 	public Instant create(Ref ref) {
@@ -93,9 +99,28 @@ public class RefService {
 	@Timed(value = "jasper.service", extraTags = {"service", "ref"}, histogram = true)
 	public RefDto get(String url, String origin) {
 		return refRepository.findOneByUrlAndOrigin(url, origin)
-			.or(() -> refRepository.findOne(isUrl(url).and(isOrigin(origin))))
+			.or(() -> alternate(url, origin))
+			.filter(r -> !ingest.isTombstone(r))
 			.map(mapper::domainToDto)
 			.orElseThrow(() -> new NotFoundException("Ref " + origin + " " + url));
+	}
+
+	/**
+	 * Find the Ref with an alternate URL. In archive mode only the latest version
+	 * of each Ref is matched, so older versions don't keep a removed alternate URL.
+	 */
+	private Optional<Ref> alternate(String url, String origin) {
+		if (!archive) return refRepository.findOne(isUrl(url).and(isOrigin(origin)));
+		var matches = refRepository.findAll(isUrl(url).and(isOrigin(origin)))
+			.stream()
+			.map(Ref::getUrl)
+			.distinct()
+			.map(u -> refRepository.findOneByUrlAndOrigin(u, origin))
+			.flatMap(Optional::stream)
+			.filter(r -> r.getAlternateUrls() != null && r.getAlternateUrls().contains(url))
+			.toList();
+		if (matches.size() > 1) throw new IncorrectResultSizeDataAccessException(1, matches.size());
+		return matches.stream().findFirst();
 	}
 
 	@Transactional(readOnly = true)
@@ -136,7 +161,7 @@ public class RefService {
 		if (ref.getSources() != null && ref.getSources().size() > root.getMaxSources()) {
 			throw new MaxSourcesException(root.getMaxSources(), ref.getSources().size());
 		}
-		var maybeExisting = refRepository.findOneByUrlAndOrigin(ref.getUrl(), ref.getOrigin());
+		var maybeExisting = ingest.current(ref.getUrl(), ref.getOrigin());
 		if (maybeExisting.isEmpty()) throw new NotFoundException("Ref " + ref.getOrigin() + " " + ref.getUrl());
 		var existing = maybeExisting.get();
 		// Hidden tags cannot be removed
@@ -155,7 +180,7 @@ public class RefService {
 	public Instant patch(String url, String origin, Instant cursor, Patch patch) {
 		// TODO: disable patching for large refs
 		var created = false;
-		var ref = refRepository.findOneByUrlAndOrigin(url, origin).orElse(null);
+		var ref = ingest.current(url, origin).orElse(null);
 		if (ref == null) {
 			created = true;
 			var current = refRepository.findAll(isUrl(url).and(isNotObsolete()), ofSize(1));

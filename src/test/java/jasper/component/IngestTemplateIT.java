@@ -39,6 +39,40 @@ public class IngestTemplateIT {
 	}
 
 	@Test
+	void testPushDeletorDeletesTag() {
+		var existing = new Template();
+		existing.setTag("test");
+		existing.setModified(Instant.now().minusSeconds(10));
+		ingest.push(existing);
+		var deletor = new Template();
+		deletor.setTag("test/deleted");
+		deletor.setModified(Instant.now());
+
+		ingest.push(deletor);
+
+		assertThat(templateRepository.existsByQualifiedTag("test"))
+			.isFalse();
+		assertThat(templateRepository.existsByQualifiedTag("test/deleted"))
+			.isTrue();
+	}
+
+	@Test
+	void testCreateDeletesDeletor() {
+		var deletor = new Template();
+		deletor.setTag("test/deleted");
+		templateRepository.save(deletor);
+		var template = new Template();
+		template.setTag("test");
+
+		ingest.create(template);
+
+		assertThat(templateRepository.existsByQualifiedTag("test"))
+			.isTrue();
+		assertThat(templateRepository.existsByQualifiedTag("test/deleted"))
+			.isFalse();
+	}
+
+	@Test
 	void testIngestExt() {
 		var template = new Template();
 		template.setTag("test");

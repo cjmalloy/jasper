@@ -23,10 +23,12 @@ import jasper.repository.StreamMixin;
 import jasper.repository.TemplateRepository;
 import jasper.repository.UserRepository;
 import jasper.service.dto.BackupOptionsDto;
+import jasper.util.Archive;
 import jasper.util.JsonArrayStreamDataSupplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
@@ -88,6 +90,9 @@ public class Backup {
 	@Autowired
 	Optional<Storage> storage;
 
+	@Value("#{environment.matchesProfiles('archive')}")
+	boolean archive;
+
 	public record BackupStream(InputStream inputStream, long size) {}
 
 	@Async
@@ -141,7 +146,7 @@ public class Backup {
 				stream = repo.streamAllByOriginOrderByModifiedDesc(origin);
 			}
 			stream.forEach(entity -> {
-				if (!tombstones && isTombstone(entity)) {
+				if (!tombstones && tombstone(entity)) {
 					if (evict) entityManager.detach(entity);
 					return;
 				}
@@ -167,6 +172,21 @@ public class Backup {
 			logger.debug("Flushing buffer {} bytes", buf.length());
 			StreamUtils.copy(buf.toString().getBytes(), out);
 		}
+	}
+
+	/**
+	 * In archive mode a blank version is a tombstone as well.
+	 */
+	boolean tombstone(Object entity) {
+		if (isTombstone(entity)) return true;
+		if (!archive) return false;
+		if (entity instanceof Ref ref) return Archive.isBlank(ref);
+		if (entity instanceof RefView ref) return Archive.isBlank(ref);
+		if (entity instanceof Ext ext) return Archive.isBlank(ext);
+		if (entity instanceof User user) return Archive.isBlank(user);
+		if (entity instanceof Plugin plugin) return Archive.isBlank(plugin);
+		if (entity instanceof Template template) return Archive.isBlank(template);
+		return false;
 	}
 
 	static boolean isTombstone(Object entity) {
@@ -280,7 +300,7 @@ public class Backup {
 							return null;
 						}
 						var t = it.next();
-						if (!tombstones && isTombstone(t)) continue;
+						if (!tombstones && tombstone(t)) continue;
 						try {
 							t.setOrigin(origin);
 							repo.save(t);
