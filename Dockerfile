@@ -48,6 +48,11 @@ FROM azul/zulu-openjdk-debian:25.0.4.1-25.36-jre AS deploy
 RUN apt-get update && apt-get upgrade -y \
     && apt-get install curl -y \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
+# Distrust roots of the compromised eMudhra intermediates (https://emudhra.we-have-a-problem.com/)
+RUN for alias in "comodoaaaca [jdk]" "emsigneccrootcag3 [jdk]" "emsigneccrootca-g3"; do \
+      keytool -delete -cacerts -storepass changeit -alias "$alias" 2>/dev/null || true; \
+    done \
+    && ! keytool -list -v -cacerts -storepass changeit | grep -qE '86:A1:EC:BA:08:9C:4A:8D|D7:A7:A0:FB:5D:7E:27:31'
 ENV BUN_RUNTIME_TRANSPILER_CACHE_PATH=0
 ENV BUN_INSTALL_BIN=/usr/local/bin
 COPY --from=bun /usr/local/bin/bun /usr/local/bin/
