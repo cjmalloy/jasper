@@ -58,7 +58,7 @@ public class TunnelClient {
 
 	record TunnelInfo(int tunnelPort, int connections, SshClient client) {}
 	Map<String, TunnelInfo> tunnels = new ConcurrentHashMap<>();
-	static final Duration RETRY_COOLDOWN = Duration.ofMinutes(1);
+	static final Duration RETRY_COOLDOWN = Duration.ofSeconds(10);
 	Map<String, Instant> cooldowns = new ConcurrentHashMap<>();
 
 	@Scheduled(fixedDelay = 30, initialDelay = 10, timeUnit = TimeUnit.MINUTES)
