@@ -23,7 +23,10 @@ import org.springframework.test.util.ReflectionTestUtils;
 import java.io.IOException;
 import java.time.Instant;
 import java.util.Optional;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.fail;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -129,6 +132,40 @@ class TunnelClientTest {
 
 			clients.verify(SshClient::setUpDefaultClient, times(1));
 		}
+
+		verify(sshClient, times(1)).connect(anyString(), anyString(), anyInt());
+		verify(tagger, times(1)).attachLogs(anyString(), anyString(), anyString(), anyString());
+		verify(tagger, never()).attachError(anyString(), anyString(), anyString(), anyString());
+	}
+
+	@Test
+	void overlappingCallsShareCooldown() throws Exception {
+		var started = new CountDownLatch(1);
+		var release = new CountDownLatch(1);
+		when(sshClient.connect(anyString(), anyString(), anyInt())).thenAnswer(invocation -> {
+			started.countDown();
+			release.await(10, TimeUnit.SECONDS);
+			throw new SshException("Session is being closed");
+		});
+		Runnable call = () -> {
+			try (MockedStatic<SshClient> clients = mockStatic(SshClient.class)) {
+				clients.when(SshClient::setUpDefaultClient).thenReturn(sshClient);
+				tunnelClient.proxy(remote, uri -> fail("Proxy request should not run"));
+			}
+		};
+
+		var first = new Thread(call);
+		first.start();
+		assertThat(started.await(10, TimeUnit.SECONDS)).isTrue();
+		var second = new Thread(call);
+		second.start();
+		var deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
+		while (second.getState() != Thread.State.BLOCKED && second.getState() != Thread.State.WAITING && System.nanoTime() < deadline) {
+			Thread.sleep(10);
+		}
+		release.countDown();
+		first.join(10_000);
+		second.join(10_000);
 
 		verify(sshClient, times(1)).connect(anyString(), anyString(), anyInt());
 		verify(tagger, times(1)).attachLogs(anyString(), anyString(), anyString(), anyString());

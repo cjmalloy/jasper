@@ -251,15 +251,14 @@ public class TunnelClient {
 
 	private int pooledConnection(String origin, String host, String username, int port, ServerKeyVerifier serverKeyVerifier, byte[] key) throws RetryableTunnelException {
 		var remote = username + "@" + host + ":" + port;
-		var existing = tunnels.get(remote);
-		var cooldown = cooldowns.get(remote);
-		if ((existing == null || !existing.client.isOpen()) && cooldown != null && cooldown.isAfter(Instant.now())) {
-			throw new TunnelCooldownException("SSH tunnel to " + remote + " is cooling down until " + cooldown);
-		}
 		try {
-			var pooledPort = tunnels.compute(remote, (k, v) -> {
+			return tunnels.compute(remote, (k, v) -> {
 				if (v != null) {
 					if  (v.client.isOpen()) return new TunnelInfo(v.tunnelPort, v.connections + 1, v.client);
+				}
+				var cooldown = cooldowns.get(remote);
+				if (cooldown != null && cooldown.isAfter(Instant.now())) {
+					throw new RuntimeException(new TunnelCooldownException("SSH tunnel to " + remote + " is cooling down until " + cooldown));
 				}
 				var client = SshClient.setUpDefaultClient();
 				try {
@@ -290,23 +289,23 @@ public class TunnelClient {
 							killTunnel(host, username, port);
 						}
 					});
+					cooldowns.remove(remote);
 					return new TunnelInfo(tunnelPort, 1, client);
 				} catch (Exception e) {
 					client.stop();
-					throw new RuntimeException(e);
+					logger.debug("{} Error creating tunnel SSH client", origin, e);
+					if (e instanceof SshException &&
+						getThrowableList(e).stream().noneMatch(cause ->
+							cause.getMessage() != null && (
+								cause.getMessage().contains("Broken pipe") ||
+								cause.getMessage().contains("Session is being closed")))) throw new RuntimeException(e);
+					cooldowns.put(remote, Instant.now().plus(RETRY_COOLDOWN));
+					throw new RuntimeException(new RetryableTunnelException("Error creating tunnel SSH client", e));
 				}
 			}).tunnelPort;
-			cooldowns.remove(remote);
-			return pooledPort;
 		} catch (RuntimeException e) {
-			logger.debug("{} Error creating tunnel SSH client", origin, e);
-			if (e.getCause() instanceof SshException &&
-				getThrowableList(e).stream().noneMatch(cause ->
-					cause.getMessage() != null && (
-						cause.getMessage().contains("Broken pipe") ||
-						cause.getMessage().contains("Session is being closed")))) throw e;
-			cooldowns.put(remote, Instant.now().plus(RETRY_COOLDOWN));
-			throw new RetryableTunnelException("Error creating tunnel SSH client", e);
+			if (e.getCause() instanceof RetryableTunnelException r) throw r;
+			throw e;
 		}
 	}
 
