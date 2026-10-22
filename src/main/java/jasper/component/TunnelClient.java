@@ -3,6 +3,7 @@ package jasper.component;
 import jasper.domain.proj.HasTags;
 import jasper.errors.InvalidTunnelException;
 import jasper.errors.RetryableTunnelException;
+import jasper.errors.TunnelCooldownException;
 import jasper.repository.UserRepository;
 import org.apache.sshd.client.SshClient;
 import org.apache.sshd.client.auth.keyboard.UserInteraction;
@@ -23,6 +24,7 @@ import org.springframework.stereotype.Component;
 import java.io.ByteArrayInputStream;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Map;
@@ -56,6 +58,8 @@ public class TunnelClient {
 
 	record TunnelInfo(int tunnelPort, int connections, SshClient client) {}
 	Map<String, TunnelInfo> tunnels = new ConcurrentHashMap<>();
+	static final Duration RETRY_COOLDOWN = Duration.ofMinutes(1);
+	Map<String, Instant> cooldowns = new ConcurrentHashMap<>();
 
 	@Scheduled(fixedDelay = 30, initialDelay = 10, timeUnit = TimeUnit.MINUTES)
 	public void log() {
@@ -66,6 +70,8 @@ public class TunnelClient {
 
 	@Scheduled(fixedDelay = 1, timeUnit = TimeUnit.MINUTES)
 	public void healthCheck() {
+		var now = Instant.now();
+		cooldowns.values().removeIf(until -> !until.isAfter(now));
 		for (var remote : tunnels.keySet()) {
 			tunnels.compute(remote, (k, v) -> {
 				if (v == null) {
@@ -126,6 +132,9 @@ public class TunnelClient {
 				}
 				releaseTunnel(tunnelPort, host, username, port);
 			}
+		} catch (TunnelCooldownException e) {
+			logger.debug("{} Skipping SSH tunnel for {} during cooldown: {}",
+				remote.getOrigin(), remote.getTitle(), remote.getUrl());
 		} catch (RetryableTunnelException e) {
 			logger.info("{} Error creating SSH tunnel for {}: {}",
 				remote.getOrigin(), remote.getTitle(), remote.getUrl());
@@ -170,6 +179,10 @@ public class TunnelClient {
 				killTunnel(host, username, port);
 				throw new InvalidTunnelException("Error creating tunnel tracker", e);
 			}
+		} catch (TunnelCooldownException e) {
+			logger.debug("{} Skipping SSH tunnel for {} during cooldown: {}",
+				remote.getOrigin(), remote.getTitle(), remote.getUrl());
+			throw e;
 		} catch (RetryableTunnelException e) {
 			logger.info("{} Error creating SSH tunnel for {}: {}",
 				remote.getOrigin(), remote.getTitle(), remote.getUrl());
@@ -238,8 +251,13 @@ public class TunnelClient {
 
 	private int pooledConnection(String origin, String host, String username, int port, ServerKeyVerifier serverKeyVerifier, byte[] key) throws RetryableTunnelException {
 		var remote = username + "@" + host + ":" + port;
+		var existing = tunnels.get(remote);
+		var cooldown = cooldowns.get(remote);
+		if ((existing == null || !existing.client.isOpen()) && cooldown != null && cooldown.isAfter(Instant.now())) {
+			throw new TunnelCooldownException("SSH tunnel to " + remote + " is cooling down until " + cooldown);
+		}
 		try {
-			return tunnels.compute(remote, (k, v) -> {
+			var pooledPort = tunnels.compute(remote, (k, v) -> {
 				if (v != null) {
 					if  (v.client.isOpen()) return new TunnelInfo(v.tunnelPort, v.connections + 1, v.client);
 				}
@@ -278,6 +296,8 @@ public class TunnelClient {
 					throw new RuntimeException(e);
 				}
 			}).tunnelPort;
+			cooldowns.remove(remote);
+			return pooledPort;
 		} catch (RuntimeException e) {
 			logger.debug("{} Error creating tunnel SSH client", origin, e);
 			if (e.getCause() instanceof SshException &&
@@ -285,6 +305,7 @@ public class TunnelClient {
 					cause.getMessage() != null && (
 						cause.getMessage().contains("Broken pipe") ||
 						cause.getMessage().contains("Session is being closed")))) throw e;
+			cooldowns.put(remote, Instant.now().plus(RETRY_COOLDOWN));
 			throw new RetryableTunnelException("Error creating tunnel SSH client", e);
 		}
 	}

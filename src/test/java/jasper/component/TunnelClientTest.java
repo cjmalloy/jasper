@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import jasper.config.JacksonConfiguration;
 import jasper.domain.Ref;
 import jasper.domain.User;
+import jasper.errors.TunnelCooldownException;
 import jasper.plugin.Tunnel;
 import jasper.repository.UserRepository;
 import org.apache.sshd.client.SshClient;
@@ -20,6 +21,7 @@ import org.springframework.scheduling.TaskScheduler;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.io.IOException;
+import java.time.Instant;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -30,6 +32,7 @@ import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -109,6 +112,44 @@ class TunnelClientTest {
 			contains("Error creating SSH tunnel"),
 			contains("Session is being closed"));
 		verify(tagger, never()).attachError(anyString(), anyString(), anyString(), anyString());
+	}
+
+	@Test
+	void retryableFailureStartsCooldown() throws Exception {
+		var failure = new SshException("Session is being closed");
+		when(sshClient.connect(anyString(), anyString(), anyInt())).thenThrow(failure);
+
+		try (MockedStatic<SshClient> clients = mockStatic(SshClient.class)) {
+			clients.when(SshClient::setUpDefaultClient).thenReturn(sshClient);
+
+			tunnelClient.proxy(remote, uri -> fail("Proxy request should not run"));
+			tunnelClient.proxy(remote, uri -> fail("Proxy request should not run"));
+			assertThatThrownBy(() -> tunnelClient.reserveProxy(remote))
+				.isInstanceOf(TunnelCooldownException.class);
+
+			clients.verify(SshClient::setUpDefaultClient, times(1));
+		}
+
+		verify(sshClient, times(1)).connect(anyString(), anyString(), anyInt());
+		verify(tagger, times(1)).attachLogs(anyString(), anyString(), anyString(), anyString());
+		verify(tagger, never()).attachError(anyString(), anyString(), anyString(), anyString());
+	}
+
+	@Test
+	void expiredCooldownRetries() throws Exception {
+		var failure = new SshException("Session is being closed");
+		when(sshClient.connect(anyString(), anyString(), anyInt())).thenThrow(failure);
+
+		try (MockedStatic<SshClient> clients = mockStatic(SshClient.class)) {
+			clients.when(SshClient::setUpDefaultClient).thenReturn(sshClient);
+
+			tunnelClient.proxy(remote, uri -> fail("Proxy request should not run"));
+			tunnelClient.cooldowns.replaceAll((k, v) -> Instant.now().minusSeconds(1));
+			tunnelClient.proxy(remote, uri -> fail("Proxy request should not run"));
+		}
+
+		verify(sshClient, times(2)).connect(anyString(), anyString(), anyInt());
+		verify(tagger, times(2)).attachLogs(anyString(), anyString(), anyString(), anyString());
 	}
 
 	@Test
