@@ -46,6 +46,9 @@
 		<xmlunit.version>2.14.0</xmlunit.version>
 		<!-- Security override (CVE-2026-65905); remove once the Spring Boot BOM manages Tomcat >= 11.0.25. -->
 		<tomcat.version>11.0.27</tomcat.version>
+		<!-- Security override (Jackson DoS advisories); remove once the Spring Boot BOM manages Jackson >= 2.21.7 / 3.1.7. -->
+		<jackson2.version>2.21.8</jackson2.version>
+		<jackson3.version>3.1.8</jackson3.version>
 	</properties>
 
 	<dependencies>
@@ -433,6 +436,20 @@
 				<groupId>org.apache.tomcat.embed</groupId>
 				<artifactId>tomcat-embed-websocket</artifactId>
 				<version>${tomcat.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>com.fasterxml.jackson</groupId>
+				<artifactId>jackson-bom</artifactId>
+				<version>${jackson2.version}</version>
+				<type>pom</type>
+				<scope>import</scope>
+			</dependency>
+			<dependency>
+				<groupId>tools.jackson</groupId>
+				<artifactId>jackson-bom</artifactId>
+				<version>${jackson3.version}</version>
+				<type>pom</type>
+				<scope>import</scope>
 			</dependency>
 			<dependency>
 				<groupId>org.springframework.boot</groupId>
