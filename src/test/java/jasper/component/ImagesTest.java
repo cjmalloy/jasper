@@ -11,9 +11,13 @@ import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.lang.management.ManagementFactory;
 import java.nio.ByteBuffer;
 import java.util.zip.CRC32;
+import java.util.zip.Deflater;
+import java.util.zip.DeflaterOutputStream;
 
+import static java.nio.charset.StandardCharsets.US_ASCII;
 import static org.assertj.core.api.Assertions.assertThat;
 
 public class ImagesTest {
@@ -27,13 +31,17 @@ public class ImagesTest {
 	}
 
 	BufferedImage quadrant() {
+		return quadrant(400);
+	}
+
+	BufferedImage quadrant(int size) {
 		// Red top-left quadrant, blue everywhere else
-		var bi = new BufferedImage(400, 400, BufferedImage.TYPE_INT_RGB);
+		var bi = new BufferedImage(size, size, BufferedImage.TYPE_INT_RGB);
 		var g = bi.createGraphics();
 		g.setColor(Color.BLUE);
-		g.fillRect(0, 0, 400, 400);
+		g.fillRect(0, 0, size, size);
 		g.setColor(Color.RED);
-		g.fillRect(0, 0, 200, 200);
+		g.fillRect(0, 0, size / 2, size / 2);
 		g.dispose();
 		return bi;
 	}
@@ -92,6 +100,46 @@ public class ImagesTest {
 		return ((Images.Thumbnail) result).data();
 	}
 
+	/**
+	 * Streams an RGB PNG with a red top-left quadrant and blue everywhere else,
+	 * without allocating the full raster.
+	 */
+	byte[] largeQuadrantPng(int width, int height) throws IOException {
+		var top = new byte[1 + width * 3];
+		var bottom = new byte[1 + width * 3];
+		for (var x = 0; x < width; x++) {
+			var red = x < width / 2;
+			top[1 + x * 3] = (byte) (red ? 0xFF : 0);
+			top[1 + x * 3 + 2] = (byte) (red ? 0 : 0xFF);
+			bottom[1 + x * 3 + 2] = (byte) 0xFF;
+		}
+		var idat = new ByteArrayOutputStream();
+		try (var deflate = new DeflaterOutputStream(idat, new Deflater(Deflater.BEST_SPEED), 64 * 1024)) {
+			for (var y = 0; y < height; y++) deflate.write(y < height / 2 ? top : bottom);
+		}
+		var out = new ByteArrayOutputStream();
+		out.writeBytes(pngHeader(width, height));
+		out.writeBytes(pngChunk("IDAT", idat.toByteArray()));
+		out.writeBytes(pngChunk("IEND", new byte[0]));
+		return out.toByteArray();
+	}
+
+	byte[] pngChunk(String type, byte[] data) {
+		var crc = new CRC32();
+		crc.update(type.getBytes(US_ASCII));
+		crc.update(data);
+		var chunk = ByteBuffer.allocate(12 + data.length);
+		chunk.putInt(data.length);
+		chunk.put(type.getBytes(US_ASCII));
+		chunk.put(data);
+		chunk.putInt((int) crc.getValue());
+		return chunk.array();
+	}
+
+	long allocatedBytes() {
+		return ((com.sun.management.ThreadMXBean) ManagementFactory.getThreadMXBean()).getCurrentThreadAllocatedBytes();
+	}
+
 	boolean isRed(int rgb) {
 		var c = new Color(rgb, true);
 		return c.getRed() > 200 && c.getBlue() < 60;
@@ -147,6 +195,44 @@ public class ImagesTest {
 	@Test
 	void testEnormousDimensionsReturnsNull() {
 		assertThat(images.thumbnail(pngHeader(100_000, 100_000))).isInstanceOf(Images.Unsupported.class);
+	}
+
+	@Test
+	void testLargeImageSubsampled() throws IOException {
+		var data = largeQuadrantPng(12_000, 9_000);
+
+		var before = allocatedBytes();
+		var result = thumbnail(images.thumbnail(data));
+		var allocated = allocatedBytes() - before;
+
+		// A full decode would allocate at least 12000 * 9000 * 3 bytes (~324 MB)
+		assertThat(allocated).isLessThan(64L * 1024 * 1024);
+		var thumb = ImageIO.read(new ByteArrayInputStream(result));
+		assertThat(thumb.getWidth()).isEqualTo(192);
+		assertThat(thumb.getHeight()).isEqualTo(144);
+		assertThat(isRed(thumb.getRGB(10, 10))).isTrue();
+		assertThat(isBlue(thumb.getRGB(181, 10))).isTrue();
+		assertThat(isBlue(thumb.getRGB(10, 133))).isTrue();
+	}
+
+	@Test
+	void testSubsampledExifOrientationRotates() throws IOException {
+		var data = withExifOrientation(jpeg(quadrant(1600)), 6);
+
+		var thumb = ImageIO.read(new ByteArrayInputStream(thumbnail(images.thumbnail(data))));
+
+		assertThat(thumb.getWidth()).isEqualTo(192);
+		assertThat(thumb.getHeight()).isEqualTo(192);
+		// 90 CW: top-left moves to top-right
+		assertThat(isBlue(thumb.getRGB(10, 10))).isTrue();
+		assertThat(isRed(thumb.getRGB(181, 10))).isTrue();
+	}
+
+	@Test
+	void testAboveDefaultPixelLimitIsUnsupported() {
+		assertThat(images.props.getImageMaxPixels()).isEqualTo(500_000_000L);
+
+		assertThat(images.thumbnail(pngHeader(25_000, 20_001))).isInstanceOf(Images.Unsupported.class);
 	}
 
 	@Test

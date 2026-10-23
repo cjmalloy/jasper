@@ -131,11 +131,17 @@ public class Images {
 			if (!readers.hasNext()) throw new UnsupportedImageException("Could not read image");
 			reader = readers.next();
 			reader.setInput(iis, true, true);
-			var pixels = (long) reader.getWidth(0) * reader.getHeight(0);
+			var width = reader.getWidth(0);
+			var height = reader.getHeight(0);
+			var pixels = (long) width * height;
 			if (pixels > props.getImageMaxPixels()) {
 				throw new UnsupportedImageException("Image too large for thumbnail (" + pixels + " pixels)");
 			}
-			return reader.read(0);
+			// Subsample while decoding so the long edge stays at least 2x the thumbnail size
+			var n = Math.max(1, Math.max(width, height) / (THUMBNAIL_SIZE * 2));
+			var param = reader.getDefaultReadParam();
+			param.setSourceSubsampling(n, n, 0, 0);
+			return reader.read(0, param);
 		} finally {
 			if (reader != null) reader.dispose();
 			if (iis != null) iis.close();

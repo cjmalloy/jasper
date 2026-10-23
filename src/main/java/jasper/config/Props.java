@@ -154,11 +154,12 @@ public class Props {
 	/**
 	 * Maximum size in bytes of an image to generate a thumbnail for.
 	 */
-	private int imageMaxBytes = 50 * 1024 * 1024;
+	private int imageMaxBytes = 200 * 1024 * 1024;
 	/**
-	 * Maximum decoded pixel count (width * height) of an image to generate a thumbnail for.
+	 * Maximum pixel count (width * height) of an image to generate a thumbnail for.
+	 * Large images are subsampled while decoding, so this only guards against decompression bombs.
 	 */
-	private long imageMaxPixels = 50_000_000;
+	private long imageMaxPixels = 500_000_000;
 
 	/**
 	 * Path to the folder to use for storage. Used by the backup system.
