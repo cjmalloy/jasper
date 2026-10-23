@@ -224,13 +224,26 @@ public class FileCache {
 		} else {
 			var is = fetch(url, origin);
 			if (is == null) return null;
-			var data = images.thumbnail(is);
-			if (data == null) {
-				// Returning null means the full size image is already small enough to be a thumbnail
-				// Set this as a thumbnail to disable future attempts
-				if (fullSize != null) fullSize.setThumbnail(true);
-				tagger.plugin(url, origin, "_plugin/cache", fullSize, "-_plugin/delta/cache");
-				return storage.stream(origin, CACHE, id);
+			byte[] data;
+			switch (images.thumbnail(is)) {
+				case Images.Thumbnail t -> data = t.data();
+				case Images.AlreadySmall s -> {
+					// The full size image is already small enough to be a thumbnail
+					// Set this as a thumbnail to disable future attempts
+					if (fullSize != null) fullSize.setThumbnail(true);
+					tagger.plugin(url, origin, "_plugin/cache", fullSize, "-_plugin/delta/cache");
+					return storage.stream(origin, CACHE, id);
+				}
+				case Images.Unsupported u -> {
+					// Blank id disables future attempts until the user manually refreshes
+					tagger.plugin(thumbnailUrl, origin, "_plugin/cache", Cache.builder().thumbnail(true).build());
+					return null;
+				}
+				case Images.Failed f -> {
+					var err = tagger.plugin(thumbnailUrl, origin, "_plugin/cache", Cache.builder().thumbnail(true).build());
+					tagger.attachError(origin, err, "Error creating thumbnail");
+					return null;
+				}
 			}
 			try {
 				if (storage.exists(origin, CACHE, thumbnailId)) {

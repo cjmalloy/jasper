@@ -151,6 +151,14 @@ public class Props {
 	 * Number of seconds to throttle pushing after modification.
 	 */
 	private int pushCooldownSec = 1;
+	/**
+	 * Maximum size in bytes of an image to generate a thumbnail for.
+	 */
+	private int imageMaxBytes = 50 * 1024 * 1024;
+	/**
+	 * Maximum decoded pixel count (width * height) of an image to generate a thumbnail for.
+	 */
+	private long imageMaxPixels = 50_000_000;
 
 	/**
 	 * Path to the folder to use for storage. Used by the backup system.
