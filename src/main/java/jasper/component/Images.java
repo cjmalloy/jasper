@@ -203,10 +203,18 @@ public class Images {
 		var w = image.getWidth();
 		var h = image.getHeight();
 
-		var rotated = new BufferedImage(w, h, image.getType());
+		// Quarter turns swap width and height
+		var quarter = Math.abs(Math.sin(angle)) > 0.5;
+		var rw = quarter ? h : w;
+		var rh = quarter ? w : h;
+
+		var type = image.getType() == BufferedImage.TYPE_CUSTOM ? BufferedImage.TYPE_INT_ARGB : image.getType();
+		var rotated = new BufferedImage(rw, rh, type);
 		var g = rotated.createGraphics();
 
-		g.rotate(angle, w/2, h/2);
+		g.translate(rw / 2.0, rh / 2.0);
+		g.rotate(angle);
+		g.translate(-w / 2.0, -h / 2.0);
 		g.drawImage(image, 0, 0, null);
 		g.dispose();
 

@@ -215,6 +215,69 @@ public class ImagesTest {
 		assertThat(isBlue(thumb.getRGB(10, 133))).isTrue();
 	}
 
+	BufferedImage landscape() {
+		// 400x200: red left half, blue right half, green bottom-right corner
+		var bi = new BufferedImage(400, 200, BufferedImage.TYPE_INT_RGB);
+		var g = bi.createGraphics();
+		g.setColor(Color.RED);
+		g.fillRect(0, 0, 200, 200);
+		g.setColor(Color.BLUE);
+		g.fillRect(200, 0, 200, 200);
+		g.setColor(Color.GREEN);
+		g.fillRect(300, 100, 100, 100);
+		g.dispose();
+		return bi;
+	}
+
+	boolean isGreen(int rgb) {
+		var c = new Color(rgb, true);
+		return c.getGreen() > 200 && c.getRed() < 60 && c.getBlue() < 60;
+	}
+
+	@Test
+	void testNonSquareOrientation6SwapsAspectRatio() throws IOException {
+		var data = withExifOrientation(jpeg(landscape()), 6);
+
+		var thumb = ImageIO.read(new ByteArrayInputStream(thumbnail(images.thumbnail(data))));
+
+		// 90 CW: left half moves to the top, bottom-right corner moves to bottom-left
+		assertThat(thumb.getWidth()).isEqualTo(96);
+		assertThat(thumb.getHeight()).isEqualTo(192);
+		assertThat(isRed(thumb.getRGB(48, 10))).isTrue();
+		assertThat(isBlue(thumb.getRGB(70, 110))).isTrue();
+		assertThat(isGreen(thumb.getRGB(10, 181))).isTrue();
+		// No empty bands from cropping
+		assertThat(isRed(thumb.getRGB(2, 48))).isTrue();
+		assertThat(isRed(thumb.getRGB(93, 48))).isTrue();
+	}
+
+	@Test
+	void testNonSquareOrientation8SwapsAspectRatio() throws IOException {
+		var data = withExifOrientation(jpeg(landscape()), 8);
+
+		var thumb = ImageIO.read(new ByteArrayInputStream(thumbnail(images.thumbnail(data))));
+
+		// 270 CW: left half moves to the bottom, bottom-right corner moves to top-right
+		assertThat(thumb.getWidth()).isEqualTo(96);
+		assertThat(thumb.getHeight()).isEqualTo(192);
+		assertThat(isRed(thumb.getRGB(48, 181))).isTrue();
+		assertThat(isBlue(thumb.getRGB(20, 80))).isTrue();
+		assertThat(isGreen(thumb.getRGB(85, 10))).isTrue();
+	}
+
+	@Test
+	void testNonSquareOrientation3KeepsAspectRatio() throws IOException {
+		var data = withExifOrientation(jpeg(landscape()), 3);
+
+		var thumb = ImageIO.read(new ByteArrayInputStream(thumbnail(images.thumbnail(data))));
+
+		// 180: left half moves to the right, bottom-right corner moves to top-left
+		assertThat(thumb.getWidth()).isEqualTo(192);
+		assertThat(thumb.getHeight()).isEqualTo(96);
+		assertThat(isRed(thumb.getRGB(181, 48))).isTrue();
+		assertThat(isGreen(thumb.getRGB(10, 10))).isTrue();
+	}
+
 	@Test
 	void testSubsampledExifOrientationRotates() throws IOException {
 		var data = withExifOrientation(jpeg(quadrant(1600)), 6);
