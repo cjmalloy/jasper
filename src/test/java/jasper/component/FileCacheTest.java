@@ -2,6 +2,7 @@ package jasper.component;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jasper.config.JacksonConfiguration;
+import jasper.config.Props;
 import jasper.domain.Ref;
 import jasper.plugin.Cache;
 import jasper.repository.RefRepository;
@@ -142,6 +143,30 @@ public class FileCacheTest {
 			.contains("/api/v1/proxy?url=https%3A%2F%2Fexample.com%2Fvideo%2Fseg0.ts")
 			.doesNotContain("https://cdn.example.com");
 		verify(storage).exists("", "cache", "seg");
+	}
+
+	@Test
+	void testOversizedImageNotMarkedAsThumbnail() throws IOException {
+		var url = "https://example.com/big.png";
+		var ref = new Ref();
+		ref.setUrl(url);
+		ref.setPlugin("_plugin/cache", Cache.builder().id("big").build());
+		when(fileCache.refRepository.findOneByUrlAndOrigin(url, "")).thenReturn(Optional.of(ref));
+		when(storage.exists("", "cache", "big")).thenReturn(true);
+		when(storage.stream("", "cache", "big")).thenAnswer(i -> new ByteArrayInputStream(new byte[1024]));
+		var images = new Images();
+		images.props = new Props();
+		images.props.setImageMaxBytes(100);
+		fileCache.images = images;
+
+		assertThat(fileCache.fetchThumbnail(url, "")).isNull();
+
+		assertThat(ref.getPlugin("_plugin/cache", Cache.class).isThumbnail()).isFalse();
+		verify(tagger, never()).plugin(eq(url), anyString(), anyString(), any(), any(String[].class));
+		var cache = ArgumentCaptor.forClass(Cache.class);
+		verify(tagger).plugin(eq("cache:t_big"), eq(""), eq("_plugin/cache"), cache.capture());
+		assertThat(cache.getValue().getId()).isBlank();
+		verify(storage, never()).storeAt(any(), any(), any(), any(byte[].class));
 	}
 
 	Ref segment(String id, String ...tags) {

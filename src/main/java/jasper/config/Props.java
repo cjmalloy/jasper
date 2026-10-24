@@ -151,6 +151,21 @@ public class Props {
 	 * Number of seconds to throttle pushing after modification.
 	 */
 	private int pushCooldownSec = 1;
+	/**
+	 * Maximum size in bytes of an image to generate a thumbnail for.
+	 */
+	private int imageMaxBytes = 200 * 1024 * 1024;
+	/**
+	 * Maximum pixel count (width * height) of an image to generate a thumbnail for.
+	 * Large images are subsampled while decoding, so this only guards against decompression bombs.
+	 */
+	private long imageMaxPixels = 500_000_000;
+	/**
+	 * Maximum aspect ratio (long edge / short edge) of a thumbnail. More elongated images
+	 * are cropped, keeping the top of tall images and the centre of wide images.
+	 * Set to 0 to disable cropping.
+	 */
+	private double imageMaxAspectRatio = 4;
 
 	/**
 	 * Path to the folder to use for storage. Used by the backup system.
