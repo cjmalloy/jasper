@@ -278,6 +278,120 @@ public class ImagesTest {
 		assertThat(isGreen(thumb.getRGB(10, 10))).isTrue();
 	}
 
+	/**
+	 * Blue image with a green rectangle.
+	 */
+	BufferedImage marked(int width, int height, int gx, int gy, int gw, int gh) {
+		var bi = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
+		var g = bi.createGraphics();
+		g.setColor(Color.BLUE);
+		g.fillRect(0, 0, width, height);
+		g.setColor(Color.GREEN);
+		g.fillRect(gx, gy, gw, gh);
+		g.dispose();
+		return bi;
+	}
+
+	byte[] png(BufferedImage bi) throws IOException {
+		var bo = new ByteArrayOutputStream();
+		ImageIO.write(bi, "png", bo);
+		return bo.toByteArray();
+	}
+
+	BufferedImage read(Images.Result result) throws IOException {
+		return ImageIO.read(new ByteArrayInputStream(thumbnail(result)));
+	}
+
+	@Test
+	void testExtremeWideImageCroppedToCentre() throws IOException {
+		// Green ends would be visible without a centre crop
+		var bi = marked(20_000, 50, 0, 0, 20_000, 50);
+		var g = bi.createGraphics();
+		g.setColor(Color.BLUE);
+		g.fillRect(9_900, 0, 200, 50);
+		g.dispose();
+
+		var thumb = read(images.thumbnail(png(bi)));
+
+		assertThat(thumb.getWidth()).isEqualTo(192);
+		assertThat(thumb.getHeight()).isEqualTo(48);
+		assertThat(isBlue(thumb.getRGB(2, 24))).isTrue();
+		assertThat(isBlue(thumb.getRGB(189, 24))).isTrue();
+	}
+
+	@Test
+	void testExtremeTallImageCroppedToTop() throws IOException {
+		var thumb = read(images.thumbnail(png(marked(100, 2_000, 0, 0, 100, 200))));
+
+		// Top 400px kept: green top half, blue bottom half
+		assertThat(thumb.getWidth()).isEqualTo(48);
+		assertThat(thumb.getHeight()).isEqualTo(192);
+		assertThat(isGreen(thumb.getRGB(24, 10))).isTrue();
+		assertThat(isBlue(thumb.getRGB(24, 181))).isTrue();
+	}
+
+	@Test
+	void testCropDisabledKeepsAtLeastOnePixel() throws IOException {
+		images.props.setImageMaxAspectRatio(0);
+
+		var thumb = read(images.thumbnail(png(marked(20_000, 50, 0, 0, 0, 0))));
+
+		assertThat(thumb.getWidth()).isEqualTo(192);
+		assertThat(thumb.getHeight()).isEqualTo(1);
+	}
+
+	@Test
+	void testSmallExtremeImageIsCropped() throws IOException {
+		var thumb = read(images.thumbnail(png(marked(190, 10, 0, 0, 0, 0))));
+
+		assertThat(thumb.getWidth()).isEqualTo(40);
+		assertThat(thumb.getHeight()).isEqualTo(10);
+	}
+
+	@Test
+	void testSmallImageWithinRatioIsAlreadySmall() throws IOException {
+		assertThat(images.thumbnail(png(marked(160, 40, 0, 0, 0, 0)))).isInstanceOf(Images.AlreadySmall.class);
+	}
+
+	@Test
+	void testExtremeOrientation6CropsDisplayedTop() throws IOException {
+		// Stored wide, displayed tall: stored left edge becomes displayed top
+		var data = withExifOrientation(jpeg(marked(2_000, 100, 0, 0, 200, 100)), 6);
+
+		var thumb = read(images.thumbnail(data));
+
+		assertThat(thumb.getWidth()).isEqualTo(48);
+		assertThat(thumb.getHeight()).isEqualTo(192);
+		assertThat(isGreen(thumb.getRGB(24, 10))).isTrue();
+		assertThat(isBlue(thumb.getRGB(24, 181))).isTrue();
+	}
+
+	@Test
+	void testExtremeOrientation8CropsDisplayedTop() throws IOException {
+		// Stored wide, displayed tall: stored right edge becomes displayed top
+		var data = withExifOrientation(jpeg(marked(2_000, 100, 1_800, 0, 200, 100)), 8);
+
+		var thumb = read(images.thumbnail(data));
+
+		assertThat(thumb.getWidth()).isEqualTo(48);
+		assertThat(thumb.getHeight()).isEqualTo(192);
+		assertThat(isGreen(thumb.getRGB(24, 10))).isTrue();
+		assertThat(isBlue(thumb.getRGB(24, 181))).isTrue();
+	}
+
+	@Test
+	void testExtremeOrientation3CropsDisplayedTop() throws IOException {
+		// Stored bottom edge becomes displayed top
+		var data = withExifOrientation(jpeg(marked(100, 2_000, 0, 1_800, 100, 200)), 3);
+
+		var thumb = read(images.thumbnail(data));
+
+		assertThat(thumb.getWidth()).isEqualTo(48);
+		assertThat(thumb.getHeight()).isEqualTo(192);
+		assertThat(isGreen(thumb.getRGB(24, 10))).isTrue();
+		assertThat(isBlue(thumb.getRGB(24, 181))).isTrue();
+	}
+
 	@Test
 	void testSubsampledExifOrientationRotates() throws IOException {
 		var data = withExifOrientation(jpeg(quadrant(1600)), 6);

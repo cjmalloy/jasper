@@ -84,23 +84,26 @@ public class Images {
 			return new Unsupported();
 		}
 		try {
-			var bi = decode(imageData);
+			var orientation = orientation(imageData);
+			var decoded = decode(imageData, orientation);
 
 			// Apply orientation if needed
-			bi = rotateImageIfNeeded(bi, orientation(imageData));
+			var bi = rotateImageIfNeeded(decoded.image(), orientation);
 
 			var bo = new ByteArrayOutputStream();
 			var width = bi.getWidth();
 			var height = bi.getHeight();
 
-			if (width > THUMBNAIL_SIZE || height > THUMBNAIL_SIZE) {
-				var ar = (double) width / height;
-				if (width > height) {
-					width = THUMBNAIL_SIZE;
-					height = (int) Math.floor(THUMBNAIL_SIZE / ar);
-				} else {
-					height = THUMBNAIL_SIZE;
-					width = (int) Math.floor(THUMBNAIL_SIZE * ar);
+			if (decoded.cropped() || width > THUMBNAIL_SIZE || height > THUMBNAIL_SIZE) {
+				if (width > THUMBNAIL_SIZE || height > THUMBNAIL_SIZE) {
+					var ar = (double) width / height;
+					if (width > height) {
+						width = THUMBNAIL_SIZE;
+						height = Math.max(1, (int) Math.floor(THUMBNAIL_SIZE / ar));
+					} else {
+						height = THUMBNAIL_SIZE;
+						width = Math.max(1, (int) Math.floor(THUMBNAIL_SIZE * ar));
+					}
 				}
 				var scaled = bi.getScaledInstance(width, height, Image.SCALE_SMOOTH);
 				ImageIO.write(buffer(scaled, width, height), "png", bo);
@@ -121,7 +124,9 @@ public class Images {
 		}
 	}
 
-	private BufferedImage decode(byte[] imageData) throws IOException, UnsupportedImageException {
+	private record Decoded(BufferedImage image, boolean cropped) {}
+
+	private Decoded decode(byte[] imageData, int orientation) throws IOException, UnsupportedImageException {
 		ImageInputStream iis = null;
 		ImageReader reader = null;
 		try {
@@ -137,15 +142,48 @@ public class Images {
 			if (pixels > props.getImageMaxPixels()) {
 				throw new UnsupportedImageException("Image too large for thumbnail (" + pixels + " pixels)");
 			}
-			// Subsample while decoding so the long edge stays at least 2x the thumbnail size
-			var n = Math.max(1, Math.max(width, height) / (THUMBNAIL_SIZE * 2));
 			var param = reader.getDefaultReadParam();
+			var region = crop(width, height, orientation);
+			if (region != null) param.setSourceRegion(region);
+			var w = region == null ? width : region.width;
+			var h = region == null ? height : region.height;
+			// Subsample while decoding so the long edge stays at least 2x the thumbnail size
+			var n = Math.max(1, Math.max(w, h) / (THUMBNAIL_SIZE * 2));
 			param.setSourceSubsampling(n, n, 0, 0);
-			return reader.read(0, param);
+			return new Decoded(reader.read(0, param), region != null);
 		} finally {
 			if (reader != null) reader.dispose();
 			if (iis != null) iis.close();
 		}
+	}
+
+	/**
+	 * Region of the stored image to keep so the displayed (oriented) image does not
+	 * exceed the maximum aspect ratio. Keeps the top of tall images and the centre of
+	 * wide images. Returns null if no crop is needed.
+	 */
+	private Rectangle crop(int width, int height, int orientation) {
+		var ratio = props.getImageMaxAspectRatio();
+		if (ratio < 1) return null;
+		var quarter = orientation == 6 || orientation == 8;
+		var dw = quarter ? height : width;
+		var dh = quarter ? width : height;
+		int dx = 0, dy = 0, cw = dw, ch = dh;
+		if (dw > dh * ratio) {
+			cw = (int) Math.ceil(dh * ratio);
+			dx = (dw - cw) / 2;
+		} else if (dh > dw * ratio) {
+			ch = (int) Math.ceil(dw * ratio);
+		} else {
+			return null;
+		}
+		// Map the displayed crop back to stored image coordinates
+		return switch (orientation) {
+			case 3 -> new Rectangle(width - dx - cw, height - dy - ch, cw, ch);
+			case 6 -> new Rectangle(dy, height - dx - cw, ch, cw);
+			case 8 -> new Rectangle(width - dy - ch, dx, ch, cw);
+			default -> new Rectangle(dx, dy, cw, ch);
+		};
 	}
 
 	/**
