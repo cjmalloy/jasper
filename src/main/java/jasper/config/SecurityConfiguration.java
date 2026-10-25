@@ -120,7 +120,7 @@ public class SecurityConfiguration {
 					.policyDirectives(props.getSecurity().getContentSecurityPolicy()))
 				.referrerPolicy(r -> r.policy(ReferrerPolicyHeaderWriter.ReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN))
 				.frameOptions(HeadersConfigurer.FrameOptionsConfig::sameOrigin)
-				.permissionsPolicyHeader(p -> p.policy("camera=(), fullscreen=(self), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), midi=(), payment=(), sync-xhr=()"))
+				.permissionsPolicyHeader(p -> p.policy("camera=(), fullscreen=(self), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), midi=(), payment=(), sync-xhr=(), usb=(), serial=(), hid=(), bluetooth=(), display-capture=(), screen-wake-lock=(), publickey-credentials-get=()"))
 			)
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 			.with(securityConfigurerAdapter(), Customizer.withDefaults())
