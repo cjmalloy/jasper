@@ -215,7 +215,7 @@ class ReplicatorTest {
 		assertTimeoutPreemptively(Duration.ofSeconds(10), () -> replicator.push(remote));
 
 		verify(client, times(1)).refCursor(any(URI.class), eq("@target"));
-		verify(client, never()).refPush(any(URI.class), anyString(), any());
+		verify(client, never()).refPush(any(URI.class), anyMap(), anyString(), any());
 		verify(client, never()).extCursor(any(URI.class), anyString());
 		verify(tagger).attachError(eq(""), eq(remote), startsWith("Fatal error pushing"), any());
 	}

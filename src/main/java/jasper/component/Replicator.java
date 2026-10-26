@@ -48,6 +48,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
@@ -62,6 +63,7 @@ import static jasper.plugin.Cache.getCache;
 import static jasper.plugin.Origin.getOrigin;
 import static jasper.plugin.Pull.getPull;
 import static jasper.plugin.Push.getPush;
+import static jasper.security.Auth.LOCAL_ORIGIN_HEADER;
 import static jasper.security.AuthoritiesConstants.MOD;
 import static jasper.util.Logging.getMessage;
 import static java.io.InputStream.nullInputStream;
@@ -443,6 +445,7 @@ public class Replicator {
 		Specification<Template> templateReadSpec = readers.stream().map(Auth::<Template>tagReadSpec).reduce(Specification::or).get();
 		Specification<Ext> extReadSpec = readers.stream().map(Auth::<Ext>tagReadSpec).reduce(Specification::or).get();
 		Specification<User> userReadSpec = readers.stream().map(Auth::<User>tagReadSpec).reduce(Specification::or).get();
+		Map<String, Object> headers = Map.of(LOCAL_ORIGIN_HEADER, remoteOrigin);
 		var logs = new ArrayList<Log>();
 		tunnel.proxy(remote, baseUri -> {
 			var progress = tagger.progress(remote.getUrl(), remote.getOrigin());
@@ -460,7 +463,7 @@ public class Replicator {
 						.getContent();
 					logger.debug("{} Pushing {} plugins to {}", remote.getOrigin(), pluginList.size(), remoteOrigin);
 					if (!pluginList.isEmpty()) {
-						client.pluginPush(baseUri, remoteOrigin, pluginList);
+						client.pluginPush(baseUri, headers, remoteOrigin, pluginList);
 					}
 					return pluginList;
 				}));
@@ -476,7 +479,7 @@ public class Replicator {
 						.getContent();
 					logger.debug("{} Pushing {} templates to {}", remote.getOrigin(), templateList.size(), remoteOrigin);
 					if (!templateList.isEmpty()) {
-						client.templatePush(baseUri, remoteOrigin, templateList);
+						client.templatePush(baseUri, headers, remoteOrigin, templateList);
 					}
 					return templateList;
 				}));
@@ -498,7 +501,7 @@ public class Replicator {
 						.toList();
 					logger.debug("{} Pushing {} refs to {}", remote.getOrigin(), refList.size(), remoteOrigin);
 					if (!refList.isEmpty()) {
-						client.refPush(baseUri, remoteOrigin, refList);
+						client.refPush(baseUri, headers, remoteOrigin, refList);
 					}
 					if (push.isCache()) {
 						for (var ref : refList) {
@@ -506,7 +509,7 @@ public class Replicator {
 								if (fileCache.isPresent()) {
 									try (var is = fileCache.get().fetch(ref.getUrl(), localOrigin)) {
 										if (is != null) {
-											client.push(baseUri, ref.getUrl(), remoteOrigin, is.readAllBytes());
+											client.push(baseUri, headers, ref.getUrl(), remoteOrigin, is.readAllBytes());
 										} else {
 											logger.warn("{} Skip pushing empty cache ({}) {}: {}",
 												remote.getOrigin(), localOrigin, ref.getTitle(), ref.getUrl());
@@ -546,7 +549,7 @@ public class Replicator {
 						.getContent();
 					logger.debug("{} Pushing {} exts to {}", remote.getOrigin(), extList.size(), remoteOrigin);
 					if (!extList.isEmpty()) {
-						client.extPush(baseUri, remoteOrigin, extList);
+						client.extPush(baseUri, headers, remoteOrigin, extList);
 					}
 					return extList;
 				}));
@@ -564,7 +567,7 @@ public class Replicator {
 						.getContent();
 					logger.debug("{} Pushing {} users to {}", remote.getOrigin(), userList.size(), remoteOrigin);
 					if (!userList.isEmpty()) {
-						client.userPush(baseUri, remoteOrigin, userList);
+						client.userPush(baseUri, headers, remoteOrigin, userList);
 					}
 					return userList;
 				}));
