@@ -99,6 +99,7 @@ public final class Dataset {
 	public static String refs(int from, int to, int total, List<String> topics) {
 		var links = (int) (total * LINK_FRACTION);
 		var now = Instant.now().truncatedTo(ChronoUnit.SECONDS);
+		var modified = uniqueModified(to - from);
 		var json = new StringBuilder("[");
 		for (int i = from; i < to; i++) {
 			var random = new Random(i * 7919L);
@@ -134,12 +135,26 @@ public final class Dataset {
 				.append(",\"title\":").append(quote(title))
 				.append(",\"comment\":").append(quote(text(random, i < links ? 2 : 3)))
 				.append(",\"published\":").append(quote(now.minus(age).toString()))
+				.append(",\"modified\":").append(quote(modified.plus(i - from, ChronoUnit.MICROS).toString()))
 				.append(",\"tags\":").append(array(tags))
 				.append(",\"sources\":").append(array(sources))
 				.append('}');
 		}
 		return json.append(']').toString();
 	}
+
+	/**
+	 * Start of a run of distinct modified timestamps, one microsecond apart.
+	 * Pushed entities must have unique modified timestamps per origin, and Refs modified
+	 * in the last few minutes get their metadata generated on push.
+	 */
+	static synchronized Instant uniqueModified(int count) {
+		var start = Instant.now().truncatedTo(ChronoUnit.MICROS).minusSeconds(1);
+		if (!start.isAfter(lastModified)) start = lastModified.plus(1, ChronoUnit.MICROS);
+		lastModified = start.plus(count, ChronoUnit.MICROS);
+		return start;
+	}
+	private static Instant lastModified = Instant.EPOCH;
 
 	/** Replays the topic draw of link i so comments can point at it. */
 	static String firstTopic(int i, List<String> topics) {
@@ -154,10 +169,15 @@ public final class Dataset {
 	 * JSON array of Exts for every topic.
 	 */
 	public static String exts(List<String> topics) {
+		var modified = uniqueModified(topics.size());
 		var json = new StringBuilder("[");
-		for (var topic : topics) {
-			if (json.length() > 1) json.append(',');
-			json.append("{\"tag\":").append(quote(topic)).append(",\"name\":").append(quote(displayName(topic))).append('}');
+		for (int i = 0; i < topics.size(); i++) {
+			var topic = topics.get(i);
+			if (i > 0) json.append(',');
+			json.append("{\"tag\":").append(quote(topic))
+				.append(",\"name\":").append(quote(displayName(topic)))
+				.append(",\"modified\":").append(quote(modified.plus(i, ChronoUnit.MICROS).toString()))
+				.append('}');
 		}
 		return json.append(']').toString();
 	}

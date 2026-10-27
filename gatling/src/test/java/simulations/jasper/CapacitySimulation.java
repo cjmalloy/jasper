@@ -14,8 +14,8 @@ import static simulations.jasper.LoadConfig.*;
  */
 public class CapacitySimulation extends Simulation {
 	Workload workload = new Workload(false, envDouble("LT_THINK", 0.1), 100);
-	double step = envDouble("LT_CAPACITY_STEP", 2);
-	int levels = envInt("LT_CAPACITY_LEVELS", 8);
+	double step = envDouble("LT_CAPACITY_STEP", 4);
+	int levels = envInt("LT_CAPACITY_LEVELS", 10);
 	Duration level = envSeconds("LT_CAPACITY_LEVEL_SECONDS", 20);
 
 	{
