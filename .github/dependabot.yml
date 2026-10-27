@@ -10,6 +10,8 @@ updates:
   schedule:
     interval: daily
     timezone: America/Halifax
+  cooldown:
+    default-days: 0
   allow:
     - dependency-name: "*"
   ignore:
@@ -24,9 +26,7 @@ updates:
     interval: daily
     timezone: America/Halifax
   cooldown:
-    semver-major-days: 5
-    semver-minor-days: 1
-    semver-patch-days: 0
+    default-days: 0
   groups:
     spring-boot:
       patterns:
@@ -38,9 +38,7 @@ updates:
     interval: daily
     timezone: America/Halifax
   cooldown:
-    semver-major-days: 5
-    semver-minor-days: 1
-    semver-patch-days: 0
+    default-days: 0
   groups:
     gatling:
       patterns:
@@ -51,25 +49,29 @@ updates:
     interval: daily
     timezone: America/Halifax
   cooldown:
-    semver-major-days: 5
-    semver-minor-days: 1
-    semver-patch-days: 0
+    default-days: 0
 - package-ecosystem: docker
   directory: /e2e
   schedule:
     interval: daily
     timezone: America/Halifax
+  cooldown:
+    default-days: 0
 - package-ecosystem: github-actions
   directory: /
   schedule:
     interval: daily
     timezone: America/Halifax
+  cooldown:
+    default-days: 0
 - package-ecosystem: docker
   target-branch: v1.3
   directory: /
   schedule:
     interval: daily
     timezone: America/Halifax
+  cooldown:
+    default-days: 0
   allow:
     - dependency-name: "*"
   ignore:
@@ -85,12 +87,12 @@ updates:
     interval: daily
     timezone: America/Halifax
   cooldown:
-    semver-major-days: 5
-    semver-minor-days: 1
-    semver-patch-days: 0
+    default-days: 0
 - package-ecosystem: github-actions
   target-branch: v1.3
   directory: /
   schedule:
     interval: daily
     timezone: America/Halifax
+  cooldown:
+    default-days: 0
