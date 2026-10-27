@@ -54,6 +54,13 @@
 					<includes>
 						<include>simulations.jasper.*Simulation</include>
 					</includes>
+					<excludes>
+						<!-- Run explicitly with -Dgatling.simulationClass -->
+						<exclude>simulations.jasper.SeedSimulation</exclude>
+						<exclude>simulations.jasper.CleanupSimulation</exclude>
+						<exclude>simulations.jasper.CapacitySimulation</exclude>
+						<exclude>simulations.jasper.InfernoSimulation</exclude>
+					</excludes>
 				</configuration>
 			</plugin>
 		</plugins>
