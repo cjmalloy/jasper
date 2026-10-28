@@ -14,23 +14,30 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jasper.component.ConfigCache;
 import jasper.config.Config.SecurityConfig;
-import jasper.security.Auth;
 import jasper.service.dto.TemplateDto;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.security.autoconfigure.web.servlet.SecurityFilterProperties;
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.integration.annotation.ServiceActivator;
 import org.springframework.messaging.Message;
+import org.springframework.transaction.CannotCreateTransactionException;
 import org.springframework.web.filter.GenericFilterBean;
 
 import java.io.IOException;
+import java.sql.SQLTransientConnectionException;
 import java.time.Duration;
+import java.util.Collections;
+import java.util.IdentityHashMap;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
 
+import static jasper.security.Auth.LOCAL_ORIGIN_HEADER;
+import static jasper.security.Auth.resolveOrigin;
 import static java.lang.String.format;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 
@@ -44,7 +51,7 @@ public class RateLimitConfig {
 	ConfigCache configs;
 
 	@Autowired
-	Auth auth;
+	Props props;
 
 	@Autowired
 	Bulkhead httpBulkhead;
@@ -125,14 +132,18 @@ public class RateLimitConfig {
 		return period;
 	}
 
+	/**
+	 * Runs before Spring Security, so rejected requests skip JWT validation and the security filters.
+	 * The origin only depends on the Local-Origin header.
+	 */
 	@Bean
-	public Filter rateLimitInterceptor() {
-		return new GenericFilterBean() {
+	public FilterRegistrationBean<Filter> rateLimitInterceptor() {
+		var registration = new FilterRegistrationBean<Filter>(new GenericFilterBean() {
 			@Override
 			public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain) throws IOException, ServletException {
 				HttpServletRequest httpRequest = (HttpServletRequest) request;
 				HttpServletResponse httpResponse = (HttpServletResponse) response;
-				var origin = auth.getOrigin();
+				var origin = resolveOrigin(props, httpRequest.getHeader(LOCAL_ORIGIN_HEADER));
 				if (!getOriginRateLimiter(origin).acquirePermission()) {
 					RateLimitConfig.logger.debug("{} Rate limit exceeded for origin: {}", origin, httpRequest.getRequestURI());
 					httpResponse.setStatus(429);
@@ -159,9 +170,30 @@ public class RateLimitConfig {
 					// Add random jitter from 3.5 to 4.5 seconds to prevent thundering herd
 					httpResponse.setHeader("X-RateLimit-Retry-After", format("%.1f", ThreadLocalRandom.current().nextDouble(3.5, 4.5)));
 				} catch (Throwable e) {
-					throw new RuntimeException(e);
+					if (!dbUnavailable(e) || httpResponse.isCommitted()) {
+						if (e instanceof IOException io) throw io;
+						if (e instanceof ServletException se) throw se;
+						if (e instanceof RuntimeException re) throw re;
+						throw new RuntimeException(e);
+					}
+					// Thrown outside a controller, for example while loading the user during authentication
+					RateLimitConfig.logger.warn("{} No database connection available for request: {}", origin, httpRequest.getRequestURI());
+					httpResponse.resetBuffer();
+					httpResponse.setStatus(HttpServletResponse.SC_SERVICE_UNAVAILABLE); // 503
+					// Add random jitter from 3.5 to 4.5 seconds to prevent thundering herd
+					httpResponse.setHeader("X-RateLimit-Retry-After", format("%.1f", ThreadLocalRandom.current().nextDouble(3.5, 4.5)));
 				}
 			}
-		};
+		});
+		registration.setOrder(SecurityFilterProperties.DEFAULT_FILTER_ORDER - 1);
+		return registration;
+	}
+
+	private static boolean dbUnavailable(Throwable e) {
+		var seen = Collections.newSetFromMap(new IdentityHashMap<Throwable, Boolean>());
+		for (var t = e; t != null && seen.add(t); t = t.getCause()) {
+			if (t instanceof CannotCreateTransactionException || t instanceof SQLTransientConnectionException) return true;
+		}
+		return false;
 	}
 }

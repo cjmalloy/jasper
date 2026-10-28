@@ -43,6 +43,7 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.transaction.CannotCreateTransactionException;
 import org.springframework.web.HttpMediaTypeNotSupportedException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -52,6 +53,7 @@ import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.multipart.support.MissingServletRequestPartException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
+import java.sql.SQLTransientConnectionException;
 import java.net.URI;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -108,6 +110,8 @@ class ExceptionTranslatorIT {
 			Arguments.of(MaxSourcesException.class, "max-sources", HttpStatus.BAD_REQUEST, ERR_MAX_SOURCES, SIZE_ERROR_TYPE, "Max count is set to 1000. Ref contains 1001 sources."),
 			Arguments.of(ModifiedException.class, "modified", HttpStatus.CONFLICT, ERR_MODIFIED, CONFLICT_TYPE, "TestEntity already modified"),
 			Arguments.of(NotAvailableException.class, "not-available", HttpStatus.SERVICE_UNAVAILABLE, ERR_NOT_AVAILABLE, UNAVAILABLE_TYPE, null),
+			Arguments.of(CannotCreateTransactionException.class, "no-connection", HttpStatus.SERVICE_UNAVAILABLE, ERR_NOT_AVAILABLE, UNAVAILABLE_TYPE, "Hikari - Connection is not available, request timed out after 5000ms."),
+			Arguments.of(SQLTransientConnectionException.class, "connection-timeout", HttpStatus.SERVICE_UNAVAILABLE, ERR_NOT_AVAILABLE, UNAVAILABLE_TYPE, "Hikari - Connection is not available, request timed out after 5000ms."),
 			Arguments.of(NotFoundException.class, "not-found", HttpStatus.NOT_FOUND, ERR_NOT_FOUND, NOT_FOUND_TYPE, "Ref https://www.example.com/"),
 			Arguments.of(OperationForbiddenOnOriginException.class, "origin-forbidden", HttpStatus.FORBIDDEN, ERR_ORIGIN_FORBIDDEN, ORIGIN_ERROR_TYPE, "Origin @other is not whitelisted for this operation."),
 			Arguments.of(PublishDateException.class, "publish-date", HttpStatus.CONFLICT, ERR_PUBLISH_DATE, DATE_ERROR_TYPE, "Source https://www.example.com/source (1970-01-01T00:00:01Z) must predate response https://www.example.com/response (1970-01-01T00:00:00Z)"),

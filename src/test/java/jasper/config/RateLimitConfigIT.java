@@ -2,6 +2,7 @@ package jasper.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import jakarta.servlet.Filter;
 import jasper.IntegrationTest;
 import jasper.domain.Template;
 import jasper.repository.TemplateRepository;
@@ -9,6 +10,8 @@ import jasper.service.dto.TemplateDto;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.security.autoconfigure.web.servlet.SecurityFilterProperties;
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.messaging.MessageChannel;
 import org.springframework.messaging.support.GenericMessage;
@@ -39,6 +42,9 @@ class RateLimitConfigIT {
 
 	@Autowired
 	MessageChannel templateRxChannel;
+
+	@Autowired
+	FilterRegistrationBean<Filter> rateLimitInterceptor;
 
 	Template serverConfigBackup;
 	boolean serverConfigChanged;
@@ -81,6 +87,11 @@ class RateLimitConfigIT {
 
 	static long rateLimited(List<MvcResult> results) {
 		return results.stream().filter(r -> r.getResponse().getStatus() == 429).count();
+	}
+
+	@Test
+	void testRunsBeforeSecurity() {
+		assertThat(rateLimitInterceptor.getOrder()).isLessThan(SecurityFilterProperties.DEFAULT_FILTER_ORDER);
 	}
 
 	@Test

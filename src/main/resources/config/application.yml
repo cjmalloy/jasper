@@ -121,6 +121,10 @@ spring:
       preferred-json-mapper: jackson2
   jmx:
     enabled: false
+  datasource:
+    hikari:
+      # Fail fast with 503 when overloaded instead of holding a request thread for the default 30s
+      connection-timeout: 5000
   data:
     jpa:
       repositories:

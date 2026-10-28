@@ -318,3 +318,5 @@ The server can't handle the request right now.
 | Code                 | Status | Exception               | Meaning                                         | Client action                           |
 |----------------------|--------|-------------------------|-------------------------------------------------|-----------------------------------------|
 | `error.notAvailable` | 503    | `NotAvailableException` | A required service or feature is not available. | Retry later or enable the feature.      |
+| `error.notAvailable` | 503    | `CannotCreateTransactionException` | No database connection became available in time (the server is overloaded). | Retry later. |
+| `error.notAvailable` | 503    | `SQLTransientConnectionException`  | No database connection became available in time (the server is overloaded). | Retry later. |
