@@ -19,6 +19,8 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.Clock;
 import java.time.Instant;
@@ -35,7 +37,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.within;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.springframework.test.util.AopTestUtils.getTargetObject;
 import static org.springframework.test.util.ReflectionTestUtils.getField;
@@ -69,6 +74,9 @@ public class IngestIT {
 
 	@Autowired
 	IngestPlugin ingestPlugin;
+
+	@Autowired
+	PlatformTransactionManager transactionManager;
 
 	static final String URL = "https://www.example.com/";
 	static final String OTHER_URL = "https://www.example.com/other";
@@ -1179,4 +1187,49 @@ public class IngestIT {
 		assertThat(sent.getMetadata().isCascade()).isTrue();
 		assertThat(mapper.domainToDto(sent).getMetadata().isCascade()).isTrue();
 	}
+
+	@Test
+	void testDeleteNoticeSentAfterCommit() {
+		var ref = new Ref();
+		ref.setUrl(URL);
+		ingest.create("", ref);
+		Ingest target = getTargetObject(ingest);
+		var messages = getField(target, "messages");
+		var mockMessages = mock(Messages.class);
+		setField(target, "messages", mockMessages);
+		try {
+			new TransactionTemplate(transactionManager).executeWithoutResult(status -> {
+				ingest.delete("", URL, "");
+				verify(mockMessages, never()).deleteRef(any());
+			});
+			verify(mockMessages).deleteRef(argThat(r -> r.getUrl().equals(URL)));
+		} finally {
+			setField(target, "messages", messages);
+		}
+		assertThat(refRepository.existsByUrlAndOrigin(URL, ""))
+			.isFalse();
+	}
+
+	@Test
+	void testDeleteNoticeNotSentOnRollback() {
+		var ref = new Ref();
+		ref.setUrl(URL);
+		ingest.create("", ref);
+		Ingest target = getTargetObject(ingest);
+		var messages = getField(target, "messages");
+		var mockMessages = mock(Messages.class);
+		setField(target, "messages", mockMessages);
+		try {
+			new TransactionTemplate(transactionManager).executeWithoutResult(status -> {
+				ingest.delete("", URL, "");
+				status.setRollbackOnly();
+			});
+			verify(mockMessages, never()).deleteRef(any());
+		} finally {
+			setField(target, "messages", messages);
+		}
+		assertThat(refRepository.existsByUrlAndOrigin(URL, ""))
+			.isTrue();
+	}
+
 }
