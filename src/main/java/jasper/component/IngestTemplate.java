@@ -21,8 +21,6 @@ import org.springframework.orm.jpa.JpaSystemException;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionSystemException;
-import org.springframework.transaction.support.TransactionSynchronization;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.Clock;
@@ -33,6 +31,7 @@ import static jasper.component.Replicator.deletorTag;
 import static jasper.component.Replicator.isDeletorTag;
 import static jasper.util.DbConstraint.isPkViolation;
 import static jasper.util.DbConstraint.isUniqueModifiedOriginViolation;
+import static jasper.util.Transactions.afterCommit;
 
 @Component
 public class IngestTemplate {
@@ -109,16 +108,7 @@ public class IngestTemplate {
 	@Timed(value = "jasper.template", histogram = true)
 	public void delete(String qualifiedTag) {
 		templateRepository.deleteByQualifiedTag(qualifiedTag);
-		if (!TransactionSynchronizationManager.isSynchronizationActive()) {
-			messages.deleteTemplate(qualifiedTag);
-			return;
-		}
-		TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-			@Override
-			public void afterCommit() {
-				messages.deleteTemplate(qualifiedTag);
-			}
-		});
+		afterCommit(() -> messages.deleteTemplate(qualifiedTag));
 	}
 
 	void ensureCreateUniqueModified(Template template) {

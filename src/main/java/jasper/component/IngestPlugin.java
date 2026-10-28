@@ -34,6 +34,7 @@ import static jasper.domain.proj.Tag.localTag;
 import static jasper.domain.proj.Tag.tagOrigin;
 import static jasper.util.DbConstraint.isPkViolation;
 import static jasper.util.DbConstraint.isUniqueModifiedOriginViolation;
+import static jasper.util.Transactions.afterCommit;
 
 @Component
 public class IngestPlugin {
@@ -116,7 +117,7 @@ public class IngestPlugin {
 	public void delete(String qualifiedTag) {
 		pluginRepository.deleteByQualifiedTag(qualifiedTag);
 		rerank(qualifiedTag);
-		messages.deletePlugin(qualifiedTag);
+		afterCommit(() -> messages.deletePlugin(qualifiedTag));
 	}
 
 	/**

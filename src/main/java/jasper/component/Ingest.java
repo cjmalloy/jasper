@@ -32,6 +32,7 @@ import java.time.temporal.ChronoUnit;
 import static jasper.component.Meta.expandTags;
 import static jasper.util.DbConstraint.isPkViolation;
 import static jasper.util.DbConstraint.isUniqueModifiedOriginViolation;
+import static jasper.util.Transactions.afterCommit;
 
 @Component
 public class Ingest {
@@ -162,9 +163,9 @@ public class Ingest {
 	public void delete(String rootOrigin, String url, String origin) {
 		var maybeExisting = refRepository.findOneByUrlAndOrigin(url, origin);
 		if (maybeExisting.isEmpty()) return;
-		messages.deleteRef(maybeExisting.get());
 		refRepository.deleteByUrlAndOrigin(url, origin);
 		meta.sources(rootOrigin, null, maybeExisting.get());
+		afterCommit(() -> messages.deleteRef(maybeExisting.get()));
 	}
 
 	void ensureCreateUniqueModified(Ref ref) {
