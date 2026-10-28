@@ -56,10 +56,13 @@ public interface PluginRepository extends JpaRepository<Plugin, TagId>, Qualifie
 			AND plugin.modified <= :olderThan""")
 	void deleteByOriginAndModifiedLessThanEqual(String origin, Instant olderThan);
 
-	@Query("""
-		FROM Plugin AS p
-		WHERE p.origin = :origin
-			AND COALESCE(CAST(jsonb_object_field(p.config, 'disabled') as boolean), false) = false
-			AND p.tag = :tag""")
-	Optional<Plugin> findByTagAndOrigin(String tag, String origin);
+	Optional<Plugin> findFirstByTagAndOriginOrderByModifiedDesc(String tag, String origin);
+
+	/**
+	 * Find the latest version if it is not disabled. In archive mode multiple versions may exist.
+	 */
+	default Optional<Plugin> findByTagAndOrigin(String tag, String origin) {
+		return findFirstByTagAndOriginOrderByModifiedDesc(tag, origin)
+			.filter(p -> p.getConfig() == null || !p.getConfig().path("disabled").booleanValue());
+	}
 }

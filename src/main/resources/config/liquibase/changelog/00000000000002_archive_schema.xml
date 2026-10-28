@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.6.xsd">
+
+	<!--
+		Only runs when the "archive" profile is active (sets the "archive" changelog parameter).
+		This is a one-way migration: going back to non-archive mode requires manually
+		removing old versions and restoring the original primary keys.
+	-->
+	<changeSet author="chris" id="00000000000002" dbms="postgresql">
+		<preConditions onFail="CONTINUE">
+			<changeLogPropertyDefined property="archive" value="true"/>
+		</preConditions>
+		<sql>ALTER TABLE ref DROP CONSTRAINT ref_pkey, ADD PRIMARY KEY (url, origin, modified);</sql>
+		<sql>ALTER TABLE ext DROP CONSTRAINT ext_pkey, ADD PRIMARY KEY (tag, origin, modified);</sql>
+		<sql>ALTER TABLE users DROP CONSTRAINT users_pkey, ADD PRIMARY KEY (tag, origin, modified);</sql>
+		<sql>ALTER TABLE plugin DROP CONSTRAINT plugin_pkey, ADD PRIMARY KEY (tag, origin, modified);</sql>
+		<sql>ALTER TABLE template DROP CONSTRAINT template_pkey, ADD PRIMARY KEY (tag, origin, modified);</sql>
+	</changeSet>
+</databaseChangeLog>
