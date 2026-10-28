@@ -103,6 +103,7 @@ Every setting is read from a system property (`-DLT_RATE=2`) or an environment v
 |---------------------------|----------------------------------|-----------------------------------------------------------------------------------------------------|
 | `LT_BASE_URL`             | `http://localhost:8081`          | Server under test. The websocket URL and CSRF cookie domain are derived from it.                    |
 | `LT_ORIGIN`               | `@loadtest` (`default` for ReadOnly) | Origin sent in the `Local-Origin` header. Simulations that write refuse the default origin.     |
+| `LT_NEIGHBOR_ORIGIN`      | `default`                        | Origin of RateLimit's neighbor sessions. Must differ from `LT_ORIGIN`.                              |
 | `LT_JWT_SECRET`           | jasper-ui debug secret           | Base64 HS256 secret to sign a token per virtual user. `none` sends no token (anonymous).            |
 | `LT_TOKEN`                |                                  | Pre-issued bearer token for every virtual user, instead of signing.                                 |
 | `LT_USER_TOKEN`, `LT_MOD_TOKEN`, `LT_ADMIN_TOKEN` |          | Pre-issued bearer token per role. Overrides `LT_TOKEN`.                                             |

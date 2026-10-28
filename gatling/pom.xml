@@ -60,6 +60,7 @@
 						<exclude>simulations.jasper.CleanupSimulation</exclude>
 						<exclude>simulations.jasper.CapacitySimulation</exclude>
 						<exclude>simulations.jasper.InfernoSimulation</exclude>
+						<exclude>simulations.jasper.RateLimitSimulation</exclude>
 					</excludes>
 				</configuration>
 			</plugin>

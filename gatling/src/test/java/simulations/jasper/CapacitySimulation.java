@@ -48,10 +48,11 @@ public class CapacitySimulation extends Simulation {
 	@Override
 	public void after() {
 		var stoppedAt = workload.stoppedAt.get();
-		// Levels completed before the error stop; each level is followed by a ramp to the next
+		// Levels completed before the error stop; each level is followed by a ramp to the next,
+		// so a stop during a ramp still counts the level before it
 		var completed = stoppedAt == 0
 			? levels
-			: (int) Math.min(levels, (stoppedAt - start) / level.plus(ramp).toMillis());
+			: (int) Math.min(levels, (stoppedAt - start + ramp.toMillis()) / level.plus(ramp).toMillis());
 		var sessions = completed == 0 ? 0 : step * (0.95 * completed + 0.05);
 		var json = String.format(Locale.ROOT,
 			"{\"sessionsPerSec\": %.2f, \"levelsCompleted\": %d, \"levels\": %d, \"stopped\": %b}%n",

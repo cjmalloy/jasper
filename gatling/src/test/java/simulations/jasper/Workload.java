@@ -43,8 +43,15 @@ public class Workload {
 	 * @param maxErrorPercent stop the run when the error rate of the last 200 requests exceeds this
 	 */
 	public Workload(boolean readOnly, double think, double maxErrorPercent) {
+		this(readOnly, LoadConfig.origin(readOnly), think, maxErrorPercent);
+	}
+
+	/**
+	 * @param origin origin all requests are sent to, "" for the default origin
+	 */
+	public Workload(boolean readOnly, String origin, double think, double maxErrorPercent) {
 		this.readOnly = readOnly;
-		this.origin = LoadConfig.origin(readOnly);
+		this.origin = origin;
 		this.think = think;
 		this.maxErrorPercent = maxErrorPercent;
 	}

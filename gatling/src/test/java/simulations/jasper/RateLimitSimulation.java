@@ -17,7 +17,7 @@ import static simulations.jasper.LoadConfig.*;
  * - 0-15s warmup trickle
  * - 15-25s burst of LT_INFERNO_BURST (default 3,000) sessions, then trickle
  * - 85-95s burst of a third of that, then trickle
- * - Neighbor sessions in the default origin browse throughout, including during the bursts
+ * - Neighbor sessions in LT_NEIGHBOR_ORIGIN (default origin) browse throughout, including during the bursts
  * - Deletes the _config/security template again
  *
  * Without a rate limit the bursts fill the concurrent request bulkhead and everyone gets 503
@@ -27,7 +27,7 @@ import static simulations.jasper.LoadConfig.*;
  */
 public class RateLimitSimulation extends Simulation {
 	Workload workload = new Workload(false, 0, 100);
-	Workload neighbors = new Workload(true, 0.2, 100);
+	Workload neighbors = new Workload(true, origin("LT_NEIGHBOR_ORIGIN", true), 0.2, 100);
 	int burstSessions = envInt("LT_INFERNO_BURST", 3_000);
 	int rateLimit = envInt("LT_RATE_LIMIT", 50);
 	String securityConfig = "_config/security" + workload.origin;
@@ -74,7 +74,7 @@ public class RateLimitSimulation extends Simulation {
 
 	{
 		if (neighbors.origin.equals(workload.origin)) {
-			throw new IllegalArgumentException("RateLimit needs the neighbors in a different origin than LT_ORIGIN");
+			throw new IllegalArgumentException("RateLimit needs LT_NEIGHBOR_ORIGIN to differ from LT_ORIGIN");
 		}
 		setUp(
 			setup.injectOpen(atOnceUsers(1)).protocols(workload.protocol("Rate Limit"))
