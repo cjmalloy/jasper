@@ -251,6 +251,13 @@ public class RssParser {
 				throw new NotFoundException(entry.getTitle());
 			}
 		}
+		var isShort = isShort(link);
+		if (isShort && config.isScrapeVideo() && !config.isScrapeShorts()) {
+			throw new NotFoundException(entry.getTitle());
+		}
+		if (!isShort && config.isScrapeShorts() && !config.isScrapeVideo()) {
+			throw new NotFoundException(entry.getTitle());
+		}
 		var ref = new Ref();
 		if (config.isScrapeWebpage()) {
 			ref.addTag("_plugin/delta/scrape/ref");
@@ -312,7 +319,7 @@ public class RssParser {
 				cacheLater(ref.getPlugin("plugin/audio", Audio.class).getUrl(), feed.getOrigin());
 			}
 		}
-		if (config.isScrapeVideo()) {
+		if (isShort ? config.isScrapeShorts() : config.isScrapeVideo()) {
 			parseVideo(entry, ref);
 			if (ref.hasPlugin("plugin/video")) {
 				cacheLater(ref.getPlugin("plugin/video", Video.class).getUrl(), feed.getOrigin());
@@ -321,6 +328,19 @@ public class RssParser {
 			}
 		}
 		return ref;
+	}
+
+	private boolean isShort(String link) {
+		try {
+			var url = new URI(link);
+			var host = url.getHost();
+			return host != null &&
+				(host.equals("youtube.com") || host.endsWith(".youtube.com")) &&
+				url.getPath() != null &&
+				url.getPath().startsWith("/shorts/");
+		} catch (Exception e) {
+			return false;
+		}
 	}
 
 	private SyndContent getPreferredType(List<SyndContent> contents) {
