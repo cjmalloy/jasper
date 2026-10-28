@@ -369,6 +369,10 @@ public class Props {
 		 */
 		private Duration maxRequestsPeriod;
 		/**
+		 * Override the per-origin maximum concurrent HTTP requests. This limit applies to all origins.
+		 */
+		private Integer maxConcurrentRequests;
+		/**
 		 * Override the per-origin maximum concurrent script executions. This limit applies to all origins.
 		 */
 		private Integer maxConcurrentScripts;

@@ -401,6 +401,11 @@ public interface Config {
 		 */
 		private Duration maxRequestsPeriod = ofNanos(500);
 		/**
+		 * Maximum concurrent HTTP requests per origin. Requests over the limit get 429.
+		 * Default 0 (unlimited, only the server maxConcurrentRequests applies).
+		 */
+		private int maxConcurrentRequests = 0;
+		/**
 		 * Maximum concurrent script executions per origin. Default 5.
 		 */
 		private int maxConcurrentScripts = 5;
@@ -460,6 +465,7 @@ public interface Config {
 			if (isNotBlank(security.getScimEndpoint())) wrapped = wrapped.withScimEndpoint(security.getScimEndpoint());
 			if (security.getMaxRequests() != null) wrapped = wrapped.withMaxRequests(security.getMaxRequests());
 			if (security.getMaxRequestsPeriod() != null) wrapped = wrapped.withMaxRequestsPeriod(security.getMaxRequestsPeriod());
+			if (security.getMaxConcurrentRequests() != null) wrapped = wrapped.withMaxConcurrentRequests(security.getMaxConcurrentRequests());
 			if (security.getMaxConcurrentScripts() != null) wrapped = wrapped.withMaxConcurrentScripts(security.getMaxConcurrentScripts());
 			return wrapped;
 		}

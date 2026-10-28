@@ -56,7 +56,7 @@ services:
       JASPER_CORS_ALLOWED_ORIGINS: 'http://localhost:8080'
       JASPER_CORS_ALLOWED_METHODS: '*'
       JASPER_CORS_ALLOWED_HEADERS: '*'
-      JASPER_CORS_EXPOSED_HEADERS: 'Authorization,Link,X-Total-Count'
+      JASPER_CORS_EXPOSED_HEADERS: 'Authorization,Link,X-Total-Count,X-RateLimit-Limit,X-RateLimit-Retry-After'
       JASPER_CORS_ALLOW_CREDENTIALS: true
       JASPER_CORS_MAX_AGE: 1800
       JASPER_OVERRIDE_SECURITY_MODE: 'jwt'

@@ -123,6 +123,28 @@ public class AuthUnitTest {
 	}
 
 	@Test
+	void testResolveOrigin() {
+		var props = new Props();
+		props.setLocalOrigin("@local");
+
+		assertThat(Auth.resolveOrigin(props, null)).isEqualTo("@local");
+		assertThat(Auth.resolveOrigin(props, "")).isEqualTo("@local");
+		assertThat(Auth.resolveOrigin(props, "@LOCAL.Tenant")).isEqualTo("@local.tenant");
+		assertThat(Auth.resolveOrigin(props, "@other")).isEqualTo("@local");
+		assertThat(Auth.resolveOrigin(props, "default")).isEqualTo("@local");
+		assertThat(Auth.resolveOrigin(props, "not an origin")).isEqualTo("@local");
+	}
+
+	@Test
+	void testResolveOrigin_DefaultLocalOrigin() {
+		var props = new Props();
+
+		assertThat(Auth.resolveOrigin(props, null)).isEqualTo("");
+		assertThat(Auth.resolveOrigin(props, "default")).isEqualTo("");
+		assertThat(Auth.resolveOrigin(props, "@tenant")).isEqualTo("@tenant");
+	}
+
+	@Test
 	void testCanReadRef_Public() {
 		var auth = getAuth(getUser("+user/test"));
 		var ref = getRef("public");

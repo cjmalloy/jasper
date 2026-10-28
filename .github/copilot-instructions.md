@@ -91,21 +91,27 @@ docker rmi "$BASE"    # always remove the shadow afterwards
 
 ## Load testing (Gatling)
 
-Simulations live in `gatling/src/test/java/simulations/jasper/`: `SmokeTest`, `Comprehensive`, `UserJourney`, `StressTest`, `Inferno` (class name = `<name>Simulation`).
+Simulations live in `gatling/src/test/java/simulations/jasper/` (class name = `<name>Simulation`): `SmokeTest`, `Regression` (both gate CI), `Capacity`, `Inferno`, `RateLimit` (informational, multi-origin gradient: are quiet origins protected?), `ReadOnly` (production profile), plus `Seed` and `Cleanup`. Shared code: `LoadConfig` (`LT_*` settings), `Dataset` (generated seed data), `Workload` (jasper-ui request chains). See `gatling/README.md`.
 
 ```bash
 cd gatling
-# Everything in Docker (what CI does); default GATLING_TEST=SmokeTest
+# Everything in Docker (what CI does): run.sh seeds @loadtest, runs GATLING_TEST, exits with Gatling's exit code
 GATLING_TEST=SmokeTest docker compose --profile lt up --build --exit-code-from gatling
 docker compose -f docker-compose.sqlite.yaml --profile lt up --build --exit-code-from gatling
 
-# Faster: servers in Docker, Gatling on the host JVM (SmokeTest ~30s, verified)
-docker compose up -d --build        # web on :8081, repl-web on :8083 (needs PKIX workaround in the sandbox)
+# Faster: server in Docker, Gatling on the host JVM (verified: Seed ~75s, SmokeTest ~10s, Regression ~4.5min)
+docker compose up -d --build --wait web upstream   # needs the PKIX workaround in the sandbox
+export LT_UPSTREAM=http://upstream
+../mvnw -B gatling:test -Dgatling.simulationClass=simulations.jasper.SeedSimulation
 ../mvnw -B gatling:test -Dgatling.simulationClass=simulations.jasper.SmokeTestSimulation
 docker compose down
 ```
 - The gatling stack also binds port 8081: stop the root compose stack / local app first.
-- When adding a simulation, ALWAYS add a matching `GATLING_TEST=YourNewTest` step to `.github/workflows/gatling.yml`.
+- Requests use per-user JWTs signed with the jasper-ui debug secret and the `Local-Origin: @loadtest` header; the stack sets `JASPER_OVERRIDE_SERVER_WEB_ORIGINS: '@*'` so the sub-origin has web access (otherwise every request is anonymous and writes get 403).
+- The server rotates the `XSRF-TOKEN` cookie on every response: `Workload.req` copies the current cookie into `X-XSRF-TOKEN` before each request. Use it (or `Workload.csrf()`) for new requests.
+- Pushed entities need unique `modified` timestamps per origin or the push returns 409: `Dataset.uniqueModified`.
+- Gatling DEBUG logging of failed requests: add `src/test/resources/logback-test.xml` with `<logger name="io.gatling.http.engine.response" level="DEBUG"/>` (don't commit it).
+- When adding a simulation, ALWAYS add a matching `Run <Name>` step to `.github/workflows/gatling.yml`, a card in `gatling/gen-index.sh` and the name in `ORDER` in `gatling/report-stats.py`.
 
 ## End-to-end tests (Playwright)
 
@@ -148,7 +154,7 @@ docker compose up --build -d --wait && docker compose --profile ci run --rm play
 
 - `test.yml` — builds the Docker image; test matrix: **postgres** (Docker `test` stage + Testcontainers) and **sqlite** (`./mvnw test surefire-report:report -Dspring.profiles.active=test,sqlite,scripts` with Java 25, `setup-bun`, Python 3). Posts a results/coverage comment on PRs.
 - `e2e.yml` — Playwright suite in `e2e/` against postgres and sqlite stacks; PR comment, step summary, reports to Pages (`latest-e2e`).
-- `gatling.yml` — every simulation against postgres (g1gc, parallel, zgc) and sqlite (g1gc).
+- `gatling.yml` — SmokeTest, Regression, Capacity, Inferno, RateLimit against postgres (g1gc, parallel, zgc); sqlite (g1gc) skips Inferno and RateLimit. Regression is diffed per request against the `gatling-baseline-*` artifact from master (`gatling/report-stats.py`).
 - `codeql.yml`, `publish.yml` (GHCR images), `release.yml` (draft releases with JARs), `pages.yml` (reports/docs), `cleanup.yml` (stale PR caches/artifacts).
 - `pages.yml` runs on `workflow_run` after Test/E2E/Load Test, but those runs need a separate approval when Copilot triggered the original run. Each `clean` job therefore dispatches `pages.yml` itself when `github.actor == 'Copilot'` (needs `actions: write`), so approving the test runs also publishes their reports.
 - Investigate CI failures with the GitHub Actions tools (list runs → job logs) rather than guessing.

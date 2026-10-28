@@ -122,7 +122,7 @@ public class RefController {
 		@RequestParam(required = false) @Length(max = SEARCH_LEN) String search
 	) {
 		if ("!@*".equals(query)) {
-			ResponseEntity.ok()
+			return ResponseEntity.ok()
 				.cacheControl(CacheControl.maxAge(100, TimeUnit.DAYS).cachePublic())
 				.body(Page.empty(pageable));
 		}
