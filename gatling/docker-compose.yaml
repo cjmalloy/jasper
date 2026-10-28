@@ -47,7 +47,7 @@ services:
       JASPER_OVERRIDE_SERVER_HOST_WHITELIST: upstream
       # Load tests write to the @loadtest sub-origin
       JASPER_OVERRIDE_SERVER_WEB_ORIGINS: '@*'
-      JASPER_OVERRIDE_SERVER_MAX_CONCURRENT_REQUESTS: 100
+      JASPER_OVERRIDE_SERVER_MAX_CONCURRENT_REQUESTS: "${LT_MAX_CONCURRENT:-100}"
       JASPER_HEAP: 512m
       JASPER_GC: "${JASPER_GC:-g1gc}"
     depends_on:

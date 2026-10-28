@@ -120,6 +120,7 @@ Every setting is read from a system property (`-DLT_RATE=2`) or an environment v
 | `LT_RATE_LIMIT`           | 20                               | Requests per second `RateLimit` allows each origin (set on the load test origin, inherited by the tenants). The template is deleted at the end. |
 | `LT_RATE_LIMIT_ORIGINS`, `LT_RATE_LIMIT_GRADIENT`, `LT_TENANT_REFS` | 6, 4, 500 | `RateLimit` origins (the load test origin plus tenants), how much smaller each origin's bursts are than the previous one, and Refs seeded per tenant. Origins whose bursts need at most half the limit (about 3 requests per session over 10s), and always the quietest, are asserted. |
 | `LT_WEB_CPUS`, `LT_DB_CPUS`, `LT_GATLING_CPUS` | 2, 1, 1          | CPU limits for the containers in the compose stacks (Docker only), so the load generator and the server do not starve each other. |
+| `LT_MAX_CONCURRENT`       | 100                              | Server `maxConcurrentRequests` in the compose stacks (Docker only). Lower values reject overload sooner with 503 instead of queueing for one of the 10 database connections. |
 | `GATLING_TEST`            | `SmokeTest`                      | Simulation `run.sh` runs (Docker only).                                                             |
 | `LT_SKIP_SEED`            | `false`                          | Skip seeding in `run.sh`.                                                                           |
 
