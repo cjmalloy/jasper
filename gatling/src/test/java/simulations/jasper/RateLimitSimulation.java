@@ -29,7 +29,7 @@ public class RateLimitSimulation extends Simulation {
 	Workload workload = new Workload(false, 0, 100);
 	Workload neighbors = new Workload(true, 0.2, 100);
 	int burstSessions = envInt("LT_INFERNO_BURST", 3_000);
-	int rateLimit = envInt("LT_RATE_LIMIT", 150);
+	int rateLimit = envInt("LT_RATE_LIMIT", 50);
 	String securityConfig = "_config/security" + workload.origin;
 
 	HttpRequestActionBuilder deleteConfig(String name) {

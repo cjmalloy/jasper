@@ -19,7 +19,7 @@ against a seeded knowledge base, as JWT authenticated users. They are meant for 
 | `ReadOnly`   | Production profile: the Regression mix without writes, proxy or scrape requests             | 0.2 sessions/s for 60s ramp + 300s                    | < 1% failed, p95 < 2s, stops at 2% | not run                    |
 | `Capacity`   | Step load with short think times; reports the last step completed before 5% errors          | +4 sessions/s every 25s, 10 steps (+1 on SQLite in CI) | stops at 5% errors, no assertions | informational              |
 | `Inferno`    | Robustness: two bursts well beyond capacity, then recovery probes 30s later                 | 3,000 then 1,000 sessions in 10s                      | recovery probes < 5% failed    | informational              |
-| `RateLimit`  | Inferno with a per-origin rate limit (`_config/security`) on the load test origin, while a neighbor origin (default, read only) keeps browsing | Inferno bursts, limit 150 req/s (25 on SQLite in CI), 2 neighbor sessions/s | neighbors < 5% failed, p95 < 5s | informational              |
+| `RateLimit`  | Inferno with a per-origin rate limit (`_config/security`) on the load test origin, while a neighbor origin (default, read only) keeps browsing | Inferno bursts, limit 50 req/s (15 on SQLite in CI), 2 neighbor sessions/s | neighbors < 5% failed, p95 < 5s | informational              |
 | `Seed`       | Fills the load test origin with a generated knowledge base. Skipped when already seeded     | 5,000 Refs                                           | no failed requests             | before every run           |
 | `Cleanup`    | Deletes the load test origin                                                               | 1 request                                            | no failed requests             | not run                    |
 
@@ -117,7 +117,7 @@ Every setting is read from a system property (`-DLT_RATE=2`) or an environment v
 | `LT_SEED_REFS`            | 5000                             | Number of Refs `Seed` creates.                                                                      |
 | `LT_CAPACITY_STEP`, `LT_CAPACITY_LEVELS`, `LT_CAPACITY_LEVEL_SECONDS` | 4, 10, 20 | Capacity step size (sessions/s), number of steps and seconds per step. The sessions/s of the last completed step is written to `Capacity.capacity.json` and shown in the CI summary. |
 | `LT_INFERNO_BURST`        | 3000                             | Sessions in Inferno's first burst (the second is a third). Much larger bursts exhaust the load generator's connections before the server. |
-| `LT_RATE_LIMIT`           | 150                              | Requests per second `RateLimit` allows the load test origin. The template is deleted at the end. |
+| `LT_RATE_LIMIT`           | 50                               | Requests per second `RateLimit` allows the load test origin; keep it below what the server can serve. The template is deleted at the end. |
 | `GATLING_TEST`            | `SmokeTest`                      | Simulation `run.sh` runs (Docker only).                                                             |
 | `LT_SKIP_SEED`            | `false`                          | Skip seeding in `run.sh`.                                                                           |
 

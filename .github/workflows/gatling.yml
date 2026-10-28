@@ -62,7 +62,7 @@ jobs:
         if: always()
         continue-on-error: true
         # Per-origin limit for the bursting origin, below what each database can serve
-        run: (cd gatling; LT_RATE_LIMIT=${{ matrix.database == 'sqlite' && '25' || '150' }} GATLING_TEST=RateLimit ${{ steps.compose.outputs.cmd }} up --build --exit-code-from gatling)
+        run: (cd gatling; LT_RATE_LIMIT=${{ matrix.database == 'sqlite' && '15' || '50' }} GATLING_TEST=RateLimit ${{ steps.compose.outputs.cmd }} up --build --exit-code-from gatling)
       - name: Stop Stack
         if: always()
         run: (cd gatling; ${{ steps.compose.outputs.cmd }} down)
