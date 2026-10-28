@@ -12,6 +12,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.Clock;
 import java.time.Instant;
@@ -20,6 +22,12 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.springframework.test.util.AopTestUtils.getTargetObject;
+import static org.springframework.test.util.ReflectionTestUtils.getField;
 import static org.springframework.test.util.ReflectionTestUtils.setField;
 
 @IntegrationTest
@@ -32,6 +40,9 @@ public class IngestTemplateIT {
 
 	@Autowired
 	TemplateRepository templateRepository;
+
+	@Autowired
+	PlatformTransactionManager transactionManager;
 
 	@BeforeEach
 	void init() {
@@ -244,6 +255,64 @@ public class IngestTemplateIT {
 
 		assertThat(firstException.get())
 			.isNotEqualTo(secondException.get());
+	}
+
+	@Test
+	void testDeleteNoticeSentAfterCommit() {
+		var existing = new Template();
+		existing.setTag("test");
+		templateRepository.save(existing);
+		IngestTemplate target = getTargetObject(ingest);
+		var messages = getField(target, "messages");
+		var mockMessages = mock(Messages.class);
+		setField(target, "messages", mockMessages);
+		try {
+			new TransactionTemplate(transactionManager).executeWithoutResult(status -> {
+				ingest.delete("test");
+				verify(mockMessages, never()).deleteTemplate(any());
+			});
+			verify(mockMessages).deleteTemplate("test");
+		} finally {
+			setField(target, "messages", messages);
+		}
+		assertThat(templateRepository.existsByQualifiedTag("test"))
+			.isFalse();
+	}
+
+	@Test
+	void testDeleteNoticeNotSentOnRollback() {
+		var existing = new Template();
+		existing.setTag("test");
+		templateRepository.save(existing);
+		IngestTemplate target = getTargetObject(ingest);
+		var messages = getField(target, "messages");
+		var mockMessages = mock(Messages.class);
+		setField(target, "messages", mockMessages);
+		try {
+			new TransactionTemplate(transactionManager).executeWithoutResult(status -> {
+				ingest.delete("test");
+				status.setRollbackOnly();
+			});
+			verify(mockMessages, never()).deleteTemplate(any());
+		} finally {
+			setField(target, "messages", messages);
+		}
+		assertThat(templateRepository.existsByQualifiedTag("test"))
+			.isTrue();
+	}
+
+	@Test
+	void testDeleteNoticeSentWithoutTransaction() {
+		IngestTemplate target = getTargetObject(ingest);
+		var messages = getField(target, "messages");
+		var mockMessages = mock(Messages.class);
+		setField(target, "messages", mockMessages);
+		try {
+			ingest.delete("test");
+			verify(mockMessages).deleteTemplate("test");
+		} finally {
+			setField(target, "messages", messages);
+		}
 	}
 
 }
