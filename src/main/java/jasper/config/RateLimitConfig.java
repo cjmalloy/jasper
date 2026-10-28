@@ -1,6 +1,7 @@
 package jasper.config;
 
 import io.github.resilience4j.bulkhead.Bulkhead;
+import io.github.resilience4j.bulkhead.BulkheadConfig;
 import io.github.resilience4j.bulkhead.BulkheadFullException;
 import io.github.resilience4j.ratelimiter.RateLimiter;
 import io.github.resilience4j.ratelimiter.RateLimiterConfig;
@@ -38,6 +39,7 @@ import java.util.concurrent.ThreadLocalRandom;
 
 import static jasper.security.Auth.LOCAL_ORIGIN_HEADER;
 import static jasper.security.Auth.resolveOrigin;
+import static jasper.config.BulkheadConfiguration.updateBulkheadConfig;
 import static java.lang.String.format;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 
@@ -61,6 +63,26 @@ public class RateLimitConfig {
 		return originRateLimiters.computeIfAbsent(origin, k -> createRateLimiter(origin, "http-" + origin,
 			configs.security(origin).getMaxRequests(),
 			configs.security(origin).getMaxRequestsPeriod()));
+	}
+
+	private final ConcurrentHashMap<String, Bulkhead> originBulkheads = new ConcurrentHashMap<>();
+	/**
+	 * Concurrent request limit for the origin, or null when unlimited.
+	 */
+	private Bulkhead getOriginBulkhead(String origin) {
+		var bulkhead = originBulkheads.get(origin);
+		if (bulkhead != null) return bulkhead;
+		var limit = configs.security(origin).getMaxConcurrentRequests();
+		if (limit < 1) return null;
+		return originBulkheads.computeIfAbsent(origin, k -> createBulkhead(origin, limit));
+	}
+
+	private static Bulkhead createBulkhead(String origin, int limit) {
+		logger.debug("{} Creating bulkhead http-{} with {} concurrent requests", origin, origin, limit);
+		return Bulkhead.of("http-" + origin, BulkheadConfig.custom()
+			.maxConcurrentCalls(limit)
+			.maxWaitDuration(Duration.ZERO)
+			.build());
 	}
 
 	private volatile RateLimiter httpRateLimiter;
@@ -89,6 +111,16 @@ public class RateLimitConfig {
 			originRateLimiters.replaceAll((origin, r) -> updateRateLimiter(r, origin, "http-" + origin,
 				configs.security(origin).getMaxRequests(),
 				configs.security(origin).getMaxRequestsPeriod()));
+			// In-flight requests keep and release the bulkhead they acquired
+			originBulkheads.keySet().forEach(origin -> originBulkheads.computeIfPresent(origin, (o, b) -> {
+				var limit = configs.security(origin).getMaxConcurrentRequests();
+				if (limit < 1) return null;
+				if (b.getBulkheadConfig().getMaxConcurrentCalls() != limit) {
+					logger.debug("{} Updating bulkhead http-{} to {} concurrent requests", origin, origin, limit);
+					updateBulkheadConfig(b, limit);
+				}
+				return b;
+			}));
 		}
 	}
 
@@ -161,10 +193,23 @@ public class RateLimitConfig {
 						httpResponse.setHeader("X-RateLimit-Retry-After", format("%.1f", ThreadLocalRandom.current().nextDouble(3.5, 4.5)));
 						return;
 					}
-					httpBulkhead.executeCheckedSupplier(() -> {
-						chain.doFilter(request, response);
-						return null;
-					});
+					var originBulkhead = getOriginBulkhead(origin);
+					if (originBulkhead != null && !originBulkhead.tryAcquirePermission()) {
+						RateLimitConfig.logger.debug("{} Concurrent limit exceeded for origin: {}", origin, httpRequest.getRequestURI());
+						httpResponse.setStatus(429);
+						httpResponse.setHeader("X-RateLimit-Limit", ""+originBulkhead.getBulkheadConfig().getMaxConcurrentCalls());
+						// Add random jitter from 3.5 to 4.5 seconds to prevent thundering herd
+						httpResponse.setHeader("X-RateLimit-Retry-After", format("%.1f", ThreadLocalRandom.current().nextDouble(3.5, 4.5)));
+						return;
+					}
+					try {
+						httpBulkhead.executeCheckedSupplier(() -> {
+							chain.doFilter(request, response);
+							return null;
+						});
+					} finally {
+						if (originBulkhead != null) originBulkhead.onComplete();
+					}
 				} catch (BulkheadFullException e) {
 					RateLimitConfig.logger.debug("{} HTTP concurrent limit exceeded for request: {}", origin, httpRequest.getRequestURI());
 					httpResponse.setStatus(HttpServletResponse.SC_SERVICE_UNAVAILABLE); // 503
