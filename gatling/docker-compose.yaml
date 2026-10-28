@@ -17,6 +17,7 @@ services:
       LT_DURATION: "${LT_DURATION:-}"
       LT_SEED_REFS: "${LT_SEED_REFS:-}"
       LT_CAPACITY_STEP: "${LT_CAPACITY_STEP:-}"
+      LT_RATE_LIMIT: "${LT_RATE_LIMIT:-}"
     volumes:
       - ./report:/gatling/report
   web:

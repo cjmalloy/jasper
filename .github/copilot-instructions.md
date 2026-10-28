@@ -91,7 +91,7 @@ docker rmi "$BASE"    # always remove the shadow afterwards
 
 ## Load testing (Gatling)
 
-Simulations live in `gatling/src/test/java/simulations/jasper/` (class name = `<name>Simulation`): `SmokeTest`, `Regression` (both gate CI), `Capacity`, `Inferno` (informational), `ReadOnly` (production profile), plus `Seed` and `Cleanup`. Shared code: `LoadConfig` (`LT_*` settings), `Dataset` (generated seed data), `Workload` (jasper-ui request chains). See `gatling/README.md`.
+Simulations live in `gatling/src/test/java/simulations/jasper/` (class name = `<name>Simulation`): `SmokeTest`, `Regression` (both gate CI), `Capacity`, `Inferno`, `RateLimit` (informational), `ReadOnly` (production profile), plus `Seed` and `Cleanup`. Shared code: `LoadConfig` (`LT_*` settings), `Dataset` (generated seed data), `Workload` (jasper-ui request chains). See `gatling/README.md`.
 
 ```bash
 cd gatling
@@ -154,7 +154,7 @@ docker compose up --build -d --wait && docker compose --profile ci run --rm play
 
 - `test.yml` — builds the Docker image; test matrix: **postgres** (Docker `test` stage + Testcontainers) and **sqlite** (`./mvnw test surefire-report:report -Dspring.profiles.active=test,sqlite,scripts` with Java 25, `setup-bun`, Python 3). Posts a results/coverage comment on PRs.
 - `e2e.yml` — Playwright suite in `e2e/` against postgres and sqlite stacks; PR comment, step summary, reports to Pages (`latest-e2e`).
-- `gatling.yml` — SmokeTest, Regression, Capacity, Inferno against postgres (g1gc, parallel, zgc) and sqlite (g1gc). Regression is diffed per request against the `gatling-baseline-*` artifact from master (`gatling/report-stats.py`).
+- `gatling.yml` — SmokeTest, Regression, Capacity, Inferno, RateLimit against postgres (g1gc, parallel, zgc) and sqlite (g1gc). Regression is diffed per request against the `gatling-baseline-*` artifact from master (`gatling/report-stats.py`).
 - `codeql.yml`, `publish.yml` (GHCR images), `release.yml` (draft releases with JARs), `pages.yml` (reports/docs), `cleanup.yml` (stale PR caches/artifacts).
 - `pages.yml` runs on `workflow_run` after Test/E2E/Load Test, but those runs need a separate approval when Copilot triggered the original run. Each `clean` job therefore dispatches `pages.yml` itself when `github.actor == 'Copilot'` (needs `actions: write`), so approving the test runs also publishes their reports.
 - Investigate CI failures with the GitHub Actions tools (list runs → job logs) rather than guessing.

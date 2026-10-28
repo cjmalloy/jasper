@@ -18,8 +18,8 @@ import sys
 # Assertion pass/fail fails the CI job for these simulations
 GATING = ['SmokeTest', 'Regression']
 # Not part of the aggregate: saturation and failures are expected
-INFORMATIONAL = ['Capacity', 'Inferno']
-ORDER = ['SmokeTest', 'Regression', 'ReadOnly', 'Capacity', 'Inferno']
+INFORMATIONAL = ['Capacity', 'Inferno', 'RateLimit']
+ORDER = ['SmokeTest', 'Regression', 'ReadOnly', 'Capacity', 'Inferno', 'RateLimit']
 
 # Table columns in the Gatling 3.x index.html statistics table
 COLUMNS = {
@@ -122,7 +122,15 @@ def ordered(simulations):
     return sorted(simulations, key=lambda n: (ORDER.index(n) if n in ORDER else len(ORDER), n))
 
 
+def ok_rps(stats):
+    """Gatling's throughput counts failed requests too: this is the successful share."""
+    return round(stats['rps'] * stats['ok'] / stats['total'], 1) if stats and stats['total'] else 0.0
+
+
 def delta(current, base, key):
+    if key == 'okRps':
+        current = {**current, 'okRps': ok_rps(current)}
+        base = base and {**base, 'okRps': ok_rps(base)}
     if base is None:
         return f'{current[key]}'
     diff = current[key] - base[key]
@@ -185,7 +193,7 @@ def markdown(stats_file, baseline_file=None):
     out.append('')
     out.append(f'Aggregate of {", ".join(n for n in ordered(current) if n not in INFORMATIONAL)}: '
                f'{aggregate["total"]} requests, {aggregate["ko"]} failed ({error_rate(aggregate):.2f}%). '
-               f'{" and ".join(INFORMATIONAL)} are excluded because saturation is expected.')
+               f'{", ".join(INFORMATIONAL[:-1])} and {INFORMATIONAL[-1]} are excluded because saturation is expected.')
     out.append('')
     if not baseline:
         out.append('_No master baseline found, showing absolute values only._')
@@ -196,17 +204,17 @@ def markdown(stats_file, baseline_file=None):
                    f'for requests sent at least {MIN_FLAG_COUNT} times.')
         out.append('')
 
-    out.append('| Simulation | Status | Requests | Errors | p50 (ms) | p95 (ms) | p99 (ms) | Throughput (rps) |')
-    out.append('|---|---|---|---|---|---|---|---|')
+    out.append('| Simulation | Status | Requests | Errors | p50 (ms) | p95 (ms) | p99 (ms) | Throughput (rps) | OK (rps) |')
+    out.append('|---|---|---|---|---|---|---|---|---|')
     for name in ordered(current):
         sim = current[name]
         g = sim.get('global')
         base = (baseline.get(name) or {}).get('global')
         if not g:
-            out.append(f'| {name} | {status(sim)} | - | - | - | - | - | - |')
+            out.append(f'| {name} | {status(sim)} | - | - | - | - | - | - | - |')
             continue
         out.append(f'| {name} | {status(sim)} | {g["total"]} | {error_delta(g, base)} | {delta(g, base, "p50")} | '
-                   f'{delta(g, base, "p95")} | {delta(g, base, "p99")} | {delta(g, base, "rps")} |')
+                   f'{delta(g, base, "p95")} | {delta(g, base, "p99")} | {delta(g, base, "rps")} | {delta(g, base, "okRps")} |')
     out.append('')
 
     for name in ordered(current):

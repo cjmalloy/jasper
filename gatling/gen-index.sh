@@ -140,10 +140,11 @@ declare -A simulations=(
     ["ReadOnlySimulation"]="Read Only|Production profile: browsing without writes, proxy or scrape requests, at a conservative rate."
     ["CapacitySimulation"]="Capacity|Step load with short think times. Stops once 5% of recent requests fail; the capacity is the last step completed before that."
     ["InfernoSimulation"]="Inferno|Robustness only: two bursts well beyond capacity, then recovery probes 30s later must succeed (<5% errors)."
+    ["RateLimitSimulation"]="RateLimit|Inferno with a per-origin rate limit on the load test origin: bursts get cheap 429s while a neighbor origin keeps browsing (<5% errors). Compare OK rps with Inferno."
 )
 
 # Check for reports and generate cards
-for simulation in SmokeTestSimulation RegressionSimulation ReadOnlySimulation CapacitySimulation InfernoSimulation; do
+for simulation in SmokeTestSimulation RegressionSimulation ReadOnlySimulation CapacitySimulation InfernoSimulation RateLimitSimulation; do
     IFS='|' read -r title description <<< "${simulations[$simulation]}"
     # Find the most recent report directory for this simulation
     report_dir=$(find $REPORT_DIR -maxdepth 1 -name "${simulation,,}-*" -type d 2>/dev/null | sort | tail -1)
@@ -178,7 +179,7 @@ cat >> "$INDEX_FILE" << EOF
         <p>Every simulation runs against a seeded <code>@loadtest</code> origin (5,000 Refs with comment threads) as JWT users, moderators and admins, using the requests jasper-ui sends.</p>
         <ul>
             <li><strong>Smoke Test</strong> and <strong>Regression</strong> fail the build when their assertions fail. Results are compared per request against the latest master run.</li>
-            <li><strong>Capacity</strong> and <strong>Inferno</strong> saturate the server on purpose and are excluded from the aggregate.</li>
+            <li><strong>Capacity</strong>, <strong>Inferno</strong> and <strong>RateLimit</strong> saturate the server on purpose and are excluded from the aggregate.</li>
         </ul>
         <p>Raw numbers: <a href="stats.json">stats.json</a></p>
 

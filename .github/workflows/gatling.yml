@@ -48,7 +48,7 @@ jobs:
       - name: Run Regression
         if: always()
         run: (cd gatling; GATLING_TEST=Regression ${{ steps.compose.outputs.cmd }} up --build --exit-code-from gatling)
-      # Capacity and Inferno saturate the server on purpose: informational only
+      # Capacity, Inferno and RateLimit saturate the server on purpose: informational only
       - name: Run Capacity
         if: always()
         continue-on-error: true
@@ -58,6 +58,11 @@ jobs:
         if: always()
         continue-on-error: true
         run: (cd gatling; GATLING_TEST=Inferno ${{ steps.compose.outputs.cmd }} up --build --exit-code-from gatling)
+      - name: Run RateLimit
+        if: always()
+        continue-on-error: true
+        # Per-origin limit for the bursting origin, below what each database can serve
+        run: (cd gatling; LT_RATE_LIMIT=${{ matrix.database == 'sqlite' && '25' || '150' }} GATLING_TEST=RateLimit ${{ steps.compose.outputs.cmd }} up --build --exit-code-from gatling)
       - name: Stop Stack
         if: always()
         run: (cd gatling; ${{ steps.compose.outputs.cmd }} down)
