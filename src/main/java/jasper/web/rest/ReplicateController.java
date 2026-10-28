@@ -131,6 +131,7 @@ public class ReplicateController {
 				RefFilter.builder()
 					.origin(origin)
 					.query(query)
+					.ignored(false)
 					.modifiedAfter(modifiedAfter)
 					.build(),
 				PageRequest.of(0, size, by(Ref_.MODIFIED)))

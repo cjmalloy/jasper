@@ -2,15 +2,20 @@ package jasper.component;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jasper.config.JacksonConfiguration;
+import jasper.domain.Plugin;
 import jasper.domain.Ref;
 import jasper.errors.AlreadyExistsException;
 import jasper.errors.ModifiedException;
 import jasper.plugin.Cache;
 import jasper.repository.RefRepository;
+import jasper.service.dto.RefDto;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 
 import static jasper.domain.Ref.from;
@@ -129,5 +134,167 @@ public class TaggerTest {
 
 		assertThat(ref).isNull();
 		verify(ingest, times(Tagger.INIT_PLUGIN_RETRIES)).create(eq(""), any(Ref.class));
+	}
+
+	@Test
+	void testAttachLogsRedirectsSubOriginToRemoteOrigin() {
+		mockRemote("+user/alice");
+		var parent = from(URL, "@sub", "_user/bob");
+
+		tagger.attachLogs("@sub", parent, "title", "logs");
+
+		var log = ArgumentCaptor.forClass(Ref.class);
+		verify(ingest).create(eq(""), log.capture());
+		assertThat(log.getValue().getOrigin()).isEqualTo("");
+		assertThat(log.getValue().getSources()).containsExactly(URL);
+		assertThat(log.getValue().getTags())
+			.contains("+plugin/log", "user/alice")
+			.doesNotContain("user/bob", "_user/bob", "public");
+		verify(ingest, never()).create(eq("@sub"), any(Ref.class));
+	}
+
+	@Test
+	void testAttachLogsRedirectedCopiesPrivateOwnerAndPublic() {
+		mockRemote("_user/alice");
+		var parent = from(URL, "@sub", "public", "+user/bob");
+
+		tagger.attachLogs("@sub", parent, "title", "logs");
+
+		var log = ArgumentCaptor.forClass(Ref.class);
+		verify(ingest).create(eq(""), log.capture());
+		assertThat(log.getValue().getTags())
+			.contains("+plugin/log", "public", "user/alice")
+			.doesNotContain("user/bob", "+user/bob");
+	}
+
+	@Test
+	void testAttachLogsKeepsLocalOriginPublic() {
+		var parent = from(URL, "@sub", "public", "+user/bob");
+
+		tagger.attachLogs("@sub", parent, "title", "logs");
+
+		var log = ArgumentCaptor.forClass(Ref.class);
+		verify(ingest).create(eq("@sub"), log.capture());
+		assertThat(log.getValue().getTags()).contains("+plugin/log", "public", "user/bob");
+	}
+
+	void mockRemote(String ...tags) {
+		var remote = new RefDto();
+		remote.setUrl("https://remote.example.com");
+		remote.setOrigin("");
+		when(tagger.configs.getRemote("@sub")).thenReturn(remote);
+		when(refRepository.findOneByUrlAndOrigin("https://remote.example.com", ""))
+			.thenReturn(Optional.of(from("https://remote.example.com", "", "+plugin/origin").addTags(List.of(tags))));
+	}
+
+	@Test
+	void testAttachLogsKeepsLocalOrigin() {
+		var parent = from(URL, "@sub", "_user/bob");
+
+		tagger.attachLogs("@sub", parent, "title", "logs");
+
+		var log = ArgumentCaptor.forClass(Ref.class);
+		verify(ingest).create(eq("@sub"), log.capture());
+		assertThat(log.getValue().getOrigin()).isEqualTo("@sub");
+		assertThat(log.getValue().getTags()).contains("+plugin/log", "user/bob");
+	}
+
+	@Test
+	void testAttachErrorRedirectsSubOriginToRemoteOrigin() {
+		var remote = new RefDto();
+		remote.setOrigin("");
+		when(tagger.configs.getRemote("@sub")).thenReturn(remote);
+		var parent = from(URL, "@sub");
+
+		tagger.attachError("@sub", parent, "title", "logs");
+
+		verify(ingest).create(eq(""), any(Ref.class));
+		verify(ingest, never()).create(eq("@sub"), any(Ref.class));
+		verify(ingest, never()).update(any(), any(Ref.class));
+	}
+
+	@Test
+	void testProgressSkippedWhenPluginNotInstalled() {
+		when(tagger.configs.getPlugin("plugin/progress", "")).thenReturn(Optional.empty());
+
+		try (var progress = tagger.progress(URL, "")) {
+			progress.last = Instant.EPOCH;
+			progress.update(1, 2);
+		}
+
+		verify(refRepository, never()).findOneByUrlAndOrigin(any(), any());
+		verify(ingest, never()).silent(any(), any(Ref.class));
+	}
+
+	@Test
+	void testProgressSkippedOnRemoteOrigin() {
+		when(tagger.configs.getPlugin("plugin/progress", "@remote")).thenReturn(Optional.of(new Plugin()));
+		when(tagger.configs.getRemote("@remote")).thenReturn(new RefDto());
+
+		try (var progress = tagger.progress(URL, "@remote")) {
+			progress.last = Instant.EPOCH;
+			progress.update(1, 2);
+		}
+
+		verify(ingest, never()).silent(any(), any(Ref.class));
+	}
+
+	@Test
+	void testProgressThrottled() {
+		when(tagger.configs.getPlugin("plugin/progress", "")).thenReturn(Optional.of(new Plugin()));
+
+		try (var progress = tagger.progress(URL, "")) {
+			progress.update(1, 2);
+		}
+
+		verify(ingest, never()).silent(any(), any(Ref.class));
+	}
+
+	@Test
+	void testProgressReplacesTagAndClears() {
+		when(tagger.configs.getPlugin("plugin/progress", "")).thenReturn(Optional.of(new Plugin()));
+		var ref = from(URL, "", "public", "plugin/progress/1/10");
+		when(refRepository.findOneByUrlAndOrigin(URL, "")).thenReturn(Optional.of(ref));
+		var saved = ArgumentCaptor.forClass(Ref.class);
+
+		try (var progress = tagger.progress(URL, "")) {
+			progress.last = Instant.EPOCH;
+			progress.update(30, 10);
+			verify(ingest).silent(eq(""), saved.capture());
+			assertThat(saved.getValue().getTags()).containsExactly("public", "plugin/progress/10/10");
+		}
+
+		verify(ingest, times(2)).silent(eq(""), saved.capture());
+		assertThat(saved.getValue().getTags()).containsExactly("public");
+	}
+
+	@Test
+	void testProgressDoesNotClearTagItDidNotWrite() {
+		when(tagger.configs.getPlugin("plugin/progress", "")).thenReturn(Optional.of(new Plugin()));
+		var ref = from(URL, "", "public", "plugin/progress/1/2");
+		when(refRepository.findOneByUrlAndOrigin(URL, "")).thenReturn(Optional.of(ref));
+
+		try (var progress = tagger.progress(URL, "")) {
+			progress.last = Instant.EPOCH;
+			progress.update(1, 2);
+		}
+
+		verify(ingest, never()).silent(any(), any(Ref.class));
+		assertThat(ref.getTags()).containsExactly("public", "plugin/progress/1/2");
+	}
+
+	@Test
+	void testProgressDoesNotClearAfterFailedWrite() {
+		when(tagger.configs.getPlugin("plugin/progress", "")).thenReturn(Optional.of(new Plugin()));
+		when(refRepository.findOneByUrlAndOrigin(URL, "")).thenReturn(Optional.of(from(URL, "", "public")));
+		doThrow(new RuntimeException("fail")).when(ingest).silent(eq(""), any(Ref.class));
+
+		try (var progress = tagger.progress(URL, "")) {
+			progress.last = Instant.EPOCH;
+			progress.update(1, 2);
+			when(refRepository.findOneByUrlAndOrigin(URL, "")).thenReturn(Optional.of(from(URL, "", "public", "plugin/progress/1/2")));
+		}
+
+		verify(ingest, times(1)).silent(eq(""), any(Ref.class));
 	}
 }

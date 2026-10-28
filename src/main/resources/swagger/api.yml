@@ -2,7 +2,7 @@ openapi: 3.0.3
 info:
   title: Jasper Protocol
   description: REST API for the Jasper Protocol
-  version: 1.3.7
+  version: 1.4.2
   license:
     name: MIT License
     url: 'https://github.com/cjmalloy/jasper/blob/master/LICENSE'
@@ -2687,6 +2687,18 @@ components:
     Metadata:
       type: object
       properties:
+        modified:
+          type: string
+          format: date-time
+          description: Last time the responses or plugin counts changed.
+        newResponse:
+          type: string
+          format: date-time
+          description: Last time a new response was created, ignoring user urls.
+        newReaction:
+          type: string
+          format: date-time
+          description: Last time any response was created or updated, including user urls.
         responses:
           type: number
         internalResponses:
@@ -2697,6 +2709,14 @@ components:
             type: number
           example:
             'plugin/comment': 3
+          description: Plugin response counts from the same origin as this Ref.
+        remotePlugins:
+          type: object
+          additionalProperties:
+            type: number
+          example:
+            'plugin/comment': 5
+          description: Total plugin response counts from all origins under the root origin.
         regen:
           type: boolean
           description: Metadata for this Ref is queued for regeneration.

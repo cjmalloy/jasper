@@ -7,6 +7,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.constraints.Pattern;
 import jasper.aop.ClearIdle;
+import jasper.config.Props;
 import jasper.domain.Ref;
 import jasper.domain.proj.HasOrigin;
 import jasper.errors.NotFoundException;
@@ -61,7 +62,12 @@ import static org.springframework.http.MediaType.parseMediaType;
 public class ProxyController {
 
 	@Autowired
+	Props props;
+
+	@Autowired
 	ProxyService proxyService;
+
+	private static final String CONTENT_SECURITY_POLICY = "Content-Security-Policy";
 
 	@ApiResponses({
 		@ApiResponse(responseCode = "200"),
@@ -118,7 +124,8 @@ public class ProxyController {
 				// Fall through to return full content below
 			}
 		}
-		var responseBuilder = ResponseEntity.ok();
+		var responseBuilder = ResponseEntity.ok()
+			.header(CONTENT_SECURITY_POLICY, props.getSecurity().getContentSecurityPolicy());
 		if (contentLength != null) {
 			responseBuilder.header(HttpHeaders.ACCEPT_RANGES, "bytes");
 			responseBuilder.contentLength(contentLength);
@@ -155,12 +162,14 @@ public class ProxyController {
 		if (start >= contentLength || start > end) {
 			try { is.close(); } catch (IOException ignored) { }
 			return ResponseEntity.status(HttpStatus.REQUESTED_RANGE_NOT_SATISFIABLE)
+				.header(CONTENT_SECURITY_POLICY, props.getSecurity().getContentSecurityPolicy())
 				.header(HttpHeaders.CONTENT_RANGE, "bytes */" + contentLength)
 				.build();
 		}
 		long rangeStart = start;
 		long rangeLength = end - start + 1;
 		return ResponseEntity.status(HttpStatus.PARTIAL_CONTENT)
+			.header(CONTENT_SECURITY_POLICY, props.getSecurity().getContentSecurityPolicy())
 			.header(HttpHeaders.ACCEPT_RANGES, "bytes")
 			.header(HttpHeaders.CONTENT_RANGE, "bytes " + start + "-" + end + "/" + contentLength)
 			.header(HttpHeaders.CONTENT_DISPOSITION, contentDisposition)

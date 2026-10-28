@@ -17,6 +17,7 @@ import java.util.List;
 
 import static jasper.domain.proj.Tag.isPublicTag;
 import static jasper.domain.proj.Tag.publicTag;
+import static jasper.domain.proj.Tag.userUrlPrefix;
 import static jasper.repository.spec.OriginSpec.none;
 import static jasper.repository.spec.SortSpec.createJsonbSortExpression;
 import static jasper.repository.spec.SortSpec.isJsonbSortProperty;
@@ -61,6 +62,19 @@ public class RefSpec {
 				cb.notEqual(cb.function("jsonb_object_field_text", String.class,
 					root.get(Ref_.metadata),
 					cb.literal("obsolete")),
+					cb.literal("true")));
+	}
+
+	public static Specification<Ref> isNotIgnored() {
+		return (root, query, cb) ->
+			cb.or(
+				cb.isNull(root.get(Ref_.metadata)),
+				cb.isNull(cb.function("jsonb_object_field_text", String.class,
+					root.get(Ref_.metadata),
+					cb.literal("ignored"))),
+				cb.notEqual(cb.function("jsonb_object_field_text", String.class,
+					root.get(Ref_.metadata),
+					cb.literal("ignored")),
 					cb.literal("true")));
 	}
 
@@ -150,7 +164,7 @@ public class RefSpec {
 					cb.literal(plugin)));
 	}
 
-	public static Specification<Ref> hasNoPluginResponses(String user, String plugin) {
+	public static Specification<Ref> hasNoPluginResponses(String user, String userOrigin, String plugin) {
 		return (root, query, cb) ->
 			cb.or(
 				cb.isNull(root.get(Ref_.metadata)),
@@ -171,10 +185,10 @@ public class RefSpec {
 								root.get(Ref_.metadata),
 								cb.literal("userUrls")),
 							cb.literal(plugin)),
-						cb.concat("tag:/" + publicTag(user) + "?url=", root.get(Ref_.url)))));
+						cb.concat(userUrlPrefix(user, userOrigin), root.get(Ref_.url)))));
 	}
 
-	public static Specification<Ref> hasPluginResponses(String user, String plugin) {
+	public static Specification<Ref> hasPluginResponses(String user, String userOrigin, String plugin) {
 		return (root, query, cb) ->
 			cb.and(
 				cb.isNotNull(root.get(Ref_.metadata)),
@@ -185,7 +199,7 @@ public class RefSpec {
 								root.get(Ref_.metadata),
 								cb.literal("userUrls")),
 							cb.literal(plugin)),
-						cb.concat("tag:/" + publicTag(user) + "?url=", root.get(Ref_.url)))));
+						cb.concat(userUrlPrefix(user, userOrigin), root.get(Ref_.url)))));
 	}
 
 	private static Predicate tagExists(Root<Ref> root, CriteriaBuilder cb, String tag) {
@@ -197,7 +211,12 @@ public class RefSpec {
 			cb.and(
 				cb.isNull(expanded),
 				cb.isNotNull(root.get(Ref_.tags)),
-				cb.isTrue(cb.function("jsonb_exists", Boolean.class, root.get(Ref_.tags), cb.literal(tag)))));
+				cb.or(
+					cb.isTrue(cb.function("jsonb_exists", Boolean.class, root.get(Ref_.tags), cb.literal(tag))),
+					cb.like(
+						cb.function("jsonb_text", String.class, root.get(Ref_.tags)),
+						"%\"" + tag.replace("_", "\\_") + "/%",
+						'\\'))));
 	}
 
 	public static Specification<Ref> hasTag(String tag) {
@@ -340,6 +359,8 @@ public class RefSpec {
 					} else {
 						expr = null;
 					}
+				} else if (property.startsWith("tags->")) {
+					expr = SortSpec.createTagValueSortExpression(root, cb, property);
 				} else if (isJsonbSortProperty(property, "metadata", "plugins")) {
 					expr = createJsonbSortExpression(root, cb, property, "metadata", "plugins");
 				} else if (property.endsWith(":len")) {

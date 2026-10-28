@@ -23,6 +23,7 @@ import org.springframework.security.access.hierarchicalroles.RoleHierarchy;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationServiceException;
 import org.springframework.security.config.Customizer;
+import org.springframework.security.config.ObjectPostProcessor;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -32,6 +33,8 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
 import org.springframework.security.web.csrf.CsrfTokenRepository;
 import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
+import org.springframework.security.web.header.HeaderWriterFilter;
+import org.springframework.security.web.header.writers.CacheControlHeadersWriter;
 import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter;
 import org.springframework.web.context.annotation.ApplicationScope;
 import org.springframework.web.filter.ShallowEtagHeaderFilter;
@@ -115,13 +118,27 @@ public class SecurityConfiguration {
                 .authenticationEntryPoint(problemSupport)
                 .accessDeniedHandler(problemSupport)
 			)
-            .headers(h -> h
+            .headers(h -> {
+				// Streamed bodies (StreamingResponseBody) are written on an async thread and can
+				// commit the response before the headers would otherwise be written. All headers
+				// are fixed values, so write them before the chain runs.
+				// Cache control is written lazily below so controllers can still override it.
+				h.addObjectPostProcessor(new ObjectPostProcessor<HeaderWriterFilter>() {
+					@Override
+					public <O extends HeaderWriterFilter> O postProcess(O filter) {
+						filter.setShouldWriteHeadersEagerly(true);
+						return filter;
+					}
+				});
+				h
+				.cacheControl(HeadersConfigurer.CacheControlConfig::disable)
 				.contentSecurityPolicy(csp -> csp
 					.policyDirectives(props.getSecurity().getContentSecurityPolicy()))
 				.referrerPolicy(r -> r.policy(ReferrerPolicyHeaderWriter.ReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN))
 				.frameOptions(HeadersConfigurer.FrameOptionsConfig::sameOrigin)
-				.permissionsPolicyHeader(p -> p.policy("camera=(), fullscreen=(self), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), midi=(), payment=(), sync-xhr=()"))
-			)
+				.permissionsPolicyHeader(p -> p.policy("camera=(), fullscreen=(self), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), midi=(), payment=(), sync-xhr=(), usb=(), serial=(), hid=(), bluetooth=(), display-capture=(), screen-wake-lock=(), publickey-credentials-get=()"));
+			})
+			.addFilterAfter(new HeaderWriterFilter(List.of(new CacheControlHeadersWriter())), HeaderWriterFilter.class)
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 			.with(securityConfigurerAdapter(), Customizer.withDefaults())
 			.authorizeHttpRequests(r -> r

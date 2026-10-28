@@ -4,6 +4,7 @@ import jasper.domain.proj.HasTags;
 import jasper.errors.InvalidTunnelException;
 import jasper.errors.RetryableTunnelException;
 import jasper.plugin.Tunnel.SftpMode;
+import jasper.errors.TunnelCooldownException;
 import jasper.repository.UserRepository;
 import org.apache.sshd.client.SshClient;
 import org.apache.sshd.client.auth.keyboard.UserInteraction;
@@ -30,6 +31,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Map;
@@ -63,6 +65,8 @@ public class TunnelClient {
 
 	record TunnelInfo(int tunnelPort, int connections, SshClient client, ClientSession session) {}
 	Map<String, TunnelInfo> tunnels = new ConcurrentHashMap<>();
+	static final Duration RETRY_COOLDOWN = Duration.ofSeconds(10);
+	Map<String, Instant> cooldowns = new ConcurrentHashMap<>();
 
 	@Scheduled(fixedDelay = 30, initialDelay = 10, timeUnit = TimeUnit.MINUTES)
 	public void log() {
@@ -73,6 +77,8 @@ public class TunnelClient {
 
 	@Scheduled(fixedDelay = 1, timeUnit = TimeUnit.MINUTES)
 	public void healthCheck() {
+		var now = Instant.now();
+		cooldowns.values().removeIf(until -> !until.isAfter(now));
 		for (var remote : tunnels.keySet()) {
 			tunnels.compute(remote, (k, v) -> {
 				if (v == null) {
@@ -133,6 +139,9 @@ public class TunnelClient {
 				}
 				releaseTunnel(tunnelPort, host, username, port);
 			}
+		} catch (TunnelCooldownException e) {
+			logger.debug("{} Skipping SSH tunnel for {} during cooldown: {}",
+				remote.getOrigin(), remote.getTitle(), remote.getUrl());
 		} catch (RetryableTunnelException e) {
 			logger.info("{} Error creating SSH tunnel for {}: {}",
 				remote.getOrigin(), remote.getTitle(), remote.getUrl());
@@ -177,6 +186,10 @@ public class TunnelClient {
 				killTunnel(host, username, port);
 				throw new InvalidTunnelException("Error creating tunnel tracker", e);
 			}
+		} catch (TunnelCooldownException e) {
+			logger.debug("{} Skipping SSH tunnel for {} during cooldown: {}",
+				remote.getOrigin(), remote.getTitle(), remote.getUrl());
+			throw e;
 		} catch (RetryableTunnelException e) {
 			logger.info("{} Error creating SSH tunnel for {}: {}",
 				remote.getOrigin(), remote.getTitle(), remote.getUrl());
@@ -330,6 +343,10 @@ public class TunnelClient {
 				if (v != null) {
 					if  (v.client.isOpen()) return new TunnelInfo(v.tunnelPort, v.connections + 1, v.client, v.session);
 				}
+				var cooldown = cooldowns.get(remote);
+				if (cooldown != null && cooldown.isAfter(Instant.now())) {
+					throw new RuntimeException(new TunnelCooldownException("SSH tunnel to " + remote + " is cooling down until " + cooldown));
+				}
 				var client = SshClient.setUpDefaultClient();
 				try {
 					final int[] httpPort = {38022};
@@ -359,18 +376,23 @@ public class TunnelClient {
 							killTunnel(host, username, port);
 						}
 					});
+					cooldowns.remove(remote);
 					return new TunnelInfo(tunnelPort, 1, client, session);
 				} catch (Exception e) {
 					client.stop();
-					throw new RuntimeException(e);
+					logger.debug("{} Error creating tunnel SSH client", origin, e);
+					if (e instanceof SshException &&
+						getThrowableList(e).stream().noneMatch(cause ->
+							cause.getMessage() != null && (
+								cause.getMessage().contains("Broken pipe") ||
+								cause.getMessage().contains("Session is being closed")))) throw new RuntimeException(e);
+					cooldowns.put(remote, Instant.now().plus(RETRY_COOLDOWN));
+					throw new RuntimeException(new RetryableTunnelException("Error creating tunnel SSH client", e));
 				}
 			});
 		} catch (RuntimeException e) {
-			logger.debug("{} Error creating tunnel SSH client", origin, e);
-			if (e.getCause() instanceof SshException &&
-				getThrowableList(e).stream().noneMatch(cause ->
-					cause.getMessage() != null && cause.getMessage().contains("Broken pipe"))) throw e;
-			throw new RetryableTunnelException("Error creating tunnel SSH client", e);
+			if (e.getCause() instanceof RetryableTunnelException r) throw r;
+			throw e;
 		}
 	}
 

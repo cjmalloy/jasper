@@ -7,6 +7,7 @@ import lombok.Setter;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.web.cors.CorsConfiguration;
 
+import java.time.Duration;
 import java.util.List;
 
 import static jasper.domain.proj.HasOrigin.subOrigin;
@@ -151,6 +152,21 @@ public class Props {
 	 * Number of seconds to throttle pushing after modification.
 	 */
 	private int pushCooldownSec = 1;
+	/**
+	 * Maximum size in bytes of an image to generate a thumbnail for.
+	 */
+	private int imageMaxBytes = 200 * 1024 * 1024;
+	/**
+	 * Maximum pixel count (width * height) of an image to generate a thumbnail for.
+	 * Large images are subsampled while decoding, so this only guards against decompression bombs.
+	 */
+	private long imageMaxPixels = 500_000_000;
+	/**
+	 * Maximum aspect ratio (long edge / short edge) of a thumbnail. More elongated images
+	 * are cropped, keeping the top of tall images and the centre of wide images.
+	 * Set to 0 to disable cropping.
+	 */
+	private double imageMaxAspectRatio = 4;
 
 	/**
 	 * Path to the folder to use for storage. Used by the backup system.
@@ -252,7 +268,8 @@ public class Props {
 		 */
 		private Integer maxPullEntityBatch;
 		/**
-		 * Override the server tags and origins that can run scripts. No wildcard origins.
+		 * Override the server tags and origins that can run scripts.
+		 * Supports "@*" and "@origin.*" wildcards, matching one nesting level.
 		 */
 		private List<String> scriptSelectors;
 		/**
@@ -268,9 +285,13 @@ public class Props {
 		 */
 		private List<String> hostBlacklist;
 		/**
-		 * Override the server maximum HTTP requests per origin every 500 nanoseconds.
+		 * Override the server global maximum HTTP requests (across all origins) every maxRequestsPeriod.
 		 */
 		private Integer maxRequests;
+		/**
+		 * Override the server refresh period for the global maxRequests rate limit.
+		 */
+		private Duration maxRequestsPeriod;
 		/**
 		 * Override the server global maximum concurrent HTTP requests (across all origins).
 		 */
@@ -345,9 +366,17 @@ public class Props {
 		 */
 		private String scimEndpoint = "";
 		/**
-		 * Override the per-origin maximum HTTP requests every 500 nanoseconds. This limit applies to all origins.
+		 * Override the per-origin maximum HTTP requests every maxRequestsPeriod. This limit applies to all origins.
 		 */
 		private Integer maxRequests;
+		/**
+		 * Override the per-origin refresh period for the maxRequests rate limit. This applies to all origins.
+		 */
+		private Duration maxRequestsPeriod;
+		/**
+		 * Override the per-origin maximum concurrent HTTP requests. This limit applies to all origins.
+		 */
+		private Integer maxConcurrentRequests;
 		/**
 		 * Override the per-origin maximum concurrent script executions. This limit applies to all origins.
 		 */
@@ -392,7 +421,7 @@ public class Props {
 		/**
 		 * Content Security Policy header value.
 		 */
-		private String contentSecurityPolicy = "default-src 'self'; frame-src 'self' data:; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:";
+		private String contentSecurityPolicy = "sandbox allow-downloads allow-forms allow-modals allow-pointer-lock allow-popups allow-popups-to-escape-sandbox allow-presentation allow-scripts; default-src 'self'; frame-src 'self' data:; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:";
 	}
 
 	@Getter
