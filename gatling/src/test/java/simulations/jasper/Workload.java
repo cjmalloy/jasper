@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
 
 import static io.gatling.javaapi.core.CoreDsl.*;
@@ -33,6 +34,8 @@ public class Workload {
 	final double maxErrorPercent;
 	final ErrorGuard guard = new ErrorGuard(200, 50);
 	boolean crashOnErrors = true;
+	/** When the error stop triggered, in epoch millis, or 0 if it never did. */
+	final AtomicLong stoppedAt = new AtomicLong();
 
 	/**
 	 * @param readOnly never write (no writes, proxy or scrape requests)
@@ -134,7 +137,11 @@ public class Workload {
 	 */
 	public ChainBuilder stopOnErrors() {
 		Function<Session, String> message = session -> "Stopping: " + guard.describe() + " exceeds LT_MAX_ERROR_PERCENT=" + maxErrorPercent;
-		Function<Session, Boolean> condition = session -> guard.exceeds(maxErrorPercent);
+		Function<Session, Boolean> condition = session -> {
+			if (!guard.exceeds(maxErrorPercent)) return false;
+			stoppedAt.compareAndSet(0, System.currentTimeMillis());
+			return true;
+		};
 		return crashOnErrors
 			? crashLoadGeneratorIf(message, condition)
 			: stopLoadGeneratorIf(message, condition);

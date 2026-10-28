@@ -82,6 +82,13 @@ def extract(report_dir):
             with open(os.path.join(report_dir, entry)) as f:
                 code = f.read().strip()
             simulations.setdefault(name, {})['exitCode'] = int(code) if code.lstrip('-').isdigit() else 1
+        elif entry.endswith('.capacity.json'):
+            name = entry[:-len('.capacity.json')]
+            try:
+                with open(os.path.join(report_dir, entry)) as f:
+                    simulations.setdefault(name, {})['capacity'] = json.load(f)
+            except (OSError, ValueError):
+                pass
     for entry in entries:
         index = os.path.join(report_dir, entry, 'index.html')
         match = re.match(r'(.+)simulation-\d+$', entry)
@@ -201,6 +208,21 @@ def markdown(stats_file, baseline_file=None):
         out.append(f'| {name} | {status(sim)} | {g["total"]} | {error_delta(g, base)} | {delta(g, base, "p50")} | '
                    f'{delta(g, base, "p95")} | {delta(g, base, "p99")} | {delta(g, base, "rps")} |')
     out.append('')
+
+    for name in ordered(current):
+        capacity = current[name].get('capacity')
+        if not capacity:
+            continue
+        base = (baseline.get(name) or {}).get('capacity')
+        text = f'{capacity["sessionsPerSec"]:g} sessions/s'
+        if base:
+            text += f' ({capacity["sessionsPerSec"] - base["sessionsPerSec"]:+g} vs master)'
+        if capacity.get('stopped'):
+            detail = f'{capacity["levelsCompleted"]} of {capacity["levels"]} steps completed before the error stop'
+        else:
+            detail = f'all {capacity["levels"]} steps completed, the server was not saturated'
+        out.append(f'**{name}:** {text}, {detail}. Mean throughput depends on where the run stopped; compare this instead.')
+        out.append('')
 
     for name in ordered(current):
         sim = current[name]

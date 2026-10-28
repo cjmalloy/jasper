@@ -52,7 +52,8 @@ jobs:
       - name: Run Capacity
         if: always()
         continue-on-error: true
-        run: (cd gatling; GATLING_TEST=Capacity ${{ steps.compose.outputs.cmd }} up --build --exit-code-from gatling)
+        # SQLite saturates at the first 4 sessions/s step: use finer steps so the result has resolution
+        run: (cd gatling; LT_CAPACITY_STEP=${{ matrix.database == 'sqlite' && '1' || '4' }} GATLING_TEST=Capacity ${{ steps.compose.outputs.cmd }} up --build --exit-code-from gatling)
       - name: Run Inferno
         if: always()
         continue-on-error: true
