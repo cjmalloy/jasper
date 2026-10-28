@@ -93,17 +93,23 @@ public class Proxy {
 			return fetch(url, origin);
 		}
 		try (var res = fetch.doScrape(url, origin)) {
-			var bytes = res.getInputStream().readAllBytes();
-			res.close();
-			var data = images.thumbnail(bytes);
-			if (data == null) {
-				// Returning null means the full size image is already small enough to be a thumbnail
-				// Set this as a thumbnail to disable future attempts
-				fullSize.setThumbnail(true);
-				tagger.plugin(url, origin, "_plugin/cache", fullSize, "-_plugin/delta/cache");
-				return fetch(url, origin);
-			}
-			return new ByteArrayInputStream(data);
+			return switch (images.thumbnail(res.getInputStream())) {
+				case Images.Thumbnail t -> new ByteArrayInputStream(t.data());
+				case Images.AlreadySmall s -> {
+					// The full size image is already small enough to be a thumbnail
+					// Set this as a thumbnail to disable future attempts
+					fullSize.setThumbnail(true);
+					tagger.plugin(url, origin, "_plugin/cache", fullSize, "-_plugin/delta/cache");
+					yield fetch(url, origin);
+				}
+				case Images.Unsupported u -> null;
+				case Images.Failed f -> {
+					tagger.attachError(origin,
+						refRepository.findOneByUrlAndOrigin(url, origin).orElseThrow(),
+						"Error creating thumbnail");
+					yield null;
+				}
+			};
 		} catch (Exception e) {
 			tagger.attachError(origin,
 				refRepository.findOneByUrlAndOrigin(url, origin).orElseThrow(),

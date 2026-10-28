@@ -50,8 +50,10 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicLong;
 
 import static jasper.domain.proj.HasOrigin.isSubOrigin;
+import static jasper.repository.spec.QualifiedTag.qt;
 import static jasper.security.Auth.LOCAL_ORIGIN_HEADER;
 import static jasper.security.Auth.READ_ACCESS_HEADER;
 import static jasper.security.Auth.TAG_READ_ACCESS_HEADER;
@@ -59,6 +61,7 @@ import static jasper.security.Auth.TAG_WRITE_ACCESS_HEADER;
 import static jasper.security.Auth.USER_ROLE_HEADER;
 import static jasper.security.Auth.USER_TAG_HEADER;
 import static jasper.security.Auth.WRITE_ACCESS_HEADER;
+import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 @Profile("!no-websocket")
@@ -68,6 +71,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 	private static final Logger logger = LoggerFactory.getLogger(WebSocketConfig.class);
 
 	public static final String AUTHORIZATION_HEADER = "Authorization";
+	private static final String USER_TAGS_ATTRIBUTE = "userTags";
 
 	@Autowired
 	Props props;
@@ -84,7 +88,8 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 	@Autowired
 	AuthFactory authFactory;
 
-	private Set<WebSocketSession> sessions = ConcurrentHashMap.newKeySet();
+	Set<WebSocketSession> sessions = ConcurrentHashMap.newKeySet();
+	final AtomicLong userRevision = new AtomicLong();
 
 	@Bean
 	public TomcatServletWebServerFactory tomcatContainerFactory() {
@@ -137,17 +142,49 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 		});
 	}
 
+	@SuppressWarnings("unchecked")
 	@ServiceActivator(inputChannel = "userRxChannel")
 	public void handleUserUpdate(Message<UserDto> message) {
-		// Just drop all sessions for now
+		var origin = (String) message.getHeaders().get("origin");
+		var tag = (String) message.getHeaders().get("tag");
+		if (isBlank(tag) || "~".equals(tag)) return;
+		var userTag = qt(tag + ("default".equals(origin) ? "" : origin)).toString();
+		userRevision.incrementAndGet();
 		sessions.forEach(s -> {
-            try {
-                s.close(CloseStatus.SERVICE_RESTARTED);
-            } catch (IOException e) {
-                logger.warn("Could not close websocket session.", e);
-            }
-        });
-		sessions.clear();
+			Set<String> userTags;
+			synchronized (s.getAttributes()) {
+				userTags = (Set<String>) s.getAttributes().get(USER_TAGS_ATTRIBUTE);
+			}
+			if (userTags == null || (!userTags.contains("+" + userTag.substring(1))
+				&& !userTags.contains("_" + userTag.substring(1)))) return;
+			sessions.remove(s);
+			try {
+				s.close(CloseStatus.SERVICE_RESTARTED);
+			} catch (IOException e) {
+				logger.warn("{} Could not close websocket session for {}.", origin, userTag, e);
+			}
+		});
+	}
+
+	private static void addUserTag(Map<String, Object> attributes, String userTag) {
+		synchronized (attributes) {
+			@SuppressWarnings("unchecked")
+			var userTags = (Set<String>) attributes.computeIfAbsent(USER_TAGS_ATTRIBUTE, k -> ConcurrentHashMap.newKeySet());
+			userTags.add(userTag);
+		}
+	}
+
+	/**
+	 * Authenticate the session from its handshake headers. Called for every
+	 * subscription so that user changes since the handshake are applied
+	 * regardless of the SockJS transport.
+	 */
+	private Authentication sessionAuthentication(Map<String, Object> attributes) {
+		var origin = (String) attributes.get("origin");
+		var token = (String) attributes.get("jwt");
+		return token != null && tokenProvider.validateToken(token, origin)
+			? tokenProvider.getAuthentication(token, origin)
+			: defaultTokenProvider.getAuthentication(null, origin);
 	}
 
 	class StompHandshakeInterceptor implements HandshakeInterceptor {
@@ -205,9 +242,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 			try {
 				var wsAttributes = (WebSocketRequestAttributes) attributes.get("wsAttributes");
 				RequestContextHolder.setRequestAttributes(wsAttributes);
-				if (!attributes.containsKey("jwt")) return defaultTokenProvider.getAuthentication(null, origin);
-				var token = (String) attributes.get("jwt");
-				return tokenProvider.validateToken(token, origin) ? tokenProvider.getAuthentication(token, origin) : defaultTokenProvider.getAuthentication(null, origin);
+				return sessionAuthentication(attributes);
 			} finally {
 				RequestContextHolder.resetRequestAttributes();
 			}
@@ -225,29 +260,38 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 				if (accessor.getCommand() != StompCommand.SUBSCRIBE) return message;
 				var wsAttributes = (WebSocketRequestAttributes) accessor.getSessionAttributes().get("wsAttributes");
 				RequestContextHolder.setRequestAttributes(wsAttributes);
-				auth = authFactory.create();
-				if (accessor.getUser() instanceof Authentication authentication) {
-					auth.clear(authentication);
-					logger.debug("{} STOMP User Set {}", auth.getOrigin(), auth.getUserTag());
-					@SuppressWarnings("unchecked")
-					var headers = (Map<String, ArrayList<String>>) message.getHeaders().get("nativeHeaders", Map.class);
-					if (headers != null && headers.get("jwt") != null && headers.get("jwt").size() > 0) {
-						var token = headers.get("jwt").get(0);
-						var origin = auth.getOrigin();
-						if  (tokenProvider.validateToken(token, origin)) {
-							auth.clear(tokenProvider.getAuthentication(token, origin));
-							logger.debug("{} STOMP SUBSCRIBE Credentials Header {}", auth.getOrigin(), auth.getUserTag());
+				long revision;
+				boolean allowed;
+				do {
+					revision = userRevision.get();
+					auth = authFactory.create();
+					if (accessor.getUser() instanceof Authentication) {
+						// Re-authenticate instead of using the handshake principal, which may predate a user update
+						auth.clear(sessionAuthentication(accessor.getSessionAttributes()));
+						logger.debug("{} STOMP User Set {}", auth.getOrigin(), auth.getUserTag());
+						@SuppressWarnings("unchecked")
+						var headers = (Map<String, ArrayList<String>>) message.getHeaders().get("nativeHeaders", Map.class);
+						if (headers != null && headers.get("jwt") != null && headers.get("jwt").size() > 0) {
+							var token = headers.get("jwt").get(0);
+							var origin = auth.getOrigin();
+							if  (tokenProvider.validateToken(token, origin)) {
+								auth.clear(tokenProvider.getAuthentication(token, origin));
+								logger.debug("{} STOMP SUBSCRIBE Credentials Header {}", auth.getOrigin(), auth.getUserTag());
+							}
 						}
+					} else {
+						auth.clear(defaultTokenProvider.getAuthentication(null, props.getOrigin()));
+						logger.debug("{} STOMP Default auth {}", auth.getOrigin(), auth.getUserTag());
 					}
-				} else {
-					auth.clear(defaultTokenProvider.getAuthentication(null, props.getOrigin()));
-					logger.debug("{} STOMP Default auth {}", auth.getOrigin(), auth.getUserTag());
-				}
-				if (!configs.root().web(auth.getOrigin())) {
-					logger.error("{} No web access for origin", auth.getOrigin());
-					return null;
-				}
-				if (auth.canSubscribeTo(accessor.getDestination())) return message;
+					if (!configs.root().web(auth.getOrigin())) {
+						logger.error("{} No web access for origin", auth.getOrigin());
+						return null;
+					}
+					allowed = auth.canSubscribeTo(accessor.getDestination());
+					if (allowed && auth.isLoggedIn()) addUserTag(accessor.getSessionAttributes(), auth.getUserTag().toString());
+					// Authorize again if a user was updated while authorizing
+				} while (revision != userRevision.get());
+				if (allowed) return message;
 				logger.warn("{} {} can't subscribe to {}", auth.getOrigin(), auth.getUserTag(), accessor.getDestination());
 			} catch (Exception e) {
 				logger.error("{} Cannot authorize websocket subscription.", auth == null ? props.getOrigin() : auth.getOrigin(), e);

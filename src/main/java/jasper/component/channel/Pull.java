@@ -152,10 +152,12 @@ public class Pull {
 			var stomp = getWebSocketStompClient();
 			stomp.setDefaultHeartbeat(new long[]{10000, 10000});
 			stomp.setTaskScheduler(taskScheduler);
+			// Not in the pulls map until this compute returns, which may be after connecting
+			var connected = new AtomicBoolean();
 			var handler = new StompSessionHandlerAdapter() {
 				@Override
 				public void afterConnected(StompSession session, StompHeaders connectedHeaders) {
-					pulls.get(localOrigin).connected.set(true);
+					connected.set(true);
 					retryCounts.remove(localOrigin);
 					handleCursorUpdate(remote.getOrigin(), localOrigin, null);
 					session.subscribe("/topic/cursor/" + formatOrigin(remoteOrigin), new StompFrameHandler() {
@@ -173,7 +175,7 @@ public class Pull {
 
 				@Override
 				public void handleTransportError(StompSession session, Throwable exception) {
-					pulls.get(localOrigin).connected.set(false);
+					connected.set(false);
 					logger.debug("{} Websocket Client Transport error: {}", remote.getOrigin(), exception.getMessage());
 					stomp.stop();
 					scheduleReconnect(update, localOrigin);
@@ -206,7 +208,7 @@ public class Pull {
 				scheduleReconnect(update, localOrigin);
 				return null;
 			}
-			return new MonitorInfo(remote.getUrl(), remote.getOrigin(), stomp, url.toString(), new AtomicBoolean());
+			return new MonitorInfo(remote.getUrl(), remote.getOrigin(), stomp, url.toString(), connected);
 		});
 	}
 
@@ -217,7 +219,7 @@ public class Pull {
 			var maybeRemote = refRepository.findOneByUrlAndOrigin(info.url, info.origin);
 			if (maybeRemote.isPresent()) {
 				var remote = maybeRemote.get();
-				if (remote.getPluginResponses("+plugin/user/run") == 0 && isPulling.putIfAbsent(local, true) == null) {
+				if (!remote.hasPluginResponse("+plugin/user/run") && isPulling.putIfAbsent(local, true) == null) {
 					taskScheduler.schedule(() -> {
 						var config = getOrigin(remote);
 						var localOrigin = subOrigin(remote.getOrigin(), config.getLocal());

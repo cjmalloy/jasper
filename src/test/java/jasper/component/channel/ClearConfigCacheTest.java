@@ -40,9 +40,12 @@ class ClearConfigCacheTest {
 		var template = new TemplateDto();
 		template.setOrigin("@template");
 
-		clearConfigCache.handleUserUpdate(MessageBuilder.withPayload(user).build());
-		clearConfigCache.handlePluginUpdate(MessageBuilder.withPayload(plugin).build());
-		clearConfigCache.handleTemplateUpdate(MessageBuilder.withPayload(template).build());
+		clearConfigCache.handleUserUpdate(MessageBuilder.withPayload(user)
+			.setHeader("origin", "@user").build());
+		clearConfigCache.handlePluginUpdate(MessageBuilder.withPayload(plugin)
+			.setHeader("origin", "@plugin").build());
+		clearConfigCache.handleTemplateUpdate(MessageBuilder.withPayload(template)
+			.setHeader("origin", "@template").build());
 
 		verify(configs).clearUserCache("@user");
 		verify(configs).clearPluginCache("@plugin");

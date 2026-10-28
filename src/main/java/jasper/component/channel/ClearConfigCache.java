@@ -20,6 +20,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import static jasper.domain.proj.HasOrigin.origin;
+
 @Component
 public class ClearConfigCache {
 
@@ -66,18 +68,18 @@ public class ClearConfigCache {
 	@Order(Ordered.HIGHEST_PRECEDENCE)
 	@ServiceActivator(inputChannel = "userRxChannel")
 	public void handleUserUpdate(Message<UserDto> message) {
-		configs.clearUserCache(message.getPayload().getOrigin());
+		configs.clearUserCache(origin(Objects.toString(message.getHeaders().get("origin"), "")));
 	}
 
 	@Order(Ordered.HIGHEST_PRECEDENCE)
 	@ServiceActivator(inputChannel = "pluginRxChannel")
 	public void handlePluginUpdate(Message<PluginDto> message) {
-		configs.clearPluginCache(message.getPayload().getOrigin());
+		configs.clearPluginCache(origin(Objects.toString(message.getHeaders().get("origin"), "")));
 	}
 
 	@Order(Ordered.HIGHEST_PRECEDENCE)
 	@ServiceActivator(inputChannel = "templateRxChannel")
 	public void handleTemplateUpdate(Message<TemplateDto> message) {
-		configs.clearTemplateCache(message.getPayload().getOrigin());
+		configs.clearTemplateCache(origin(Objects.toString(message.getHeaders().get("origin"), "")));
 	}
 }

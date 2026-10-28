@@ -4,11 +4,15 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import jasper.IntegrationTest;
 import jasper.domain.Ref;
 import jasper.repository.RefRepository;
+import jasper.repository.filter.RefFilter;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.test.context.support.WithMockUser;
+import org.springframework.test.util.AopTestUtils;
 
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -26,6 +30,9 @@ public class TaggerIT {
 
 	@Autowired
 	ObjectMapper objectMapper;
+
+	@Autowired
+	Ingest ingest;
 
 	static final String URL = "https://www.example.com/";
 
@@ -49,6 +56,27 @@ public class TaggerIT {
 	@BeforeEach
 	void init() {
 		refRepository.deleteAll();
+	}
+
+	@Test
+	void testDebugRefWriteAttachesLogs() {
+		tagger.tag(URL, "", "+plugin/debug");
+
+		var logs = refRepository.findAll().stream()
+			.filter(r -> r.hasTag("+plugin/log"))
+			.toList();
+		assertThat(logs).hasSize(1);
+		assertThat(logs.getFirst().getSources()).containsExactly(URL);
+		assertThat(logs.getFirst().getTitle()).isEqualTo("+plugin/debug Ingest create");
+		assertThat(logs.getFirst().getComment()).contains("jasper.component.Tagger.tag");
+	}
+
+	@Test
+	void testNonDebugRefWriteDoesNotAttachLogs() {
+		tagger.tag(URL, "", "test");
+
+		assertThat(refRepository.findAll().stream().filter(r -> r.hasTag("+plugin/log")))
+			.isEmpty();
 	}
 
 	@Test
@@ -164,6 +192,85 @@ public class TaggerIT {
 	}
 
 	@Test
+	void testSilentPluginEmptyOriginDoesNotMoveCursor() {
+		tagger.silentPlugin(URL + 1, "Test", "@other", "plugin/test", objectMapper.createObjectNode());
+		tagger.silentPlugin(URL + 2, "Test", "@other", "plugin/test", objectMapper.createObjectNode());
+
+		assertThat(refRepository.getCursor("@other"))
+			.isNull();
+		assertThat(refRepository.findOneByUrlAndOrigin(URL + 2, "@other").get().getMetadata().isIgnored())
+			.isTrue();
+	}
+
+	@Test
+	void testSilentPluginIgnoredUntilOverwritten() {
+		remoteRefWithTags(URL + 1, "@other");
+		var cursor = refRepository.getCursor("@other");
+		tagger.silentPlugin(URL + 2, "Test", "@other", "plugin/test", objectMapper.createObjectNode());
+
+		assertThat(refRepository.getCursor("@other"))
+			.isEqualTo(cursor);
+
+		var pulled = new Ref();
+		pulled.setUrl(URL + 2);
+		pulled.setOrigin("@other");
+		pulled.setTags(new ArrayList<>(List.of("test")));
+		pulled.setModified(Instant.now().plusSeconds(1).truncatedTo(ChronoUnit.MILLIS));
+		ingest.push("@other", pulled, false, false);
+
+		var fetched = refRepository.findOneByUrlAndOrigin(URL + 2, "@other").get();
+		assertThat(fetched.getMetadata().isIgnored())
+			.isFalse();
+		assertThat(refRepository.getCursor("@other"))
+			.isEqualTo(pulled.getModified());
+	}
+
+	@Test
+	void testPulledBatchIgnoredUntilCleared() {
+		remoteRefWithTags(URL + 1, "@other");
+		var cursor = refRepository.getCursor("@other");
+
+		var pulled = new Ref();
+		pulled.setUrl(URL + 2);
+		pulled.setOrigin("@other");
+		pulled.setTags(new ArrayList<>(List.of("test")));
+		pulled.setModified(Instant.now().plusSeconds(1).truncatedTo(ChronoUnit.MILLIS));
+		ingest.push("@other", pulled, false, false, true);
+
+		assertThat(refRepository.findOneByUrlAndOrigin(URL + 2, "@other").get().getMetadata().isIgnored())
+			.isTrue();
+		assertThat(refRepository.getCursor("@other"))
+			.isEqualTo(cursor);
+
+		refRepository.clearIgnored("@other", pulled.getModified());
+		assertThat(refRepository.findOneByUrlAndOrigin(URL + 2, "@other").get().getMetadata().isIgnored())
+			.isFalse();
+		assertThat(refRepository.getCursor("@other"))
+			.isEqualTo(pulled.getModified());
+	}
+
+	@Test
+	void testSilentPluginNotReplicatedUntilNewerPull() {
+		remoteRefWithTags(URL + 1, "@other");
+		tagger.silentPlugin(URL + 2, "Test", "@other", "plugin/test", objectMapper.createObjectNode());
+
+		assertThat(refRepository.findAll(RefFilter.builder().origin("@other").ignored(false).build().spec()))
+			.extracting(Ref::getUrl)
+			.containsExactly(URL + 1);
+
+		var silent = refRepository.findOneByUrlAndOrigin(URL + 2, "@other").get();
+		refRepository.clearIgnored("@other", silent.getModified().minusMillis(1));
+		assertThat(refRepository.findOneByUrlAndOrigin(URL + 2, "@other").get().getMetadata().isIgnored())
+			.isTrue();
+
+		refRepository.clearIgnored("@other", silent.getModified());
+		assertThat(refRepository.findOneByUrlAndOrigin(URL + 2, "@other").get().getMetadata().isIgnored())
+			.isFalse();
+		assertThat(refRepository.getCursor("@other"))
+			.isEqualTo(silent.getModified());
+	}
+
+	@Test
 	void testSilentPluginExistingRemoteRef() {
 		remoteRefWithTags(URL, "@other");
 
@@ -174,6 +281,36 @@ public class TaggerIT {
 		var fetched = refRepository.findOneByUrlAndOrigin(URL, "@other").get();
 		assertThat(fetched.getTags())
 			.contains("plugin/test");
+	}
+
+	@Test
+	void testRemoveAllResponsesSkipsSubOrigins() {
+		refWithTags(URL);
+		for (var origin : List.of("", "@sub")) {
+			var res = new Ref();
+			res.setUrl("tag:/user/tester?url=" + URL);
+			res.setOrigin(origin);
+			res.setSources(new ArrayList<>(List.of(URL)));
+			res.setTags(new ArrayList<>(List.of("internal", "+user/tester", "+plugin/user/run")));
+			refRepository.save(res);
+		}
+		var other = new Ref();
+		other.setUrl("tag:/user/other?url=" + URL);
+		other.setOrigin("@sub");
+		other.setSources(new ArrayList<>(List.of(URL)));
+		other.setTags(new ArrayList<>(List.of("internal", "+user/other", "+plugin/user/run")));
+		refRepository.save(other);
+
+		((Tagger) AopTestUtils.getUltimateTargetObject(tagger)).removeAllResponses(URL, "", "+plugin/user/run");
+
+		assertThat(refRepository.findOneByUrlAndOrigin("tag:/user/tester?url=" + URL, "").get().getTags())
+			.doesNotContain("+plugin/user/run");
+		assertThat(refRepository.findOneByUrlAndOrigin("tag:/user/tester?url=" + URL, "@sub").get().getTags())
+			.contains("+plugin/user/run");
+		assertThat(refRepository.findOneByUrlAndOrigin("tag:/user/other?url=" + URL, "@sub").get().getTags())
+			.contains("+plugin/user/run");
+		assertThat(refRepository.findOneByUrlAndOrigin("tag:/user/other?url=" + URL, ""))
+			.isEmpty();
 	}
 
 }

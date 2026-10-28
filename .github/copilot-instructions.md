@@ -2,7 +2,7 @@
 
 Follow these instructions first. Only fall back to further search if something here is incomplete or proven wrong; if you find it wrong, fix this file in the same PR.
 
-Jasper is a Spring Boot 4.1 / Java 25 Maven project (single module plus a separate `gatling/` load-test module). There is **no** `package.json`, npm lockfile or frontend build in this repo: Bun and Python are only *runtimes* used by plugin scripts and their tests.
+Jasper is a Spring Boot 4.1 / Java 25 Maven project (single module plus a separate `gatling/` load-test module and an `e2e/` Playwright module). The only `package.json`/lockfile is `e2e/` (Playwright, runs in Docker); there is no frontend build. Bun and Python are only *runtimes* used by plugin scripts and their tests.
 
 ## TL;DR — verified command sequence
 
@@ -91,21 +91,45 @@ docker rmi "$BASE"    # always remove the shadow afterwards
 
 ## Load testing (Gatling)
 
-Simulations live in `gatling/src/test/java/simulations/jasper/`: `SmokeTest`, `Comprehensive`, `UserJourney`, `StressTest`, `Inferno` (class name = `<name>Simulation`).
+Simulations live in `gatling/src/test/java/simulations/jasper/` (class name = `<name>Simulation`): `SmokeTest`, `Regression` (both gate CI), `Capacity`, `Inferno`, `RateLimit` (informational, multi-origin gradient: are quiet origins protected?), `ReadOnly` (production profile), plus `Seed` and `Cleanup`. Shared code: `LoadConfig` (`LT_*` settings), `Dataset` (generated seed data), `Workload` (jasper-ui request chains). See `gatling/README.md`.
 
 ```bash
 cd gatling
-# Everything in Docker (what CI does); default GATLING_TEST=SmokeTest
+# Everything in Docker (what CI does): run.sh seeds @loadtest, runs GATLING_TEST, exits with Gatling's exit code
 GATLING_TEST=SmokeTest docker compose --profile lt up --build --exit-code-from gatling
 docker compose -f docker-compose.sqlite.yaml --profile lt up --build --exit-code-from gatling
 
-# Faster: servers in Docker, Gatling on the host JVM (SmokeTest ~30s, verified)
-docker compose up -d --build        # web on :8081, repl-web on :8083 (needs PKIX workaround in the sandbox)
+# Faster: server in Docker, Gatling on the host JVM (verified: Seed ~75s, SmokeTest ~10s, Regression ~4.5min)
+docker compose up -d --build --wait web upstream   # needs the PKIX workaround in the sandbox
+export LT_UPSTREAM=http://upstream
+../mvnw -B gatling:test -Dgatling.simulationClass=simulations.jasper.SeedSimulation
 ../mvnw -B gatling:test -Dgatling.simulationClass=simulations.jasper.SmokeTestSimulation
 docker compose down
 ```
 - The gatling stack also binds port 8081: stop the root compose stack / local app first.
-- When adding a simulation, ALWAYS add a matching `GATLING_TEST=YourNewTest` step to `.github/workflows/gatling.yml`.
+- Requests use per-user JWTs signed with the jasper-ui debug secret and the `Local-Origin: @loadtest` header; the stack sets `JASPER_OVERRIDE_SERVER_WEB_ORIGINS: '@*'` so the sub-origin has web access (otherwise every request is anonymous and writes get 403).
+- The server rotates the `XSRF-TOKEN` cookie on every response: `Workload.req` copies the current cookie into `X-XSRF-TOKEN` before each request. Use it (or `Workload.csrf()`) for new requests.
+- Pushed entities need unique `modified` timestamps per origin or the push returns 409: `Dataset.uniqueModified`.
+- Gatling DEBUG logging of failed requests: add `src/test/resources/logback-test.xml` with `<logger name="io.gatling.http.engine.response" level="DEBUG"/>` (don't commit it).
+- When adding a simulation, ALWAYS add a matching `Run <Name>` step to `.github/workflows/gatling.yml`, a card in `gatling/gen-index.sh` and the name in `ORDER` in `gatling/report-stats.py`.
+
+## End-to-end tests (Playwright)
+
+`e2e/` is a separate npm module (`@playwright/test` pinned, `package-lock.json` committed). Everything runs in Docker; host Node is only needed for `npm run`.
+
+```bash
+cd e2e
+npm run ci            # postgres stack + tests, ~3 min with a warm build cache, 26 tests ~40s
+npm run ci:sqlite     # same with sqlite in-memory servers
+npm run down          # / down:sqlite — ALWAYS tear down (volumes keep state)
+# Iterate against a running stack:
+docker compose up --build -d --wait && docker compose --profile ci run --rm playwright
+```
+- Stack: `client` (jasper-ui, :8080), `web` (:8081, JWT; tests use the jasper-ui debug HS256 secret or `?debug=ADMIN` in the UI), `repl-web` (:8083, `@repl`, default role admin, file cache; install `_plugin/cache` before uploading), `tunnel-web` (:8085, ssh origins `@open,@tunnel`, default role admin) and `ssh` (jasper-ssh). Don't use `X-Jasper-Key` (Electron only).
+- Never use `docker compose up --exit-code-from`: jasper-ssh restarts itself when `authorized_keys` changes, which aborts the whole stack.
+- Report files are written by root inside the container: `sudo rm -rf e2e/reports e2e/test-results` locally.
+- Builds `..` (the root Dockerfile), so the PKIX sandbox workaround above applies.
+- New spec files go in `e2e/tests/` and are picked up automatically by `.github/workflows/e2e.yml` (matrix postgres/sqlite, PR comment, `e2e-reports-*` artifacts published to `reports/latest-e2e/` by `pages.yml`).
 
 ## Problems hit during a mock debug session and how to avoid them
 
@@ -124,13 +148,15 @@ docker compose down
 | Docker build `PKIX path building failed` | Sandbox TLS-intercepting proxy | See "PKIX error inside Docker" above. |
 | `bind: address already in use` on 8081 | Local app, root compose and gatling compose all use 8081 | Run only one at a time; `docker compose down` / stop the async shell. |
 | Maven seems hung on first build | Downloading dependencies | Wait; first build downloads hundreds of MB. Use `-B` to avoid progress spam. |
-| Lockfile / dependency-version drift | Not npm here: there is no JS lockfile. Drift happens between Bun versions (Dockerfile pins `oven/bun:1.4.2-slim`; CI `setup-bun` and the install script take latest) and between Maven image tags (`Dockerfile` vs `gatling/Dockerfile`) | Don't add `package.json`/lockfiles. If a JS test behaves differently locally vs Docker, install the pinned version: `curl -fsSL https://bun.sh/install \| bash -s bun-v1.4.2`. Versions in `pom.xml` are the source of truth; Dependabot updates them. |
+| Lockfile / dependency-version drift | The `e2e/` module has an npm lockfile; elsewhere, drift happens between Bun versions (Dockerfile pins `oven/bun:1.4.4-slim`; CI `setup-bun` and the install script take latest) and between Maven image tags (`Dockerfile` vs `gatling/Dockerfile`) | Don't add `package.json`/lockfiles outside `e2e/`. If a JS test behaves differently locally vs Docker, install the pinned version: `curl -fsSL https://bun.sh/install \| bash -s bun-v1.4.4`. Versions in `pom.xml` are the source of truth; Dependabot updates them. |
 
 ## CI (`.github/workflows/`)
 
 - `test.yml` — builds the Docker image; test matrix: **postgres** (Docker `test` stage + Testcontainers) and **sqlite** (`./mvnw test surefire-report:report -Dspring.profiles.active=test,sqlite,scripts` with Java 25, `setup-bun`, Python 3). Posts a results/coverage comment on PRs.
-- `gatling.yml` — every simulation against postgres (g1gc, parallel, zgc) and sqlite (g1gc).
+- `e2e.yml` — Playwright suite in `e2e/` against postgres and sqlite stacks; PR comment, step summary, reports to Pages (`latest-e2e`).
+- `gatling.yml` — SmokeTest, Regression, Capacity, Inferno, RateLimit against postgres (g1gc, parallel, zgc); sqlite (g1gc) skips Inferno and RateLimit. Regression is diffed per request against the `gatling-baseline-*` artifact from master (`gatling/report-stats.py`).
 - `codeql.yml`, `publish.yml` (GHCR images), `release.yml` (draft releases with JARs), `pages.yml` (reports/docs), `cleanup.yml` (stale PR caches/artifacts).
+- `pages.yml` runs on `workflow_run` after Test/E2E/Load Test, but those runs need a separate approval when Copilot triggered the original run. Each `clean` job therefore dispatches `pages.yml` itself when `github.actor == 'Copilot'` (needs `actions: write`), so approving the test runs also publishes their reports.
 - Investigate CI failures with the GitHub Actions tools (list runs → job logs) rather than guessing.
 
 ## Validation checklist before finishing
@@ -150,6 +176,7 @@ jasper/
 ├── .m2/settings.xml          # Maven settings used by the Dockerfile (mirror commented out)
 ├── docker/entrypoint.sh      # Container entrypoint (heap/GC flags)
 ├── docs/, _config.yml, _includes/  # GitHub Pages docs
+├── e2e/                      # Playwright e2e tests (own package.json, Dockerfile and compose files)
 ├── gatling/                  # Separate Maven project for load tests (own Dockerfile and compose files)
 ├── src/main/java/jasper/
 │   ├── aop/ client/ component/ config/ domain/ errors/
@@ -182,6 +209,15 @@ jasper/
 **Locality:**
 - Keep a readable single-use expression at its call site instead of extracting it into a temporary variable.
 - Treat `src/main/java/jasper/security/Auth.java` as the authoritative security specification; avoid cosmetic refactors that reduce locality or obscure authorization decisions.
+
+**Replicated origins:**
+- Pulled origins only get silent plugin data writes, new Refs marked `ignored` so they don't count in the pull cursor, are never replicated until a pulled batch has a newer Ref (`Tagger.silentPlugin`); pulled Refs are also ingested as `ignored` and the whole batch is cleared in one update only after it is fully ingested, so a failed batch never moves the cursor; logs stamped `now` go to the origin owning the `+plugin/origin` Ref (`Tagger.attachLogs`). See "Logs and errors on replicated origins" in `README.md`.
+
+## Truncated PR comments
+
+PR comments shown in the task prompt are often cut off (e.g. ending in `...`). Never guess the rest and never ask the author to re-post. ALWAYS fetch the full text before acting:
+- `github-mcp-server-pull_request_read` with `method: get_comments` (PR conversation) or `get_review_comments` (inline review threads), `owner: cjmalloy`, `repo: jasper`, `pullNumber: <PR>`.
+- The output is usually large and gets saved to a file: filter it by comment id with `jq -r '.[] | select(.id==<id>) | .body' <file>`.
 
 ## Code drift check
 

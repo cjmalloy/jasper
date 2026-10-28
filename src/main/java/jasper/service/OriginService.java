@@ -89,10 +89,10 @@ public class OriginService {
 			templateRepository.deleteByOriginAndModifiedLessThanEqual(origin, olderThan);
 		}
 		logger.info("{} Finished deleting origin {} older than {} in {}", auth.getOrigin(), origin, olderThan, Duration.between(start, Instant.now()));
+		configs.clearUserCache(origin);
+		configs.clearPluginCache(origin);
+		configs.clearTemplateCache(origin);
 		if (props.getOrigin().equals(origin)) {
-			configs.clearUserCache(origin);
-			configs.clearPluginCache(origin);
-			configs.clearTemplateCache(origin);
 			configs.clearConfigCache(origin);
 		}
 	}

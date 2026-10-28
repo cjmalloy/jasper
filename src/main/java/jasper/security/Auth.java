@@ -301,7 +301,8 @@ public class Auth {
 		// Tag URLs
 		if (tagUrl(url)) return canReadTag(urlToTag(url) + origin);
 		var maybeExisting = refRepository.findOneByUrlAndOrigin(url, origin);
-		return maybeExisting.filter(this::canReadRef).isPresent();
+		// Missing Refs can be watched for in a readable origin
+		return maybeExisting.map(this::canReadRef).orElseGet(() -> canReadOrigin(origin));
 	}
 
 	/**
@@ -626,7 +627,7 @@ public class Auth {
 	}
 
 	/**
-	 * Silently remove sorts that reference private plugins the user cannot read.
+	 * Silently remove sorts that reference private plugins or tags the user cannot read.
 	 */
 	public Pageable pageable(Pageable pageable) {
 		if (pageable == null || pageable.getSort().isUnsorted()) return pageable;
@@ -640,6 +641,8 @@ public class Auth {
 					afterPrefix = property.substring("plugins->".length());
 				} else if (property.startsWith("metadata->plugins->")) {
 					afterPrefix = property.substring("metadata->plugins->".length());
+				} else if (property.startsWith("tags->")) {
+					afterPrefix = property.substring("tags->".length());
 				} else {
 					return true;
 				}
@@ -924,25 +927,24 @@ public class Auth {
 
 	public String getOrigin() {
 		if (origin == null) {
-			origin = props.getOrigin();
-			var originHeader = getOriginHeader();
-			if (originHeader != null && isSubOrigin(props.getLocalOrigin(), originHeader)) {
-				origin = originHeader;
-			}
+			origin = RequestContextHolder.getRequestAttributes() instanceof ServletRequestAttributes attribs
+				? resolveOrigin(props, attribs.getRequest().getHeader(LOCAL_ORIGIN_HEADER))
+				: props.getOrigin();
 		}
 		return origin;
 	}
 
-	private static String getOriginHeader() {
-		if (RequestContextHolder.getRequestAttributes() instanceof ServletRequestAttributes attribs) {
-			var originHeader = attribs.getRequest().getHeader(LOCAL_ORIGIN_HEADER);
-			logger.trace("{}: {}", LOCAL_ORIGIN_HEADER, originHeader);
-			if (isBlank(originHeader)) return null;
-			originHeader = originHeader.toLowerCase();
-			if ("default".equals(originHeader)) return "";
-			if (originHeader.matches(HasOrigin.REGEX)) return originHeader;
-		}
-		return null;
+	/**
+	 * Origin of a request from the Local-Origin header. Only depends on the header, so it can be
+	 * used before authentication (JWT validation and rate limiting).
+	 */
+	public static String resolveOrigin(Props props, String originHeader) {
+		logger.trace("{}: {}", LOCAL_ORIGIN_HEADER, originHeader);
+		if (isBlank(originHeader)) return props.getOrigin();
+		originHeader = originHeader.toLowerCase();
+		if ("default".equals(originHeader)) originHeader = "";
+		if (originHeader.matches(HasOrigin.REGEX) && isSubOrigin(props.getLocalOrigin(), originHeader)) return originHeader;
+		return props.getOrigin();
 	}
 
 	protected String getSubOrigins() {
