@@ -9,11 +9,11 @@ import static simulations.jasper.LoadConfig.*;
 
 /**
  * Step load with short think times to find maximum throughput.
- * Saturation is expected at the top steps, so there are no pass/fail assertions:
- * read the throughput and the step where errors and latency climb.
+ * The run stops once more than LT_MAX_ERROR_PERCENT (default 5%) of recent requests fail,
+ * so the last step reached and its throughput are the capacity, not the rejection rate.
  */
 public class CapacitySimulation extends Simulation {
-	Workload workload = new Workload(false, envDouble("LT_THINK", 0.1), 100);
+	Workload workload = new Workload(false, envDouble("LT_THINK", 0.1), envDouble("LT_MAX_ERROR_PERCENT", 5)).stopGracefully();
 	double step = envDouble("LT_CAPACITY_STEP", 4);
 	int levels = envInt("LT_CAPACITY_LEVELS", 10);
 	Duration level = envSeconds("LT_CAPACITY_LEVEL_SECONDS", 20);

@@ -7,8 +7,10 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.function.Function;
 
 import static io.gatling.javaapi.core.CoreDsl.*;
 import static io.gatling.javaapi.http.HttpDsl.*;
@@ -30,6 +32,7 @@ public class Workload {
 	final double think;
 	final double maxErrorPercent;
 	final ErrorGuard guard = new ErrorGuard(200, 50);
+	boolean crashOnErrors = true;
 
 	/**
 	 * @param readOnly never write (no writes, proxy or scrape requests)
@@ -74,6 +77,7 @@ public class Workload {
 				.set("subs", new ArrayList<>(subs))
 				.set("ws", random.nextDouble() < envDouble("LT_WS_SHARE", 0.3))
 				.set("pageUrls", List.of())
+				.set("pageRefs", List.of())
 				.set("pageTags", List.of());
 		})
 			.exec(startCsrf());
@@ -129,9 +133,19 @@ public class Workload {
 	 * Hard stop when the server is struggling, so a run against production backs off.
 	 */
 	public ChainBuilder stopOnErrors() {
-		return crashLoadGeneratorIf(
-			session -> "Stopping: " + guard.describe() + " exceeds LT_MAX_ERROR_PERCENT=" + maxErrorPercent,
-			session -> guard.exceeds(maxErrorPercent));
+		Function<Session, String> message = session -> "Stopping: " + guard.describe() + " exceeds LT_MAX_ERROR_PERCENT=" + maxErrorPercent;
+		Function<Session, Boolean> condition = session -> guard.exceeds(maxErrorPercent);
+		return crashOnErrors
+			? crashLoadGeneratorIf(message, condition)
+			: stopLoadGeneratorIf(message, condition);
+	}
+
+	/**
+	 * Stop the run normally instead of failing it when the error rate is exceeded.
+	 */
+	public Workload stopGracefully() {
+		crashOnErrors = false;
+		return this;
 	}
 
 	/**
@@ -187,6 +201,8 @@ public class Workload {
 			.queryParam("obsolete", "false")
 			.queryParam("size", "20")
 			.check(jsonPath("$.content[*].url").findAll().withDefault(List.of()).saveAs("pageUrls"))
+			// Default origin Refs omit the empty origin, so keep url and origin together
+			.check(jsonPath("$.content[*]").ofMap().findAll().withDefault(List.of()).saveAs("pageRefs"))
 			.check(jsonPath("$.content[*].tags[*]").findAll().withDefault(List.of()).saveAs("pageTags"));
 	}
 
@@ -271,7 +287,7 @@ public class Workload {
 	 * Open a Ref from the last page: the Ref, its comments, and sometimes its thread or graph.
 	 */
 	public ChainBuilder openRef() {
-		return doIf(session -> !session.getList("pageUrls").isEmpty()).then(
+		return doIf(session -> !session.getList("pageRefs").isEmpty()).then(
 			exec(getRef())
 				.randomSwitch().on(
 					percent(30.0).then(responses()),
@@ -280,11 +296,18 @@ public class Workload {
 
 	/** The Ref page and its comment thread. */
 	public ChainBuilder getRef() {
-		return exec(session -> session.set("openUrl", random(session.getList("pageUrls"))).remove("openSources"))
+		return exec(session -> {
+			// Feeds such as All Feed include Refs from other origins
+			Map<String, Object> ref = random(session.getList("pageRefs"));
+			return session
+				.set("openUrl", ref.get("url"))
+				.set("openOrigin", ref.getOrDefault("origin", ""))
+				.remove("openSources");
+		})
 			.exec(req(http("Get Ref")
 				.get("/api/v1/ref")
 				.queryParam("url", "#{openUrl}")
-				.queryParam("origin", origin)
+				.queryParam("origin", "#{openOrigin}")
 				.check(jsonPath("$.sources[*]").findAll().optional().saveAs("openSources"))))
 			.exec(req(http("Comments")
 				.get("/api/v1/ref/page")

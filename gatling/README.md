@@ -17,8 +17,8 @@ against a seeded knowledge base, as JWT authenticated users. They are meant for 
 | `SmokeTest`  | Functional check: one user per role sends every request type once                         | 3 users, 1 moderator, 1 admin                        | no failed requests             | fails the build             |
 | `Regression` | Realistic browsing at a fixed rate that does not saturate the server                        | 1 session/s for 30s ramp + 180s, sessions of 5–15 views | < 1% failed, p95 < 2s         | fails the build, diffed against master |
 | `ReadOnly`   | Production profile: the Regression mix without writes, proxy or scrape requests             | 0.2 sessions/s for 60s ramp + 300s                    | < 1% failed, p95 < 2s, stops at 2% | not run                    |
-| `Capacity`   | Step load with short think times to find maximum throughput                                 | +4 sessions/s every 25s, 10 steps                    | none (saturation is expected)  | informational              |
-| `Inferno`    | Robustness: two bursts far beyond capacity, then recovery probes                            | 20,000 then 5,000 sessions in 10s                     | recovery probes < 5% failed    | informational              |
+| `Capacity`   | Step load with short think times to find maximum throughput                                 | +4 sessions/s every 25s, 10 steps                    | stops at 5% errors, no assertions | informational              |
+| `Inferno`    | Robustness: two bursts well beyond capacity, then recovery probes 30s later                 | 3,000 then 1,000 sessions in 10s                      | recovery probes < 5% failed    | informational              |
 | `Seed`       | Fills the load test origin with a generated knowledge base. Skipped when already seeded     | 5,000 Refs                                           | no failed requests             | before every run           |
 | `Cleanup`    | Deletes the load test origin                                                               | 1 request                                            | no failed requests             | not run                    |
 
@@ -108,13 +108,14 @@ Every setting is read from a system property (`-DLT_RATE=2`) or an environment v
 | `LT_RATE`                 | 1 (ReadOnly 0.2)                 | Sessions started per second.                                                                        |
 | `LT_DURATION`             | 180 (ReadOnly 300)               | Seconds at full rate, after the ramp.                                                               |
 | `LT_THINK`                | 1 (Capacity 0.1)                 | Multiplier for think times.                                                                         |
-| `LT_MAX_ERROR_PERCENT`    | 10 (ReadOnly 2)                  | Stop the run when more of the last 200 requests fail.                                               |
+| `LT_MAX_ERROR_PERCENT`    | 10 (ReadOnly 2, Capacity 5)      | Stop the run when more of the last 200 requests fail. ReadOnly fails the run, Capacity ends it normally. |
 | `LT_USERS`                | 200                              | Distinct user names per role.                                                                       |
 | `LT_WS_SHARE`             | 0.3                              | Share of sessions with a websocket subscription.                                                    |
 | `LT_UPSTREAM`             | (none)                           | Static file server the server under test can reach. Without it proxy and scrape requests are skipped.|
 | `LT_TOPICS`               | 40 built in topics               | Comma separated topics for feeds, subscriptions and seeding.                                        |
 | `LT_SEED_REFS`            | 5000                             | Number of Refs `Seed` creates.                                                                      |
 | `LT_CAPACITY_STEP`, `LT_CAPACITY_LEVELS`, `LT_CAPACITY_LEVEL_SECONDS` | 4, 10, 20 | Capacity step size (sessions/s), number of steps and seconds per step.                |
+| `LT_INFERNO_BURST`        | 3000                             | Sessions in Inferno's first burst (the second is a third). Much larger bursts exhaust the load generator's connections before the server. |
 | `GATLING_TEST`            | `SmokeTest`                      | Simulation `run.sh` runs (Docker only).                                                             |
 | `LT_SKIP_SEED`            | `false`                          | Skip seeding in `run.sh`.                                                                           |
 

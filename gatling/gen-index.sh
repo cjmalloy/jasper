@@ -138,8 +138,8 @@ declare -A simulations=(
     ["SmokeTestSimulation"]="Smoke Test|One user per role sends every request type once. Every request must succeed."
     ["RegressionSimulation"]="Regression|Fixed-rate realistic browsing (1 session/s, 3.5min) that does not saturate the server. Compared per request against the master baseline. <1% errors, p95 < 2s."
     ["ReadOnlySimulation"]="Read Only|Production profile: browsing without writes, proxy or scrape requests, at a conservative rate."
-    ["CapacitySimulation"]="Capacity|Step load with short think times to find maximum throughput. Saturation is expected, no assertions."
-    ["InfernoSimulation"]="Inferno|Robustness only: two bursts far beyond capacity, then recovery probes must succeed (<5% errors)."
+    ["CapacitySimulation"]="Capacity|Step load with short think times to find maximum throughput. Stops once 5% of recent requests fail, no assertions."
+    ["InfernoSimulation"]="Inferno|Robustness only: two bursts well beyond capacity, then recovery probes 30s later must succeed (<5% errors)."
 )
 
 # Check for reports and generate cards

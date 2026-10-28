@@ -5,20 +5,25 @@ import io.gatling.javaapi.core.*;
 import java.time.Duration;
 
 import static io.gatling.javaapi.core.CoreDsl.*;
+import static simulations.jasper.LoadConfig.*;
 
 /**
- * Robustness test, not a performance signal: two bursts far beyond capacity,
+ * Robustness test, not a performance signal: two bursts well beyond capacity,
  * then check the server recovers.
  *
  * - 0-15s warmup trickle
- * - 15-25s burst of 20,000 sessions, then trickle
- * - 75-85s burst of 5,000 sessions, then trickle
- * - Recovery probes start 20s after each burst and must succeed
+ * - 15-25s burst of LT_INFERNO_BURST (default 3,000) sessions, then trickle
+ * - 85-95s burst of a third of that, then trickle
+ * - Recovery probes start 30s after each burst and must succeed
  *
+ * Bursts are sized to overload the server, not the load generator or Docker's port proxy:
+ * tens of thousands of sessions in a few seconds exhaust client connections first, and
+ * every request then fails with connection errors no matter how the server behaves.
  * Burst requests are expected to fail (429/503) and are not asserted on.
  */
 public class InfernoSimulation extends Simulation {
 	Workload workload = new Workload(false, 0, 100);
+	int burstSessions = envInt("LT_INFERNO_BURST", 3_000);
 
 	ScenarioBuilder burst = scenario("Inferno Burst")
 		.exec(workload.login("USER"))
@@ -38,14 +43,14 @@ public class InfernoSimulation extends Simulation {
 		setUp(
 			burst.injectOpen(
 				constantUsersPerSec(5).during(Duration.ofSeconds(15)),
-				rampUsers(20_000).during(Duration.ofSeconds(10)),
-				constantUsersPerSec(5).during(Duration.ofSeconds(50)),
-				rampUsers(5_000).during(Duration.ofSeconds(10)),
-				constantUsersPerSec(5).during(Duration.ofSeconds(50))),
+				rampUsers(burstSessions).during(Duration.ofSeconds(10)),
+				constantUsersPerSec(5).during(Duration.ofSeconds(60)),
+				rampUsers(burstSessions / 3).during(Duration.ofSeconds(10)),
+				constantUsersPerSec(5).during(Duration.ofSeconds(60))),
 			recovery.injectOpen(
-				nothingFor(Duration.ofSeconds(45)),
+				nothingFor(Duration.ofSeconds(55)),
 				constantUsersPerSec(2).during(Duration.ofSeconds(30)),
-				nothingFor(Duration.ofSeconds(30)),
+				nothingFor(Duration.ofSeconds(40)),
 				constantUsersPerSec(2).during(Duration.ofSeconds(30)))
 		).protocols(workload.protocol("Inferno"))
 			.maxDuration(Duration.ofMinutes(3))
