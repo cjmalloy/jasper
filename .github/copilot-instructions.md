@@ -150,6 +150,7 @@ docker compose up --build -d --wait && docker compose --profile ci run --rm play
 - `e2e.yml` — Playwright suite in `e2e/` against postgres and sqlite stacks; PR comment, step summary, reports to Pages (`latest-e2e`).
 - `gatling.yml` — every simulation against postgres (g1gc, parallel, zgc) and sqlite (g1gc).
 - `codeql.yml`, `publish.yml` (GHCR images), `release.yml` (draft releases with JARs), `pages.yml` (reports/docs), `cleanup.yml` (stale PR caches/artifacts).
+- `pages.yml` runs on `workflow_run` after Test/E2E/Load Test, but those runs need a separate approval when Copilot triggered the original run. Each `clean` job therefore dispatches `pages.yml` itself when `github.actor == 'Copilot'` (needs `actions: write`), so approving the test runs also publishes their reports.
 - Investigate CI failures with the GitHub Actions tools (list runs → job logs) rather than guessing.
 
 ## Validation checklist before finishing
