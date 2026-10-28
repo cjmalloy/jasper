@@ -18,8 +18,8 @@ against a seeded knowledge base, as JWT authenticated users. They are meant for 
 | `Regression` | Realistic browsing at a fixed rate that does not saturate the server                        | 1 session/s for 30s ramp + 180s, sessions of 5–15 views | < 1% failed, p95 < 2s         | fails the build, diffed against master |
 | `ReadOnly`   | Production profile: the Regression mix without writes, proxy or scrape requests             | 0.2 sessions/s for 60s ramp + 300s                    | < 1% failed, p95 < 2s, stops at 2% | not run                    |
 | `Capacity`   | Step load with short think times; reports the last step completed before 5% errors          | +4 sessions/s every 25s, 10 steps (+1 on SQLite in CI) | stops at 5% errors, no assertions | informational              |
-| `Inferno`    | Robustness: two bursts well beyond capacity, then recovery probes 30s later                 | 3,000 then 1,000 sessions in 10s                      | recovery probes < 5% failed    | informational              |
-| `RateLimit`  | Multi-origin Inferno with a per-origin rate limit (`_config/security`): bursts shrink by a gradient across `@loadtest` and seeded tenants `@loadtest.t1`… | 6 origins, bursts 3,000 down to 3 sessions, limit 20 req/s per origin (5 on SQLite in CI) | quiet origins < 5% failed, p95 < 5s | informational              |
+| `Inferno`    | Robustness: two bursts well beyond capacity, then recovery probes 30s later                 | 3,000 then 1,000 sessions in 10s (PostgreSQL only in CI) | recovery probes < 5% failed    | informational              |
+| `RateLimit`  | Multi-origin Inferno with a per-origin rate limit (`_config/security`): bursts shrink by a gradient across `@loadtest` and seeded tenants `@loadtest.t1`… | 6 origins, bursts 3,000 down to 3 sessions, limit 20 req/s per origin (PostgreSQL only in CI) | quiet origins < 5% failed, p95 < 5s | informational              |
 | `Seed`       | Fills the load test origin with a generated knowledge base. Skipped when already seeded     | 5,000 Refs                                           | no failed requests             | before every run           |
 | `Cleanup`    | Deletes the load test origin                                                               | 1 request                                            | no failed requests             | not run                    |
 
@@ -155,7 +155,7 @@ Never point `Capacity`, `Inferno` or `RateLimit` at a production server.
 ## CI
 
 `.github/workflows/gatling.yml` runs `SmokeTest`, `Regression`, `Capacity`, `Inferno` and `RateLimit` against PostgreSQL
-(G1, Parallel and ZGC) and SQLite (G1):
+(G1, Parallel and ZGC) and SQLite (G1, without `Inferno` and `RateLimit`, which take too long there):
 
 - `SmokeTest` and `Regression` fail the job when their assertions fail. `Capacity`, `Inferno` and `RateLimit` are `continue-on-error`
   and excluded from the aggregate. The OK (rps) column counts only successful requests: Gatling's throughput

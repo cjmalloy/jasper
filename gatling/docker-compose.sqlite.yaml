@@ -18,6 +18,7 @@ services:
       LT_SEED_REFS: "${LT_SEED_REFS:-}"
       LT_CAPACITY_STEP: "${LT_CAPACITY_STEP:-}"
       LT_RATE_LIMIT: "${LT_RATE_LIMIT:-}"
+      LT_SKIP_SEED: "${LT_SKIP_SEED:-}"
     # Separate CPU budgets (4 in total, a GitHub runner) so the load generator cannot starve the server or vice versa
     cpus: "${LT_GATLING_CPUS:-1}"
     volumes:
