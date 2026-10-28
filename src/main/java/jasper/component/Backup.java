@@ -41,6 +41,7 @@ import java.io.OutputStream;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -49,6 +50,7 @@ import java.util.stream.Stream;
 import static jasper.component.FileCache.CACHE;
 import static jasper.component.Replicator.isDeletorTag;
 import static jasper.domain.proj.Tag.matchesTag;
+import static org.apache.commons.lang3.StringUtils.isBlank;
 
 @Component
 public class Backup {
@@ -184,15 +186,34 @@ public class Backup {
 		}
 	}
 
+	/**
+	 * Read-only secondary backup storage, or null if not configured.
+	 */
+	private Storage secondary() {
+		return isBlank(props.getSecondaryBackupStorage()) ? null : new StorageImplLocal(props.getSecondaryBackupStorage());
+	}
+
+	/**
+	 * Storage containing the backup. Backups in the storage folder take precedence
+	 * over backups in the secondary backup storage.
+	 */
+	private Storage backupStorage(String origin, String id) {
+		if (storage.get().exists(origin, BACKUPS, id + ".zip")) return storage.get();
+		var secondary = secondary();
+		if (secondary != null && secondary.exists(origin, BACKUPS, id + ".zip")) return secondary;
+		return storage.get();
+	}
+
 	@Timed(value = "jasper.backup", histogram = true)
 	public BackupStream get(String origin, String id) {
 		if (storage.isEmpty()) {
 			logger.error("Backup get failed: No storage present.");
 			return null;
 		}
+		var s = backupStorage(origin, id);
 		return new BackupStream(
-			storage.get().stream(origin, BACKUPS, id + ".zip"),
-			storage.get().size(origin, BACKUPS, id + ".zip")
+			s.stream(origin, BACKUPS, id + ".zip"),
+			s.size(origin, BACKUPS, id + ".zip")
 		);
 	}
 
@@ -201,7 +222,7 @@ public class Backup {
 			logger.error("Backup exist check failed: No storage present.");
 			return false;
 		}
-		return storage.get().exists(origin, BACKUPS, id + ".zip");
+		return backupStorage(origin, id).exists(origin, BACKUPS, id + ".zip");
 	}
 
 	public List<Storage.StorageRef> listBackups(String origin) {
@@ -209,7 +230,11 @@ public class Backup {
 			logger.error("Backup list failed: No storage present.");
 			return null;
 		}
-		return storage.get().listStorage(origin, BACKUPS).stream()
+		var backups = new LinkedHashMap<String, Storage.StorageRef>();
+		storage.get().listStorage(origin, BACKUPS).forEach(b -> backups.put(b.id(), b));
+		var secondary = secondary();
+		if (secondary != null) secondary.listStorage(origin, BACKUPS).forEach(b -> backups.putIfAbsent(b.id(), b));
+		return backups.values().stream()
 			.filter(n -> n.id().endsWith(".zip")).toList();
 	}
 
@@ -223,7 +248,7 @@ public class Backup {
 		var start = Instant.now();
 		logger.info("{} Restoring Backup", origin);
 		var tombstones = options != null && options.isTombstones();
-		try (var zipped = storage.get().streamZip(origin, BACKUPS, id + ".zip")) {
+		try (var zipped = backupStorage(origin, id).streamZip(origin, BACKUPS, id + ".zip")) {
 			if (options == null || options.isRef()) {
 				restoreRepo(refRepository, origin, zipped.list("ref.*\\.json"), Ref.class, tombstones);
 			}
@@ -341,6 +366,10 @@ public class Backup {
 	public void delete(String origin, String id) throws IOException {
 		if (storage.isEmpty()) {
 			logger.error("Backup delete failed: No storage present.");
+			return;
+		}
+		if (!storage.get().exists(origin, BACKUPS, id + ".zip")) {
+			logger.warn("{} Backup delete skipped: {} is not in the storage folder. Secondary backup storage is read-only.", origin, id);
 			return;
 		}
 		storage.get().delete(origin, BACKUPS, id + ".zip");

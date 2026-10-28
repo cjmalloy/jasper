@@ -6,6 +6,7 @@ import jasper.domain.Ref;
 import jasper.errors.NotFoundException;
 import jasper.errors.ScrapeProtocolException;
 import jasper.plugin.Cache;
+import jasper.plugin.Tunnel.SftpMode;
 import jasper.repository.RefRepository;
 import jasper.repository.filter.RefFilter;
 import org.slf4j.Logger;
@@ -31,6 +32,7 @@ import static jasper.domain.proj.HasTags.hasMatchingTag;
 import static jasper.plugin.Cache.bannedOrBroken;
 import static jasper.plugin.Cache.getCache;
 import static jasper.plugin.Pull.getPull;
+import static jasper.plugin.Tunnel.getTunnel;
 import static jasper.util.Logging.getMessage;
 import static org.apache.commons.io.IOUtils.closeQuietly;
 import static org.apache.commons.lang3.StringUtils.isBlank;
@@ -59,6 +61,9 @@ public class FileCache {
 
 	@Autowired
 	Tagger tagger;
+
+	@Autowired
+	Replicator replicator;
 
 	@Timed(value = "jasper.cache")
 	@Bulkhead(name = "recycler")
@@ -125,6 +130,13 @@ public class FileCache {
 		tagger.debug(existing, "File cache fetch (refresh: " + refresh + ")");
 		var existingCache = getCache(existing);
 		if (bannedOrBroken(existingCache, refresh)) return null;
+		if (url.startsWith("cache:")) {
+			var remote = configs.getRemote(origin);
+			if (remote != null && hasMatchingTag(remote, "+plugin/origin/tunnel") && getTunnel(remote).getSftp() == SftpMode.STREAM) {
+				var stream = replicator.sftpStream(url, remote);
+				if (stream != null) return stream;
+			}
+		}
 		if (!refresh && existingCache != null && !existingCache.isNoStore() && storage.exists(origin, CACHE, existingCache.getId())) {
 			return storage.stream(origin, CACHE, existingCache.getId());
 		}

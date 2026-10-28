@@ -3,6 +3,7 @@ package jasper.component;
 import jasper.domain.proj.HasTags;
 import jasper.errors.InvalidTunnelException;
 import jasper.errors.RetryableTunnelException;
+import jasper.plugin.Tunnel.SftpMode;
 import jasper.errors.TunnelCooldownException;
 import jasper.repository.UserRepository;
 import org.apache.sshd.client.SshClient;
@@ -14,6 +15,8 @@ import org.apache.sshd.common.config.keys.KeyUtils;
 import org.apache.sshd.common.session.Session;
 import org.apache.sshd.common.session.SessionListener;
 import org.apache.sshd.common.util.net.SshdSocketAddress;
+import org.apache.sshd.sftp.client.SftpClient;
+import org.apache.sshd.sftp.client.SftpClientFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -22,6 +25,10 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import java.io.ByteArrayInputStream;
+import java.io.Closeable;
+import java.io.FilterInputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.time.Duration;
@@ -56,7 +63,7 @@ public class TunnelClient {
 	@Autowired
 	Tagger tagger;
 
-	record TunnelInfo(int tunnelPort, int connections, SshClient client) {}
+	record TunnelInfo(int tunnelPort, int connections, SshClient client, ClientSession session) {}
 	Map<String, TunnelInfo> tunnels = new ConcurrentHashMap<>();
 	static final Duration RETRY_COOLDOWN = Duration.ofSeconds(10);
 	Map<String, Instant> cooldowns = new ConcurrentHashMap<>();
@@ -123,7 +130,7 @@ public class TunnelClient {
 				var host = isNotBlank(tunnel.getSshHost()) ? tunnel.getSshHost() : url.getHost();
 				var username = linuxUsername(defaultOrigin(isNotBlank(tunnel.getRemoteUser()) ? tunnel.getRemoteUser() : user.get().getTag(), config.getRemote()));
 				var port = tunnel.getSshPort();
-				var tunnelPort = pooledConnection(remote.getOrigin(), host, username, port, serverKeyVerifier(remote), user.get().getKey());
+				var tunnelPort = pooledConnection(remote.getOrigin(), host, username, port, serverKeyVerifier(remote), user.get().getKey()).tunnelPort();
 				try {
 					request.go(new URI("http://localhost:" + tunnelPort));
 				} catch (Exception e) {
@@ -172,7 +179,7 @@ public class TunnelClient {
 			var host = isNotBlank(tunnel.getSshHost()) ? tunnel.getSshHost() : url.getHost();
 			var username = linuxUsername(defaultOrigin(isNotBlank(tunnel.getRemoteUser()) ? tunnel.getRemoteUser() : user.get().getTag(), config.getRemote()));
 			var port = tunnel.getSshPort();
-			var tunnelPort = pooledConnection(remote.getOrigin(), host, username, port, serverKeyVerifier(remote), user.get().getKey());
+			var tunnelPort = pooledConnection(remote.getOrigin(), host, username, port, serverKeyVerifier(remote), user.get().getKey()).tunnelPort();
 			try {
 				return new URI("http://localhost:" + tunnelPort);
 			} catch (URISyntaxException e) {
@@ -197,6 +204,86 @@ public class TunnelClient {
 				"Fatal error creating SSH tunnel for %s: %s".formatted(
 					remote.getTitle(), remote.getUrl()), getMessage(e));
 			throw e;
+		}
+	}
+
+	/**
+	 * Run an SFTP request over the pooled SSH tunnel session.
+	 * The remote must have SFTP enabled in its tunnel config, and the
+	 * remote SSH server must grant the user SFTP access.
+	 */
+	public void sftp(HasTags remote, SftpRequest request) throws IOException, RetryableTunnelException {
+		try (var connection = openSftp(remote)) {
+			request.go(connection.sftp());
+		}
+	}
+
+	/**
+	 * Stream a file over SFTP. The pooled SSH tunnel session is held until the stream is closed.
+	 * The remote must have SFTP enabled in its tunnel config, and the
+	 * remote SSH server must grant the user SFTP access.
+	 */
+	public InputStream sftpStream(HasTags remote, String path) throws IOException, RetryableTunnelException {
+		var connection = openSftp(remote);
+		try {
+			return new FilterInputStream(connection.sftp().read(path)) {
+				private boolean closed;
+
+				@Override
+				public synchronized void close() throws IOException {
+					if (closed) return;
+					closed = true;
+					try (connection) {
+						super.close();
+					}
+				}
+			};
+		} catch (IOException | RuntimeException e) {
+			connection.close();
+			throw e;
+		}
+	}
+
+	private SftpConnection openSftp(HasTags remote) throws IOException, RetryableTunnelException {
+		if (!hasMatchingTag(remote, "+plugin/origin/tunnel") || getTunnel(remote).getSftp() == null || getTunnel(remote).getSftp() == SftpMode.OFF) {
+			throw new InvalidTunnelException("SFTP requested, but tunnel does not have SFTP enabled.");
+		}
+		var config = getOrigin(remote);
+		URI url;
+		try {
+			url = new URI(isNotBlank(config.getProxy()) ? config.getProxy() : remote.getUrl());
+		} catch (URISyntaxException e) {
+			throw new InvalidTunnelException("Error parsing tunnel URI", e);
+		}
+		var users = authors(remote);
+		if (users.isEmpty()) {
+			throw new InvalidTunnelException("Tunnel requested, but no user signature to lookup private key.");
+		}
+		var user = userRepository.findOneByQualifiedTag(users.get(0) + remote.getOrigin());
+		if (user.isEmpty() || user.get().getKey() == null) {
+			throw new InvalidTunnelException("Tunnel requested, but user " + users.get(0) + " does not have a private key set.");
+		}
+		var tunnel = getTunnel(remote);
+		var host = isNotBlank(tunnel.getSshHost()) ? tunnel.getSshHost() : url.getHost();
+		var username = linuxUsername(defaultOrigin(isNotBlank(tunnel.getRemoteUser()) ? tunnel.getRemoteUser() : user.get().getTag(), config.getRemote()));
+		var port = tunnel.getSshPort();
+		var info = pooledConnection(remote.getOrigin(), host, username, port, serverKeyVerifier(remote), user.get().getKey());
+		try {
+			return new SftpConnection(SftpClientFactory.instance().createSftpClient(info.session()), () -> releaseTunnel(info.tunnelPort(), host, username, port));
+		} catch (IOException | RuntimeException e) {
+			releaseTunnel(info.tunnelPort(), host, username, port);
+			throw e;
+		}
+	}
+
+	private record SftpConnection(SftpClient sftp, Runnable release) implements Closeable {
+		@Override
+		public void close() throws IOException {
+			try {
+				sftp.close();
+			} finally {
+				release.run();
+			}
 		}
 	}
 
@@ -249,12 +336,12 @@ public class TunnelClient {
 		}
 	}
 
-	private int pooledConnection(String origin, String host, String username, int port, ServerKeyVerifier serverKeyVerifier, byte[] key) throws RetryableTunnelException {
+	private TunnelInfo pooledConnection(String origin, String host, String username, int port, ServerKeyVerifier serverKeyVerifier, byte[] key) throws RetryableTunnelException {
 		var remote = username + "@" + host + ":" + port;
 		try {
 			return tunnels.compute(remote, (k, v) -> {
 				if (v != null) {
-					if  (v.client.isOpen()) return new TunnelInfo(v.tunnelPort, v.connections + 1, v.client);
+					if  (v.client.isOpen()) return new TunnelInfo(v.tunnelPort, v.connections + 1, v.client, v.session);
 				}
 				var cooldown = cooldowns.get(remote);
 				if (cooldown != null && cooldown.isAfter(Instant.now())) {
@@ -290,7 +377,7 @@ public class TunnelClient {
 						}
 					});
 					cooldowns.remove(remote);
-					return new TunnelInfo(tunnelPort, 1, client);
+					return new TunnelInfo(tunnelPort, 1, client, session);
 				} catch (Exception e) {
 					client.stop();
 					logger.debug("{} Error creating tunnel SSH client", origin, e);
@@ -302,7 +389,7 @@ public class TunnelClient {
 					cooldowns.put(remote, Instant.now().plus(RETRY_COOLDOWN));
 					throw new RuntimeException(new RetryableTunnelException("Error creating tunnel SSH client", e));
 				}
-			}).tunnelPort;
+			});
 		} catch (RuntimeException e) {
 			if (e.getCause() instanceof RetryableTunnelException r) throw r;
 			throw e;
@@ -314,7 +401,7 @@ public class TunnelClient {
 		tunnels.compute(remote, (k, v) -> {
 			if (v == null) return null;
 			if (tunnelPort != null && v.tunnelPort != tunnelPort) return v;
-			return new TunnelInfo(v.tunnelPort, v.connections - 1, v.client);
+			return new TunnelInfo(v.tunnelPort, v.connections - 1, v.client, v.session);
 		});
 		taskScheduler.schedule(() -> cleanupTunnel(tunnelPort, host, username, port), Instant.now().plus(1, ChronoUnit.MINUTES));
 	}
@@ -343,6 +430,10 @@ public class TunnelClient {
 
 	public interface ProxyRequest {
 		void go(URI url);
+	}
+
+	public interface SftpRequest {
+		void go(SftpClient sftp) throws IOException;
 	}
 
 	private String linuxUsername(String qualifiedTag) {
