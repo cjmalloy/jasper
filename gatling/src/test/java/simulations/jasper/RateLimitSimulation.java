@@ -21,6 +21,8 @@ import static simulations.jasper.LoadConfig.*;
  *   LT_TENANT_REFS Refs each (default 500) and deleted at the end.
  * - Sets _config/security in the load test origin to LT_RATE_LIMIT requests per second. Sub-origins inherit it,
  *   and every origin gets its own limiter, so each tenant can use up to LT_RATE_LIMIT requests per second.
+ *   It also caps each origin at LT_RATE_LIMIT_CONCURRENT requests in flight (default 4, 0 for unlimited),
+ *   so a loud origin cannot take every worker and quiet origins always find a free slot.
  * - Every origin has the same shape as Inferno: a 1 session/s trickle, a burst at 15s, and a burst of a third
  *   of that at 85s. Bursts shrink by LT_RATE_LIMIT_GRADIENT (default 4) per origin: 3,000, 750, 188, 47, 12, 3
  *   sessions by default.
@@ -37,8 +39,9 @@ public class RateLimitSimulation extends Simulation {
 
 	Workload admin = new Workload(false, 0, 100);
 	int burstSessions = envInt("LT_INFERNO_BURST", 3_000);
-	int rateLimit = envInt("LT_RATE_LIMIT", 20);
+	int rateLimit = envInt("LT_RATE_LIMIT", 50);
 	int origins = Math.max(2, envInt("LT_RATE_LIMIT_ORIGINS", 6));
+	int concurrentLimit = envInt("LT_RATE_LIMIT_CONCURRENT", 4);
 	double gradient = envDouble("LT_RATE_LIMIT_GRADIENT", 4);
 	int tenantRefs = envInt("LT_TENANT_REFS", 500);
 	String securityConfig = "_config/security" + admin.origin;
@@ -69,7 +72,7 @@ public class RateLimitSimulation extends Simulation {
 		.exec(admin.req(http("Set Rate Limit")
 			.post("/api/v1/template")
 			.body(StringBody("{\"tag\":\"_config/security\",\"origin\":" + Dataset.quote(admin.origin) +
-				",\"config\":{\"maxRequests\":" + rateLimit + ",\"maxRequestsPeriod\":\"PT1S\"}}"))
+				",\"config\":{\"maxRequests\":" + rateLimit + ",\"maxRequestsPeriod\":\"PT1S\",\"maxConcurrentRequests\":" + concurrentLimit + "}}"))
 			.check(status().is(201))))
 		// The rate limiters are replaced when the template update is received
 		.pause(Duration.ofSeconds(2));

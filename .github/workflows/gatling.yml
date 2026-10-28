@@ -62,8 +62,8 @@ jobs:
       - name: Run RateLimit
         if: always() && matrix.database != 'sqlite'
         continue-on-error: true
-        # Per-origin limit: the loud origins together must stay below what the server can serve
-        run: (cd gatling; LT_RATE_LIMIT=20 GATLING_TEST=RateLimit ${{ steps.compose.outputs.cmd }} up --build --exit-code-from gatling)
+        # Per-origin concurrency caps keep the loud origins from taking every worker, so the global cap rarely sheds quiet origins
+        run: (cd gatling; LT_MAX_CONCURRENT=40 GATLING_TEST=RateLimit ${{ steps.compose.outputs.cmd }} up --build --exit-code-from gatling)
       - name: Stop Stack
         if: always()
         run: (cd gatling; ${{ steps.compose.outputs.cmd }} down)
