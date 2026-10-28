@@ -119,7 +119,10 @@ public final class Dataset {
 				title = title(random);
 				tags.add(first);
 				for (int t = random.nextInt(3); t > 0; t--) tags.add(topic(random, topics));
-				if (i > 0 && random.nextDouble() < 0.1) sources.add(linkUrl(random.nextInt(i), topic(random, topics)));
+				if (i > 0 && random.nextDouble() < 0.1) {
+					var source = random.nextInt(i);
+					sources.add(linkUrl(source, firstTopic(source, topics)));
+				}
 			} else {
 				url = commentUrl(i);
 				tags.add("internal");

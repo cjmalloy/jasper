@@ -116,8 +116,13 @@ jobs:
             echo ""
             cat /tmp/summary.md
           } >> $GITHUB_STEP_SUMMARY
-      - name: Upload Master Baseline
+      # Only a complete, passing master run becomes the baseline for later PRs
+      - name: Check Gating Simulations
         if: github.event_name == 'push' && github.ref_name == 'master' && always()
+        id: gate
+        run: python3 gatling/report-stats.py gate /tmp/stats.json
+      - name: Upload Master Baseline
+        if: always() && steps.gate.outcome == 'success'
         uses: actions/upload-artifact@v7
         with:
           name: gatling-baseline-${{ matrix.database }}-${{ matrix.gc }}

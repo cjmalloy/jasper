@@ -87,9 +87,9 @@ public class Workload {
 			.get("/api/v1/user/whoami")
 			.check(jsonPath("$.tag").optional().saveAs("whoamiTag")))
 			.exec(session -> {
-				// Pre-issued tokens choose their own user
+				// Pre-issued tokens choose their own user, anonymous users only get an origin
 				var tag = session.getString("whoamiTag");
-				if (tag == null || tag.isEmpty()) return session;
+				if (tag == null || tag.isEmpty() || tag.startsWith("@")) return session;
 				return session.set("userTag", tag.split("@")[0]);
 			})
 			.exec(req(http("Load Plugins")
@@ -186,8 +186,8 @@ public class Workload {
 			.get("/api/v1/ref/page")
 			.queryParam("obsolete", "false")
 			.queryParam("size", "20")
-			.check(jsonPath("$.content[*].url").findAll().optional().saveAs("pageUrls"))
-			.check(jsonPath("$.content[*].tags[*]").findAll().optional().saveAs("pageTags"));
+			.check(jsonPath("$.content[*].url").findAll().withDefault(List.of()).saveAs("pageUrls"))
+			.check(jsonPath("$.content[*].tags[*]").findAll().withDefault(List.of()).saveAs("pageTags"));
 	}
 
 	/**
@@ -211,13 +211,22 @@ public class Workload {
 
 	public ChainBuilder homeFeed() {
 		return randomSwitch().on(
-			percent(60.0).then(req(refPage("Home Feed")
-				.queryParam("query", session -> "!internal:(" + String.join("|", session.<String>getList("subs")) + "):!plugin/delete")
-				.queryParam("noUserResponse", "plugin/user/hide"))),
-			percent(40.0).then(req(refPage("All Feed")
-				.queryParam("query", "@*" + HIDE)
-				.queryParam("noUserResponse", "plugin/user/hide")))
-		).exec(showPage());
+			percent(60.0).then(subscriptionFeed()),
+			percent(40.0).then(allFeed()));
+	}
+
+	public ChainBuilder subscriptionFeed() {
+		return req(refPage("Home Feed")
+			.queryParam("query", session -> "!internal:(" + String.join("|", session.<String>getList("subs")) + "):!plugin/delete")
+			.queryParam("noUserResponse", "plugin/user/hide"))
+			.exec(showPage());
+	}
+
+	public ChainBuilder allFeed() {
+		return req(refPage("All Feed")
+			.queryParam("query", "@*" + HIDE)
+			.queryParam("noUserResponse", "plugin/user/hide"))
+			.exec(showPage());
 	}
 
 	public ChainBuilder tagFeed() {
@@ -263,32 +272,46 @@ public class Workload {
 	 */
 	public ChainBuilder openRef() {
 		return doIf(session -> !session.getList("pageUrls").isEmpty()).then(
-			exec(session -> session.set("openUrl", random(session.getList("pageUrls"))).remove("openSources"))
-				.exec(req(http("Get Ref")
-					.get("/api/v1/ref")
-					.queryParam("url", "#{openUrl}")
-					.queryParam("origin", origin)
-					.check(jsonPath("$.sources[*]").findAll().optional().saveAs("openSources"))))
-				.exec(req(http("Comments")
-					.get("/api/v1/ref/page")
-					.queryParam("query", "plugin/comment:!plugin/delete")
-					.queryParam("responses", "#{openUrl}")
-					.queryParam("obsolete", "false")
-					.queryParam("size", "20")
-					.multivaluedQueryParam("sort", List.of("published,ASC", "modified,ASC", "origin,ASC"))))
+			exec(getRef())
 				.randomSwitch().on(
-					percent(30.0).then(req(refPage("Responses")
-						.queryParam("query", "!internal:!plugin/delete")
-						.queryParam("responses", "#{openUrl}"))),
-					percent(5.0).then(req(http("Graph")
-						.get("/api/v1/graph/list")
-						.multivaluedQueryParam("urls", session -> {
-							var urls = new ArrayList<Object>();
-							urls.add(session.getString("openUrl"));
-							if (session.contains("openSources")) urls.addAll(session.<Object>getList("openSources"));
-							return urls.stream().distinct().limit(20).toList();
-						}))))
-		);
+					percent(30.0).then(responses()),
+					percent(5.0).then(graph())));
+	}
+
+	/** The Ref page and its comment thread. */
+	public ChainBuilder getRef() {
+		return exec(session -> session.set("openUrl", random(session.getList("pageUrls"))).remove("openSources"))
+			.exec(req(http("Get Ref")
+				.get("/api/v1/ref")
+				.queryParam("url", "#{openUrl}")
+				.queryParam("origin", origin)
+				.check(jsonPath("$.sources[*]").findAll().optional().saveAs("openSources"))))
+			.exec(req(http("Comments")
+				.get("/api/v1/ref/page")
+				.queryParam("query", "plugin/comment:!plugin/delete")
+				.queryParam("responses", "#{openUrl}")
+				.queryParam("obsolete", "false")
+				.queryParam("size", "20")
+				.multivaluedQueryParam("sort", List.of("published,ASC", "modified,ASC", "origin,ASC"))));
+	}
+
+	/** All responses to the open Ref. */
+	public ChainBuilder responses() {
+		return req(refPage("Responses")
+			.queryParam("query", "!internal:!plugin/delete")
+			.queryParam("responses", "#{openUrl}"));
+	}
+
+	/** Graph of the open Ref and its sources. */
+	public ChainBuilder graph() {
+		return req(http("Graph")
+			.get("/api/v1/graph/list")
+			.multivaluedQueryParam("urls", session -> {
+				var urls = new ArrayList<Object>();
+				urls.add(session.getString("openUrl"));
+				if (session.contains("openSources")) urls.addAll(session.<Object>getList("openSources"));
+				return urls.stream().distinct().limit(20).toList();
+			}));
 	}
 
 	// ====================== Writes ======================

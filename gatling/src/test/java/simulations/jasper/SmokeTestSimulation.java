@@ -8,6 +8,7 @@ import static io.gatling.javaapi.core.CoreDsl.*;
 
 /**
  * Functional check: one user per role walks every request type once, and every request must succeed.
+ * The path is deterministic so every request type is always sent.
  */
 public class SmokeTestSimulation extends Simulation {
 	Workload workload = new Workload(false, 0.1, 100);
@@ -17,15 +18,19 @@ public class SmokeTestSimulation extends Simulation {
 		.exec(session -> session.set("ws", true))
 		.exec(workload.appLoad())
 		.exec(workload.connectWebsocket())
-		.exec(workload.homeFeed())
+		.exec(workload.subscriptionFeed())
 		.exec(workload.tagFeed())
 		.exec(workload.nextPage())
 		.exec(workload.userFeed())
 		.exec(workload.search())
-		.exec(workload.tagFeed())
-		.exec(workload.openRef())
+		.exec(workload.allFeed())
+		.exec(crashLoadGeneratorIf("All Feed returned no Refs, run the Seed simulation first",
+			session -> session.getList("pageUrls").isEmpty()))
+		.exec(workload.getRef())
 		.exec(workload.vote())
 		.exec(workload.comment())
+		.exec(workload.responses())
+		.exec(workload.graph())
 		.exec(workload.submitLink())
 		.exec(workload.tagOwnRef())
 		.exec(workload.editOwnRef())

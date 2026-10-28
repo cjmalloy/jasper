@@ -4,6 +4,7 @@ Extract per-request statistics from Gatling HTML reports and compare them to a b
 
   report-stats.py extract REPORT_DIR > stats.json
   report-stats.py markdown stats.json [baseline.json] > summary.md
+  report-stats.py gate stats.json   # exit 1 unless every gating simulation recorded results and passed
 
 REPORT_DIR holds one <name>simulation-<timestamp>/ directory per run and a <Name>.status
 file with the Gatling exit code, both written by run.sh.
@@ -119,7 +120,7 @@ def delta(current, base, key):
         return f'{current[key]}'
     diff = current[key] - base[key]
     text = f'{current[key]} ({diff:+d})' if isinstance(diff, int) else f'{current[key]} ({diff:+.1f})'
-    if current['total'] >= MIN_FLAG_COUNT and key.startswith('p') and base[key] and diff > SLOWER_MS and diff > base[key] * SLOWER_RATIO:
+    if current['total'] >= MIN_FLAG_COUNT and key.startswith('p') and base.get(key) is not None and diff > SLOWER_MS and diff > base[key] * SLOWER_RATIO:
         text = f'**{text}** 🔺'
     return text
 
@@ -135,6 +136,24 @@ def error_delta(current, base):
     return text
 
 
+def gating(current):
+    """Gating simulations that failed, and those missing a result or an exit code."""
+    failed = [n for n in GATING if n in current and current[n].get('exitCode') not in (0, None)]
+    incomplete = [n for n in GATING if n not in current or current[n].get('exitCode') is None or not current[n].get('global')]
+    return failed, [n for n in incomplete if n not in failed]
+
+
+def gate(stats_file):
+    """Exit status 0 only when every gating simulation recorded results and passed."""
+    with open(stats_file) as f:
+        failed, incomplete = gating(json.load(f)['simulations'])
+    for name in failed:
+        print(f'{name} failed its assertions', file=sys.stderr)
+    for name in incomplete:
+        print(f'{name} has no recorded result', file=sys.stderr)
+    return 1 if failed or incomplete else 0
+
+
 def markdown(stats_file, baseline_file=None):
     with open(stats_file) as f:
         current = json.load(f)['simulations']
@@ -144,7 +163,7 @@ def markdown(stats_file, baseline_file=None):
             baseline = json.load(f).get('simulations', {})
 
     out = []
-    gating_failed = [n for n in GATING if n in current and current[n].get('exitCode') not in (0, None)]
+    gating_failed, gating_incomplete = gating(current)
     aggregate = {'total': 0, 'ok': 0, 'ko': 0}
     for name, sim in current.items():
         if name not in INFORMATIONAL and sim.get('global'):
@@ -152,7 +171,9 @@ def markdown(stats_file, baseline_file=None):
                 aggregate[key] += sim['global'][key]
     if gating_failed:
         out.append(f'**❌ Assertions failed: {", ".join(gating_failed)}**')
-    else:
+    if gating_incomplete:
+        out.append(f'**⚪ Incomplete, no results recorded: {", ".join(gating_incomplete)}**')
+    if not gating_failed and not gating_incomplete:
         out.append('**✅ All gating simulations passed their assertions**')
     out.append('')
     out.append(f'Aggregate of {", ".join(n for n in ordered(current) if n not in INFORMATIONAL)}: '
@@ -207,6 +228,8 @@ def markdown(stats_file, baseline_file=None):
 def main(args):
     if len(args) >= 2 and args[0] == 'extract':
         extract(args[1])
+    elif len(args) >= 2 and args[0] == 'gate':
+        return gate(args[1])
     elif len(args) >= 2 and args[0] == 'markdown':
         markdown(args[1], args[2] if len(args) > 2 else None)
     else:
