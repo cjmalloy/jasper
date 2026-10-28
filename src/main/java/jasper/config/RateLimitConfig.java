@@ -202,6 +202,9 @@ public class RateLimitConfig {
 						httpResponse.setHeader("X-RateLimit-Retry-After", format("%.1f", ThreadLocalRandom.current().nextDouble(3.5, 4.5)));
 						return;
 					}
+					// Permits cover the synchronous part of the request, where the database work happens.
+					// Streamed bodies (StreamingResponseBody) keep writing after the chain returns, but holding
+					// permits for them would let a few slow downloads lock out the origin.
 					try {
 						httpBulkhead.executeCheckedSupplier(() -> {
 							chain.doFilter(request, response);
