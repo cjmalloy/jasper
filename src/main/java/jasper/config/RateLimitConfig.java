@@ -4,6 +4,7 @@ import io.github.resilience4j.bulkhead.Bulkhead;
 import io.github.resilience4j.bulkhead.BulkheadFullException;
 import io.github.resilience4j.ratelimiter.RateLimiter;
 import io.github.resilience4j.ratelimiter.RateLimiterConfig;
+import jakarta.annotation.PostConstruct;
 import jakarta.servlet.Filter;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -56,6 +57,14 @@ public class RateLimitConfig {
 	}
 
 	private volatile RateLimiter httpRateLimiter;
+	private final Object httpRateLimiterLock = new Object();
+
+	@PostConstruct
+	void init() {
+		httpRateLimiter = createRateLimiter("", "http",
+			configs.root().getMaxRequests(),
+			configs.root().getMaxRequestsPeriod());
+	}
 
 	@ServiceActivator(inputChannel = "templateRxChannel")
 	public void handleTemplateUpdate(Message<TemplateDto> message) {
@@ -63,24 +72,17 @@ public class RateLimitConfig {
 		if (isBlank(template.getTag())) return;
 		if (template.getTag().startsWith("_config/server")) {
 			logger.debug("{} Server config template updated, updating HTTP rate limiter", template.getOrigin());
-			httpRateLimiter = updateRateLimiter(httpRateLimiter, "", "http",
-				configs.root().getMaxRequests(),
-				configs.root().getMaxRequestsPeriod());
+			synchronized (httpRateLimiterLock) {
+				httpRateLimiter = updateRateLimiter(httpRateLimiter, "", "http",
+					configs.root().getMaxRequests(),
+					configs.root().getMaxRequestsPeriod());
+			}
 		}
 		if (template.getTag().startsWith("_config/security")) {
 			originRateLimiters.replaceAll((origin, r) -> updateRateLimiter(r, origin, "http-" + origin,
 				configs.security(origin).getMaxRequests(),
 				configs.security(origin).getMaxRequestsPeriod()));
 		}
-	}
-
-	private RateLimiter getHttpRateLimiter() {
-		if (httpRateLimiter == null) {
-			httpRateLimiter = createRateLimiter("", "http",
-				configs.root().getMaxRequests(),
-				configs.root().getMaxRequestsPeriod());
-		}
-		return httpRateLimiter;
 	}
 
 	/**
@@ -139,7 +141,7 @@ public class RateLimitConfig {
 					httpResponse.setHeader("X-RateLimit-Retry-After", format("%.1f", ThreadLocalRandom.current().nextDouble(3.5, 4.5)));
 					return;
 				}
-				if (!getHttpRateLimiter().acquirePermission()) {
+				if (!httpRateLimiter.acquirePermission()) {
 					RateLimitConfig.logger.debug("{} HTTP rate limit exceeded for request: {}", origin, httpRequest.getRequestURI());
 					httpResponse.setStatus(429);
 					// Add random jitter from 3.5 to 4.5 seconds to prevent thundering herd
