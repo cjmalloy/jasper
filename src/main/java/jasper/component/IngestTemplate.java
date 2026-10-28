@@ -31,6 +31,7 @@ import static jasper.component.Replicator.deletorTag;
 import static jasper.component.Replicator.isDeletorTag;
 import static jasper.util.DbConstraint.isPkViolation;
 import static jasper.util.DbConstraint.isUniqueModifiedOriginViolation;
+import static jasper.util.Transactions.afterCommit;
 
 @Component
 public class IngestTemplate {
@@ -107,7 +108,7 @@ public class IngestTemplate {
 	@Timed(value = "jasper.template", histogram = true)
 	public void delete(String qualifiedTag) {
 		templateRepository.deleteByQualifiedTag(qualifiedTag);
-		messages.deleteTemplate(qualifiedTag);
+		afterCommit(() -> messages.deleteTemplate(qualifiedTag));
 	}
 
 	void ensureCreateUniqueModified(Template template) {
