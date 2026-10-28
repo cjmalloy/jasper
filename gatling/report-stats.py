@@ -44,6 +44,25 @@ def number(text):
         return 0
 
 
+PEAK_SECONDS = 10
+
+
+def peak_ok_rps(content):
+    """Mean successful responses per second over the busiest PEAK_SECONDS seconds (consecutive) of the run."""
+    chart = content.find('Number of responses')
+    match = re.search(r"name: 'OK',\s*data: (\[\[.*?\]\])", content[chart:], re.DOTALL) if chart >= 0 else None
+    if not match:
+        return None
+    try:
+        values = [v for _, v in json.loads(match.group(1))]
+    except ValueError:
+        return None
+    if not values:
+        return None
+    window = min(PEAK_SECONDS, len(values))
+    return round(max(sum(values[i:i + window]) for i in range(len(values) - window + 1)) / window, 1)
+
+
 def parse_report(index):
     with open(index, encoding='utf-8') as f:
         content = f.read()
@@ -66,7 +85,7 @@ def parse_report(index):
             row_id = parents.get(row_id)
         return ' / '.join(reversed(names))
 
-    result = {'global': rows['ROOT'][1] if 'ROOT' in rows else None, 'requests': {}}
+    result = {'global': rows['ROOT'][1] if 'ROOT' in rows else None, 'requests': {}, 'peakOkRps': peak_ok_rps(content)}
     for row_id, (_, stats) in rows.items():
         if row_id != 'ROOT':
             result['requests'][path(row_id)] = stats
@@ -230,6 +249,15 @@ def markdown(stats_file, baseline_file=None):
         else:
             detail = f'all {capacity["levels"]} steps completed, the server was not saturated'
         out.append(f'**{name}:** {text}, {detail}. Mean throughput depends on where the run stopped; compare this instead.')
+        out.append('')
+
+    for name in ordered(current):
+        peak = current[name].get('peakOkRps')
+        if name not in INFORMATIONAL or name == 'Capacity' or peak is None:
+            continue
+        base = (baseline.get(name) or {}).get('peakOkRps')
+        text = f'{peak:g} successful rps' + (f' ({peak - base:+.1f} vs master)' if base is not None else '')
+        out.append(f'**{name}:** {text} over the busiest {PEAK_SECONDS}s. Overload runs are mostly idle trickle, so compare this instead of the mean.')
         out.append('')
 
     for name in ordered(current):

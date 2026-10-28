@@ -68,20 +68,13 @@ public final class LoadConfig {
 	 * Writes are only ever made to a sub-origin so they can be removed with the Cleanup simulation.
 	 */
 	public static String origin(boolean readOnly) {
-		return origin("LT_ORIGIN", readOnly);
-	}
-
-	/**
-	 * Origin read from the given setting, defaulting to @loadtest, or the default origin when read only.
-	 */
-	public static String origin(String name, boolean readOnly) {
-		var origin = env(name, readOnly ? "default" : "@loadtest").toLowerCase();
+		var origin = env("LT_ORIGIN", readOnly ? "default" : "@loadtest").toLowerCase();
 		if ("default".equals(origin)) origin = "";
 		if (!origin.isEmpty() && !origin.matches(ORIGIN_REGEX)) {
-			throw new IllegalArgumentException(name + " must be 'default' or match " + ORIGIN_REGEX + ": " + origin);
+			throw new IllegalArgumentException("LT_ORIGIN must be 'default' or match " + ORIGIN_REGEX + ": " + origin);
 		}
 		if (!readOnly && origin.isEmpty()) {
-			throw new IllegalArgumentException("Simulations that write require " + name + " to be a sub-origin such as @loadtest");
+			throw new IllegalArgumentException("Simulations that write require LT_ORIGIN to be a sub-origin such as @loadtest");
 		}
 		return origin;
 	}

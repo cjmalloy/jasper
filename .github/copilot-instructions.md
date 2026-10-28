@@ -91,7 +91,7 @@ docker rmi "$BASE"    # always remove the shadow afterwards
 
 ## Load testing (Gatling)
 
-Simulations live in `gatling/src/test/java/simulations/jasper/` (class name = `<name>Simulation`): `SmokeTest`, `Regression` (both gate CI), `Capacity`, `Inferno`, `RateLimit` (informational), `ReadOnly` (production profile), plus `Seed` and `Cleanup`. Shared code: `LoadConfig` (`LT_*` settings), `Dataset` (generated seed data), `Workload` (jasper-ui request chains). See `gatling/README.md`.
+Simulations live in `gatling/src/test/java/simulations/jasper/` (class name = `<name>Simulation`): `SmokeTest`, `Regression` (both gate CI), `Capacity`, `Inferno`, `RateLimit` (informational, multi-origin gradient: are quiet origins protected?), `ReadOnly` (production profile), plus `Seed` and `Cleanup`. Shared code: `LoadConfig` (`LT_*` settings), `Dataset` (generated seed data), `Workload` (jasper-ui request chains). See `gatling/README.md`.
 
 ```bash
 cd gatling

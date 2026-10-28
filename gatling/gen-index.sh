@@ -140,7 +140,7 @@ declare -A simulations=(
     ["ReadOnlySimulation"]="Read Only|Production profile: browsing without writes, proxy or scrape requests, at a conservative rate."
     ["CapacitySimulation"]="Capacity|Step load with short think times. Stops once 5% of recent requests fail; the capacity is the last step completed before that."
     ["InfernoSimulation"]="Inferno|Robustness only: two bursts well beyond capacity, then recovery probes 30s later must succeed (<5% errors)."
-    ["RateLimitSimulation"]="RateLimit|Inferno with a per-origin rate limit on the load test origin: bursts get cheap 429s while a neighbor origin keeps browsing (<5% errors). Compare OK rps with Inferno."
+    ["RateLimitSimulation"]="RateLimit|Multi-origin Inferno with a per-origin rate limit: bursts shrink by a gradient across 6 origins. Loud origins get cheap 429s, quiet origins must stay healthy (<5% errors)."
 )
 
 # Check for reports and generate cards

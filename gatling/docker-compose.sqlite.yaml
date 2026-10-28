@@ -18,10 +18,13 @@ services:
       LT_SEED_REFS: "${LT_SEED_REFS:-}"
       LT_CAPACITY_STEP: "${LT_CAPACITY_STEP:-}"
       LT_RATE_LIMIT: "${LT_RATE_LIMIT:-}"
+    # Separate CPU budgets (4 in total, a GitHub runner) so the load generator cannot starve the server or vice versa
+    cpus: "${LT_GATLING_CPUS:-1}"
     volumes:
       - ./report:/gatling/report
   web:
     build: ..
+    cpus: "${LT_WEB_CPUS:-2}"
     ports:
       - 8081:80
     healthcheck:

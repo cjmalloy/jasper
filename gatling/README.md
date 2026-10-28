@@ -19,7 +19,7 @@ against a seeded knowledge base, as JWT authenticated users. They are meant for 
 | `ReadOnly`   | Production profile: the Regression mix without writes, proxy or scrape requests             | 0.2 sessions/s for 60s ramp + 300s                    | < 1% failed, p95 < 2s, stops at 2% | not run                    |
 | `Capacity`   | Step load with short think times; reports the last step completed before 5% errors          | +4 sessions/s every 25s, 10 steps (+1 on SQLite in CI) | stops at 5% errors, no assertions | informational              |
 | `Inferno`    | Robustness: two bursts well beyond capacity, then recovery probes 30s later                 | 3,000 then 1,000 sessions in 10s                      | recovery probes < 5% failed    | informational              |
-| `RateLimit`  | Inferno with a per-origin rate limit (`_config/security`) on the load test origin, while a neighbor origin (default, read only) keeps browsing | Inferno bursts, limit 50 req/s (15 on SQLite in CI), 2 neighbor sessions/s | neighbors < 5% failed, p95 < 5s | informational              |
+| `RateLimit`  | Multi-origin Inferno with a per-origin rate limit (`_config/security`): bursts shrink by a gradient across `@loadtest` and seeded tenants `@loadtest.t1`… | 6 origins, bursts 3,000 down to 3 sessions, limit 20 req/s per origin (5 on SQLite in CI) | quiet origins < 5% failed, p95 < 5s | informational              |
 | `Seed`       | Fills the load test origin with a generated knowledge base. Skipped when already seeded     | 5,000 Refs                                           | no failed requests             | before every run           |
 | `Cleanup`    | Deletes the load test origin                                                               | 1 request                                            | no failed requests             | not run                    |
 
@@ -103,7 +103,6 @@ Every setting is read from a system property (`-DLT_RATE=2`) or an environment v
 |---------------------------|----------------------------------|-----------------------------------------------------------------------------------------------------|
 | `LT_BASE_URL`             | `http://localhost:8081`          | Server under test. The websocket URL and CSRF cookie domain are derived from it.                    |
 | `LT_ORIGIN`               | `@loadtest` (`default` for ReadOnly) | Origin sent in the `Local-Origin` header. Simulations that write refuse the default origin.     |
-| `LT_NEIGHBOR_ORIGIN`      | `default`                        | Origin of RateLimit's neighbor sessions. Must differ from `LT_ORIGIN`.                              |
 | `LT_JWT_SECRET`           | jasper-ui debug secret           | Base64 HS256 secret to sign a token per virtual user. `none` sends no token (anonymous).            |
 | `LT_TOKEN`                |                                  | Pre-issued bearer token for every virtual user, instead of signing.                                 |
 | `LT_USER_TOKEN`, `LT_MOD_TOKEN`, `LT_ADMIN_TOKEN` |          | Pre-issued bearer token per role. Overrides `LT_TOKEN`.                                             |
@@ -118,7 +117,9 @@ Every setting is read from a system property (`-DLT_RATE=2`) or an environment v
 | `LT_SEED_REFS`            | 5000                             | Number of Refs `Seed` creates.                                                                      |
 | `LT_CAPACITY_STEP`, `LT_CAPACITY_LEVELS`, `LT_CAPACITY_LEVEL_SECONDS` | 4, 10, 20 | Capacity step size (sessions/s), number of steps and seconds per step. The sessions/s of the last completed step is written to `Capacity.capacity.json` and shown in the CI summary. |
 | `LT_INFERNO_BURST`        | 3000                             | Sessions in Inferno's first burst (the second is a third). Much larger bursts exhaust the load generator's connections before the server. |
-| `LT_RATE_LIMIT`           | 50                               | Requests per second `RateLimit` allows the load test origin; keep it below what the server can serve. The template is deleted at the end. |
+| `LT_RATE_LIMIT`           | 20                               | Requests per second `RateLimit` allows each origin (set on the load test origin, inherited by the tenants). The template is deleted at the end. |
+| `LT_RATE_LIMIT_ORIGINS`, `LT_RATE_LIMIT_GRADIENT`, `LT_TENANT_REFS` | 6, 4, 500 | `RateLimit` origins (the load test origin plus tenants), how much smaller each origin's bursts are than the previous one, and Refs seeded per tenant. Origins whose bursts need at most half the limit (about 3 requests per session over 10s), and always the quietest, are asserted. |
+| `LT_WEB_CPUS`, `LT_DB_CPUS`, `LT_GATLING_CPUS` | 2, 1, 1          | CPU limits for the containers in the compose stacks (Docker only), so the load generator and the server do not starve each other. |
 | `GATLING_TEST`            | `SmokeTest`                      | Simulation `run.sh` runs (Docker only).                                                             |
 | `LT_SKIP_SEED`            | `false`                          | Skip seeding in `run.sh`.                                                                           |
 
@@ -158,7 +159,8 @@ Never point `Capacity`, `Inferno` or `RateLimit` at a production server.
 
 - `SmokeTest` and `Regression` fail the job when their assertions fail. `Capacity`, `Inferno` and `RateLimit` are `continue-on-error`
   and excluded from the aggregate. The OK (rps) column counts only successful requests: Gatling's throughput
-  includes failures, so compare `RateLimit` with `Inferno` on OK (rps).
+  includes failures. `Inferno` and `RateLimit` also report successful rps over their busiest 10s, since
+  most of those runs is a low trickle between bursts.
 - `report-stats.py extract` reads every report into `stats.json`. On master it is uploaded as the
   `gatling-baseline-<database>-<gc>` artifact.
 - On pull requests the latest master baseline is downloaded, and `report-stats.py markdown` writes the step summary

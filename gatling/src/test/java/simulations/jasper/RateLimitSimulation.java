@@ -4,33 +4,56 @@ import io.gatling.javaapi.core.*;
 import io.gatling.javaapi.http.*;
 
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.IntStream;
 
 import static io.gatling.javaapi.core.CoreDsl.*;
 import static io.gatling.javaapi.http.HttpDsl.*;
 import static simulations.jasper.LoadConfig.*;
 
 /**
- * Inferno with a per-origin rate limit: the same bursts from the load test origin, while
- * another origin (the default origin, read only) keeps browsing.
+ * Multi-origin Inferno with a per-origin rate limit: a gradient of traffic across many origins,
+ * so only a few go extreme while the quiet ones must stay healthy.
  *
- * - Sets _config/security in the load test origin to LT_RATE_LIMIT requests per second
- * - 0-15s warmup trickle
- * - 15-25s burst of LT_INFERNO_BURST (default 3,000) sessions, then trickle
- * - 85-95s burst of a third of that, then trickle
- * - Neighbor sessions in LT_NEIGHBOR_ORIGIN (default origin) browse throughout, including during the bursts
- * - Deletes the _config/security template again
+ * - Origins: the load test origin (LT_ORIGIN, default @loadtest) plus tenant sub-origins
+ *   @loadtest.t1 ... (LT_RATE_LIMIT_ORIGINS in total, default 6). Tenants are seeded with
+ *   LT_TENANT_REFS Refs each (default 500) and deleted at the end.
+ * - Sets _config/security in the load test origin to LT_RATE_LIMIT requests per second. Sub-origins inherit it,
+ *   and every origin gets its own limiter, so each tenant can use up to LT_RATE_LIMIT requests per second.
+ * - Every origin has the same shape as Inferno: a 1 session/s trickle, a burst at 15s, and a burst of a third
+ *   of that at 85s. Bursts shrink by LT_RATE_LIMIT_GRADIENT (default 4) per origin: 3,000, 750, 188, 47, 12, 3
+ *   sessions by default.
+ * - Deletes the tenants and the _config/security template again.
  *
- * Without a rate limit the bursts fill the concurrent request bulkhead and everyone gets 503
- * (see Inferno). With it, excess requests from the noisy origin get a cheap 429 instead,
- * the work that is accepted completes quickly, and neighbors must stay below 5% errors.
- * Compare the successful throughput with Inferno. Never run against production.
+ * Origins whose bursts stay well below the limit (about 3 requests per session over 10s, at most half of
+ * LT_RATE_LIMIT) are asserted to stay below 5% errors and a p95 of 5s. The quietest origin is always asserted.
+ * The loud origins get 429s: compare how much of their traffic still succeeds with Inferno.
+ * Never run against production.
  */
 public class RateLimitSimulation extends Simulation {
-	Workload workload = new Workload(false, 0, 100);
-	Workload neighbors = new Workload(true, origin("LT_NEIGHBOR_ORIGIN", true), 0.2, 100);
+	static final double REQUESTS_PER_SESSION = 3;
+	static final Duration BURST = Duration.ofSeconds(10);
+
+	Workload admin = new Workload(false, 0, 100);
 	int burstSessions = envInt("LT_INFERNO_BURST", 3_000);
-	int rateLimit = envInt("LT_RATE_LIMIT", 50);
-	String securityConfig = "_config/security" + workload.origin;
+	int rateLimit = envInt("LT_RATE_LIMIT", 20);
+	int origins = Math.max(2, envInt("LT_RATE_LIMIT_ORIGINS", 6));
+	double gradient = envDouble("LT_RATE_LIMIT_GRADIENT", 4);
+	int tenantRefs = envInt("LT_TENANT_REFS", 500);
+	String securityConfig = "_config/security" + admin.origin;
+
+	List<String> originNames = IntStream.range(0, origins)
+		.mapToObj(i -> i == 0 ? admin.origin : admin.origin + ".t" + i)
+		.toList();
+
+	int burst(int i) {
+		return (int) Math.max(1, Math.round(burstSessions / Math.pow(gradient, i)));
+	}
+
+	boolean quiet(int i) {
+		return i == origins - 1 || burst(i) * REQUESTS_PER_SESSION / BURST.toSeconds() <= rateLimit / 2.0;
+	}
 
 	HttpRequestActionBuilder deleteConfig(String name) {
 		return http(name)
@@ -40,63 +63,74 @@ public class RateLimitSimulation extends Simulation {
 	}
 
 	ScenarioBuilder setup = scenario("Set Rate Limit")
-		.exec(workload.login("ADMIN"))
+		.exec(admin.login("ADMIN"))
 		// Left over from an interrupted run
-		.exec(workload.req(deleteConfig("Clear Rate Limit")))
-		.exec(workload.req(http("Set Rate Limit")
+		.exec(admin.req(deleteConfig("Clear Rate Limit")))
+		.exec(admin.req(http("Set Rate Limit")
 			.post("/api/v1/template")
-			.body(StringBody("{\"tag\":\"_config/security\",\"origin\":" + Dataset.quote(workload.origin) +
+			.body(StringBody("{\"tag\":\"_config/security\",\"origin\":" + Dataset.quote(admin.origin) +
 				",\"config\":{\"maxRequests\":" + rateLimit + ",\"maxRequestsPeriod\":\"PT1S\"}}"))
 			.check(status().is(201))))
-		// The rate limiter is replaced when the template update is received
+		// The rate limiters are replaced when the template update is received
 		.pause(Duration.ofSeconds(2));
 
-	ScenarioBuilder burst = scenario("Rate Limited Burst")
-		.exec(workload.login("USER"))
-		.exec(workload.homeFeed())
-		.randomSwitch().on(
-			percent(40.0).then(workload.tagFeed()),
-			percent(35.0).then(workload.openRef()),
-			percent(25.0).then(workload.submitLink()));
-
-	ScenarioBuilder neighbor = scenario("Neighbor")
-		.exec(neighbors.login("USER"))
-		.group("Neighbor").on(
-			exec(neighbors.homeFeed())
-				.exec(neighbors.think(1, 3))
-				.exec(neighbors.openRef())
-				.exec(neighbors.think(1, 3))
-				.exec(neighbors.tagFeed()));
-
 	ScenarioBuilder teardown = scenario("Remove Rate Limit")
-		.exec(workload.login("ADMIN"))
-		.exec(workload.req(deleteConfig("Remove Rate Limit")));
+		.exec(admin.login("ADMIN"))
+		.foreach(originNames.subList(1, origins), "tenant").on(
+			exec(admin.req(http("Delete Tenant")
+				.delete("/api/v1/origin")
+				.queryParam("origin", "#{tenant}")
+				.check(status().is(204)))))
+		.exec(admin.req(deleteConfig("Remove Rate Limit")));
+
+	ScenarioBuilder traffic(int i) {
+		var origin = originNames.get(i);
+		var workload = new Workload(false, origin, 0, 100);
+		return scenario("Origin " + origin)
+			.exec(workload.login("USER"))
+			.group(origin).on(
+				exec(workload.homeFeed())
+					.randomSwitch().on(
+						percent(40.0).then(workload.tagFeed()),
+						percent(35.0).then(workload.openRef()),
+						percent(25.0).then(workload.submitLink())));
+	}
 
 	{
-		if (neighbors.origin.equals(workload.origin)) {
-			throw new IllegalArgumentException("RateLimit needs LT_NEIGHBOR_ORIGIN to differ from LT_ORIGIN");
+		var tenants = new ArrayList<PopulationBuilder>();
+		for (var i = 1; i < origins; i++) {
+			var origin = originNames.get(i);
+			tenants.add(scenario("Seed " + origin)
+				.exec(SeedSimulation.seed(origin, tenantRefs))
+				.injectOpen(atOnceUsers(1))
+				.protocols(new Workload(false, origin, 0, 100).protocol("Rate Limit Seed")));
 		}
+		var load = new ArrayList<PopulationBuilder>();
+		var assertions = new ArrayList<Assertion>();
+		for (var i = 0; i < origins; i++) {
+			var origin = originNames.get(i);
+			System.out.printf("RateLimit: %s bursts of %d and %d sessions%s%n", origin, burst(i), burst(i) / 3, quiet(i) ? " (asserted)" : "");
+			load.add(traffic(i).injectOpen(
+					constantUsersPerSec(1).during(Duration.ofSeconds(15)),
+					rampUsers(burst(i)).during(BURST),
+					constantUsersPerSec(1).during(Duration.ofSeconds(60)),
+					rampUsers(burst(i) / 3).during(BURST),
+					constantUsersPerSec(1).during(Duration.ofSeconds(60)))
+				.protocols(new Workload(false, origin, 0, 100).protocol("Rate Limit " + origin)));
+			if (quiet(i)) {
+				assertions.add(details(origin).failedRequests().percent().lt(5.0));
+				assertions.add(details(origin).responseTime().percentile(95.0).lt(5000));
+			}
+		}
+		assertions.add(details("Set Rate Limit").failedRequests().count().is(0L));
+		assertions.add(details("Remove Rate Limit").failedRequests().count().is(0L));
 		setUp(
-			setup.injectOpen(atOnceUsers(1)).protocols(workload.protocol("Rate Limit"))
-				.andThen(
-					burst.injectOpen(
-						constantUsersPerSec(5).during(Duration.ofSeconds(15)),
-						rampUsers(burstSessions).during(Duration.ofSeconds(10)),
-						constantUsersPerSec(5).during(Duration.ofSeconds(60)),
-						rampUsers(burstSessions / 3).during(Duration.ofSeconds(10)),
-						constantUsersPerSec(5).during(Duration.ofSeconds(60))
-					).protocols(workload.protocol("Rate Limit")),
-					neighbor.injectOpen(
-						constantUsersPerSec(2).during(Duration.ofSeconds(160))
-					).protocols(neighbors.protocol("Rate Limit Neighbor")))
-				.andThen(teardown.injectOpen(atOnceUsers(1)).protocols(workload.protocol("Rate Limit")))
+			setup.injectOpen(atOnceUsers(1)).protocols(admin.protocol("Rate Limit"))
+				.andThen(tenants)
+				.andThen(load)
+				.andThen(teardown.injectOpen(atOnceUsers(1)).protocols(admin.protocol("Rate Limit")))
 		)
-			.maxDuration(Duration.ofMinutes(4))
-			.assertions(
-				details("Neighbor").failedRequests().percent().lt(5.0),
-				details("Neighbor").responseTime().percentile(95.0).lt(5000),
-				details("Set Rate Limit").failedRequests().count().is(0L),
-				details("Remove Rate Limit").failedRequests().count().is(0L)
-			);
+			.maxDuration(Duration.ofMinutes(6))
+			.assertions(assertions);
 	}
 }
