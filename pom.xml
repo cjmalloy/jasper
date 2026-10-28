@@ -39,7 +39,7 @@
 		<commons-collections4.version>4.6.0</commons-collections4.version>
 		<commons-lang3.version>3.21.0</commons-lang3.version>
 		<commons-compress.version>1.28.0</commons-compress.version>
-		<google-cloud-storage.version>2.75.0</google-cloud-storage.version>
+		<google-cloud-storage.version>2.76.0</google-cloud-storage.version>
 		<google-cloud-nio.version>0.139.0</google-cloud-nio.version>
 		<awssdk.version>2.57.5</awssdk.version>
 		<jsoup.version>1.23.2</jsoup.version>
