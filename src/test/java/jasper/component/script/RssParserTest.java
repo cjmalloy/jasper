@@ -260,4 +260,78 @@ public class RssParserTest {
 		verify(progress, times(3)).update(anyInt(), anyInt());
 		verify(jasperClient, times(2)).refPush(any(), any(), any(), any());
 	}
+
+	static final String YOUTUBE_FEED = """
+		<?xml version="1.0" encoding="UTF-8"?>
+		<feed xmlns:yt="http://www.youtube.com/xml/schemas/2015" xmlns="http://www.w3.org/2005/Atom">
+		  <title>Channel</title>
+		  <link rel="alternate" href="https://www.youtube.com/channel/UC123"/>
+		  <entry>
+		    <id>yt:video:short1</id>
+		    <yt:videoId>short1</yt:videoId>
+		    <title>Short</title>
+		    <link rel="alternate" href="https://www.youtube.com/shorts/short1"/>
+		    <published>2024-01-02T00:00:00+00:00</published>
+		  </entry>
+		  <entry>
+		    <id>yt:video:video1</id>
+		    <yt:videoId>video1</yt:videoId>
+		    <title>Video</title>
+		    <link rel="alternate" href="https://www.youtube.com/watch?v=video1"/>
+		    <published>2024-01-01T00:00:00+00:00</published>
+		  </entry>
+		</feed>
+		""";
+
+	List<Ref> scrapeYoutube(boolean video, boolean shorts) throws Exception {
+		setUpValidHttpResponse();
+		when(httpEntity.getContent()).thenAnswer(inv -> new ByteArrayInputStream(YOUTUBE_FEED.getBytes()));
+		var feed = feedRef("+user/alice");
+		var config = new Feed();
+		config.setScrapeVideo(video);
+		config.setScrapeShorts(shorts);
+		ObjectNode plugins = om.createObjectNode();
+		plugins.set("plugin/script/feed", om.convertValue(config, ObjectNode.class));
+		feed.setPlugins(plugins);
+		var captor = ArgumentCaptor.forClass(Ref.class);
+
+		rssParser.runScript(feed, "plugin/script/feed");
+
+		verify(mapper, atLeast(0)).domainToDto(captor.capture());
+		return captor.getAllValues();
+	}
+
+	@Test
+	void testYoutube_VideoOnly_SkipsShorts() throws Exception {
+		var refs = scrapeYoutube(true, false);
+
+		assertThat(refs).extracting(Ref::getUrl).containsExactly("https://www.youtube.com/watch?v=video1");
+		assertThat(refs.getFirst().hasPlugin("plugin/embed")).isTrue();
+	}
+
+	@Test
+	void testYoutube_ShortsOnly_SkipsVideos() throws Exception {
+		var refs = scrapeYoutube(false, true);
+
+		assertThat(refs).extracting(Ref::getUrl).containsExactly("https://www.youtube.com/shorts/short1");
+		assertThat(refs.getFirst().hasPlugin("plugin/embed")).isTrue();
+	}
+
+	@Test
+	void testYoutube_Both_IncludesAll() throws Exception {
+		var refs = scrapeYoutube(true, true);
+
+		assertThat(refs).extracting(Ref::getUrl).containsExactly(
+			"https://www.youtube.com/watch?v=video1",
+			"https://www.youtube.com/shorts/short1");
+		assertThat(refs).allMatch(r -> r.hasPlugin("plugin/embed"));
+	}
+
+	@Test
+	void testYoutube_Neither_IncludesAllWithoutEmbed() throws Exception {
+		var refs = scrapeYoutube(false, false);
+
+		assertThat(refs).hasSize(2);
+		assertThat(refs).noneMatch(r -> r.hasPlugin("plugin/embed"));
+	}
 }
