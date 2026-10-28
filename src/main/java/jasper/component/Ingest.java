@@ -36,6 +36,7 @@ import static jasper.util.Archive.isBlank;
 import static jasper.util.Archive.nextModified;
 import static jasper.util.DbConstraint.isPkViolation;
 import static jasper.util.DbConstraint.isUniqueModifiedOriginViolation;
+import static jasper.util.Transactions.afterCommit;
 
 @Component
 public class Ingest {
@@ -173,9 +174,9 @@ public class Ingest {
 			archiveDelete(rootOrigin, maybeExisting.get());
 			return;
 		}
-		messages.deleteRef(maybeExisting.get());
 		refRepository.deleteByUrlAndOrigin(url, origin);
 		meta.sources(rootOrigin, null, maybeExisting.get());
+		afterCommit(() -> messages.deleteRef(maybeExisting.get()));
 	}
 
 	/**
@@ -213,7 +214,7 @@ public class Ingest {
 		meta.ref(rootOrigin, tombstone);
 		ensureCreateUniqueModified(tombstone);
 		meta.sources(rootOrigin, tombstone, existing);
-		messages.deleteRef(existing);
+		afterCommit(() -> messages.deleteRef(existing));
 	}
 
 	void ensureCreateUniqueModified(Ref ref) {

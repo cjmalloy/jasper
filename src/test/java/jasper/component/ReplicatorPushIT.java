@@ -19,9 +19,12 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+import static jasper.security.Auth.LOCAL_ORIGIN_HEADER;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -61,14 +64,14 @@ public class ReplicatorPushIT {
 		pushedRefs = new ArrayList<>();
 		pushedUsers = new ArrayList<>();
 		doAnswer(i -> {
-			for (var ref : i.<List<RefReplDto>>getArgument(2)) pushed.add(ref.getUrl());
-			pushedRefs.addAll(i.getArgument(2));
+			for (var ref : i.<List<RefReplDto>>getArgument(3)) pushed.add(ref.getUrl());
+			pushedRefs.addAll(i.getArgument(3));
 			return null;
-		}).when(client).refPush(any(URI.class), anyString(), any());
+		}).when(client).refPush(any(URI.class), anyMap(), anyString(), any());
 		doAnswer(i -> {
-			pushedUsers.addAll(i.getArgument(2));
+			pushedUsers.addAll(i.getArgument(3));
 			return null;
-		}).when(client).userPush(any(URI.class), anyString(), any());
+		}).when(client).userPush(any(URI.class), anyMap(), anyString(), any());
 		var tunnel = mock(TunnelClient.class);
 		doAnswer(i -> {
 			i.<TunnelClient.ProxyRequest>getArgument(1).go(URI.create("https://remote.example.com"));
@@ -124,6 +127,13 @@ public class ReplicatorPushIT {
 	}
 
 	@Test
+	void testPushSendsLocalOriginHeader() {
+		replicator.push(remote());
+
+		verify(client).refPush(any(URI.class), eq(Map.of(LOCAL_ORIGIN_HEADER, "@target")), eq("@target"), any());
+	}
+
+	@Test
 	void testPushUnsignedOnlyPublic() {
 		replicator.push(remote());
 
@@ -158,8 +168,8 @@ public class ReplicatorPushIT {
 
 		replicator.push(remote("+user/banned"));
 
-		verify(client, never()).refPush(any(URI.class), anyString(), any());
-		verify(client, never()).pluginPush(any(URI.class), anyString(), any());
+		verify(client, never()).refPush(any(URI.class), anyMap(), anyString(), any());
+		verify(client, never()).pluginPush(any(URI.class), anyMap(), anyString(), any());
 		assertThat(pushed).isEmpty();
 	}
 

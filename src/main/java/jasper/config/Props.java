@@ -7,6 +7,7 @@ import lombok.Setter;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.web.cors.CorsConfiguration;
 
+import java.time.Duration;
 import java.util.List;
 
 import static jasper.domain.proj.HasOrigin.subOrigin;
@@ -279,9 +280,13 @@ public class Props {
 		 */
 		private List<String> hostBlacklist;
 		/**
-		 * Override the server maximum HTTP requests per origin every 500 nanoseconds.
+		 * Override the server global maximum HTTP requests (across all origins) every maxRequestsPeriod.
 		 */
 		private Integer maxRequests;
+		/**
+		 * Override the server refresh period for the global maxRequests rate limit.
+		 */
+		private Duration maxRequestsPeriod;
 		/**
 		 * Override the server global maximum concurrent HTTP requests (across all origins).
 		 */
@@ -356,9 +361,17 @@ public class Props {
 		 */
 		private String scimEndpoint = "";
 		/**
-		 * Override the per-origin maximum HTTP requests every 500 nanoseconds. This limit applies to all origins.
+		 * Override the per-origin maximum HTTP requests every maxRequestsPeriod. This limit applies to all origins.
 		 */
 		private Integer maxRequests;
+		/**
+		 * Override the per-origin refresh period for the maxRequests rate limit. This applies to all origins.
+		 */
+		private Duration maxRequestsPeriod;
+		/**
+		 * Override the per-origin maximum concurrent HTTP requests. This limit applies to all origins.
+		 */
+		private Integer maxConcurrentRequests;
 		/**
 		 * Override the per-origin maximum concurrent script executions. This limit applies to all origins.
 		 */

@@ -44,6 +44,7 @@ import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.lang.Nullable;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.AuthenticationException;
+import org.springframework.transaction.CannotCreateTransactionException;
 import org.springframework.web.ErrorResponse;
 import org.springframework.web.ErrorResponseException;
 import org.springframework.web.HttpMediaTypeNotSupportedException;
@@ -62,6 +63,7 @@ import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExcep
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.net.URI;
+import java.sql.SQLTransientConnectionException;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.IdentityHashMap;
@@ -154,6 +156,8 @@ public class ExceptionTranslator extends ResponseEntityExceptionHandler {
 		m.put(MaxSourcesException.class, new ErrorMapping(ERR_MAX_SOURCES, SIZE_ERROR_TYPE));
 		// Unavailable
 		m.put(NotAvailableException.class, new ErrorMapping(ERR_NOT_AVAILABLE, UNAVAILABLE_TYPE));
+		m.put(CannotCreateTransactionException.class, new ErrorMapping(ERR_NOT_AVAILABLE, UNAVAILABLE_TYPE, HttpStatus.SERVICE_UNAVAILABLE));
+		m.put(SQLTransientConnectionException.class, new ErrorMapping(ERR_NOT_AVAILABLE, UNAVAILABLE_TYPE, HttpStatus.SERVICE_UNAVAILABLE));
 		ERROR_MAPPINGS = Collections.unmodifiableMap(m);
 	}
 

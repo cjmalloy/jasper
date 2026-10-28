@@ -38,6 +38,7 @@ import static jasper.util.Archive.isBlank;
 import static jasper.util.Archive.nextModified;
 import static jasper.util.DbConstraint.isPkViolation;
 import static jasper.util.DbConstraint.isUniqueModifiedOriginViolation;
+import static jasper.util.Transactions.afterCommit;
 
 @Component
 public class IngestPlugin {
@@ -129,7 +130,7 @@ public class IngestPlugin {
 		}
 		pluginRepository.deleteByQualifiedTag(qualifiedTag);
 		rerank(qualifiedTag);
-		messages.deletePlugin(qualifiedTag);
+		afterCommit(() -> messages.deletePlugin(qualifiedTag));
 	}
 
 	/**
@@ -164,7 +165,7 @@ public class IngestPlugin {
 		tombstone.setOrigin(tagOrigin(qualifiedTag));
 		ensureCreateUniqueModified(tombstone);
 		rerank(qualifiedTag);
-		messages.deletePlugin(qualifiedTag);
+		afterCommit(() -> messages.deletePlugin(qualifiedTag));
 	}
 
 	/**

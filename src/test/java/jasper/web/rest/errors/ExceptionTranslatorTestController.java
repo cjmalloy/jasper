@@ -39,6 +39,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.converter.HttpMessageConversionException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.transaction.CannotCreateTransactionException;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -50,6 +51,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
+import java.sql.SQLTransientConnectionException;
 import java.time.Instant;
 import java.util.List;
 
@@ -223,6 +225,17 @@ public class ExceptionTranslatorTestController {
 	@GetMapping("/not-available")
 	public void notAvailable() {
 		throw new NotAvailableException();
+	}
+
+	@GetMapping("/no-connection")
+	public void noConnection() {
+		throw new CannotCreateTransactionException("Could not open JPA EntityManager for transaction",
+			new SQLTransientConnectionException("Hikari - Connection is not available, request timed out after 5000ms."));
+	}
+
+	@GetMapping("/connection-timeout")
+	public void connectionTimeout() throws SQLTransientConnectionException {
+		throw new SQLTransientConnectionException("Hikari - Connection is not available, request timed out after 5000ms.");
 	}
 
 	@GetMapping("/not-found")

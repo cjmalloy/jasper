@@ -927,25 +927,24 @@ public class Auth {
 
 	public String getOrigin() {
 		if (origin == null) {
-			origin = props.getOrigin();
-			var originHeader = getOriginHeader();
-			if (originHeader != null && isSubOrigin(props.getLocalOrigin(), originHeader)) {
-				origin = originHeader;
-			}
+			origin = RequestContextHolder.getRequestAttributes() instanceof ServletRequestAttributes attribs
+				? resolveOrigin(props, attribs.getRequest().getHeader(LOCAL_ORIGIN_HEADER))
+				: props.getOrigin();
 		}
 		return origin;
 	}
 
-	private static String getOriginHeader() {
-		if (RequestContextHolder.getRequestAttributes() instanceof ServletRequestAttributes attribs) {
-			var originHeader = attribs.getRequest().getHeader(LOCAL_ORIGIN_HEADER);
-			logger.trace("{}: {}", LOCAL_ORIGIN_HEADER, originHeader);
-			if (isBlank(originHeader)) return null;
-			originHeader = originHeader.toLowerCase();
-			if ("default".equals(originHeader)) return "";
-			if (originHeader.matches(HasOrigin.REGEX)) return originHeader;
-		}
-		return null;
+	/**
+	 * Origin of a request from the Local-Origin header. Only depends on the header, so it can be
+	 * used before authentication (JWT validation and rate limiting).
+	 */
+	public static String resolveOrigin(Props props, String originHeader) {
+		logger.trace("{}: {}", LOCAL_ORIGIN_HEADER, originHeader);
+		if (isBlank(originHeader)) return props.getOrigin();
+		originHeader = originHeader.toLowerCase();
+		if ("default".equals(originHeader)) originHeader = "";
+		if (originHeader.matches(HasOrigin.REGEX) && isSubOrigin(props.getLocalOrigin(), originHeader)) return originHeader;
+		return props.getOrigin();
 	}
 
 	protected String getSubOrigins() {

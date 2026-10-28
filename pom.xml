@@ -24,12 +24,12 @@
 		<testcontainers.version>2.0.5</testcontainers.version>
 		<mapstruct.version>1.6.3</mapstruct.version>
 		<sqlite-jdbc.version>3.53.4.0</sqlite-jdbc.version>
-		<hibernate-jpamodelgen.version>7.4.5.Final</hibernate-jpamodelgen.version>
+		<hibernate-jpamodelgen.version>7.4.13.Final</hibernate-jpamodelgen.version>
 		<hypersistence-utils-71.version>3.16.0</hypersistence-utils-71.version>
 		<jsontypedef.version>0.2.2</jsontypedef.version>
 		<json-patch.version>1.13</json-patch.version>
 		<problem-spring-web.version>0.29.1</problem-spring-web.version>
-		<springdoc-openapi.version>3.1.1</springdoc-openapi.version>
+		<springdoc-openapi.version>3.2.0</springdoc-openapi.version>
 		<openapi-generator-maven-plugin.version>5.4.0</openapi-generator-maven-plugin.version>
 		<archunit-junit5.version>1.5.1</archunit-junit5.version>
 		<javatuples.version>1.2</javatuples.version>
@@ -39,9 +39,9 @@
 		<commons-collections4.version>4.6.0</commons-collections4.version>
 		<commons-lang3.version>3.21.0</commons-lang3.version>
 		<commons-compress.version>1.28.0</commons-compress.version>
-		<google-cloud-storage.version>2.75.0</google-cloud-storage.version>
-		<google-cloud-nio.version>0.139.0</google-cloud-nio.version>
-		<awssdk.version>2.57.3</awssdk.version>
+		<google-cloud-storage.version>2.76.0</google-cloud-storage.version>
+		<google-cloud-nio.version>0.140.0</google-cloud-nio.version>
+		<awssdk.version>2.57.5</awssdk.version>
 		<jsoup.version>1.23.2</jsoup.version>
 		<xmlunit.version>2.14.0</xmlunit.version>
 	</properties>
@@ -466,7 +466,7 @@
 			<plugin>
 				<groupId>org.jacoco</groupId>
 				<artifactId>jacoco-maven-plugin</artifactId>
-				<version>0.8.15</version>
+				<version>0.8.16</version>
 				<executions>
 					<execution>
 						<goals>
@@ -539,7 +539,7 @@
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-surefire-plugin</artifactId>
-				<version>3.6.0</version>
+				<version>3.6.1</version>
 				<configuration>
 					<includes>
 						<include>**/*Test.java</include>
@@ -551,7 +551,7 @@
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-failsafe-plugin</artifactId>
-				<version>3.6.0</version>
+				<version>3.6.1</version>
 				<executions>
 					<execution>
 						<goals>

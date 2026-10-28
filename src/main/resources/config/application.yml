@@ -121,6 +121,10 @@ spring:
       preferred-json-mapper: jackson2
   jmx:
     enabled: false
+  datasource:
+    hikari:
+      # Fail fast with 503 when overloaded instead of holding a request thread for the default 30s
+      connection-timeout: 5000
   data:
     jpa:
       repositories:
@@ -215,7 +219,7 @@ jasper:
   #   allowed-origins: "http://localhost:8100,http://localhost:9000"
   #   allowed-methods: "*"
   #   allowed-headers: "*"
-  #   exposed-headers: "Authorization,Link,X-Total-Count,Content-Disposition"
+  #   exposed-headers: "Authorization,Link,X-Total-Count,Content-Disposition,X-RateLimit-Limit,X-RateLimit-Retry-After"
   #   allow-credentials: true
   #   max-age: 1800
   api-docs:

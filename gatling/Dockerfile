@@ -6,6 +6,5 @@ RUN mvn -B clean package -Dmaven.main.skip -Dmaven.test.skip -Dcodegen.skip && r
 FROM builder as test
 WORKDIR /gatling
 COPY src ./src/
-CMD mvn gatling:test -Dgatling.simulationClass=simulations.jasper.${GATLING_TEST:-SmokeTest}Simulation; \
-		mkdir -p /report && \
-		cp -r target/gatling/* ./report/
+COPY run.sh .
+CMD ["./run.sh"]

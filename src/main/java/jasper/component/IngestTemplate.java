@@ -37,6 +37,7 @@ import static jasper.util.Archive.isBlank;
 import static jasper.util.Archive.nextModified;
 import static jasper.util.DbConstraint.isPkViolation;
 import static jasper.util.DbConstraint.isUniqueModifiedOriginViolation;
+import static jasper.util.Transactions.afterCommit;
 
 @Component
 public class IngestTemplate {
@@ -122,7 +123,7 @@ public class IngestTemplate {
 			return;
 		}
 		templateRepository.deleteByQualifiedTag(qualifiedTag);
-		messages.deleteTemplate(qualifiedTag);
+		afterCommit(() -> messages.deleteTemplate(qualifiedTag));
 	}
 
 	/**
@@ -155,7 +156,7 @@ public class IngestTemplate {
 		tombstone.setTag(localTag(qualifiedTag));
 		tombstone.setOrigin(tagOrigin(qualifiedTag));
 		ensureCreateUniqueModified(tombstone);
-		messages.deleteTemplate(qualifiedTag);
+		afterCommit(() -> messages.deleteTemplate(qualifiedTag));
 	}
 
 	void ensureCreateUniqueModified(Template template) {

@@ -37,6 +37,7 @@ import static jasper.util.Archive.isBlank;
 import static jasper.util.Archive.nextModified;
 import static jasper.util.DbConstraint.isPkViolation;
 import static jasper.util.DbConstraint.isUniqueModifiedOriginViolation;
+import static jasper.util.Transactions.afterCommit;
 
 
 @Component
@@ -117,7 +118,7 @@ public class IngestUser {
 			return;
 		}
 		userRepository.deleteByQualifiedTag(qualifiedTag);
-		messages.deleteUser(qualifiedTag);
+		afterCommit(() -> messages.deleteUser(qualifiedTag));
 	}
 
 	/**
@@ -150,7 +151,7 @@ public class IngestUser {
 		tombstone.setTag(localTag(qualifiedTag));
 		tombstone.setOrigin(tagOrigin(qualifiedTag));
 		ensureCreateUniqueModified(tombstone);
-		messages.deleteUser(qualifiedTag);
+		afterCommit(() -> messages.deleteUser(qualifiedTag));
 	}
 
 	void ensureCreateUniqueModified(User user) {
