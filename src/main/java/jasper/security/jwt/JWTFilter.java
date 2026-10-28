@@ -7,7 +7,6 @@ import jakarta.servlet.ServletResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import jasper.component.ConfigCache;
 import jasper.config.Props;
-import jasper.domain.proj.HasOrigin;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -16,9 +15,8 @@ import org.springframework.web.filter.GenericFilterBean;
 
 import java.io.IOException;
 
-import static jasper.domain.proj.HasOrigin.isSubOrigin;
 import static jasper.security.Auth.LOCAL_ORIGIN_HEADER;
-import static org.apache.commons.lang3.StringUtils.isNotBlank;
+import static jasper.security.Auth.resolveOrigin;
 
 /**
  * Filters incoming requests and installs a Spring Security principal if a header corresponding to a valid user is
@@ -47,7 +45,7 @@ public class JWTFilter extends GenericFilterBean {
 		if (!"OPTIONS".equalsIgnoreCase(httpServletRequest.getMethod())) {
 			var route = httpServletRequest.getRequestURI();
 			if (route.startsWith("/api/") || route.startsWith("/pub/api/")) {
-				var origin = resolveOrigin(httpServletRequest);
+				var origin = resolveOrigin(props, httpServletRequest.getHeader(LOCAL_ORIGIN_HEADER));
 				var jwt = resolveToken(httpServletRequest);
 				if (configs.root().web(origin)) {
 					if (tokenProvider.validateToken(jwt, origin)) {
@@ -69,20 +67,5 @@ public class JWTFilter extends GenericFilterBean {
 			return bearerToken.substring(7);
 		}
 		return null;
-	}
-
-	private String resolveOrigin(HttpServletRequest request) {
-		var origin = props.getOrigin();
-		var originHeader = request.getHeader(LOCAL_ORIGIN_HEADER);
-		if (isNotBlank(originHeader)) {
-			originHeader = originHeader.toLowerCase();
-			logger.trace("Origin set by header ({})", originHeader);
-			if ("default".equals(originHeader)) return origin;
-			if (originHeader.matches(HasOrigin.REGEX_NOT_BLANK) && isSubOrigin(props.getLocalOrigin(), originHeader)) return originHeader;
-		} else {
-			logger.trace("Origin header not allowed to be blank");
-		}
-		logger.trace("Default origin used ({})", origin);
-		return origin;
 	}
 }

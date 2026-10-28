@@ -191,6 +191,12 @@ public class Sanitizer {
 
 	// TODO: Allow custom protocols
 	private final Safelist whitelist = Safelist.relaxed()
+		.addAttributes("audio", "src", "type")
+		.addAttributes("video", "src", "type")
+		.addAttributes("source", "src", "type")
+		.addProtocols("audio", "src", "http", "https")
+		.addProtocols("video", "src", "http", "https")
+		.addProtocols("source", "src", "http", "https")
 		.addTags(SVG_TAG_LIST)
 		.addTags("figure", "figcaption", "address", "time")
 		.addAttributes("svg", SVG_ATTRS)

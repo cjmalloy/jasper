@@ -13,11 +13,12 @@ import jasper.errors.InvalidPushException;
 import jasper.errors.ModifiedException;
 import jasper.errors.NotFoundException;
 import jasper.repository.PluginRepository;
-import org.hibernate.exception.ConstraintViolationException;
+import jasper.repository.RefRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.orm.jpa.JpaSystemException;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionSystemException;
@@ -29,6 +30,11 @@ import java.time.Instant;
 import static jasper.component.Replicator.deletedTag;
 import static jasper.component.Replicator.deletorTag;
 import static jasper.component.Replicator.isDeletorTag;
+import static jasper.domain.proj.Tag.localTag;
+import static jasper.domain.proj.Tag.tagOrigin;
+import static jasper.util.DbConstraint.isPkViolation;
+import static jasper.util.DbConstraint.isUniqueModifiedOriginViolation;
+import static jasper.util.Transactions.afterCommit;
 
 @Component
 public class IngestPlugin {
@@ -39,6 +45,9 @@ public class IngestPlugin {
 
 	@Autowired
 	PluginRepository pluginRepository;
+
+	@Autowired
+	RefRepository refRepository;
 
 	@Autowired
 	EntityManager em;
@@ -59,11 +68,17 @@ public class IngestPlugin {
 	public void create(Plugin plugin) {
 		if (isDeletorTag(plugin.getTag())) {
 			if (pluginRepository.existsByQualifiedTag(deletedTag(plugin.getQualifiedTag()))) throw new AlreadyExistsException();
+			var existing = pluginRepository.findOneByQualifiedTag(plugin.getQualifiedTag());
+			if (existing.isPresent()) {
+				plugin.setModified(existing.get().getModified());
+				return;
+			}
 		} else {
 			delete(deletorTag(plugin.getQualifiedTag()));
 		}
 		validate.plugin(plugin.getOrigin(), plugin);
 		ensureCreateUniqueModified(plugin);
+		rerank(plugin.getQualifiedTag());
 		messages.updatePlugin(plugin);
 	}
 
@@ -80,16 +95,10 @@ public class IngestPlugin {
 		validate.plugin(plugin.getOrigin(), plugin);
 		try {
 			pluginRepository.save(plugin);
-		} catch (DataIntegrityViolationException | PersistenceException e) {
+		} catch (DataIntegrityViolationException | PersistenceException | JpaSystemException e) {
 			if (e instanceof EntityExistsException) throw new AlreadyExistsException();
-			if (e instanceof ConstraintViolationException c) {
-				if ("plugin_pkey".equals(c.getConstraintName())) throw new AlreadyExistsException();
-				if ("plugin_modified_origin_key".equals(c.getConstraintName())) throw new DuplicateModifiedDateException();
-			}
-			if (e.getCause() instanceof ConstraintViolationException c) {
-				if ("plugin_pkey".equals(c.getConstraintName())) throw new AlreadyExistsException();
-				if ("plugin_modified_origin_key".equals(c.getConstraintName())) throw new DuplicateModifiedDateException();
-			}
+			if (isPkViolation(e, "plugin")) throw new AlreadyExistsException();
+			if (isUniqueModifiedOriginViolation(e, "plugin")) throw new DuplicateModifiedDateException();
 			throw e;
 		} catch (TransactionSystemException e) {
 			if (e.getCause() instanceof RollbackException r) {
@@ -100,13 +109,25 @@ public class IngestPlugin {
 		if (isDeletorTag(plugin.getTag())) {
 			delete(deletedTag(plugin.getQualifiedTag()));
 		}
+		rerank(plugin.getQualifiedTag());
 		messages.updatePlugin(plugin);
 	}
 
 	@Timed(value = "jasper.plugin", histogram = true)
 	public void delete(String qualifiedTag) {
 		pluginRepository.deleteByQualifiedTag(qualifiedTag);
-		messages.deletePlugin(qualifiedTag);
+		rerank(qualifiedTag);
+		afterCommit(() -> messages.deletePlugin(qualifiedTag));
+	}
+
+	/**
+	 * Installing or removing plugin/pinned changes which version of a Ref is visible,
+	 * so regenerate the metadata of every Ref with a pinned version.
+	 */
+	private void rerank(String qualifiedTag) {
+		if (!localTag(qualifiedTag).equals("plugin/pinned")) return;
+		var count = refRepository.regenTag(tagOrigin(qualifiedTag), "plugin/pinned");
+		logger.info("{} Marked {} Refs for regen after changing plugin/pinned", tagOrigin(qualifiedTag), count);
 	}
 
 	void ensureCreateUniqueModified(Plugin plugin) {
@@ -122,21 +143,12 @@ public class IngestPlugin {
 					return null;
 				});
 				break;
-			} catch (DataIntegrityViolationException | PersistenceException e) {
+			} catch (DataIntegrityViolationException | PersistenceException | JpaSystemException e) {
 				if (e instanceof EntityExistsException) throw new AlreadyExistsException();
-				if (e instanceof ConstraintViolationException c) {
-					if ("plugin_pkey".equals(c.getConstraintName())) throw new AlreadyExistsException();
-					if ("plugin_modified_origin_key".equals(c.getConstraintName())) {
-						if (count > props.getIngestMaxRetry()) throw new DuplicateModifiedDateException();
-						continue;
-					}
-				}
-				if (e.getCause() instanceof ConstraintViolationException c) {
-					if ("plugin_pkey".equals(c.getConstraintName())) throw new AlreadyExistsException();
-					if ("plugin_modified_origin_key".equals(c.getConstraintName())) {
-						if (count > props.getIngestMaxRetry()) throw new DuplicateModifiedDateException();
-						continue;
-					}
+				if (isPkViolation(e, "plugin")) throw new AlreadyExistsException();
+				if (isUniqueModifiedOriginViolation(e, "plugin")) {
+					if (count > props.getIngestMaxRetry()) throw new DuplicateModifiedDateException();
+					continue;
 				}
 				throw e;
 			}
@@ -167,18 +179,10 @@ public class IngestPlugin {
 					return null;
 				});
 				break;
-			} catch (DataIntegrityViolationException | PersistenceException e) {
-				if (e instanceof ConstraintViolationException c) {
-					if ("plugin_modified_origin_key".equals(c.getConstraintName())) {
-						if (count > props.getIngestMaxRetry()) throw new DuplicateModifiedDateException();
-						continue;
-					}
-				}
-				if (e.getCause() instanceof ConstraintViolationException c) {
-					if ("plugin_modified_origin_key".equals(c.getConstraintName())) {
-						if (count > props.getIngestMaxRetry()) throw new DuplicateModifiedDateException();
-						continue;
-					}
+			} catch (DataIntegrityViolationException | PersistenceException | JpaSystemException e) {
+				if (isUniqueModifiedOriginViolation(e, "plugin")) {
+					if (count > props.getIngestMaxRetry()) throw new DuplicateModifiedDateException();
+					continue;
 				}
 				throw e;
 			}

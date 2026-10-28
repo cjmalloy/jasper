@@ -3,9 +3,9 @@ package jasper.component;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.databind.node.TextNode;
-import com.unboundid.scim2.common.types.Email;
 import io.micrometer.core.annotation.Timed;
 import jasper.client.ScimClient;
+import jasper.component.dto.ScimEmail;
 import jasper.component.dto.ScimPatchOp;
 import jasper.component.dto.ScimUserResource;
 import jasper.config.Props;
@@ -54,7 +54,7 @@ public class ProfileManagerScim implements ProfileManager {
 			.userName(userName)
 			.password(password)
 			.customClaims(getClaims(roles))
-			.emails(List.of(new Email().setValue(userName + "@jasper.local")))
+			.emails(List.of(new ScimEmail().setValue(userName + "@jasper.local")))
 			.build();
 		scimClient.createUser(baseUri(), accessToken.getAdminToken(), user);
 	}

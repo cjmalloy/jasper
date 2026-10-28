@@ -27,6 +27,7 @@ import org.springframework.stereotype.Service;
 import java.time.Instant;
 import java.util.List;
 
+import static jasper.component.Meta.expandTags;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 @Service
@@ -155,8 +156,11 @@ public class TaggingService {
 		}
 		if (patch != null) {
 			try {
-				var plugins = (ObjectNode) patch.apply(ref.getPlugins() == null ? validate.pluginDefaults(auth.getOrigin(), ref) : ref.getPlugins());
-				ref.addPlugins(ref.getTags(), plugins);
+				var patched = patch.apply(validate.pluginDefaults(auth.getOrigin(), ref));
+				if (!(patched instanceof ObjectNode result)) {
+					throw new JsonPatchException("Plugin patch must produce an object");
+				}
+				ref.addPlugins(expandTags(ref.getTags()), result);
 			} catch (JsonPatchException e) {
 				throw new InvalidPatchException("Ref " + auth.getOrigin() + " " + url, e);
 			}

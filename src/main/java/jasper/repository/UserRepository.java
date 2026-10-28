@@ -70,7 +70,7 @@ public interface UserRepository extends JpaRepository<User, TagId>, QualifiedTag
 	@Query("""
 		SELECT u FROM User u
 		WHERE u.origin = :origin
-			AND jsonb_exists(jsonb_extract_path(u.external, 'ids'), :externalId)
+			AND jsonb_exists(jsonb_object_field(u.external, 'ids'), :externalId)
 		ORDER BY collate_c(u.tag)""")
 	List<User> findAllByOriginAndExternalId(String origin, String externalId);
 
@@ -80,18 +80,18 @@ public interface UserRepository extends JpaRepository<User, TagId>, QualifiedTag
 		ORDER BY collate_c(u.tag)""")
 	List<User> findAllByQualifiedSuffix(String tag);
 
-	// TODO: Sync cache
 	@Modifying
 	@Transactional
-	@Query(nativeQuery = true, value = """
-		UPDATE users users
-		SET external = jsonb_set(
-				COALESCE(users.external, '{}'::jsonb),
-				'{ids}',
-				COALESCE(users.external->'ids', '[]'::jsonb) || to_jsonb(CAST(:externalId as text)),
-				true)
-		WHERE users.tag = :tag
-			AND users.origin = :origin
-			AND NOT COALESCE(jsonb_exists(users.external->'ids', :externalId), false)""")
+	@Query("""
+		UPDATE User u
+		SET u.external = jsonb_set(
+			COALESCE(u.external, cast_to_jsonb('{}')),
+			'{ids}',
+			jsonb_array_append(COALESCE(jsonb_object_field(u.external, 'ids'), cast_to_jsonb('[]')), :externalId),
+			true
+		)
+		WHERE u.tag = :tag
+			AND u.origin = :origin
+			AND NOT COALESCE(jsonb_exists(jsonb_object_field(u.external, 'ids'), :externalId), false)""")
 	int setExternalId(String tag, String origin, String externalId);
 }

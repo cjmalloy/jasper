@@ -1,6 +1,6 @@
-FROM oven/bun:1.3.9-slim AS bun
+FROM oven/bun:1.4.4-slim AS bun
 
-FROM maven:3.9.11-amazoncorretto-25-debian AS builder
+FROM maven:3.9.16-amazoncorretto-25-debian AS builder
 WORKDIR /app
 COPY pom.xml .
 COPY .m2/settings.xml .
@@ -13,6 +13,7 @@ RUN java -Djarmode=tools -jar target/*.jar extract --layers --launcher --destina
 
 FROM builder AS test
 COPY docker/entrypoint.sh .
+COPY docs ./docs
 ENV BUN_RUNTIME_TRANSPILER_CACHE_PATH=0
 ENV BUN_INSTALL_BIN=/usr/local/bin
 COPY --from=bun /usr/local/bin/bun /usr/local/bin/
@@ -34,15 +35,24 @@ RUN apt-get update && apt-get install wget bash jq uuid-runtime -y \
     && which bash \
     && bash --version
 ARG JASPER_SHELL=/usr/bin/bash
-CMD mvn -gs settings.xml test surefire-report:report; \
+CMD mvn -gs settings.xml test jacoco:report surefire-report:report; \
 		mkdir -p /tests && \
 		cp target/surefire-reports/* /tests/ && \
 		mkdir -p /reports && \
 		cp -r target/reports/* /reports/ && \
-		cp target/reports/surefire.html /reports/index.html
+		cp target/reports/surefire.html /reports/index.html && \
+		mkdir -p /reports/coverage && \
+		if [ -d target/site/jacoco ]; then cp -r target/site/jacoco/* /reports/coverage/; fi
 
-FROM azul/zulu-openjdk-debian:25.0.2-25.32-jre AS deploy
-RUN apt-get update && apt-get install curl -y
+FROM azul/zulu-openjdk-debian:25.0.5-25.38-jre AS deploy
+RUN apt-get update && apt-get upgrade -y \
+    && apt-get install curl -y \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
+# Distrust roots of the compromised eMudhra intermediates (https://emudhra.we-have-a-problem.com/)
+RUN for alias in "comodoaaaca [jdk]" "emsigneccrootcag3 [jdk]" "emsigneccrootca-g3"; do \
+      keytool -delete -cacerts -storepass changeit -alias "$alias" 2>/dev/null || true; \
+    done \
+    && ! keytool -list -v -cacerts -storepass changeit | grep -qE '86:A1:EC:BA:08:9C:4A:8D|D7:A7:A0:FB:5D:7E:27:31'
 ENV BUN_RUNTIME_TRANSPILER_CACHE_PATH=0
 ENV BUN_INSTALL_BIN=/usr/local/bin
 COPY --from=bun /usr/local/bin/bun /usr/local/bin/
@@ -54,22 +64,25 @@ ARG JASPER_NODE=/usr/local/bin/bun
 ENV JASPER_NODE=${JASPER_NODE}
 RUN apt-get update && apt-get install python3 python3-venv python3-pip python3-yaml -y \
     && which python3 \
-    && python3 --version
+    && python3 --version \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
 ARG JASPER_PYTHON=/usr/bin/python3
 ENV JASPER_PYTHON=${JASPER_PYTHON}
 ENV PYTHONUNBUFFERED=1
 RUN apt-get update && apt-get install wget bash jq uuid-runtime -y \
     && which jq \
     && jq --version \
-    && uuidgen jq \
+    && uuidgen -r > /dev/null \
     && uuidgen --version \
     && which bash \
-    && bash --version
+    && bash --version \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
 ARG JASPER_SHELL=/usr/bin/bash
 ENV JASPER_SHELL=${JASPER_SHELL}
 RUN apt-get update && apt-get install -y \
     ffmpeg \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
+RUN mkdir -p /var/lib/jasper
 WORKDIR /app
 COPY --from=builder /app/layers/dependencies/ ./
 RUN true

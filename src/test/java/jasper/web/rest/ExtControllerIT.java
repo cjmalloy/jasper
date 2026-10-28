@@ -2,6 +2,7 @@ package jasper.web.rest;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jasper.IntegrationTest;
+import jasper.component.ConfigCache;
 import jasper.domain.Ext;
 import jasper.repository.ExtRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -12,6 +13,9 @@ import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.util.List;
+
+import static jasper.repository.filter.Query.QUERY_LEN;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
@@ -35,9 +39,15 @@ class ExtControllerIT {
 	@Autowired
 	private ObjectMapper objectMapper;
 
+	@Autowired
+	private ConfigCache configCache;
+
 	@BeforeEach
 	void setup() {
 		extRepository.deleteAll();
+		configCache.clearUserCache();
+		configCache.clearPluginCache();
+		configCache.clearTemplateCache();
 	}
 
 	@Test
@@ -94,5 +104,23 @@ class ExtControllerIT {
 		var existing = extRepository.findOneByQualifiedTag("ext@b");
 		assertThat(existing).isPresent();
 		assertThat(existing.get().getName()).isNull();
+	}
+
+	@Test
+	void testPageWithMalformedQueryShouldFail() throws Exception {
+		for (var query : List.of("!", "a:!", "!|a", "!:a", "()", "a:()", "!()", "(a", "a)", "a!", "a!b", "(".repeat(QUERY_LEN))) {
+			mockMvc
+				.perform(get("/api/v1/ext/page")
+					.param("query", query))
+				.andExpect(status().isBadRequest());
+		}
+	}
+
+	@Test
+	void testPageWithNegatedGroupQuery() throws Exception {
+		mockMvc
+			.perform(get("/api/v1/ext/page")
+				.param("query", "!(a|b):!(!c)"))
+			.andExpect(status().isOk());
 	}
 }

@@ -20,6 +20,7 @@ import jasper.errors.InvalidPluginException;
 import jasper.errors.InvalidPluginUserUrlException;
 import jasper.errors.InvalidTemplateException;
 import jasper.errors.PublishDateException;
+import jasper.errors.ValidationErrors;
 import jasper.repository.RefRepository;
 import jasper.security.Auth;
 import jasper.service.dto.TemplateDto;
@@ -31,8 +32,10 @@ import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Objects;
 
+import static jasper.component.Meta.SYNC_SOURCES;
 import static jasper.component.Meta.expandTags;
 import static jasper.domain.proj.Tag.matchesTemplate;
 import static jasper.domain.proj.Tag.urlForTag;
@@ -76,10 +79,20 @@ public class Validate {
 		}
 		tags(rootOrigin, ref);
 		plugins(rootOrigin, ref, stripOnError);
-		responses(rootOrigin, ref, true);
-		sources(rootOrigin, ref, true);
-		responses(rootOrigin, ref, false);
-		sources(rootOrigin, ref, false);
+		if (ref.hasTag("internal")) {
+			// Internal Refs are autofixed against internal and non-internal Refs using the first sources,
+			// but may keep any published date if the conflict can't be autofixed
+			responses(rootOrigin, ref, true, true);
+			sources(rootOrigin, ref, true, SYNC_SOURCES, SYNC_SOURCES);
+		} else {
+			// Non-internal Refs are autofixed against non-internal Refs only and must end up consistent
+			// Sources are only autofixed up to the configured max sources, but all sources are checked
+			responses(rootOrigin, ref, true, false);
+			var published = ref.getPublished();
+			sources(rootOrigin, ref, false, Integer.MAX_VALUE, root.getMaxSources());
+			// Only moving the published date forward can create a new conflict with a response
+			if (!Objects.equals(published, ref.getPublished())) responses(rootOrigin, ref, false, false);
+		}
 	}
 
 	@Timed("jasper.validate")
@@ -106,7 +119,9 @@ public class Validate {
 		var templates = configs.getSchemas(ext.getTag(), rootOrigin);
 		if (templates.isEmpty()) {
 			// If an ext has no template, or the template is schemaless, no config is allowed
-			if (ext.getConfig() != null && !ext.getConfig().isEmpty()) throw new InvalidTemplateException(ext.getTag());
+			if (ext.getConfig() != null && !ext.getConfig().isEmpty()) {
+				throw new InvalidTemplateException(ext.getTag(), ValidationErrors.SCHEMALESS, "config is not allowed without a template schema");
+			}
 			return;
 		}
 		var defaults = configs.getDefaults(ext.getTag(), rootOrigin);
@@ -115,7 +130,8 @@ public class Validate {
 			.map(TemplateDto::getDefaults)
 			.filter(Objects::nonNull)
 			.reduce(null, this::merge);
-		if (ext.getConfig() == null) {
+		var usingDefaults = ext.getConfig() == null;
+		if (usingDefaults) {
 			ext.setConfig(mergedDefaults);
 			stripOnError = true;
 		}
@@ -137,8 +153,8 @@ public class Validate {
 		}
 		try {
 			template(rootOrigin, schema, ext.getTag(), ext.getConfig());
-		} catch (Exception e) {
-			if (!stripOnError) throw e;
+		} catch (InvalidTemplateException e) {
+			if (!stripOnError) throw usingDefaults ? e.withReason(ValidationErrors.INVALID_DEFAULTS) : e;
 			template(rootOrigin, schema, ext.getTag(), mergedDefaults);
 			ext.setConfig(mergedDefaults);
 		}
@@ -161,7 +177,8 @@ public class Validate {
 					break;
 			}
 		} catch (Exception e) {
-			throw new InvalidTemplateException(template.getTag());
+			var errors = SchemaErrors.of(e);
+			throw new InvalidTemplateException(template.getTag(), ValidationErrors.CONFIG, errors.isEmpty() ? "invalid config" : ValidationErrors.summary(errors), errors, e);
 		}
 	}
 
@@ -189,10 +206,10 @@ public class Validate {
 				logger.debug("{} Error validating template {}: {}", rootOrigin, tag, error);
 			}
 			if (!errors.isEmpty()) {
-				throw new InvalidTemplateException(tag + ": " + errors);
+				throw new InvalidTemplateException(tag, ValidationErrors.SCHEMA, SchemaErrors.of(schema, template, errors));
 			}
 		} catch (MaxDepthExceededException e) {
-			throw new InvalidTemplateException(tag, e);
+			throw new InvalidTemplateException(tag, ValidationErrors.MAX_DEPTH, "data exceeds the max schema depth", List.of(), e);
 		}
 	}
 
@@ -210,7 +227,7 @@ public class Validate {
 			ref.getPlugins().fieldNames().forEachRemaining(field -> {
 				if (!ref.hasTag(field)) {
 					logger.debug("{} Plugin missing tag: {}", rootOrigin, field);
-					if (!stripOnError) throw new InvalidPluginException(field);
+					if (!stripOnError) throw new InvalidPluginException(field, ValidationErrors.UNTAGGED, "plugin data requires the " + field + " tag");
 					strip.add(field);
 				}
 			});
@@ -225,17 +242,17 @@ public class Validate {
 		if (a == null && b == null) return objectMapper.createObjectNode();
 		if (a == null) return b.deepCopy();
 		if (b == null) return a.deepCopy();
-		if (!a.isObject() || !b.isObject()) return b.deepCopy();
+		var result = a.deepCopy();
 		b.fieldNames().forEachRemaining(field -> {
-			var aNode = a.get(field);
+			var aNode = result.get(field);
 			var bNode = b.get(field);
-			if (aNode != null && aNode.isObject() && bNode.isObject()) {
-				merge((ObjectNode) aNode, (ObjectNode) bNode);
+			if (aNode instanceof ObjectNode aObj && bNode instanceof ObjectNode bObj) {
+				result.set(field, merge(aObj, bObj));
 			} else {
-				a.set(field, bNode.deepCopy());
+				result.set(field, bNode.deepCopy());
 			}
 		});
-		return a;
+		return result;
 	}
 
 	private void plugin(String rootOrigin, Ref ref, String tag, boolean stripOnError) {
@@ -245,13 +262,14 @@ public class Validate {
 			// If a tag has no plugin, or the plugin is schemaless, plugin data is not allowed
 			if (ref.hasPlugin(tag)) {
 				logger.debug("{} Plugin data not allowed: {}", rootOrigin, tag);
-				if (!stripOnError) throw new InvalidPluginException(tag);
-				ref.getPlugins().remove(tag);
+				if (!stripOnError) throw new InvalidPluginException(tag, ValidationErrors.SCHEMALESS, "plugin data is not allowed without a plugin schema");
 			}
+			if (ref.getPlugins() != null) ref.getPlugins().remove(tag);
 			return;
 		}
 		var defaults = plugin.map(Plugin::getDefaults).orElse(null);
-		if (!ref.hasPlugin(tag)) {
+		var usingDefaults = !ref.hasPlugin(tag);
+		if (usingDefaults) {
 			ref.setPlugin(tag, defaults);
 			stripOnError = true;
 		}
@@ -268,8 +286,8 @@ public class Validate {
 		}
 		try {
 			plugin(rootOrigin, schema, tag, ref.getPlugin(tag));
-		} catch (Exception e) {
-			if (!stripOnError) throw e;
+		} catch (InvalidPluginException e) {
+			if (!stripOnError) throw usingDefaults ? e.withReason(ValidationErrors.INVALID_DEFAULTS) : e;
 			ref.setPlugin(tag, defaults);
 		}
 	}
@@ -277,15 +295,15 @@ public class Validate {
 	private void userUrl(Ref ref, String plugin) {
 		if (!matchesTemplate("plugin/user", plugin)) return;
 		if (ref.getSources() == null || ref.getSources().size() != 1) {
-			throw new InvalidPluginUserUrlException(plugin);
+			throw new InvalidPluginUserUrlException(plugin, ValidationErrors.USER_URL_SOURCES, "requires exactly one source");
 		}
 		var userTag = ref.getTags().stream().filter(t -> t.startsWith("+user") || t.startsWith("_user")).findFirst();
 		if (userTag.isEmpty()) {
-			throw new InvalidPluginUserUrlException(plugin);
+			throw new InvalidPluginUserUrlException(plugin, ValidationErrors.USER_URL_USER_TAG, "requires a user tag");
 		}
 		var target = ref.getSources().getFirst();
 		if (!ref.getUrl().startsWith(urlForTag(target, userTag.get()))) {
-			throw new InvalidPluginUserUrlException(plugin);
+			throw new InvalidPluginUserUrlException(plugin, ValidationErrors.USER_URL_PREFIX, "URL must start with the user URL for the source");
 		}
 	}
 
@@ -294,7 +312,7 @@ public class Validate {
 		for (var tag : expandTags(ref.getTags())) {
 			var plugin = configs.getPlugin(tag, rootOrigin);
 			plugin.ifPresent(p -> {
-				if (p.getDefaults() != null && !p.getDefaults().isEmpty()) result.set(tag, p.getDefaults());
+				if (p.getDefaults() != null && !p.getDefaults().isNull() && (p.getDefaults().isValueNode() || !p.getDefaults().isEmpty())) result.set(tag, p.getDefaults().deepCopy());
 			});
 		}
 		if (ref.getPlugins() != null) return merge(result, ref.getPlugins());
@@ -318,36 +336,38 @@ public class Validate {
 				logger.debug("{} Error validating plugin {}: {}", rootOrigin, tag, error);
 			}
 			if (!errors.isEmpty()) {
-				throw new InvalidPluginException(tag + ": " + errors);
+				throw new InvalidPluginException(tag, ValidationErrors.SCHEMA, SchemaErrors.of(schema, plugin, errors));
 			}
 		} catch (MaxDepthExceededException e) {
-			throw new InvalidPluginException(tag, e);
+			throw new InvalidPluginException(tag, ValidationErrors.MAX_DEPTH, "data exceeds the max schema depth", List.of(), e);
 		}
 	}
 
-	private void sources(String rootOrigin, Ref ref, boolean fix) {
+	private void sources(String rootOrigin, Ref ref, boolean includeInternal, int limit, int fixLimit) {
 		if (ref.getSources() == null) return;
-		for (var sourceUrl : ref.getSources()) {
-			if (sourceUrl.equals(ref.getUrl())) continue;
-			var sources = refRepository.findAllPublishedByUrlAndPublishedGreaterThanEqual(sourceUrl, rootOrigin, ref.getPublished());
+		var fixable = new HashSet<>(ref.getSources().stream().limit(fixLimit).toList());
+		for (var sourceUrl : ref.getSources().stream().limit(limit).filter(s -> !s.equals(ref.getUrl())).distinct().toList()) {
+			var sources = refRepository.findAllPublishedByUrlAndPublishedGreaterThanEqual(sourceUrl, rootOrigin, ref.getPublished(), includeInternal);
 			for (var source : sources) {
 				if (source.getPublished().isAfter(ref.getPublished())) {
-					if (!fix) throw new PublishDateException(source.getUrl(), ref.getUrl());
+					if (!fixable.contains(sourceUrl)) throw new PublishDateException(
+						ref.getUrl(), ref.getPublished(), source.getUrl(), source.getPublished());
 					ref.setPublished(source.getPublished().plusMillis(1));
 				}
 			}
 		}
 	}
 
-	private void responses(String rootOrigin, Ref ref, boolean fix) {
-		var responses = refRepository.findAllResponsesPublishedBeforeThanEqual(ref.getUrl(), rootOrigin, ref.getPublished());
+	private void responses(String rootOrigin, Ref ref, boolean fix, boolean includeInternal) {
+		var responses = refRepository.findAllResponsesPublishedBeforeThanEqual(ref.getUrl(), rootOrigin, ref.getPublished(), includeInternal);
 		for (var response : responses) {
 			if (response.getPublished().isBefore(ref.getPublished())) {
 				if (response.hasTag("plugin/user")) {
 					response.setPublished(ref.getPublished());
 					continue;
 				}
-				if (!fix) throw new PublishDateException(response.getUrl(), ref.getUrl());
+				if (!fix) throw new PublishDateException(
+					response.getUrl(), response.getPublished(), ref.getUrl(), ref.getPublished());
 				ref.setPublished(response.getPublished().minusMillis(1));
 			}
 		}

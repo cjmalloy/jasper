@@ -3,10 +3,7 @@ package jasper.repository.spec;
 import jasper.domain.proj.HasOrigin;
 import org.springframework.data.jpa.domain.Specification;
 
-import java.util.List;
-
 import static org.apache.commons.lang3.StringUtils.isBlank;
-import static org.springframework.data.jpa.domain.Specification.unrestricted;
 
 public class OriginSpec {
 

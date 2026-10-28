@@ -1,8 +1,6 @@
 package jasper.config.timezone;
 
-import java.time.*;
-import java.time.format.DateTimeFormatter;
-
+import jasper.DisabledOnSqlite;
 import jasper.IntegrationTest;
 import jasper.repository.timezone.DateTimeWrapper;
 import jasper.repository.timezone.DateTimeWrapperRepository;
@@ -15,13 +13,18 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.support.rowset.SqlRowSet;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.*;
+import java.time.format.DateTimeFormatter;
+
 import static java.lang.String.format;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Integration tests for the ZoneId Hibernate configuration.
+ * Disabled on SQLite because the test depends on PostgreSQL-specific sequence generation (e.g. sequence_generator table).
  */
 @IntegrationTest
+@DisabledOnSqlite
 class HibernateTimeZoneIT {
 
 	@Autowired

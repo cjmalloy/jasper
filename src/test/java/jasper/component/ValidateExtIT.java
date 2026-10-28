@@ -34,10 +34,16 @@ public class ValidateExtIT {
 	@Autowired
 	UserRepository userRepository;
 
+	@Autowired
+	ConfigCache configCache;
+
 	@BeforeEach
 	void init() {
 		templateRepository.deleteAll();
 		userRepository.deleteAll();
+		configCache.clearUserCache();
+		configCache.clearPluginCache();
+		configCache.clearTemplateCache();
 	}
 
 	@Test

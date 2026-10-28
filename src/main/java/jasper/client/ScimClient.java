@@ -1,9 +1,9 @@
 package jasper.client;
 
-import com.unboundid.scim2.common.messages.ListResponse;
 import feign.Headers;
 import feign.Param;
 import feign.RequestLine;
+import jasper.component.dto.ScimListResponse;
 import jasper.component.dto.ScimPatchOp;
 import jasper.component.dto.ScimUserResource;
 import org.springframework.cloud.openfeign.FeignClient;
@@ -21,11 +21,11 @@ public interface ScimClient {
 
 	@RequestLine("GET /Users?filter=userName eq \"{tag}\"")
 	@Headers("Authorization: Bearer {accessCode}")
-	ListResponse<Map<String, Object>> getUser(URI baseUri, @Param("accessCode") String accessCode, @Param("tag") String tag);
+	ScimListResponse<Map<String, Object>> getUser(URI baseUri, @Param("accessCode") String accessCode, @Param("tag") String tag);
 
 	@RequestLine("GET /Users?startIndex={startIndex}&count={count}")
 	@Headers("Authorization: Bearer {accessCode}")
-	ListResponse<Map<String, Object>> getUsers(URI baseUri, @Param("accessCode") String accessCode, @Param("startIndex") int startIndex, @Param("count") int count);
+	ScimListResponse<Map<String, Object>> getUsers(URI baseUri, @Param("accessCode") String accessCode, @Param("startIndex") int startIndex, @Param("count") int count);
 
 	@RequestLine("PUT /Users/{id}")
 	@Headers({"Content-Type: application/scim+json", "Authorization: Bearer {accessCode}"})

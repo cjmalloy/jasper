@@ -9,6 +9,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Pattern;
+import jasper.aop.ClearIdle;
 import jasper.component.HttpCache;
 import jasper.domain.User;
 import jasper.errors.NotFoundException;
@@ -36,6 +37,7 @@ import static jasper.domain.proj.Tag.QTAG_LEN;
 import static jasper.repository.filter.Query.QUERY_LEN;
 import static jasper.repository.filter.Query.SEARCH_LEN;
 
+@ClearIdle
 @RestController
 @RequestMapping("api/v1/user")
 @Validated

@@ -1,0 +1,69 @@
+services:
+  gatling:
+    build: .
+    profiles:
+      - lt
+    network_mode: host
+    depends_on:
+      web:
+        condition: service_healthy
+      upstream:
+        condition: service_started
+    environment:
+      GATLING_TEST: "${GATLING_TEST:-SmokeTest}"
+      LT_BASE_URL: http://localhost:8081
+      LT_UPSTREAM: http://upstream
+      LT_RATE: "${LT_RATE:-}"
+      LT_DURATION: "${LT_DURATION:-}"
+      LT_SEED_REFS: "${LT_SEED_REFS:-}"
+      LT_CAPACITY_STEP: "${LT_CAPACITY_STEP:-}"
+      LT_RATE_LIMIT: "${LT_RATE_LIMIT:-}"
+      LT_RATE_LIMIT_CONCURRENT: "${LT_RATE_LIMIT_CONCURRENT:-}"
+      LT_THINK: "${LT_THINK:-}"
+      LT_MAX_ERROR_PERCENT: "${LT_MAX_ERROR_PERCENT:-}"
+      LT_USERS: "${LT_USERS:-}"
+      LT_WS_SHARE: "${LT_WS_SHARE:-}"
+      LT_TOPICS: "${LT_TOPICS:-}"
+      LT_CAPACITY_LEVELS: "${LT_CAPACITY_LEVELS:-}"
+      LT_CAPACITY_LEVEL_SECONDS: "${LT_CAPACITY_LEVEL_SECONDS:-}"
+      LT_INFERNO_BURST: "${LT_INFERNO_BURST:-}"
+      LT_RATE_LIMIT_ORIGINS: "${LT_RATE_LIMIT_ORIGINS:-}"
+      LT_RATE_LIMIT_GRADIENT: "${LT_RATE_LIMIT_GRADIENT:-}"
+      LT_TENANT_REFS: "${LT_TENANT_REFS:-}"
+      LT_SKIP_SEED: "${LT_SKIP_SEED:-}"
+    # Separate CPU budgets (4 in total, a GitHub runner) so the load generator cannot starve the server or vice versa
+    cpus: "${LT_GATLING_CPUS:-1}"
+    volumes:
+      - ./report:/gatling/report
+  web:
+    build: ..
+    cpus: "${LT_WEB_CPUS:-2}"
+    ports:
+      - 8081:80
+    healthcheck:
+      test: "curl -f http://localhost/management/health/readiness"
+      interval: 5s
+      retries: 60
+    environment:
+      SPRING_LOGGING_LEVEL_ROOT: WARN
+      SPRING_PROFILES_ACTIVE: prod,sqlite,jwt,storage,scripts,proxy
+      SERVER_PORT: 80
+      # Same debug secret as jasper-ui ?debug=ADMIN and the e2e stack (DO NOT USE IN PRODUCTION)
+      JASPER_OVERRIDE_SECURITY_MODE: 'jwt'
+      JASPER_OVERRIDE_SECURITY_CLIENT_ID: ''
+      JASPER_OVERRIDE_SECURITY_BASE64_SECRET: 'MjY0ZWY2ZTZhYmJhMTkyMmE5MTAxMTg3Zjc2ZDlmZWUwYjk0MDgzODA0MDJiOTgyNTk4MmNjYmQ4Yjg3MmVhYjk0MmE0OGFmNzE2YTQ5ZjliMTEyN2NlMWQ4MjA5OTczYjU2NzAxYTc4YThkMzYxNzdmOTk5MTIxODZhMTkwMDM='
+      # Allow the proxy and scraper to fetch from the local upstream container
+      JASPER_OVERRIDE_SERVER_HOST_WHITELIST: upstream
+      # Load tests write to the @loadtest sub-origin
+      JASPER_OVERRIDE_SERVER_WEB_ORIGINS: '@*'
+      JASPER_OVERRIDE_SERVER_MAX_CONCURRENT_REQUESTS: "${LT_MAX_CONCURRENT:-100}"
+      JASPER_HEAP: 512m
+      JASPER_GC: "${JASPER_GC:-g1gc}"
+      JASPER_STORAGE: /var/lib/jasper
+    depends_on:
+      - upstream
+  # Stands in for the external sites that links, images and scrapes point at
+  upstream:
+    image: nginx:alpine
+    volumes:
+      - ./upstream:/usr/share/nginx/html:ro

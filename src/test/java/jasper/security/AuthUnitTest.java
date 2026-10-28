@@ -9,7 +9,10 @@ import jasper.domain.Ref;
 import jasper.domain.User;
 import jasper.repository.RefRepository;
 import org.junit.jupiter.api.Test;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.security.access.hierarchicalroles.RoleHierarchy;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.AuthorityUtils;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 
@@ -80,6 +83,17 @@ public class AuthUnitTest {
 		return u;
 	}
 
+	@Test
+	void testGetUserFromAuthenticationDetails() {
+		var expected = getUser("+user/test");
+		var authentication = mock(Authentication.class);
+		when(authentication.getDetails()).thenReturn(expected);
+		var auth = new Auth(new Props(), roleHierarchy, configCache, getRefRepo());
+		auth.authentication = authentication;
+
+		assertThat(auth.getUser()).containsSame(expected);
+	}
+
 	Ref getRef(String ...tags) {
 		var r = new Ref();
 		r.setUrl("https://jasperkm.info/");
@@ -106,6 +120,28 @@ public class AuthUnitTest {
 				.thenReturn(user);
 		}
 		return configCache;
+	}
+
+	@Test
+	void testResolveOrigin() {
+		var props = new Props();
+		props.setLocalOrigin("@local");
+
+		assertThat(Auth.resolveOrigin(props, null)).isEqualTo("@local");
+		assertThat(Auth.resolveOrigin(props, "")).isEqualTo("@local");
+		assertThat(Auth.resolveOrigin(props, "@LOCAL.Tenant")).isEqualTo("@local.tenant");
+		assertThat(Auth.resolveOrigin(props, "@other")).isEqualTo("@local");
+		assertThat(Auth.resolveOrigin(props, "default")).isEqualTo("@local");
+		assertThat(Auth.resolveOrigin(props, "not an origin")).isEqualTo("@local");
+	}
+
+	@Test
+	void testResolveOrigin_DefaultLocalOrigin() {
+		var props = new Props();
+
+		assertThat(Auth.resolveOrigin(props, null)).isEqualTo("");
+		assertThat(Auth.resolveOrigin(props, "default")).isEqualTo("");
+		assertThat(Auth.resolveOrigin(props, "@tenant")).isEqualTo("@tenant");
 	}
 
 	@Test
@@ -152,6 +188,18 @@ public class AuthUnitTest {
 		var ref = getRef("public");
 
 		assertThat(auth.canReadRef(ref))
+			.isFalse();
+	}
+
+	@Test
+	void testCanReadRef_RedirectedLogOwner() {
+		var ref = getRef("internal", "+plugin/log", "user/alice");
+
+		assertThat(getAuth(getUser("+user/alice"), USER).canReadRef(ref))
+			.isTrue();
+		assertThat(getAuth(getUser("_user/alice"), USER).canReadRef(ref))
+			.isTrue();
+		assertThat(getAuth(getUser("+user/bob"), USER).canReadRef(ref))
 			.isFalse();
 	}
 
@@ -272,6 +320,18 @@ public class AuthUnitTest {
 	}
 
 	@Test
+	void testCanWriteRef_PublicTagWriteAccessFailed() {
+		var user = getUser("+user/test");
+		user.getWriteAccess().add("+custom");
+		var auth = getAuth(user, USER);
+		var ref = getRef("custom");
+		auth.refRepository = getRefRepo(ref);
+
+		assertThat(auth.canWriteRef(ref))
+			.isFalse();
+	}
+
+	@Test
 	void testCanWriteRef_UserTag() {
 		var user = getUser("+user/test");
 		var auth = getAuth(user, USER);
@@ -279,6 +339,14 @@ public class AuthUnitTest {
 		auth.refRepository = getRefRepo(ref);
 
 		assertThat(auth.canWriteRef(ref))
+			.isTrue();
+	}
+
+	@Test
+	void testCanWriteRef_PublicUserUrl() {
+		var auth = getAuth(getUser("+user/test"), USER);
+
+		assertThat(auth.canWriteRef("tag:/user/test?url=https://jasperkm.info/", ""))
 			.isTrue();
 	}
 
@@ -299,6 +367,30 @@ public class AuthUnitTest {
 		var user = getUser("_user/test");
 		var auth = getAuth(user, USER);
 		var ref = getRef("_user/test");
+		auth.refRepository = getRefRepo(ref);
+
+		assertThat(auth.canWriteRef(ref))
+			.isTrue();
+	}
+
+	@Test
+	void testCanWriteRef_PublicUserTagWriteAccessFailed() {
+		var user = getUser("+user/test");
+		user.getWriteAccess().add("_user/test");
+		var auth = getAuth(user, USER);
+		var ref = getRef("user/test");
+		auth.refRepository = getRefRepo(ref);
+
+		assertThat(auth.canWriteRef(ref))
+			.isFalse();
+	}
+
+	@Test
+	void testCanWriteRef_PublicUserTagWithOtherWriteAccess() {
+		var user = getUser("+user/test");
+		user.getWriteAccess().addAll(List.of("_user/test", "+custom"));
+		var auth = getAuth(user, USER);
+		var ref = getRef("user/test", "+custom");
 		auth.refRepository = getRefRepo(ref);
 
 		assertThat(auth.canWriteRef(ref))
@@ -415,6 +507,14 @@ public class AuthUnitTest {
 		var auth = getAuth(user, USER);
 
 		assertThat(auth.canAddTag("custom"))
+			.isTrue();
+	}
+
+	@Test
+	void testCanAddTag_PublicUserTag() {
+		var auth = getAuth(getUser("+user/test"), USER);
+
+		assertThat(auth.canAddTag("user/other"))
 			.isTrue();
 	}
 
@@ -835,6 +935,104 @@ public class AuthUnitTest {
 	}
 
 	@Test
+	void testFilterSort_PrivatePluginWithAccess() {
+		var user = getUser("+user/test");
+		user.getTagReadAccess().add("_custom");
+		var auth = getAuth(user, VIEWER);
+
+		var pageable = PageRequest.of(0, 20, Sort.by("plugins->_custom->field"));
+		assertThat(auth.pageable(pageable).getSort().isSorted())
+			.isTrue();
+	}
+
+	@Test
+	void testFilterSort_PrivatePluginWithoutAccess() {
+		var user = getUser("+user/test");
+		var auth = getAuth(user, USER);
+
+		var pageable = PageRequest.of(0, 20, Sort.by("plugins->_custom->field"));
+		assertThat(auth.pageable(pageable).getSort().isUnsorted())
+			.isTrue();
+	}
+
+	@Test
+	void testFilterSort_PublicPlugin() {
+		var user = getUser("+user/test");
+		var auth = getAuth(user, VIEWER);
+
+		var pageable = PageRequest.of(0, 20, Sort.by("plugins->plugin/custom->field"));
+		assertThat(auth.pageable(pageable).getSort().isSorted())
+			.isTrue();
+	}
+
+	@Test
+	void testFilterSort_MetadataPrivatePluginWithAccess() {
+		var user = getUser("+user/test");
+		user.getTagReadAccess().add("_custom");
+		var auth = getAuth(user, VIEWER);
+
+		var pageable = PageRequest.of(0, 20, Sort.by("metadata->plugins->_custom->field"));
+		assertThat(auth.pageable(pageable).getSort().isSorted())
+			.isTrue();
+	}
+
+	@Test
+	void testFilterSort_MetadataPrivatePluginWithoutAccess() {
+		var user = getUser("+user/test");
+		var auth = getAuth(user, USER);
+
+		var pageable = PageRequest.of(0, 20, Sort.by("metadata->plugins->_custom->field"));
+		assertThat(auth.pageable(pageable).getSort().isUnsorted())
+			.isTrue();
+	}
+
+	@Test
+	void testFilterSort_PrivateTagValueWithAccess() {
+		var user = getUser("+user/test");
+		user.getTagReadAccess().add("_custom");
+		var auth = getAuth(user, VIEWER);
+
+		var pageable = PageRequest.of(0, 20, Sort.by("tags->_custom/progress:num"));
+		assertThat(auth.pageable(pageable).getSort().isSorted())
+			.isTrue();
+	}
+
+	@Test
+	void testFilterSort_PrivateTagValueWithoutAccess() {
+		var user = getUser("+user/test");
+		var auth = getAuth(user, USER);
+
+		var pageable = PageRequest.of(0, 20, Sort.by("tags->_custom/progress:num"));
+		assertThat(auth.pageable(pageable).getSort().isUnsorted())
+			.isTrue();
+	}
+
+	@Test
+	void testFilterSort_PublicTagValue() {
+		var user = getUser("+user/test");
+		var auth = getAuth(user, VIEWER);
+
+		var pageable = PageRequest.of(0, 20, Sort.by("tags->plugin/duration"));
+		assertThat(auth.pageable(pageable).getSort().isSorted())
+			.isTrue();
+	}
+
+	@Test
+	void testFilterSort_MixedSortsKeepsAuthorized() {
+		var user = getUser("+user/test");
+		var auth = getAuth(user, USER);
+
+		var pageable = PageRequest.of(0, 20, Sort.by("modified", "plugins->_custom->field"));
+		var filtered = auth.pageable(pageable);
+		assertThat(filtered.getSort().isSorted())
+			.isTrue();
+		assertThat(filtered.getSort().stream().count())
+			.isEqualTo(1);
+		assertThat(filtered.getSort().getOrderFor("modified"))
+			.isNotNull();
+	}
+
+	@Test
 	void testGetHiddenTags_Public() {
 		var user = getUser("+user/test");
 		var auth = getAuth(user, VIEWER);
@@ -1090,6 +1288,69 @@ public class AuthUnitTest {
 		var aliceMod = getUser("+user/alice");
 		aliceMod.getWriteAccess().add("_custom");
 		assertThat(auth.canWriteUser(aliceMod))
+			.isFalse();
+	}
+
+	@Test
+	void testCanSubscribeToRef_Readable() {
+		var auth = getAuth(getUser("+user/test"), VIEWER);
+		var ref = getRef("public");
+		auth.refRepository = getRefRepo(ref);
+
+		assertThat(auth.canSubscribeTo("/topic/ref/default/https%3A%2F%2Fjasperkm.info%2F"))
+			.isTrue();
+	}
+
+	@Test
+	void testCanSubscribeToRef_NotReadableFailed() {
+		var auth = getAuth(getUser("+user/test"), VIEWER);
+		var ref = getRef("_secret");
+		auth.refRepository = getRefRepo(ref);
+
+		assertThat(auth.canSubscribeTo("/topic/ref/default/https%3A%2F%2Fjasperkm.info%2F"))
+			.isFalse();
+	}
+
+	@Test
+	void testCanSubscribeToRef_Missing() {
+		var auth = getAuth(getUser("+user/test"), VIEWER);
+
+		assertThat(auth.canSubscribeTo("/topic/ref/default/https%3A%2F%2Fjasperkm.info%2F"))
+			.isTrue();
+	}
+
+	@Test
+	void testCanSubscribeToRef_MissingSubOrigin() {
+		var auth = getAuth(getUser("+user/test"), VIEWER);
+
+		assertThat(auth.canSubscribeTo("/topic/ref/@sub/https%3A%2F%2Fjasperkm.info%2F"))
+			.isTrue();
+	}
+
+	@Test
+	void testCanSubscribeToRef_MissingSubOriginNotReadableFailed() {
+		var auth = getAuth(getUser("+user/test"), VIEWER);
+		var ref = getRef("_secret");
+		ref.setOrigin("@sub");
+		auth.refRepository = getRefRepo(ref);
+
+		assertThat(auth.canSubscribeTo("/topic/ref/@sub/https%3A%2F%2Fjasperkm.info%2F"))
+			.isFalse();
+	}
+
+	@Test
+	void testCanSubscribeToRef_MissingOtherOriginFailed() {
+		var auth = getAuth("@other", getUser("+user/test"), VIEWER);
+
+		assertThat(auth.canSubscribeTo("/topic/ref/default/https%3A%2F%2Fjasperkm.info%2F"))
+			.isFalse();
+	}
+
+	@Test
+	void testCanSubscribeToRef_MissingPrivateTagUrlFailed() {
+		var auth = getAuth(getUser("+user/test"), VIEWER);
+
+		assertThat(auth.canSubscribeTo("/topic/ref/default/tag%3A%2F_secret"))
 			.isFalse();
 	}
 }

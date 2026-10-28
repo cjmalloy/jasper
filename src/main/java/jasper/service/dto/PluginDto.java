@@ -1,6 +1,7 @@
 package jasper.service.dto;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import jasper.domain.proj.Tag;
 import lombok.Getter;
@@ -19,7 +20,7 @@ public class PluginDto implements Tag, Serializable {
 	private String origin;
 	private String name;
 	private ObjectNode config;
-	private ObjectNode defaults;
+	private JsonNode defaults;
 	@JsonInclude()
 	private ObjectNode schema;
 	private Instant modified;

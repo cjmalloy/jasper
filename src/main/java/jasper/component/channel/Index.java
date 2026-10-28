@@ -1,7 +1,7 @@
 package jasper.component.channel;
 
 import jasper.component.ConfigCache;
-import jasper.repository.RefRepository;
+import jasper.repository.IndexRepository;
 import jasper.service.dto.TemplateDto;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -20,7 +20,7 @@ public class Index {
 	private static final Logger logger = LoggerFactory.getLogger(Index.class);
 
 	@Autowired
-	RefRepository refRepository;
+	IndexRepository indexRepository;
 
 	@Autowired
 	ConfigCache configs;
@@ -44,49 +44,89 @@ public class Index {
 		var index = configs.index();
 		if (index.isTags()) {
 			try {
-				refRepository.buildTags();
+				indexRepository.buildTags();
 			} catch (Exception ignored) {}
 			try {
-				refRepository.buildExpandedTags();
+				indexRepository.buildExpandedTags();
 			} catch (Exception ignored) {}
 		} else {
-			refRepository.dropTags();
-			refRepository.dropExpandedTags();
+			indexRepository.dropTags();
+			indexRepository.dropExpandedTags();
 		}
 		if (index.isSources()) {
 			try {
-				refRepository.buildSources();
+				indexRepository.buildSources();
 			} catch (Exception ignored) {}
 		} else {
-			refRepository.dropSources();
+			indexRepository.dropSources();
 		}
 		if (index.isAlts()) {
 			try {
-				refRepository.buildAlts();
+				indexRepository.buildAlts();
 			} catch (Exception ignored) {}
 		} else {
-			refRepository.dropAlts();
+			indexRepository.dropAlts();
+		}
+		if (index.isResponses()) {
+			try {
+				indexRepository.buildResponses();
+			} catch (Exception ignored) {}
+		} else {
+			indexRepository.dropResponses();
+		}
+		if (index.isInternalResponses()) {
+			try {
+				indexRepository.buildInternalResponses();
+			} catch (Exception ignored) {}
+		} else {
+			indexRepository.dropInternalResponses();
 		}
 		if (index.isFulltext()) {
 			try {
-				refRepository.buildFulltext();
+				indexRepository.buildFulltext();
 			} catch (Exception ignored) {}
 		} else {
-			refRepository.dropFulltext();
+			indexRepository.dropFulltext();
 		}
 		if (index.isPublished()) {
 			try {
-				refRepository.buildPublished();
+				indexRepository.buildPublished();
 			} catch (Exception ignored) {}
 		} else {
-			refRepository.dropPublished();
+			indexRepository.dropPublished();
 		}
 		if (index.isModified()) {
 			try {
-				refRepository.buildModified();
+				indexRepository.buildModified();
 			} catch (Exception ignored) {}
 		} else {
-			refRepository.dropModified();
+			indexRepository.dropModified();
+		}
+		if (index.isIgnored()) {
+			try {
+				indexRepository.buildIgnored();
+			} catch (Exception ignored) {}
+		} else {
+			indexRepository.dropIgnored();
+		}
+		if (index.isCascade()) {
+			try {
+				indexRepository.buildCascade();
+			} catch (Exception ignored) {}
+		} else {
+			indexRepository.dropCascade();
+		}
+		if (index.isRegen()) {
+			try {
+				indexRepository.buildRegen();
+			} catch (Exception ignored) {}
+		} else {
+			indexRepository.dropRegen();
+		}
+		try {
+			indexRepository.updateHotTags(index.getHotTags());
+		} catch (Exception e) {
+			logger.error("Error updating hot tag indices", e);
 		}
 	}
 
