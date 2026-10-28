@@ -292,4 +292,29 @@ class ConfigTest {
 		assertThat(config.script("plugin/anything", new TestHasTags(List.of("plugin/anything"), "@alice"))).isTrue();
 		assertThat(config.script("_plugin/delta", new TestHasTags(List.of("_plugin/delta/scrape"), "@bob"))).isFalse();
 	}
+
+	@Test
+	void testRateLimitDefaults() {
+		assertThat(new Config.SecurityConfig().getMaxRequests()).isEqualTo(50);
+		assertThat(new Config.SecurityConfig().getMaxRequestsPeriod()).isEqualTo(java.time.Duration.ofNanos(500));
+		assertThat(Config.ServerConfig.builder().build().getMaxRequests()).isEqualTo(500);
+		assertThat(Config.ServerConfig.builder().build().getMaxRequestsPeriod()).isEqualTo(java.time.Duration.ofNanos(500));
+	}
+
+	@Test
+	void testRateLimitOverrides() {
+		var props = new Props();
+		props.getOverride().getSecurity().setMaxRequests(5);
+		props.getOverride().getSecurity().setMaxRequestsPeriod(java.time.Duration.ofSeconds(1));
+		props.getOverride().getServer().setMaxRequests(100);
+		props.getOverride().getServer().setMaxRequestsPeriod(java.time.Duration.ofSeconds(2));
+
+		var security = new Config.SecurityConfig().wrap(props);
+		var server = Config.ServerConfig.builder().build().wrap(props);
+
+		assertThat(security.getMaxRequests()).isEqualTo(5);
+		assertThat(security.getMaxRequestsPeriod()).isEqualTo(java.time.Duration.ofSeconds(1));
+		assertThat(server.getMaxRequests()).isEqualTo(100);
+		assertThat(server.getMaxRequestsPeriod()).isEqualTo(java.time.Duration.ofSeconds(2));
+	}
 }
