@@ -144,22 +144,23 @@ public class RateLimitConfig {
 				HttpServletRequest httpRequest = (HttpServletRequest) request;
 				HttpServletResponse httpResponse = (HttpServletResponse) response;
 				var origin = resolveOrigin(props, httpRequest.getHeader(LOCAL_ORIGIN_HEADER));
-				if (!getOriginRateLimiter(origin).acquirePermission()) {
-					RateLimitConfig.logger.debug("{} Rate limit exceeded for origin: {}", origin, httpRequest.getRequestURI());
-					httpResponse.setStatus(429);
-					httpResponse.setHeader("X-RateLimit-Limit", ""+getOriginRateLimiter(origin).getRateLimiterConfig().getLimitForPeriod());
-					// Add random jitter from 3.5 to 4.5 seconds to prevent thundering herd
-					httpResponse.setHeader("X-RateLimit-Retry-After", format("%.1f", ThreadLocalRandom.current().nextDouble(3.5, 4.5)));
-					return;
-				}
-				if (!httpRateLimiter.acquirePermission()) {
-					RateLimitConfig.logger.debug("{} HTTP rate limit exceeded for request: {}", origin, httpRequest.getRequestURI());
-					httpResponse.setStatus(429);
-					// Add random jitter from 3.5 to 4.5 seconds to prevent thundering herd
-					httpResponse.setHeader("X-RateLimit-Retry-After", format("%.1f", ThreadLocalRandom.current().nextDouble(3.5, 4.5)));
-					return;
-				}
 				try {
+					// Creating an origin rate limiter loads its config from the database
+					if (!getOriginRateLimiter(origin).acquirePermission()) {
+						RateLimitConfig.logger.debug("{} Rate limit exceeded for origin: {}", origin, httpRequest.getRequestURI());
+						httpResponse.setStatus(429);
+						httpResponse.setHeader("X-RateLimit-Limit", ""+getOriginRateLimiter(origin).getRateLimiterConfig().getLimitForPeriod());
+						// Add random jitter from 3.5 to 4.5 seconds to prevent thundering herd
+						httpResponse.setHeader("X-RateLimit-Retry-After", format("%.1f", ThreadLocalRandom.current().nextDouble(3.5, 4.5)));
+						return;
+					}
+					if (!httpRateLimiter.acquirePermission()) {
+						RateLimitConfig.logger.debug("{} HTTP rate limit exceeded for request: {}", origin, httpRequest.getRequestURI());
+						httpResponse.setStatus(429);
+						// Add random jitter from 3.5 to 4.5 seconds to prevent thundering herd
+						httpResponse.setHeader("X-RateLimit-Retry-After", format("%.1f", ThreadLocalRandom.current().nextDouble(3.5, 4.5)));
+						return;
+					}
 					httpBulkhead.executeCheckedSupplier(() -> {
 						chain.doFilter(request, response);
 						return null;
