@@ -349,8 +349,8 @@ public class ConfigCache {
 	public void handleTemplateUpdate(Message<TemplateDto> message) {
 		var template = message.getPayload();
 		if (isBlank(template.getTag())) return;
-		if (isNotBlank(template.getOrigin())) return;
-		if (concat("_config/server", props.getWorkerOrigin()).equals(template.getTag() + template.getOrigin())) {
+		if (!origin(props.getLocalOrigin()).equals(origin(template.getOrigin()))) return;
+		if (concat("_config/server", props.getWorkerOrigin()).equals(template.getTag())) {
 			logger.debug("Server config template updated, updating listeners");
 			rootListeners.forEach(listener -> listener.accept(self.root()));
 		}
