@@ -41,7 +41,7 @@
 		<commons-compress.version>1.28.0</commons-compress.version>
 		<google-cloud-storage.version>2.76.0</google-cloud-storage.version>
 		<google-cloud-nio.version>0.140.0</google-cloud-nio.version>
-		<awssdk.version>2.57.5</awssdk.version>
+		<awssdk.version>2.57.6</awssdk.version>
 		<jsoup.version>1.23.2</jsoup.version>
 		<xmlunit.version>2.14.0</xmlunit.version>
 	</properties>
