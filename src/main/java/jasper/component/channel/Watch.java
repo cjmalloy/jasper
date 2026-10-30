@@ -64,12 +64,12 @@ public class Watch {
 	 * Remove a watcher for tagged Refs in an origin.
 	 * Tag removal tracking is kept, since it is keyed by concrete origin
 	 * and may still be needed by other watchers covering the same origin.
+	 * The per-origin map is kept even when empty, so a concurrent addWatch
+	 * never inserts into a detached map.
 	 */
 	public void removeWatch(String origin, String tag) {
-		watchers.computeIfPresent(origin, (o, ws) -> {
-			ws.remove(tag);
-			return ws.isEmpty() ? null : ws;
-		});
+		var ws = watchers.get(origin);
+		if (ws != null) ws.remove(tag);
 	}
 
 	@EventListener(ApplicationReadyEvent.class)
