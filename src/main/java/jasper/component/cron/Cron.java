@@ -66,27 +66,34 @@ public class Cron {
 
 	@PostConstruct
 	public void init() {
-		configs.rootUpdate(root -> {
-			tasks.forEach((key, task) -> {
-				var origin = key.substring(0, key.indexOf(':'));
-				if (root.script("+plugin/cron", origin)) return;
-				if (tasks.remove(key, task)) {
-					task.cancel(false);
-					logger.info("{} Unscheduled due to script selectors: {}", origin, key.substring(origin.length() + 1));
-				}
-			});
-			var origins = Set.copyOf(root.scriptOrigins("+plugin/cron"));
-			for (var origin : cronOrigins) {
-				if (!origins.contains(origin)) watch.removeWatch(origin, "+plugin/cron");
-			}
-			for (var origin : origins) {
-				watch.addWatch(origin, "+plugin/cron", this::schedule);
-			}
-			cronOrigins = origins;
-			for (var origin : root.scriptOrigins("+plugin/user/run")) {
-				watch.addWatch(origin, "+plugin/user/run", this::run);
+		configs.rootUpdate(root -> updateWatches());
+	}
+
+	/**
+	 * Template updates may be delivered concurrently, so always reconcile
+	 * against the current root config to avoid restoring stale selectors.
+	 */
+	synchronized void updateWatches() {
+		var root = configs.root();
+		tasks.forEach((key, task) -> {
+			var origin = key.substring(0, key.indexOf(':'));
+			if (root.script("+plugin/cron", origin)) return;
+			if (tasks.remove(key, task)) {
+				task.cancel(false);
+				logger.info("{} Unscheduled due to script selectors: {}", origin, key.substring(origin.length() + 1));
 			}
 		});
+		var origins = Set.copyOf(root.scriptOrigins("+plugin/cron"));
+		for (var origin : origins) {
+			watch.addWatch(origin, "+plugin/cron", this::schedule);
+		}
+		for (var origin : cronOrigins) {
+			if (!origins.contains(origin)) watch.removeWatch(origin, "+plugin/cron");
+		}
+		cronOrigins = origins;
+		for (var origin : root.scriptOrigins("+plugin/user/run")) {
+			watch.addWatch(origin, "+plugin/user/run", this::run);
+		}
 	}
 
 	private void schedule(HasTags ref) {

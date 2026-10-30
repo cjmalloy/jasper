@@ -21,10 +21,12 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
@@ -45,14 +47,16 @@ class CronTest {
 	void init() {
 		doAnswer(i -> {
 			listener = i.getArgument(0);
-			listener.accept(config("+plugin/cron@tenant.*"));
+			update("+plugin/cron@tenant.*");
 			return null;
 		}).when(configs).rootUpdate(any());
 		cron.init();
 	}
 
-	ServerConfig config(String ...selectors) {
-		return ServerConfig.builder().scriptSelectors(List.of(selectors)).build();
+	void update(String ...selectors) {
+		var root = ServerConfig.builder().scriptSelectors(List.of(selectors)).build();
+		when(configs.root()).thenReturn(root);
+		listener.accept(root);
 	}
 
 	@Test
@@ -62,7 +66,7 @@ class CronTest {
 		cron.tasks.put("@tenant.kept:https://example.com/kept", kept);
 		cron.tasks.put("@tenant.removed:https://example.com/removed", removed);
 
-		listener.accept(config("+plugin/cron@tenant.kept"));
+		update("+plugin/cron@tenant.kept");
 
 		verify(kept, never()).cancel(any(Boolean.class));
 		verify(removed).cancel(false);
@@ -74,7 +78,7 @@ class CronTest {
 		var task = mock(ScheduledFuture.class);
 		cron.tasks.put("@tenant.origin:https://example.com", task);
 
-		listener.accept(config("+plugin/cron@tenant.*", "plugin/script/feed@tenant.origin"));
+		update("+plugin/cron@tenant.*", "plugin/script/feed@tenant.origin");
 
 		verify(task, never()).cancel(any(Boolean.class));
 		assertThat(cron.tasks).containsKey("@tenant.origin:https://example.com");
@@ -85,7 +89,7 @@ class CronTest {
 		var task = mock(ScheduledFuture.class);
 		cron.tasks.put(":https://example.com", task);
 
-		listener.accept(config("+plugin/cron@tenant.*"));
+		update("+plugin/cron@tenant.*");
 
 		verify(task).cancel(false);
 		assertThat(cron.tasks).isEmpty();
@@ -95,20 +99,44 @@ class CronTest {
 	void testRemovesWatchForRemovedSelectorsSoReAddingRescans() {
 		verify(watch).addWatch(eq("@tenant.*"), eq("+plugin/cron"), any());
 
-		listener.accept(config("+plugin/cron@tenant.origin"));
+		update("+plugin/cron@tenant.origin");
 
 		verify(watch).removeWatch("@tenant.*", "+plugin/cron");
 		verify(watch).addWatch(eq("@tenant.origin"), eq("+plugin/cron"), any());
 
-		listener.accept(config("+plugin/cron@tenant.*"));
+		update("+plugin/cron@tenant.*");
 
 		verify(watch).removeWatch("@tenant.origin", "+plugin/cron");
 		verify(watch, times(2)).addWatch(eq("@tenant.*"), eq("+plugin/cron"), any());
 	}
 
 	@Test
+	void testAddsReplacementWatchBeforeRemovingOld() {
+		update("+plugin/cron@tenant.origin");
+
+		var order = inOrder(watch);
+		order.verify(watch).addWatch(eq("@tenant.origin"), eq("+plugin/cron"), any());
+		order.verify(watch).removeWatch("@tenant.*", "+plugin/cron");
+	}
+
+	@Test
+	void testStaleCallbackUsesCurrentConfig() {
+		update("+plugin/cron@a");
+		update("+plugin/cron@b");
+		var current = ServerConfig.builder().scriptSelectors(List.of("+plugin/cron@a")).build();
+		when(configs.root()).thenReturn(current);
+		listener.accept(current);
+
+		// A delayed callback carrying the stale @b config must not remove @a
+		listener.accept(ServerConfig.builder().scriptSelectors(List.of("+plugin/cron@b")).build());
+
+		assertThat(cron.cronOrigins).containsExactly("@a");
+		verify(watch, times(1)).removeWatch("@a", "+plugin/cron");
+	}
+
+	@Test
 	void testDoesNotRemoveWatchForUnchangedSelectors() {
-		listener.accept(config("+plugin/cron@tenant.*"));
+		update("+plugin/cron@tenant.*");
 
 		verify(watch, never()).removeWatch(anyString(), anyString());
 	}

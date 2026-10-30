@@ -132,6 +132,48 @@ class WatchTest {
 
 	@Test
 	@SuppressWarnings("unchecked")
+	void testScannedRefNotifiedWhenTagRemoved() {
+		var existing = Ref.from("https://example.com/@tenant.origin", "@tenant.origin", "+plugin/cron");
+		when(refRepository.findAll(any(Specification.class), any(Pageable.class)))
+			.thenReturn((Page<Ref>) new PageImpl<>(List.of(existing)))
+			.thenReturn(Page.empty());
+		var seen = new ArrayList<HasTags>();
+		watch.addWatch("@tenant.*", "+plugin/cron", seen::add);
+		watch.init();
+
+		send(ref("@tenant.origin"));
+
+		assertThat(seen).hasSize(2);
+	}
+
+	@Test
+	void testRemovingExactWatchKeepsTrackingForWildcard() {
+		var seen = new ArrayList<HasTags>();
+		watch.addWatch("@tenant.*", "+plugin/cron", seen::add);
+		watch.addWatch("@tenant.origin", "+plugin/cron", seen::add);
+		send(ref("@tenant.origin", "+plugin/cron"));
+
+		watch.removeWatch("@tenant.origin", "+plugin/cron");
+		send(ref("@tenant.origin"));
+
+		assertThat(seen).hasSize(2);
+	}
+
+	@Test
+	void testReplacingWatchKeepsTracking() {
+		var seen = new ArrayList<HasTags>();
+		watch.addWatch("@tenant.origin", "+plugin/cron", seen::add);
+		send(ref("@tenant.origin", "+plugin/cron"));
+
+		watch.addWatch("@tenant.*", "+plugin/cron", seen::add);
+		watch.removeWatch("@tenant.origin", "+plugin/cron");
+		send(ref("@tenant.origin"));
+
+		assertThat(seen).hasSize(2);
+	}
+
+	@Test
+	@SuppressWarnings("unchecked")
 	void testReAddWatchAfterRemoveRescans() {
 		when(refRepository.findAll(any(Specification.class), any(Pageable.class))).thenReturn(Page.empty());
 		watch.addWatch("@tenant.*", "+plugin/cron", r -> {});

@@ -62,13 +62,11 @@ public class Watch {
 
 	/**
 	 * Remove a watcher for tagged Refs in an origin.
+	 * Tag removal tracking is kept, since it is keyed by concrete origin
+	 * and may still be needed by other watchers covering the same origin.
 	 */
 	public void removeWatch(String origin, String tag) {
 		watchers.computeIfPresent(origin, (o, ws) -> {
-			ws.remove(tag);
-			return ws.isEmpty() ? null : ws;
-		});
-		watching.computeIfPresent(origin, (o, ws) -> {
 			ws.remove(tag);
 			return ws.isEmpty() ? null : ws;
 		});
@@ -97,8 +95,14 @@ public class Watch {
 				if (maybeRef.isEmpty()) break;
 				var ref = maybeRef.getContent().getFirst();
 				lastModified = ref.getModified();
+				var w = watchers.getOrDefault(origin, Map.of()).get(tag);
+				if (w == null) return;
+				watching
+					.computeIfAbsent(origin(ref.getOrigin()), o -> new ConcurrentHashMap<>())
+					.computeIfAbsent(tag, t -> ConcurrentHashMap.newKeySet())
+					.add(ref.getUrl());
 				try {
-					watchers.get(origin).get(tag).notify(ref);
+					w.notify(ref);
 				} catch (Exception e) {
 					logger.warn("{} Error starting watcher {}", origin, tag, e);
 				}
