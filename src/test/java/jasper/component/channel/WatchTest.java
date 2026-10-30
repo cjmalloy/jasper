@@ -23,6 +23,7 @@ import static jasper.component.Messages.originHeaders;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.messaging.support.MessageBuilder.createMessage;
@@ -116,6 +117,30 @@ class WatchTest {
 		send(ref("@tenant.origin"));
 
 		assertThat(seen).hasSize(2);
+	}
+
+	@Test
+	void testRemoveWatch() {
+		var seen = new ArrayList<HasTags>();
+		watch.addWatch("@tenant.*", "+plugin/cron", seen::add);
+		watch.removeWatch("@tenant.*", "+plugin/cron");
+
+		send(ref("@tenant.origin", "+plugin/cron"));
+
+		assertThat(seen).isEmpty();
+	}
+
+	@Test
+	@SuppressWarnings("unchecked")
+	void testReAddWatchAfterRemoveRescans() {
+		when(refRepository.findAll(any(Specification.class), any(Pageable.class))).thenReturn(Page.empty());
+		watch.addWatch("@tenant.*", "+plugin/cron", r -> {});
+		watch.init();
+		watch.removeWatch("@tenant.*", "+plugin/cron");
+
+		watch.addWatch("@tenant.*", "+plugin/cron", r -> {});
+
+		verify(refRepository, times(2)).findAll(any(Specification.class), any(Pageable.class));
 	}
 
 	@Test

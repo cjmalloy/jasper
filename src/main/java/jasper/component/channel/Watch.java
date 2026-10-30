@@ -60,6 +60,20 @@ public class Watch {
 		if (existing == null && ready.get()) scan(origin, tag);
 	}
 
+	/**
+	 * Remove a watcher for tagged Refs in an origin.
+	 */
+	public void removeWatch(String origin, String tag) {
+		watchers.computeIfPresent(origin, (o, ws) -> {
+			ws.remove(tag);
+			return ws.isEmpty() ? null : ws;
+		});
+		watching.computeIfPresent(origin, (o, ws) -> {
+			ws.remove(tag);
+			return ws.isEmpty() ? null : ws;
+		});
+	}
+
 	@EventListener(ApplicationReadyEvent.class)
 	public void init() {
 		ready.set(true);
