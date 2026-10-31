@@ -59,6 +59,40 @@ public class TaggerIT {
 	}
 
 	@Test
+	void testInternalResponseDoesNotModifySource() {
+		var source = refWithTags(URL, "test");
+		var modified = refRepository.findOneByUrlAndOrigin(URL, "").get().getModified();
+
+		assertThat(tagger.internalResponse("plugin/script/feed", "", URL, "\"abc\"")).isTrue();
+
+		assertThat(tagger.getInternalResponse("plugin/script/feed", "", URL)).isEqualTo("\"abc\"");
+		var response = refRepository.findOneByUrlAndOrigin("tag:/plugin/script/feed?url=" + URL, "").get();
+		assertThat(response.getSources()).containsExactly(URL);
+		assertThat(response.getTags()).containsExactly("internal");
+		var fetched = refRepository.findOneByUrlAndOrigin(URL, "").get();
+		assertThat(fetched.getModified()).isEqualTo(modified);
+		assertThat(fetched.getTags()).isEqualTo(source.getTags());
+		assertThat(fetched.getPlugins()).isNull();
+	}
+
+	@Test
+	void testInternalResponseUpdate() {
+		refWithTags(URL, "test");
+		tagger.internalResponse("plugin/script/feed", "", URL, "\"abc\"");
+
+		assertThat(tagger.internalResponse("plugin/script/feed", "", URL, "\"def\"")).isTrue();
+		assertThat(tagger.getInternalResponse("plugin/script/feed", "", URL)).isEqualTo("\"def\"");
+
+		assertThat(tagger.internalResponse("plugin/script/feed", "", URL, null)).isTrue();
+		assertThat(tagger.getInternalResponse("plugin/script/feed", "", URL)).isNull();
+	}
+
+	@Test
+	void testGetInternalResponseMissing() {
+		assertThat(tagger.getInternalResponse("plugin/script/feed", "", URL)).isNull();
+	}
+
+	@Test
 	void testDebugRefWriteAttachesLogs() {
 		tagger.tag(URL, "", "+plugin/debug");
 

@@ -15,6 +15,7 @@ import jasper.repository.RefRepository;
 import jasper.security.HostCheck;
 import jasper.service.dto.RefReplDto;
 import org.apache.http.HttpEntity;
+import org.apache.http.HttpHeaders;
 import org.apache.http.StatusLine;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
@@ -259,6 +260,71 @@ public class RssParserTest {
 		order.verify(progress).close();
 		verify(progress, times(3)).update(anyInt(), anyInt());
 		verify(jasperClient, times(2)).refPush(any(), any(), any(), any());
+	}
+
+	@Test
+	void testEtag_StoredInInternalResponse() throws Exception {
+		setUpValidHttpResponse();
+		var etag = mock(org.apache.http.Header.class);
+		when(etag.getValue()).thenReturn("\"abc\"");
+		when(httpResponse.getFirstHeader(HttpHeaders.ETAG)).thenReturn(etag);
+		var feed = feedWithAddTag("science", "+user/alice");
+
+		rssParser.runScript(feed, "plugin/script/feed");
+
+		verify(tagger).internalResponse("plugin/script/feed", ORIGIN, FEED_URL, "\"abc\"");
+		verify(ingest, never()).update(any(), any());
+		assertThat(feed.getPlugin("plugin/script/feed").has("etag")).isFalse();
+	}
+
+	@Test
+	void testEtag_SentFromInternalResponse() throws Exception {
+		setUpValidHttpResponse();
+		when(tagger.getInternalResponse("plugin/script/feed", ORIGIN, FEED_URL)).thenReturn("\"abc\"");
+		var etag = mock(org.apache.http.Header.class);
+		when(etag.getValue()).thenReturn("\"abc\"");
+		when(httpResponse.getFirstHeader(HttpHeaders.ETAG)).thenReturn(etag);
+		var feed = feedWithAddTag("science", "+user/alice");
+
+		rssParser.runScript(feed, "plugin/script/feed");
+
+		var captor = ArgumentCaptor.forClass(HttpGet.class);
+		verify(httpClient).execute(captor.capture());
+		assertThat(captor.getValue().getFirstHeader(HttpHeaders.IF_NONE_MATCH).getValue()).isEqualTo("\"abc\"");
+		verify(tagger, never()).internalResponse(any(), any(), any(), any());
+	}
+
+	@Test
+	void testEtag_ClearedWhenMissing() throws Exception {
+		setUpValidHttpResponse();
+		when(tagger.getInternalResponse("plugin/script/feed", ORIGIN, FEED_URL)).thenReturn("\"abc\"");
+		var feed = feedWithAddTag("science", "+user/alice");
+
+		rssParser.runScript(feed, "plugin/script/feed");
+
+		verify(tagger).internalResponse("plugin/script/feed", ORIGIN, FEED_URL, null);
+	}
+
+	@Test
+	void testEtag_Disabled() throws Exception {
+		setUpValidHttpResponse();
+		when(tagger.getInternalResponse(any(), any(), any())).thenReturn("\"abc\"");
+		var etag = mock(org.apache.http.Header.class);
+		when(etag.getValue()).thenReturn("\"def\"");
+		when(httpResponse.getFirstHeader(HttpHeaders.ETAG)).thenReturn(etag);
+		var feed = feedRef("+user/alice");
+		var config = new Feed();
+		config.setDisableEtag(true);
+		ObjectNode plugins = om.createObjectNode();
+		plugins.set("plugin/script/feed", om.convertValue(config, ObjectNode.class));
+		feed.setPlugins(plugins);
+
+		rssParser.runScript(feed, "plugin/script/feed");
+
+		var captor = ArgumentCaptor.forClass(HttpGet.class);
+		verify(httpClient).execute(captor.capture());
+		assertThat(captor.getValue().getFirstHeader(HttpHeaders.IF_NONE_MATCH)).isNull();
+		verify(tagger, never()).internalResponse(any(), any(), any(), any());
 	}
 
 	static final String YOUTUBE_FEED = """
