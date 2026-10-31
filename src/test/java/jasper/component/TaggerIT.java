@@ -63,10 +63,10 @@ public class TaggerIT {
 		var source = refWithTags(URL, "test");
 		var modified = refRepository.findOneByUrlAndOrigin(URL, "").get().getModified();
 
-		assertThat(tagger.internalResponse("_plugin/script/feed/etag", "", URL, "\"abc\"")).isTrue();
+		assertThat(tagger.internalResponse("plugin/script/feed", "", URL, "\"abc\"")).isTrue();
 
-		assertThat(tagger.getInternalResponse("_plugin/script/feed/etag", "", URL)).isEqualTo("\"abc\"");
-		var response = refRepository.findOneByUrlAndOrigin("tag:/_plugin/script/feed/etag?url=" + URL, "").get();
+		assertThat(tagger.getInternalResponse("plugin/script/feed", "", URL)).isEqualTo("\"abc\"");
+		var response = refRepository.findOneByUrlAndOrigin("tag:/plugin/script/feed?url=" + URL, "").get();
 		assertThat(response.getSources()).containsExactly(URL);
 		assertThat(response.getTags()).containsExactly("internal");
 		var fetched = refRepository.findOneByUrlAndOrigin(URL, "").get();
@@ -78,18 +78,18 @@ public class TaggerIT {
 	@Test
 	void testInternalResponseUpdate() {
 		refWithTags(URL, "test");
-		tagger.internalResponse("_plugin/script/feed/etag", "", URL, "\"abc\"");
+		tagger.internalResponse("plugin/script/feed", "", URL, "\"abc\"");
 
-		assertThat(tagger.internalResponse("_plugin/script/feed/etag", "", URL, "\"def\"")).isTrue();
-		assertThat(tagger.getInternalResponse("_plugin/script/feed/etag", "", URL)).isEqualTo("\"def\"");
+		assertThat(tagger.internalResponse("plugin/script/feed", "", URL, "\"def\"")).isTrue();
+		assertThat(tagger.getInternalResponse("plugin/script/feed", "", URL)).isEqualTo("\"def\"");
 
-		assertThat(tagger.internalResponse("_plugin/script/feed/etag", "", URL, null)).isTrue();
-		assertThat(tagger.getInternalResponse("_plugin/script/feed/etag", "", URL)).isNull();
+		assertThat(tagger.internalResponse("plugin/script/feed", "", URL, null)).isTrue();
+		assertThat(tagger.getInternalResponse("plugin/script/feed", "", URL)).isNull();
 	}
 
 	@Test
 	void testGetInternalResponseMissing() {
-		assertThat(tagger.getInternalResponse("_plugin/script/feed/etag", "", URL)).isNull();
+		assertThat(tagger.getInternalResponse("plugin/script/feed", "", URL)).isNull();
 	}
 
 	@Test

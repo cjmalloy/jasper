@@ -41,9 +41,9 @@ public interface Tag extends Cursor {
 		return "tag:/" + publicTag(user) + "?url=" + url;
 	}
 
-	// Private tag URL for internal state about a Ref, so the Ref itself is not modified
-	static String privateUrlForTag(String url, String tag) {
-		return "tag:/_" + publicTag(tag) + "?url=" + url;
+	// Tag URL for internal state about a Ref, so the Ref itself is not modified
+	static String responseUrlForTag(String url, String tag) {
+		return "tag:/" + tag + "?url=" + url;
 	}
 
 	// User tags are only unique within an origin

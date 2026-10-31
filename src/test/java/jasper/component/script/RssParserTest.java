@@ -272,7 +272,7 @@ public class RssParserTest {
 
 		rssParser.runScript(feed, "plugin/script/feed");
 
-		verify(tagger).internalResponse("_plugin/script/feed/etag", ORIGIN, FEED_URL, "\"abc\"");
+		verify(tagger).internalResponse("plugin/script/feed", ORIGIN, FEED_URL, "\"abc\"");
 		verify(ingest, never()).update(any(), any());
 		assertThat(feed.getPlugin("plugin/script/feed").has("etag")).isFalse();
 	}
@@ -280,7 +280,7 @@ public class RssParserTest {
 	@Test
 	void testEtag_SentFromInternalResponse() throws Exception {
 		setUpValidHttpResponse();
-		when(tagger.getInternalResponse("_plugin/script/feed/etag", ORIGIN, FEED_URL)).thenReturn("\"abc\"");
+		when(tagger.getInternalResponse("plugin/script/feed", ORIGIN, FEED_URL)).thenReturn("\"abc\"");
 		var etag = mock(org.apache.http.Header.class);
 		when(etag.getValue()).thenReturn("\"abc\"");
 		when(httpResponse.getFirstHeader(HttpHeaders.ETAG)).thenReturn(etag);
@@ -297,12 +297,12 @@ public class RssParserTest {
 	@Test
 	void testEtag_ClearedWhenMissing() throws Exception {
 		setUpValidHttpResponse();
-		when(tagger.getInternalResponse("_plugin/script/feed/etag", ORIGIN, FEED_URL)).thenReturn("\"abc\"");
+		when(tagger.getInternalResponse("plugin/script/feed", ORIGIN, FEED_URL)).thenReturn("\"abc\"");
 		var feed = feedWithAddTag("science", "+user/alice");
 
 		rssParser.runScript(feed, "plugin/script/feed");
 
-		verify(tagger).internalResponse("_plugin/script/feed/etag", ORIGIN, FEED_URL, null);
+		verify(tagger).internalResponse("plugin/script/feed", ORIGIN, FEED_URL, null);
 	}
 
 	@Test

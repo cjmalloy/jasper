@@ -23,7 +23,7 @@ import java.util.UUID;
 
 import static jasper.domain.Ref.from;
 import static jasper.domain.proj.Tag.capturesDownwards;
-import static jasper.domain.proj.Tag.privateUrlForTag;
+import static jasper.domain.proj.Tag.responseUrlForTag;
 import static jasper.domain.proj.Tag.urlForTag;
 import static java.lang.Math.max;
 import static java.lang.Math.min;
@@ -395,25 +395,25 @@ public class Tagger {
 	}
 
 	/**
-	 * Internal state about a Ref, stored in the comment of a private response
-	 * instead of mutating the Ref, similar to user URLs.
-	 * Only users who can read the private tag can read the response.
+	 * Internal state about a Ref, stored in the comment of an internal response
+	 * with the exact tag URL instead of mutating the Ref, similar to user URLs.
+	 * The internal tag hides the response from users.
 	 */
 	public String getInternalResponse(String tag, String origin, String url) {
-		return refRepository.findOneByUrlAndOrigin(privateUrlForTag(url, tag), origin)
+		return refRepository.findOneByUrlAndOrigin(responseUrlForTag(url, tag), origin)
 			.map(Ref::getComment)
 			.orElse(null);
 	}
 
 	/**
-	 * Store internal state about a Ref in a private response, see
+	 * Store internal state about a Ref in an internal response, see
 	 * {@link #getInternalResponse(String, String, String)}.
 	 * Writes to replicated origins are silent, see {@link #silentPlugin(String, String, String, String, Object, String...)}.
 	 * @return false if the state could not be stored due to a concurrent write
 	 */
 	@Timed(value = "jasper.tagger", histogram = true)
 	public boolean internalResponse(String tag, String origin, String url, String comment) {
-		var responseUrl = privateUrlForTag(url, tag);
+		var responseUrl = responseUrlForTag(url, tag);
 		var maybeRef = refRepository.findOneByUrlAndOrigin(responseUrl, origin);
 		if (maybeRef.isPresent() && Objects.equals(maybeRef.get().getComment(), comment)) return true;
 		var ref = maybeRef.orElseGet(() -> from(responseUrl, origin, "internal"));
