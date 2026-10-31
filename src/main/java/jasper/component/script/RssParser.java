@@ -50,6 +50,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
+import static jasper.domain.proj.Tag.publicTag;
 import static jasper.plugin.Cron.getCron;
 import static jasper.plugin.Feed.getFeed;
 import static jasper.security.Auth.LOCAL_ORIGIN_HEADER;
@@ -133,8 +134,10 @@ public class RssParser {
 				return;
 			}
 
-			if (!config.isDisableEtag() && config.getEtag() != null) {
-				request.setHeader(HttpHeaders.IF_NONE_MATCH, config.getEtag());
+			var etagTag = etagTag(scriptTag);
+			var cachedEtag = config.isDisableEtag() ? null : tagger.getInternalResponse(etagTag, feed.getOrigin(), feed.getUrl());
+			if (cachedEtag != null) {
+				request.setHeader(HttpHeaders.IF_NONE_MATCH, cachedEtag);
 			}
 			Instant lastScrape = null;
 			var cron = getCron(feed);
@@ -158,14 +161,9 @@ public class RssParser {
 				try (var stream = response.getEntity().getContent()) {
 					if (!config.isDisableEtag()) {
 						var etag = response.getFirstHeader(HttpHeaders.ETAG);
-						if (etag != null && (config.getEtag() == null || !config.getEtag().equals(etag.getValue()))) {
-							config.setEtag(etag.getValue());
-							feed.setPlugin(scriptTag, config);
-							ingest.update(feed.getOrigin(), feed);
-						} else if (etag == null && config.getEtag() != null) {
-							config.setEtag(null);
-							feed.setPlugin(scriptTag, config);
-							ingest.update(feed.getOrigin(), feed);
+						var etagValue = etag == null ? null : etag.getValue();
+						if (!Objects.equals(cachedEtag, etagValue)) {
+							tagger.internalResponse(etagTag, feed.getOrigin(), feed.getUrl(), etagValue);
 						}
 					}
 					var syndFeed = new SyndFeedInput().build(new XmlReader(stream));
@@ -212,6 +210,10 @@ public class RssParser {
 				}
 			}
 		}
+	}
+
+	static String etagTag(String scriptTag) {
+		return "_" + publicTag(scriptTag) + "/etag";
 	}
 
 	private String entryLink(Ref feed, Feed config, SyndEntry entry) {
