@@ -115,6 +115,8 @@ public class RefController {
 		@RequestParam(required = false) Instant createdAfter,
 		@RequestParam(required = false) Instant responseBefore,
 		@RequestParam(required = false) Instant responseAfter,
+		@RequestParam(required = false) @Size(max = 100) List<@NotBlank @Length(max = RefFilter.TAG_VALUE_LEN) @Pattern(regexp = RefFilter.TAG_VALUE) String> tagBefore,
+		@RequestParam(required = false) @Size(max = 100) List<@NotBlank @Length(max = RefFilter.TAG_VALUE_LEN) @Pattern(regexp = RefFilter.TAG_VALUE) String> tagAfter,
 		@RequestParam(required = false) @Size(max = 100) List<@NotBlank @Length(max = TAG_LEN) @Pattern(regexp = Plugin.REGEX) String> pluginResponse,
 		@RequestParam(required = false) @Size(max = 100) List<@NotBlank @Length(max = TAG_LEN) @Pattern(regexp = Plugin.REGEX) String> noPluginResponse,
 		@RequestParam(required = false) @Size(max = 100) List<@NotBlank @Length(max = TAG_LEN) @Pattern(regexp = Plugin.REGEX) String> userResponse,
@@ -171,7 +173,9 @@ public class RefController {
 				.createdBefore(createdBefore)
 				.createdAfter(createdAfter)
 				.responseBefore(responseBefore)
-				.responseAfter(responseAfter).build(),
+				.responseAfter(responseAfter)
+				.tagBefore(tagBefore)
+				.tagAfter(tagAfter).build(),
 			pageable));
 	}
 
@@ -199,6 +203,8 @@ public class RefController {
 		@RequestParam(required = false) Instant createdAfter,
 		@RequestParam(required = false) Instant responseBefore,
 		@RequestParam(required = false) Instant responseAfter,
+		@RequestParam(required = false) @Size(max = 100) List<@NotBlank @Length(max = RefFilter.TAG_VALUE_LEN) @Pattern(regexp = RefFilter.TAG_VALUE) String> tagBefore,
+		@RequestParam(required = false) @Size(max = 100) List<@NotBlank @Length(max = RefFilter.TAG_VALUE_LEN) @Pattern(regexp = RefFilter.TAG_VALUE) String> tagAfter,
 		@RequestParam(required = false) @Size(max = 100) List<@NotBlank @Length(max = TAG_LEN) @Pattern(regexp = Plugin.REGEX) String> pluginResponse,
 		@RequestParam(required = false) @Size(max = 100) List<@NotBlank @Length(max = TAG_LEN) @Pattern(regexp = Plugin.REGEX) String> noPluginResponse,
 		@RequestParam(required = false) @Size(max = 100) List<@NotBlank @Length(max = TAG_LEN) @Pattern(regexp = Plugin.REGEX) String> userResponse,
@@ -229,7 +235,9 @@ public class RefController {
 				.createdBefore(createdBefore)
 				.createdAfter(createdAfter)
 				.responseBefore(responseBefore)
-				.responseAfter(responseAfter).build());
+				.responseAfter(responseAfter)
+				.tagBefore(tagBefore)
+				.tagAfter(tagAfter).build());
 	}
 
 	@ApiResponses({

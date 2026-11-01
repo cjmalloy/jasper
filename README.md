@@ -153,6 +153,13 @@ To index a tag value sort on PostgreSQL, add it to `hotTags` in the `_config/ind
 for example `{"hotTags": ["plugin/progress:num", "plugin/duration:dur"]}`. Hot tag indexes that are
 removed from the list are dropped. Hot tags are ignored on SQLite.
 
+Refs can be filtered by tag value with the `tagBefore` and `tagAfter` query parameters, similar to
+`modifiedBefore` and `modifiedAfter`. Each takes `{tag}/{value}` with the same optional `:num` or `:dur`
+suffix, and keeps Refs whose tag value is strictly less than or greater than `{value}`. For example,
+`tagAfter=plugin/progress/9:num&tagBefore=plugin/progress/50:num` matches `plugin/progress/37/100`, and
+`tagBefore=plugin/duration/pt1h:dur` matches `plugin/duration/pt10m25s`. Refs without a value for the tag
+never match. Both parameters can be repeated, and hot tag indexes are used for filtering as well as sorting.
+
 Metadata dates useful for sorting:
 - `metadata->modified`: updated whenever the responses, internal responses or plugin counts change.
 - `metadata->newResponse`: updated only when a new response is created (not updated), ignoring

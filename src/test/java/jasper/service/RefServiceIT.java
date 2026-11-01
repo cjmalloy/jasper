@@ -13,6 +13,7 @@ import jasper.domain.Ref;
 import jasper.domain.User;
 import jasper.errors.AlreadyExistsException;
 import jasper.errors.InvalidPatchException;
+import jasper.errors.InvalidQueryException;
 import jasper.errors.ModifiedException;
 import jasper.repository.PluginRepository;
 import jasper.repository.RefRepository;
@@ -1832,6 +1833,66 @@ public class RefServiceIT {
 
 		assertThat(sortedUrls(Sort.Order.desc("tags->plugin/progress'; drop table ref; --")))
 			.containsExactly("https://example.com/1", "https://example.com/2");
+	}
+
+	List<String> filteredUrls(RefFilter filter) {
+		var spec = RefSpec.sort(filter.spec(), PageRequest.of(0, 10, Sort.by(Sort.Order.asc("url"))));
+		return refRepository.findAll(spec, PageRequest.ofSize(10)).getContent().stream().map(Ref::getUrl).toList();
+	}
+
+	@Test
+	void testTagValueFilter() {
+		refWithUrlTags("https://example.com/1", "plugin/title/apple");
+		refWithUrlTags("https://example.com/2", "plugin/title", "plugin/title/kiwi/extra");
+		refWithUrlTags("https://example.com/3", "+user/tester");
+		refWithUrlTags("https://example.com/4", "plugin/title/zebra");
+
+		assertThat(filteredUrls(RefFilter.builder().tagBefore(List.of("plugin/title/kiwi")).build()))
+			.containsExactly("https://example.com/1");
+		assertThat(filteredUrls(RefFilter.builder().tagAfter(List.of("plugin/title/apple")).build()))
+			.containsExactly("https://example.com/2", "https://example.com/4");
+		assertThat(filteredUrls(RefFilter.builder().tagAfter(List.of("plugin/title/apple")).tagBefore(List.of("plugin/title/zebra")).build()))
+			.containsExactly("https://example.com/2");
+	}
+
+	@Test
+	void testTagValueNumericFilter() {
+		refWithUrlTags("https://example.com/1", "plugin/progress/37/100");
+		refWithUrlTags("https://example.com/2", "plugin/progress", "plugin/progress/100/100");
+		refWithUrlTags("https://example.com/3", "+user/tester");
+		refWithUrlTags("https://example.com/4", "plugin/progress/9/10");
+		refWithUrlTags("https://example.com/5", "plugin/progress/2.5");
+
+		assertThat(filteredUrls(RefFilter.builder().tagBefore(List.of("plugin/progress/37:num")).build()))
+			.containsExactly("https://example.com/4", "https://example.com/5");
+		assertThat(filteredUrls(RefFilter.builder().tagAfter(List.of("plugin/progress/9:num")).build()))
+			.containsExactly("https://example.com/1", "https://example.com/2");
+		assertThat(filteredUrls(RefFilter.builder().tagAfter(List.of("plugin/progress/2.5:num")).tagBefore(List.of("plugin/progress/100:num")).build()))
+			.containsExactly("https://example.com/1", "https://example.com/4");
+	}
+
+	@Test
+	void testTagValueDurationFilter() {
+		refWithUrlTags("https://example.com/1", "plugin/duration/pt10m25s");
+		refWithUrlTags("https://example.com/2", "plugin/duration/pt1h/extra");
+		refWithUrlTags("https://example.com/3", "+user/tester");
+		refWithUrlTags("https://example.com/4", "plugin/duration/pt90m");
+		refWithUrlTags("https://example.com/5", "plugin/duration/p1dt1.5s");
+
+		assertThat(filteredUrls(RefFilter.builder().tagBefore(List.of("plugin/duration/pt1h:dur")).build()))
+			.containsExactly("https://example.com/1");
+		assertThat(filteredUrls(RefFilter.builder().tagAfter(List.of("plugin/duration/pt60m:dur")).build()))
+			.containsExactly("https://example.com/4", "https://example.com/5");
+	}
+
+	@Test
+	void testInvalidTagValueFilter() {
+		assertThatThrownBy(() -> RefFilter.builder().tagBefore(List.of("plugin/progress/abc:num")).build().spec())
+			.isInstanceOf(InvalidQueryException.class);
+		assertThatThrownBy(() -> RefFilter.builder().tagAfter(List.of("plugin/duration/pt1x:dur")).build().spec())
+			.isInstanceOf(InvalidQueryException.class);
+		assertThatThrownBy(() -> RefFilter.builder().tagAfter(List.of("plugin")).build().spec())
+			.isInstanceOf(InvalidQueryException.class);
 	}
 
 	Ref refWithSchemaPlugin(String defaults) throws JsonProcessingException {

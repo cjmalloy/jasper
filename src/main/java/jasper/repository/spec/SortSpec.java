@@ -5,9 +5,11 @@ import jakarta.persistence.criteria.Expression;
 import jakarta.persistence.criteria.Root;
 import jasper.domain.proj.Tag;
 
+import java.math.BigDecimal;
 import java.util.Set;
 import java.util.regex.Pattern;
 
+import static jasper.config.SQLiteConfig.isoDurationSeconds;
 import static java.util.Arrays.stream;
 
 /**
@@ -135,6 +137,44 @@ public class SortSpec {
 			}
 			if (!property.matches(Tag.REGEX)) return null;
 			return new TagValueSort(function, property);
+		}
+	}
+
+	/**
+	 * A filter on the value of a tag in the tags array, e.g. "plugin/progress/50:num".
+	 *
+	 * @param sort the tag value expression to compare
+	 * @param value the value to compare against: a String for tag_value, or a BigDecimal
+	 *              of the number or duration in seconds for tag_value_num and tag_value_dur
+	 */
+	public record TagValueFilter(TagValueSort sort, Object value) {
+		/**
+		 * Parses "{tag}/{value}", "{tag}/{value}:num" or "{tag}/{value}:dur".
+		 *
+		 * @return the parsed filter, or null if the filter is not a valid tag value filter
+		 */
+		public static TagValueFilter parse(String filter) {
+			if (filter == null) return null;
+			var suffix = "";
+			if (filter.endsWith(":num") || filter.endsWith(":dur")) {
+				suffix = filter.substring(filter.length() - ":num".length());
+				filter = filter.substring(0, filter.length() - suffix.length());
+			}
+			var i = filter.lastIndexOf('/');
+			if (i < 1) return null;
+			var sort = TagValueSort.parse(filter.substring(0, i) + suffix);
+			var value = filter.substring(i + 1);
+			if (sort == null || !value.matches("[a-z0-9]+(?:[.][a-z0-9]+)*")) return null;
+			return switch (sort.function()) {
+				case "tag_value_num" -> value.matches("[0-9]{1,30}([.][0-9]{1,30})?")
+					? new TagValueFilter(sort, new BigDecimal(value))
+					: null;
+				case "tag_value_dur" -> {
+					var seconds = isoDurationSeconds(value);
+					yield seconds == null ? null : new TagValueFilter(sort, BigDecimal.valueOf(seconds));
+				}
+				default -> new TagValueFilter(sort, value);
+			};
 		}
 	}
 

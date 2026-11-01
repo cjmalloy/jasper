@@ -1,6 +1,9 @@
 package jasper.repository.filter;
 
 import jasper.domain.Ref;
+import jasper.domain.proj.Tag;
+import jasper.errors.InvalidQueryException;
+import jasper.repository.spec.SortSpec.TagValueFilter;
 import lombok.Builder;
 import lombok.Getter;
 import org.slf4j.Logger;
@@ -10,6 +13,7 @@ import org.springframework.data.jpa.domain.Specification;
 import java.time.Instant;
 import java.util.List;
 
+import static jasper.domain.proj.Tag.TAG_LEN;
 import static jasper.repository.spec.OriginSpec.isNesting;
 import static jasper.repository.spec.OriginSpec.isOrigin;
 import static jasper.repository.spec.OriginSpec.none;
@@ -23,6 +27,8 @@ import static org.springframework.data.jpa.domain.Specification.not;
 @Getter
 public class RefFilter implements Query {
 	public static final String QUERY = Query.REGEX;
+	public static final String TAG_VALUE = Tag.REGEX + "/[a-z0-9]+(?:[.][a-z0-9]+)*(?::num|:dur)?";
+	public static final int TAG_VALUE_LEN = TAG_LEN * 2 + 5;
 	private static final Logger logger = LoggerFactory.getLogger(RefFilter.class);
 
 	private String origin;
@@ -54,6 +60,8 @@ public class RefFilter implements Query {
 	private Instant createdAfter;
 	private Instant responseBefore;
 	private Instant responseAfter;
+	private List<String> tagBefore;
+	private List<String> tagAfter;
 
 	public Specification<Ref> spec(String user, String userOrigin) {
 		this.user = user;
@@ -162,6 +170,22 @@ public class RefFilter implements Query {
 		if (responseAfter != null) {
 			result = result.and(isResponseAfter(responseAfter));
 		}
+		if (tagBefore != null) {
+			for (var f : tagBefore) {
+				result = result.and(isTagValueBefore(tagValueFilter(f)));
+			}
+		}
+		if (tagAfter != null) {
+			for (var f : tagAfter) {
+				result = result.and(isTagValueAfter(tagValueFilter(f)));
+			}
+		}
+		return result;
+	}
+
+	private static TagValueFilter tagValueFilter(String filter) {
+		var result = TagValueFilter.parse(filter);
+		if (result == null) throw new InvalidQueryException(filter, "expected {tag}/{value}, {tag}/{number}:num or {tag}/{duration}:dur");
 		return result;
 	}
 }

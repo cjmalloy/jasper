@@ -261,6 +261,30 @@ paths:
           schema:
             type: string
             format: date-time
+        - name: tagBefore
+          in: query
+          required: false
+          schema:
+            maxItems: 100
+            minItems: 0
+            type: array
+            items:
+              maxLength: 133
+              minLength: 0
+              pattern: "[_+]?[a-z0-9]+(?:[./][a-z0-9]+)*/[a-z0-9]+(?:[.][a-z0-9]+)*(?::num|:dur)?"
+              type: string
+        - name: tagAfter
+          in: query
+          required: false
+          schema:
+            maxItems: 100
+            minItems: 0
+            type: array
+            items:
+              maxLength: 133
+              minLength: 0
+              pattern: "[_+]?[a-z0-9]+(?:[./][a-z0-9]+)*/[a-z0-9]+(?:[.][a-z0-9]+)*(?::num|:dur)?"
+              type: string
         - name: pluginResponse
           in: query
           required: false
@@ -404,6 +428,30 @@ paths:
           schema:
             type: string
             format: date-time
+        - name: tagBefore
+          in: query
+          required: false
+          schema:
+            maxItems: 100
+            minItems: 0
+            type: array
+            items:
+              maxLength: 133
+              minLength: 0
+              pattern: "[_+]?[a-z0-9]+(?:[./][a-z0-9]+)*/[a-z0-9]+(?:[.][a-z0-9]+)*(?::num|:dur)?"
+              type: string
+        - name: tagAfter
+          in: query
+          required: false
+          schema:
+            maxItems: 100
+            minItems: 0
+            type: array
+            items:
+              maxLength: 133
+              minLength: 0
+              pattern: "[_+]?[a-z0-9]+(?:[./][a-z0-9]+)*/[a-z0-9]+(?:[.][a-z0-9]+)*(?::num|:dur)?"
+              type: string
         - name: pluginResponse
           in: query
           required: false

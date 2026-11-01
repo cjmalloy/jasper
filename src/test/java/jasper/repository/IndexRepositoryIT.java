@@ -164,6 +164,17 @@ public class IndexRepositoryIT {
 			.contains("ref_regen_index");
 	}
 
+	@Test
+	@DisabledOnSqlite
+	@Transactional
+	void testHotTagIndexUsedForTagValueFilterPostgres() {
+		indexRepository.updateHotTags(List.of("plugin/progress:num"));
+		assertThat(explainPostgres("""
+			select r1_0.url from ref r1_0
+			where tag_value(r1_0.tags, 'plugin/progress')<>'' and tag_value_num(r1_0.tags, 'plugin/progress')<(37)::numeric"""))
+			.contains(IndexRepositoryImplPostgres.hotTagIndexName(TagValueSort.parse("plugin/progress:num")));
+	}
+
 	String explainSqlite(String sql) {
 		return ((List<?>) em.createNativeQuery("EXPLAIN QUERY PLAN " + sql).getResultList()).stream()
 			.map(row -> row instanceof Object[] cols ? cols[cols.length - 1].toString() : row.toString())

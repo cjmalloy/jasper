@@ -7,6 +7,7 @@ import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Root;
 import jasper.domain.Ref;
 import jasper.domain.Ref_;
+import jasper.repository.spec.SortSpec.TagValueFilter;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
@@ -320,6 +321,36 @@ public class RefSpec {
 					root.get(Ref_.metadata),
 					cb.literal(Ref_.MODIFIED)),
 				cb.literal(i.toString()));
+	}
+
+	public static Specification<Ref> isTagValueBefore(TagValueFilter filter) {
+		return isTagValue(filter, true);
+	}
+
+	public static Specification<Ref> isTagValueAfter(TagValueFilter filter) {
+		return isTagValue(filter, false);
+	}
+
+	/**
+	 * Compares the value of a tag in the tags array, using the same expression as tag value sorting
+	 * so hot tag indexes apply. Refs without a value for the tag never match.
+	 */
+	private static Specification<Ref> isTagValue(TagValueFilter filter, boolean before) {
+		if (filter == null) return unrestricted();
+		return (root, query, cb) -> {
+			var tag = cb.literal(filter.sort().tag());
+			var text = cb.function("tag_value", String.class, root.get(Ref_.tags), tag);
+			if (filter.value() instanceof String value) {
+				return cb.and(
+					cb.notEqual(text, ""),
+					before ? cb.lessThan(text, value) : cb.greaterThan(text, value));
+			}
+			var number = cb.function(filter.sort().function(), Double.class, root.get(Ref_.tags), tag);
+			var value = cb.function("cast_to_numeric", Double.class, cb.literal(filter.value()));
+			return cb.and(
+				cb.notEqual(text, ""),
+				before ? cb.lessThan(number, value) : cb.greaterThan(number, value));
+		};
 	}
 
 	/**
