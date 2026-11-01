@@ -628,9 +628,11 @@ public class Auth {
 		if (filter.getQuery() == null && tagValues.isEmpty()) return true;
 		// Mod
 		if (hasRole(MOD)) return true;
-		var tagList = Stream.concat(
-				filter.getQuery() == null ? Stream.empty() : Arrays.stream(filter.getQuery().split("[!:|()\\s]+")),
-				tagValues.stream())
+		if (tagValues.stream()
+			.filter(Auth::isPrivateTag)
+			.filter(tag -> !isUser(tag))
+			.anyMatch(tag -> !captures(getTagReadAccess(), QualifiedTag.selector(tag)))) return false;
+		var tagList = (filter.getQuery() == null ? Stream.<String>empty() : Arrays.stream(filter.getQuery().split("[!:|()\\s]+")))
 			.filter(StringUtils::isNotBlank)
 			.filter(Auth::isPrivateTag)
 			.filter(qt -> !isUser(qt))
