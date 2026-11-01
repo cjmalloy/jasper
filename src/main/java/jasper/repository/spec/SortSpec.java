@@ -213,9 +213,8 @@ public class SortSpec {
 	 * A filter on plugin data, e.g. "plugins->plugin/progress->percent:num/50" or "plugins->plugin/score:num/10".
 	 * The filter is a plugin sort column followed by "/" and the value. Plugin data may be a primitive,
 	 * so fields are optional.
-	 * Fields and suffixes cannot contain "/", so with a field or suffix the value starts after the first "/"
-	 * following the last field or suffix, and may itself contain "/".
-	 * Without a field or suffix the value is the last "/" segment, like a tag value.
+	 * Like tag value filters, the value is always after the last "/", so it cannot contain "/".
+	 * Values cannot contain "->" so a missing value is not mistaken for a field.
 	 * Values cannot contain "," since Spring splits a single list parameter on commas.
 	 *
 	 * @param plugin the plugin tag
@@ -224,14 +223,11 @@ public class SortSpec {
 	 */
 	public record PluginValueFilter(String plugin, String property, Object value) {
 		public static final String FIELD_REGEX = "(?:[A-Za-z0-9_$-]+(?:\\[[0-9]{1,9}\\])?|\\[[0-9]{1,9}\\])";
-		public static final String BARE_COLUMN_REGEX = "plugins->" + Plugin.REGEX;
-		public static final String COLUMN_REGEX = BARE_COLUMN_REGEX + "(?:(?:->" + FIELD_REGEX + ")+(?::num|:len)?|:num|:len)";
-		public static final String VALUE_REGEX = "[^,]+";
-		public static final String SEGMENT_REGEX = "(?:(?!->)[^/,])+";
-		public static final String REGEX = "(?:" + COLUMN_REGEX + "/" + VALUE_REGEX + "|" + BARE_COLUMN_REGEX + "/" + SEGMENT_REGEX + ")";
+		public static final String COLUMN_REGEX = "plugins->" + Plugin.REGEX + "(?:->" + FIELD_REGEX + ")*(?::num|:len)?";
+		public static final String VALUE_REGEX = "(?:(?!->)[^/,])+";
+		public static final String REGEX = COLUMN_REGEX + "/" + VALUE_REGEX;
 		public static final int LEN = 1024;
-		private static final Pattern PATTERN = Pattern.compile(
-			"(" + COLUMN_REGEX + ")/(" + VALUE_REGEX + ")|(" + BARE_COLUMN_REGEX + ")/(" + SEGMENT_REGEX + ")");
+		private static final Pattern PATTERN = Pattern.compile("(" + COLUMN_REGEX + ")/(" + VALUE_REGEX + ")");
 
 		/**
 		 * Parses "plugins->{plugin}[->{field}...][:num|:len]/{value}".
@@ -242,8 +238,8 @@ public class SortSpec {
 			if (filter == null) return null;
 			var m = PATTERN.matcher(filter);
 			if (!m.matches()) return null;
-			var property = m.group(1) != null ? m.group(1) : m.group(3);
-			var value = m.group(1) != null ? m.group(2) : m.group(4);
+			var property = m.group(1);
+			var value = m.group(2);
 			var plugin = property.substring("plugins->".length()).split("->", 2)[0].replaceFirst(":(?:num|len)$", "");
 			if (property.endsWith(":num")) {
 				if (!value.matches("-?[0-9]{1,30}([.][0-9]{1,30})?")) return null;

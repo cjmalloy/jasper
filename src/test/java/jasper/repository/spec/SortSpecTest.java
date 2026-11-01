@@ -78,12 +78,12 @@ class SortSpecTest {
 	}
 
 	@Test
-	void testPluginValueFilterSlashInValue() {
-		var f = PluginValueFilter.parse("plugins->plugin/test->url/https://example.com/a->b");
+	void testPluginValueFilterTextValue() {
+		var f = PluginValueFilter.parse("plugins->plugin/test->url/https:");
 		assertThat(f.plugin()).isEqualTo("plugin/test");
 		assertThat(f.property()).isEqualTo("plugins->plugin/test->url");
-		assertThat(f.value()).isEqualTo("https://example.com/a->b");
-		assertThat("plugins->plugin/test->url/https://example.com/a->b").matches(PluginValueFilter.REGEX);
+		assertThat(f.value()).isEqualTo("https:");
+		assertThat("plugins->plugin/test->url/https:").matches(PluginValueFilter.REGEX);
 	}
 
 	@Test
@@ -146,7 +146,7 @@ class SortSpecTest {
 		"plugins->plugin/test->it's/1",
 		"plugins->plugin/test->name/a,b",
 		"plugins->custom->size/1",
-		"plugins->plugin/test/a->b",
+		"plugins->plugin/test->url/https://a.com",
 		"plugins->plugin/test:num/x",
 		"plugins->plugin/test:dur/pt1h",
 	})
@@ -163,7 +163,7 @@ class SortSpecTest {
 		"plugins->plugin/test->it's/1",
 		"plugins->plugin/test->name/a,b",
 		"plugins->custom->size/1",
-		"plugins->plugin/test/a->b",
+		"plugins->plugin/test->url/https://a.com",
 		"plugins->plugin/test:dur/pt1h",
 		"plugins->plugin",
 		"plugins->plugin/",

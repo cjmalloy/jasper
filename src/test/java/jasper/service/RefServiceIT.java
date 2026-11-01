@@ -1924,14 +1924,15 @@ public class RefServiceIT {
 	}
 
 	@Test
-	void testPluginValueFilterSlashInValue() throws JsonProcessingException {
-		refWithUrlPlugins("https://example.com/1", "{\"plugin/test\": {\"url\": \"https://a.com/x\"}}");
-		refWithUrlPlugins("https://example.com/2", "{\"plugin/test\": {\"url\": \"https://b.com/x\"}}");
+	void testPluginValueFilterTextPrefix() throws JsonProcessingException {
+		refWithUrlPlugins("https://example.com/1", "{\"plugin/test\": {\"name\": \"apple\"}}");
+		refWithUrlPlugins("https://example.com/2", "{\"plugin/test\": {\"name\": \"banana\"}}");
+		refWithUrlPlugins("https://example.com/3", "{\"plugin/test\": {\"name\": \"cherry\"}}");
 
-		assertThat(filteredUrls(RefFilter.builder().pluginBefore(List.of("plugins->plugin/test->url/https://b.com/x")).build()))
+		assertThat(filteredUrls(RefFilter.builder().pluginAfter(List.of("plugins->plugin/test->name/b")).build()))
+			.containsExactly("https://example.com/2", "https://example.com/3");
+		assertThat(filteredUrls(RefFilter.builder().pluginBefore(List.of("plugins->plugin/test->name/b")).build()))
 			.containsExactly("https://example.com/1");
-		assertThat(filteredUrls(RefFilter.builder().pluginAfter(List.of("plugins->plugin/test->url/https://a.com/x")).build()))
-			.containsExactly("https://example.com/2");
 	}
 
 	@Test
