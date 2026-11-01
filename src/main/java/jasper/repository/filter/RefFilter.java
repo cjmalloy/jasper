@@ -1,7 +1,6 @@
 package jasper.repository.filter;
 
 import jasper.domain.Ref;
-import jasper.domain.proj.Tag;
 import jasper.errors.InvalidQueryException;
 import jasper.repository.spec.SortSpec.PluginValueFilter;
 import jasper.repository.spec.SortSpec.TagValueFilter;
@@ -14,7 +13,6 @@ import org.springframework.data.jpa.domain.Specification;
 import java.time.Instant;
 import java.util.List;
 
-import static jasper.domain.proj.Tag.TAG_LEN;
 import static jasper.repository.spec.OriginSpec.isNesting;
 import static jasper.repository.spec.OriginSpec.isOrigin;
 import static jasper.repository.spec.OriginSpec.none;
@@ -28,10 +26,10 @@ import static org.springframework.data.jpa.domain.Specification.not;
 @Getter
 public class RefFilter implements Query {
 	public static final String QUERY = Query.REGEX;
-	public static final String TAG_VALUE = Tag.REGEX + "/[a-z0-9]+(?:[.][a-z0-9]+)*(?::num|:dur)?";
-	public static final int TAG_VALUE_LEN = TAG_LEN * 2 + 5;
+	public static final String TAG_VALUE = TagValueFilter.REGEX;
+	public static final int TAG_VALUE_LEN = TagValueFilter.LEN;
 	public static final String PLUGIN_VALUE = PluginValueFilter.REGEX;
-	public static final int PLUGIN_VALUE_LEN = 1024;
+	public static final int PLUGIN_VALUE_LEN = PluginValueFilter.LEN;
 	private static final Logger logger = LoggerFactory.getLogger(RefFilter.class);
 
 	private String origin;
@@ -200,13 +198,13 @@ public class RefFilter implements Query {
 
 	private static TagValueFilter tagValueFilter(String filter) {
 		var result = TagValueFilter.parse(filter);
-		if (result == null) throw new InvalidQueryException(filter, "expected {tag}/{value}, {tag}/{number}:num or {tag}/{duration}:dur");
+		if (result == null) throw new InvalidQueryException(filter, "expected tags->{tag}/{value}, tags->{tag}:num/{number} or tags->{tag}:dur/{duration}");
 		return result;
 	}
 
 	private static PluginValueFilter pluginValueFilter(String filter) {
 		var result = PluginValueFilter.parse(filter);
-		if (result == null) throw new InvalidQueryException(filter, "expected {plugin}->{field}={value}, {plugin}->{field}:num={number} or {plugin}->{field}:len={length}");
+		if (result == null) throw new InvalidQueryException(filter, "expected plugins->{plugin}->{field}/{value}, plugins->{plugin}->{field}:num/{number} or plugins->{plugin}->{field}:len/{length}");
 		return result;
 	}
 }

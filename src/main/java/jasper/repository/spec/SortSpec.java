@@ -11,6 +11,7 @@ import java.util.Set;
 import java.util.regex.Pattern;
 
 import static jasper.config.SQLiteConfig.isoDurationSeconds;
+import static jasper.domain.proj.Tag.TAG_LEN;
 import static java.util.Arrays.stream;
 
 /**
@@ -157,30 +158,34 @@ public class SortSpec {
 	}
 
 	/**
-	 * A filter on the value of a tag in the tags array, e.g. "plugin/progress/50:num".
+	 * A filter on the value of a tag in the tags array, e.g. "tags->plugin/progress:num/50".
+	 * The filter is a tag value sort column followed by "/" and the value.
+	 * Tag values are a single tag segment, so the value is always after the last "/".
 	 *
 	 * @param sort the tag value expression to compare
 	 * @param value the value to compare against: a String for tag_value, or a BigDecimal
 	 *              of the number or duration in seconds for tag_value_num and tag_value_dur
 	 */
 	public record TagValueFilter(TagValueSort sort, Object value) {
+		public static final String VALUE_REGEX = "[a-z0-9]+(?:[.][a-z0-9]+)*";
+		public static final String REGEX = "tags->" + Tag.REGEX + "(?::num|:dur)?/" + VALUE_REGEX;
 		/**
-		 * Parses "{tag}/{value}", "{tag}/{value}:num" or "{tag}/{value}:dur".
+		 * The longest valid filter: "tags->", a tag, ":num", "/" and a value as long as a tag.
+		 */
+		public static final int LEN = 6 + TAG_LEN + 4 + 1 + TAG_LEN;
+
+		/**
+		 * Parses "tags->{tag}/{value}", "tags->{tag}:num/{number}" or "tags->{tag}:dur/{duration}".
 		 *
 		 * @return the parsed filter, or null if the filter is not a valid tag value filter
 		 */
 		public static TagValueFilter parse(String filter) {
-			if (filter == null) return null;
-			var suffix = "";
-			if (filter.endsWith(":num") || filter.endsWith(":dur")) {
-				suffix = filter.substring(filter.length() - ":num".length());
-				filter = filter.substring(0, filter.length() - suffix.length());
-			}
+			if (filter == null || !filter.startsWith("tags->")) return null;
 			var i = filter.lastIndexOf('/');
-			if (i < 1) return null;
-			var sort = TagValueSort.parse(filter.substring(0, i) + suffix);
+			if (i < 0) return null;
+			var sort = TagValueSort.parse(filter.substring(0, i));
 			var value = filter.substring(i + 1);
-			if (sort == null || !value.matches("[a-z0-9]+(?:[.][a-z0-9]+)*")) return null;
+			if (sort == null || !value.matches(VALUE_REGEX)) return null;
 			return switch (sort.function()) {
 				case "tag_value_num" -> value.matches("[0-9]{1,30}([.][0-9]{1,30})?")
 					? new TagValueFilter(sort, new BigDecimal(value))
@@ -195,7 +200,11 @@ public class SortSpec {
 	}
 
 	/**
-	 * A filter on a field of plugin data, e.g. "plugin/progress->percent:num=50".
+	 * A filter on a field of plugin data, e.g. "plugins->plugin/progress->percent:num/50".
+	 * The filter is a plugin sort column with at least one field, followed by "/" and the value.
+	 * Fields and suffixes cannot contain "/", so the value starts after the first "/" following the
+	 * last field or suffix, and may itself contain "/".
+	 * Values cannot contain "," since Spring splits a single list parameter on commas.
 	 *
 	 * @param plugin the plugin tag
 	 * @param property the JSONB sort property, e.g. "plugins->plugin/progress->percent:num"
@@ -203,33 +212,33 @@ public class SortSpec {
 	 */
 	public record PluginValueFilter(String plugin, String property, Object value) {
 		public static final String FIELD_REGEX = "(?:[A-Za-z0-9_$-]+(?:\\[[0-9]{1,9}])?|\\[[0-9]{1,9}])";
-		public static final String PATH_REGEX = "(?:plugins->)?" + Plugin.REGEX + "(?:->" + FIELD_REGEX + ")*(?::num|:len)?";
-		public static final String REGEX = PATH_REGEX + "=.*";
+		public static final String COLUMN_REGEX = "plugins->" + Plugin.REGEX + "(?:->" + FIELD_REGEX + ")+(?::num|:len)?";
+		public static final String VALUE_REGEX = "[^,]+";
+		public static final String REGEX = COLUMN_REGEX + "/" + VALUE_REGEX;
+		public static final int LEN = 1024;
+		private static final Pattern PATTERN = Pattern.compile("(" + COLUMN_REGEX + ")/(" + VALUE_REGEX + ")");
 
 		/**
-		 * Parses "{plugin}[->{field}...]={value}" with an optional ":num" or ":len" suffix before the "=".
-		 * The "plugins->" prefix is optional, so a plugin sort property followed by "={value}" is a valid filter.
+		 * Parses "plugins->{plugin}->{field}[->{field}...][:num|:len]/{value}".
 		 *
 		 * @return the parsed filter, or null if the filter is not a valid plugin value filter
 		 */
 		public static PluginValueFilter parse(String filter) {
 			if (filter == null) return null;
-			var i = filter.indexOf('=');
-			if (i < 1) return null;
-			var path = filter.substring(0, i);
-			var value = filter.substring(i + 1);
-			if (!path.matches(PATH_REGEX)) return null;
-			if (path.startsWith("plugins->")) path = path.substring("plugins->".length());
-			var plugin = path.split("->|:", 2)[0];
-			if (path.endsWith(":num")) {
+			var m = PATTERN.matcher(filter);
+			if (!m.matches()) return null;
+			var property = m.group(1);
+			var value = m.group(2);
+			var plugin = property.substring("plugins->".length()).split("->", 2)[0];
+			if (property.endsWith(":num")) {
 				if (!value.matches("-?[0-9]{1,30}([.][0-9]{1,30})?")) return null;
-				return new PluginValueFilter(plugin, "plugins->" + path, new BigDecimal(value));
+				return new PluginValueFilter(plugin, property, new BigDecimal(value));
 			}
-			if (path.endsWith(":len")) {
+			if (property.endsWith(":len")) {
 				if (!value.matches("[0-9]{1,9}")) return null;
-				return new PluginValueFilter(plugin, "plugins->" + path, new BigDecimal(value));
+				return new PluginValueFilter(plugin, property, new BigDecimal(value));
 			}
-			return new PluginValueFilter(plugin, "plugins->" + path, value);
+			return new PluginValueFilter(plugin, property, value);
 		}
 	}
 

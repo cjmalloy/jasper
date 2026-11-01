@@ -153,19 +153,27 @@ To index a tag value sort on PostgreSQL, add it to `hotTags` in the `_config/ind
 for example `{"hotTags": ["plugin/progress:num", "plugin/duration:dur"]}`. Hot tag indexes that are
 removed from the list are dropped. Hot tags are ignored on SQLite.
 
-Refs can be filtered by tag value with the `tagBefore` and `tagAfter` query parameters, similar to
-`modifiedBefore` and `modifiedAfter`. Each takes `{tag}/{value}` with the same optional `:num` or `:dur`
-suffix, and keeps Refs whose tag value is strictly less than or greater than `{value}`. For example,
-`tagAfter=plugin/progress/9:num&tagBefore=plugin/progress/50:num` matches `plugin/progress/37/100`, and
-`tagBefore=plugin/duration/pt1h:dur` matches `plugin/duration/pt10m25s`. Refs without a value for the tag
-never match. Both parameters can be repeated, and hot tag indexes are used for filtering as well as sorting.
+### Filtering by value
+Refs can be filtered by the same values they can be sorted on, similar to `modifiedBefore` and `modifiedAfter`.
+Each filter is a sort column (including any `:num`, `:len` or `:dur` suffix) followed by `/` and the value
+to compare against, and keeps Refs whose value is strictly less than (`Before`) or greater than (`After`) it.
+Refs without a value never match. Every filter parameter can be repeated, and all filters must match.
 
-Refs can also be filtered by plugin data with `pluginBefore` and `pluginAfter`. Each takes a plugin sort
-column (the `plugins->` prefix is optional) followed by `={value}`, and keeps Refs where that field is strictly
-less than or greater than `{value}`. Append `:num` to compare numbers or `:len` to compare array lengths,
-otherwise values compare as strings. For example, `pluginAfter=_plugin/cache->contentLength:num=1000` matches
-Refs with a cached file over 1000 bytes, and `pluginBefore=plugin/test->ids:len=3` matches Refs with fewer than
-three `ids`. Refs without the field never match. Both parameters can be repeated.
+* `tagBefore` and `tagAfter` take `tags->{tag}[:num|:dur]/{value}`. Tag values are a single tag segment
+  (`[a-z0-9]` with `.` separators), so the value is always after the last `/`. This means numbers cannot be
+  negative and durations must be lowercase (`pt1h`). For example,
+  `tagAfter=tags->plugin/progress:num/9&tagBefore=tags->plugin/progress:num/50` matches `plugin/progress/37/100`,
+  and `tagBefore=tags->plugin/duration:dur/pt1h` matches `plugin/duration/pt10m25s`. Hot tag indexes are used
+  for filtering as well as sorting.
+* `pluginBefore` and `pluginAfter` take `plugins->{plugin}->{field}[->{field}...][:num|:len]/{value}`, with at
+  least one field. Fields and suffixes cannot contain `/`, so the value starts after the first `/` following the
+  last field or suffix, and may itself contain `/`. Use `:num` to compare numbers (which may be negative) or `:len`
+  to compare array lengths, otherwise values compare as strings. For example,
+  `pluginAfter=plugins->_plugin/cache->contentLength:num/1000` matches Refs with a cached file over 1000 bytes,
+  and `pluginBefore=plugins->plugin/test->ids:len/3` matches Refs with fewer than three `ids`.
+
+Values cannot contain `,`, since a single parameter is split on commas into a list.
+Invalid filters are rejected with `400 Bad Request`.
 
 Metadata dates useful for sorting:
 - `metadata->modified`: updated whenever the responses, internal responses or plugin counts change.

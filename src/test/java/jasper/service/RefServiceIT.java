@@ -1847,11 +1847,11 @@ public class RefServiceIT {
 		refWithUrlTags("https://example.com/3", "+user/tester");
 		refWithUrlTags("https://example.com/4", "plugin/title/zebra");
 
-		assertThat(filteredUrls(RefFilter.builder().tagBefore(List.of("plugin/title/kiwi")).build()))
+		assertThat(filteredUrls(RefFilter.builder().tagBefore(List.of("tags->plugin/title/kiwi")).build()))
 			.containsExactly("https://example.com/1");
-		assertThat(filteredUrls(RefFilter.builder().tagAfter(List.of("plugin/title/apple")).build()))
+		assertThat(filteredUrls(RefFilter.builder().tagAfter(List.of("tags->plugin/title/apple")).build()))
 			.containsExactly("https://example.com/2", "https://example.com/4");
-		assertThat(filteredUrls(RefFilter.builder().tagAfter(List.of("plugin/title/apple")).tagBefore(List.of("plugin/title/zebra")).build()))
+		assertThat(filteredUrls(RefFilter.builder().tagAfter(List.of("tags->plugin/title/apple")).tagBefore(List.of("tags->plugin/title/zebra")).build()))
 			.containsExactly("https://example.com/2");
 	}
 
@@ -1863,11 +1863,11 @@ public class RefServiceIT {
 		refWithUrlTags("https://example.com/4", "plugin/progress/9/10");
 		refWithUrlTags("https://example.com/5", "plugin/progress/2.5");
 
-		assertThat(filteredUrls(RefFilter.builder().tagBefore(List.of("plugin/progress/37:num")).build()))
+		assertThat(filteredUrls(RefFilter.builder().tagBefore(List.of("tags->plugin/progress:num/37")).build()))
 			.containsExactly("https://example.com/4", "https://example.com/5");
-		assertThat(filteredUrls(RefFilter.builder().tagAfter(List.of("plugin/progress/9:num")).build()))
+		assertThat(filteredUrls(RefFilter.builder().tagAfter(List.of("tags->plugin/progress:num/9")).build()))
 			.containsExactly("https://example.com/1", "https://example.com/2");
-		assertThat(filteredUrls(RefFilter.builder().tagAfter(List.of("plugin/progress/2.5:num")).tagBefore(List.of("plugin/progress/100:num")).build()))
+		assertThat(filteredUrls(RefFilter.builder().tagAfter(List.of("tags->plugin/progress:num/2.5")).tagBefore(List.of("tags->plugin/progress:num/100")).build()))
 			.containsExactly("https://example.com/1", "https://example.com/4");
 	}
 
@@ -1879,19 +1879,21 @@ public class RefServiceIT {
 		refWithUrlTags("https://example.com/4", "plugin/duration/pt90m");
 		refWithUrlTags("https://example.com/5", "plugin/duration/p1dt1.5s");
 
-		assertThat(filteredUrls(RefFilter.builder().tagBefore(List.of("plugin/duration/pt1h:dur")).build()))
+		assertThat(filteredUrls(RefFilter.builder().tagBefore(List.of("tags->plugin/duration:dur/pt1h")).build()))
 			.containsExactly("https://example.com/1");
-		assertThat(filteredUrls(RefFilter.builder().tagAfter(List.of("plugin/duration/pt60m:dur")).build()))
+		assertThat(filteredUrls(RefFilter.builder().tagAfter(List.of("tags->plugin/duration:dur/pt60m")).build()))
 			.containsExactly("https://example.com/4", "https://example.com/5");
 	}
 
 	@Test
 	void testInvalidTagValueFilter() {
-		assertThatThrownBy(() -> RefFilter.builder().tagBefore(List.of("plugin/progress/abc:num")).build().spec())
+		assertThatThrownBy(() -> RefFilter.builder().tagBefore(List.of("tags->plugin/progress:num/abc")).build().spec())
 			.isInstanceOf(InvalidQueryException.class);
-		assertThatThrownBy(() -> RefFilter.builder().tagAfter(List.of("plugin/duration/pt1x:dur")).build().spec())
+		assertThatThrownBy(() -> RefFilter.builder().tagAfter(List.of("tags->plugin/duration:dur/pt1x")).build().spec())
 			.isInstanceOf(InvalidQueryException.class);
 		assertThatThrownBy(() -> RefFilter.builder().tagAfter(List.of("plugin")).build().spec())
+			.isInstanceOf(InvalidQueryException.class);
+		assertThatThrownBy(() -> RefFilter.builder().tagAfter(List.of("plugin/progress/50:num")).build().spec())
 			.isInstanceOf(InvalidQueryException.class);
 	}
 
@@ -1911,13 +1913,24 @@ public class RefServiceIT {
 		refWithUrlPlugins("https://example.com/4", "{\"plugin/test\": {\"style\": {}}}");
 		refWithUrlPlugins("https://example.com/5", "{\"plugin/test\": {\"style\": {\"color\": \"red\"}}}");
 
-		assertThat(filteredUrls(RefFilter.builder().pluginBefore(List.of("plugin/test->style->color=green")).build()))
+		assertThat(filteredUrls(RefFilter.builder().pluginBefore(List.of("plugins->plugin/test->style->color/green")).build()))
 			.containsExactly("https://example.com/1");
-		assertThat(filteredUrls(RefFilter.builder().pluginAfter(List.of("plugins->plugin/test->style->color=blue")).build()))
+		assertThat(filteredUrls(RefFilter.builder().pluginAfter(List.of("plugins->plugin/test->style->color/blue")).build()))
 			.containsExactly("https://example.com/2", "https://example.com/5");
 		assertThat(filteredUrls(RefFilter.builder()
-				.pluginAfter(List.of("plugin/test->style->color=blue"))
-				.pluginBefore(List.of("plugin/test->style->color=red")).build()))
+				.pluginAfter(List.of("plugins->plugin/test->style->color/blue"))
+				.pluginBefore(List.of("plugins->plugin/test->style->color/red")).build()))
+			.containsExactly("https://example.com/2");
+	}
+
+	@Test
+	void testPluginValueFilterSlashInValue() throws JsonProcessingException {
+		refWithUrlPlugins("https://example.com/1", "{\"plugin/test\": {\"url\": \"https://a.com/x\"}}");
+		refWithUrlPlugins("https://example.com/2", "{\"plugin/test\": {\"url\": \"https://b.com/x\"}}");
+
+		assertThat(filteredUrls(RefFilter.builder().pluginBefore(List.of("plugins->plugin/test->url/https://b.com/x")).build()))
+			.containsExactly("https://example.com/1");
+		assertThat(filteredUrls(RefFilter.builder().pluginAfter(List.of("plugins->plugin/test->url/https://a.com/x")).build()))
 			.containsExactly("https://example.com/2");
 	}
 
@@ -1929,11 +1942,11 @@ public class RefServiceIT {
 		refWithUrlPlugins("https://example.com/4", "{\"_plugin/cache\": {\"contentLength\": 2.5}}");
 		refWithUrlPlugins("https://example.com/5", "{\"_plugin/cache\": {\"contentLength\": -3}}");
 
-		assertThat(filteredUrls(RefFilter.builder().pluginBefore(List.of("_plugin/cache->contentLength:num=20")).build()))
+		assertThat(filteredUrls(RefFilter.builder().pluginBefore(List.of("plugins->_plugin/cache->contentLength:num/20")).build()))
 			.containsExactly("https://example.com/4", "https://example.com/5");
-		assertThat(filteredUrls(RefFilter.builder().pluginAfter(List.of("_plugin/cache->contentLength:num=3")).build()))
+		assertThat(filteredUrls(RefFilter.builder().pluginAfter(List.of("plugins->_plugin/cache->contentLength:num/3")).build()))
 			.containsExactly("https://example.com/1", "https://example.com/2");
-		assertThat(filteredUrls(RefFilter.builder().pluginAfter(List.of("_plugin/cache->contentLength:num=-3.5")).build()))
+		assertThat(filteredUrls(RefFilter.builder().pluginAfter(List.of("plugins->_plugin/cache->contentLength:num/-3.5")).build()))
 			.containsExactly("https://example.com/1", "https://example.com/2", "https://example.com/4", "https://example.com/5");
 	}
 
@@ -1944,23 +1957,25 @@ public class RefServiceIT {
 		refWithUrlPlugins("https://example.com/3", null);
 		refWithUrlPlugins("https://example.com/4", "{\"plugin/test\": {\"ids\": []}}");
 
-		assertThat(filteredUrls(RefFilter.builder().pluginAfter(List.of("plugin/test->ids:len=0")).build()))
+		assertThat(filteredUrls(RefFilter.builder().pluginAfter(List.of("plugins->plugin/test->ids:len/0")).build()))
 			.containsExactly("https://example.com/1", "https://example.com/2");
-		assertThat(filteredUrls(RefFilter.builder().pluginBefore(List.of("plugin/test->ids:len=3")).build()))
+		assertThat(filteredUrls(RefFilter.builder().pluginBefore(List.of("plugins->plugin/test->ids:len/3")).build()))
 			.containsExactly("https://example.com/1", "https://example.com/4");
 	}
 
 	@Test
 	void testInvalidPluginValueFilter() {
-		assertThatThrownBy(() -> RefFilter.builder().pluginBefore(List.of("plugin/test->size:num=abc")).build().spec())
+		assertThatThrownBy(() -> RefFilter.builder().pluginBefore(List.of("plugins->plugin/test->size:num/abc")).build().spec())
 			.isInstanceOf(InvalidQueryException.class);
-		assertThatThrownBy(() -> RefFilter.builder().pluginAfter(List.of("plugin/test->ids:len=-1")).build().spec())
+		assertThatThrownBy(() -> RefFilter.builder().pluginAfter(List.of("plugins->plugin/test->ids:len/-1")).build().spec())
 			.isInstanceOf(InvalidQueryException.class);
-		assertThatThrownBy(() -> RefFilter.builder().pluginAfter(List.of("custom->size=1")).build().spec())
+		assertThatThrownBy(() -> RefFilter.builder().pluginAfter(List.of("custom->size/1")).build().spec())
 			.isInstanceOf(InvalidQueryException.class);
 		assertThatThrownBy(() -> RefFilter.builder().pluginAfter(List.of("plugin/test->size")).build().spec())
 			.isInstanceOf(InvalidQueryException.class);
-		assertThatThrownBy(() -> RefFilter.builder().pluginAfter(List.of("plugin/test->it's=1")).build().spec())
+		assertThatThrownBy(() -> RefFilter.builder().pluginAfter(List.of("plugins->plugin/test->it's/1")).build().spec())
+			.isInstanceOf(InvalidQueryException.class);
+		assertThatThrownBy(() -> RefFilter.builder().pluginAfter(List.of("plugin/test->size:num=1")).build().spec())
 			.isInstanceOf(InvalidQueryException.class);
 	}
 

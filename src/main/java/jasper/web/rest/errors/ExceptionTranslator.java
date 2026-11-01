@@ -1,6 +1,7 @@
 package jasper.web.rest.errors;
 
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.ConstraintViolationException;
 import jasper.errors.AlreadyExistsException;
 import jasper.errors.DeactivateSelfException;
 import jasper.errors.DuplicateModifiedDateException;
@@ -103,6 +104,7 @@ public class ExceptionTranslator extends ResponseEntityExceptionHandler {
 		var m = new LinkedHashMap<Class<? extends Throwable>, ErrorMapping>();
 		// Request
 		m.put(MethodArgumentNotValidException.class, new ErrorMapping(ERR_VALIDATION, CONSTRAINT_VIOLATION_TYPE, HttpStatus.BAD_REQUEST));
+		m.put(ConstraintViolationException.class, new ErrorMapping(ERR_VALIDATION, CONSTRAINT_VIOLATION_TYPE, HttpStatus.BAD_REQUEST));
 		m.put(HttpMessageNotReadableException.class, new ErrorMapping(ERR_MESSAGE_NOT_READABLE, REQUEST_ERROR_TYPE, HttpStatus.BAD_REQUEST));
 		m.put(MissingServletRequestParameterException.class, new ErrorMapping(ERR_MISSING_PARAMETER, REQUEST_ERROR_TYPE, HttpStatus.BAD_REQUEST));
 		m.put(MissingServletRequestPartException.class, new ErrorMapping(ERR_MISSING_PARAMETER, REQUEST_ERROR_TYPE, HttpStatus.BAD_REQUEST));

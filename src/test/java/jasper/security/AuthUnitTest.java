@@ -940,7 +940,7 @@ public class AuthUnitTest {
 		var user = getUser("+user/test");
 		var auth = getAuth(user, VIEWER);
 
-		assertThat(auth.canReadQuery(RefFilter.builder().tagAfter(List.of("custom/progress/50:num")).build()))
+		assertThat(auth.canReadQuery(RefFilter.builder().tagAfter(List.of("tags->custom/progress:num/50")).build()))
 			.isTrue();
 	}
 
@@ -950,7 +950,7 @@ public class AuthUnitTest {
 		user.getTagReadAccess().add("_custom");
 		var auth = getAuth(user, VIEWER);
 
-		assertThat(auth.canReadQuery(RefFilter.builder().tagBefore(List.of("_custom/progress/50:num")).build()))
+		assertThat(auth.canReadQuery(RefFilter.builder().tagBefore(List.of("tags->_custom/progress:num/50")).build()))
 			.isTrue();
 	}
 
@@ -959,7 +959,7 @@ public class AuthUnitTest {
 		var user = getUser("_user/test");
 		var auth = getAuth(user, VIEWER);
 
-		assertThat(auth.canReadQuery(RefFilter.builder().tagAfter(List.of("_user/test/50:num")).build()))
+		assertThat(auth.canReadQuery(RefFilter.builder().tagAfter(List.of("tags->_user/test:num/50")).build()))
 			.isTrue();
 	}
 
@@ -968,7 +968,7 @@ public class AuthUnitTest {
 		var user = getUser("+user/test");
 		var auth = getAuth(user, USER);
 
-		assertThat(auth.canReadQuery(RefFilter.builder().tagAfter(List.of("_custom/progress/50:num")).build()))
+		assertThat(auth.canReadQuery(RefFilter.builder().tagAfter(List.of("tags->_custom/progress:num/50")).build()))
 			.isFalse();
 	}
 
@@ -977,7 +977,7 @@ public class AuthUnitTest {
 		var user = getUser("+user/test");
 		var auth = getAuth(user, USER);
 
-		assertThat(auth.canReadQuery(RefFilter.builder().query("custom").tagBefore(List.of("_custom/progress/50")).build()))
+		assertThat(auth.canReadQuery(RefFilter.builder().query("custom").tagBefore(List.of("tags->_custom/progress/50")).build()))
 			.isFalse();
 	}
 
@@ -986,7 +986,7 @@ public class AuthUnitTest {
 		var user = getUser("+user/test");
 		var auth = getAuth(user, VIEWER);
 
-		assertThat(auth.canReadQuery(RefFilter.builder().pluginAfter(List.of("plugin/test->size:num=50")).build()))
+		assertThat(auth.canReadQuery(RefFilter.builder().pluginAfter(List.of("plugins->plugin/test->size:num/50")).build()))
 			.isTrue();
 	}
 
@@ -996,7 +996,7 @@ public class AuthUnitTest {
 		user.getTagReadAccess().add("_plugin/secret");
 		var auth = getAuth(user, VIEWER);
 
-		assertThat(auth.canReadQuery(RefFilter.builder().pluginBefore(List.of("plugins->_plugin/secret->size:num=50")).build()))
+		assertThat(auth.canReadQuery(RefFilter.builder().pluginBefore(List.of("plugins->_plugin/secret->size:num/50")).build()))
 			.isTrue();
 	}
 
@@ -1005,9 +1005,9 @@ public class AuthUnitTest {
 		var user = getUser("+user/test");
 		var auth = getAuth(user, USER);
 
-		assertThat(auth.canReadQuery(RefFilter.builder().pluginAfter(List.of("_plugin/secret->size:num=50")).build()))
+		assertThat(auth.canReadQuery(RefFilter.builder().pluginAfter(List.of("plugins->_plugin/secret->size:num/50")).build()))
 			.isFalse();
-		assertThat(auth.canReadQuery(RefFilter.builder().query("custom").pluginBefore(List.of("_plugin/secret=a")).build()))
+		assertThat(auth.canReadQuery(RefFilter.builder().query("custom").pluginBefore(List.of("plugins->_plugin/secret->name/a")).build()))
 			.isFalse();
 	}
 
