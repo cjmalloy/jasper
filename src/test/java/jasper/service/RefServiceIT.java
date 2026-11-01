@@ -1964,6 +1964,22 @@ public class RefServiceIT {
 	}
 
 	@Test
+	void testPluginValueIndexedFilter() throws JsonProcessingException {
+		refWithUrlPlugins("https://example.com/1", "{\"plugin/test\": {\"items\": [{\"score\": 3, \"color\": \"blue\"}], \"groups\": [[1, 2, 3]]}}");
+		refWithUrlPlugins("https://example.com/2", "{\"plugin/test\": {\"items\": [{\"score\": 10, \"color\": \"red\"}], \"groups\": [[1]]}}");
+		refWithUrlPlugins("https://example.com/3", null);
+
+		assertThat(filteredUrls(RefFilter.builder().pluginBefore(List.of("plugins->plugin/test->items[0]->score:num/5")).build()))
+			.containsExactly("https://example.com/1");
+		assertThat(filteredUrls(RefFilter.builder().pluginAfter(List.of("plugins->plugin/test->items[0]->color/green")).build()))
+			.containsExactly("https://example.com/2");
+		assertThat(filteredUrls(RefFilter.builder().pluginAfter(List.of("plugins->plugin/test->groups[0]:len/2")).build()))
+			.containsExactly("https://example.com/1");
+		assertThat(filteredUrls(RefFilter.builder().pluginBefore(List.of("plugins->plugin/test->groups[0]:len/2")).build()))
+			.containsExactly("https://example.com/2");
+	}
+
+	@Test
 	void testInvalidPluginValueFilter() {
 		assertThatThrownBy(() -> RefFilter.builder().pluginBefore(List.of("plugins->plugin/test->size:num/abc")).build().spec())
 			.isInstanceOf(InvalidQueryException.class);

@@ -2316,7 +2316,7 @@ paths:
       description: Activate a user login. Only available with the scim profile.
       requestBody:
         content:
-          application/json:
+          text/plain:
             schema:
               $ref: '#/components/schemas/qtag-user'
         required: true
@@ -2337,7 +2337,7 @@ paths:
       description: Deactivate a user login. Only available with the scim profile.
       requestBody:
         content:
-          application/json:
+          text/plain:
             schema:
               $ref: '#/components/schemas/qtag-user'
         required: true

@@ -112,7 +112,17 @@ public class SortSpec {
 				if (!fieldName.isEmpty()) {
 					expr = cb.function("jsonb_object_field", Object.class, expr, cb.literal(fieldName));
 				}
-				expr = cb.function("jsonb_array_element_text", String.class, expr, cb.literal(index));
+				if (i < parts.length - 1) {
+					// Intermediate element - keep as JSONB for further traversal
+					expr = cb.function("jsonb_array_element", Object.class, expr, cb.literal(index));
+				} else if (lengthSort) {
+					// Last element with length sort - get as JSONB and apply jsonb_array_length
+					expr = cb.function("jsonb_array_element", Object.class, expr, cb.literal(index));
+					return new JsonbValue(cb.function("jsonb_array_length", Integer.class, expr), false, true);
+				} else {
+					// Last element - get as text
+					expr = cb.function("jsonb_array_element_text", String.class, expr, cb.literal(index));
+				}
 			} else if (i == parts.length - 1 && lengthSort) {
 				// Last field with length sort - get as JSONB and apply jsonb_array_length
 				expr = cb.function("jsonb_object_field", Object.class, expr, cb.literal(field));
