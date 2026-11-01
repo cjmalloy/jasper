@@ -285,6 +285,30 @@ paths:
               minLength: 0
               pattern: "[_+]?[a-z0-9]+(?:[./][a-z0-9]+)*/[a-z0-9]+(?:[.][a-z0-9]+)*(?::num|:dur)?"
               type: string
+        - name: pluginBefore
+          in: query
+          required: false
+          schema:
+            maxItems: 100
+            minItems: 0
+            type: array
+            items:
+              maxLength: 1024
+              minLength: 0
+              pattern: "(?:plugins->)?[_+]?plugin(?:/[a-z0-9]+(?:[./][a-z0-9]+)*)?(?:->(?:[A-Za-z0-9_$-]+(?:\\[[0-9]{1,9}])?|\\[[0-9]{1,9}]))*(?::num|:len)?=.*"
+              type: string
+        - name: pluginAfter
+          in: query
+          required: false
+          schema:
+            maxItems: 100
+            minItems: 0
+            type: array
+            items:
+              maxLength: 1024
+              minLength: 0
+              pattern: "(?:plugins->)?[_+]?plugin(?:/[a-z0-9]+(?:[./][a-z0-9]+)*)?(?:->(?:[A-Za-z0-9_$-]+(?:\\[[0-9]{1,9}])?|\\[[0-9]{1,9}]))*(?::num|:len)?=.*"
+              type: string
         - name: pluginResponse
           in: query
           required: false
@@ -451,6 +475,30 @@ paths:
               maxLength: 133
               minLength: 0
               pattern: "[_+]?[a-z0-9]+(?:[./][a-z0-9]+)*/[a-z0-9]+(?:[.][a-z0-9]+)*(?::num|:dur)?"
+              type: string
+        - name: pluginBefore
+          in: query
+          required: false
+          schema:
+            maxItems: 100
+            minItems: 0
+            type: array
+            items:
+              maxLength: 1024
+              minLength: 0
+              pattern: "(?:plugins->)?[_+]?plugin(?:/[a-z0-9]+(?:[./][a-z0-9]+)*)?(?:->(?:[A-Za-z0-9_$-]+(?:\\[[0-9]{1,9}])?|\\[[0-9]{1,9}]))*(?::num|:len)?=.*"
+              type: string
+        - name: pluginAfter
+          in: query
+          required: false
+          schema:
+            maxItems: 100
+            minItems: 0
+            type: array
+            items:
+              maxLength: 1024
+              minLength: 0
+              pattern: "(?:plugins->)?[_+]?plugin(?:/[a-z0-9]+(?:[./][a-z0-9]+)*)?(?:->(?:[A-Za-z0-9_$-]+(?:\\[[0-9]{1,9}])?|\\[[0-9]{1,9}]))*(?::num|:len)?=.*"
               type: string
         - name: pluginResponse
           in: query

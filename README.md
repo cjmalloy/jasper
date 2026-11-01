@@ -160,6 +160,13 @@ suffix, and keeps Refs whose tag value is strictly less than or greater than `{v
 `tagBefore=plugin/duration/pt1h:dur` matches `plugin/duration/pt10m25s`. Refs without a value for the tag
 never match. Both parameters can be repeated, and hot tag indexes are used for filtering as well as sorting.
 
+Refs can also be filtered by plugin data with `pluginBefore` and `pluginAfter`. Each takes a plugin sort
+column (the `plugins->` prefix is optional) followed by `={value}`, and keeps Refs where that field is strictly
+less than or greater than `{value}`. Append `:num` to compare numbers or `:len` to compare array lengths,
+otherwise values compare as strings. For example, `pluginAfter=_plugin/cache->contentLength:num=1000` matches
+Refs with a cached file over 1000 bytes, and `pluginBefore=plugin/test->ids:len=3` matches Refs with fewer than
+three `ids`. Refs without the field never match. Both parameters can be repeated.
+
 Metadata dates useful for sorting:
 - `metadata->modified`: updated whenever the responses, internal responses or plugin counts change.
 - `metadata->newResponse`: updated only when a new response is created (not updated), ignoring
