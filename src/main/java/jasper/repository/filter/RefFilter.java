@@ -3,6 +3,7 @@ package jasper.repository.filter;
 import jasper.domain.Ref;
 import jasper.domain.proj.Tag;
 import jasper.errors.InvalidQueryException;
+import jasper.repository.spec.SortSpec.PluginValueFilter;
 import jasper.repository.spec.SortSpec.TagValueFilter;
 import lombok.Builder;
 import lombok.Getter;
@@ -29,6 +30,8 @@ public class RefFilter implements Query {
 	public static final String QUERY = Query.REGEX;
 	public static final String TAG_VALUE = Tag.REGEX + "/[a-z0-9]+(?:[.][a-z0-9]+)*(?::num|:dur)?";
 	public static final int TAG_VALUE_LEN = TAG_LEN * 2 + 5;
+	public static final String PLUGIN_VALUE = PluginValueFilter.REGEX;
+	public static final int PLUGIN_VALUE_LEN = 1024;
 	private static final Logger logger = LoggerFactory.getLogger(RefFilter.class);
 
 	private String origin;
@@ -62,6 +65,8 @@ public class RefFilter implements Query {
 	private Instant responseAfter;
 	private List<String> tagBefore;
 	private List<String> tagAfter;
+	private List<String> pluginBefore;
+	private List<String> pluginAfter;
 
 	public Specification<Ref> spec(String user, String userOrigin) {
 		this.user = user;
@@ -180,12 +185,28 @@ public class RefFilter implements Query {
 				result = result.and(isTagValueAfter(tagValueFilter(f)));
 			}
 		}
+		if (pluginBefore != null) {
+			for (var f : pluginBefore) {
+				result = result.and(isPluginValueBefore(pluginValueFilter(f)));
+			}
+		}
+		if (pluginAfter != null) {
+			for (var f : pluginAfter) {
+				result = result.and(isPluginValueAfter(pluginValueFilter(f)));
+			}
+		}
 		return result;
 	}
 
 	private static TagValueFilter tagValueFilter(String filter) {
 		var result = TagValueFilter.parse(filter);
 		if (result == null) throw new InvalidQueryException(filter, "expected {tag}/{value}, {tag}/{number}:num or {tag}/{duration}:dur");
+		return result;
+	}
+
+	private static PluginValueFilter pluginValueFilter(String filter) {
+		var result = PluginValueFilter.parse(filter);
+		if (result == null) throw new InvalidQueryException(filter, "expected {plugin}->{field}={value}, {plugin}->{field}:num={number} or {plugin}->{field}:len={length}");
 		return result;
 	}
 }

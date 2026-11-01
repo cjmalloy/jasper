@@ -3,6 +3,7 @@ package jasper.repository.spec;
 import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.Expression;
 import jakarta.persistence.criteria.Root;
+import jasper.domain.Plugin;
 import jasper.domain.proj.Tag;
 
 import java.math.BigDecimal;
@@ -56,6 +57,24 @@ public class SortSpec {
 	 * @return the sort expression, or null if property doesn't match allowed prefixes
 	 */
 	public static Expression<?> createJsonbSortExpression(Root<?> root, CriteriaBuilder cb, String property, String... prefixes) {
+		var value = createJsonbValue(root, cb, property, prefixes);
+		if (value == null) return null;
+		if (value.length()) return cb.coalesce(value.expression(), cb.literal(0));
+		if (value.numeric()) return cb.coalesce(value.expression(), cb.literal(0.0));
+		return cb.coalesce(value.expression(), cb.literal(""));
+	}
+
+	/**
+	 * A JSONB value without a default, so missing values are null.
+	 *
+	 * @param expression the value, an Integer for length, a Double for numeric, otherwise a String
+	 */
+	public record JsonbValue(Expression expression, boolean numeric, boolean length) {}
+
+	/**
+	 * Same as {@link #createJsonbSortExpression} without the COALESCE, so missing values are null.
+	 */
+	public static JsonbValue createJsonbValue(Root<?> root, CriteriaBuilder cb, String property, String... prefixes) {
 		var numericSort = property.endsWith(":num");
 		var lengthSort = property.endsWith(":len");
 		if (property.contains(":")) property = property.substring(0, property.lastIndexOf(":"));
@@ -96,7 +115,7 @@ public class SortSpec {
 			} else if (i == parts.length - 1 && lengthSort) {
 				// Last field with length sort - get as JSONB and apply jsonb_array_length
 				expr = cb.function("jsonb_object_field", Object.class, expr, cb.literal(field));
-				return cb.coalesce(cb.function("jsonb_array_length", Integer.class, expr), cb.literal(0));
+				return new JsonbValue(cb.function("jsonb_array_length", Integer.class, expr), false, true);
 			} else if (i == parts.length - 1) {
 				// Last field - get as text
 				expr = cb.function("jsonb_object_field_text", String.class, expr, cb.literal(field));
@@ -105,11 +124,8 @@ public class SortSpec {
 				expr = cb.function("jsonb_object_field", Object.class, expr, cb.literal(field));
 			}
 		}
-		if (numericSort) {
-			return cb.coalesce(cb.function("cast_to_numeric", Double.class, expr), cb.literal(0.0));
-		} else {
-			return cb.coalesce(expr, cb.literal(""));
-		}
+		if (numericSort) return new JsonbValue(cb.function("cast_to_numeric", Double.class, expr), true, false);
+		return new JsonbValue(expr, false, false);
 	}
 
 	/**
@@ -175,6 +191,45 @@ public class SortSpec {
 				}
 				default -> new TagValueFilter(sort, value);
 			};
+		}
+	}
+
+	/**
+	 * A filter on a field of plugin data, e.g. "plugin/progress->percent:num=50".
+	 *
+	 * @param plugin the plugin tag
+	 * @param property the JSONB sort property, e.g. "plugins->plugin/progress->percent:num"
+	 * @param value the value to compare against: a String, or a BigDecimal for :num and :len
+	 */
+	public record PluginValueFilter(String plugin, String property, Object value) {
+		public static final String FIELD_REGEX = "(?:[A-Za-z0-9_$-]+(?:\\[[0-9]{1,9}])?|\\[[0-9]{1,9}])";
+		public static final String PATH_REGEX = "(?:plugins->)?" + Plugin.REGEX + "(?:->" + FIELD_REGEX + ")*(?::num|:len)?";
+		public static final String REGEX = PATH_REGEX + "=.*";
+
+		/**
+		 * Parses "{plugin}[->{field}...]={value}" with an optional ":num" or ":len" suffix before the "=".
+		 * The "plugins->" prefix is optional, so a plugin sort property followed by "={value}" is a valid filter.
+		 *
+		 * @return the parsed filter, or null if the filter is not a valid plugin value filter
+		 */
+		public static PluginValueFilter parse(String filter) {
+			if (filter == null) return null;
+			var i = filter.indexOf('=');
+			if (i < 1) return null;
+			var path = filter.substring(0, i);
+			var value = filter.substring(i + 1);
+			if (!path.matches(PATH_REGEX)) return null;
+			if (path.startsWith("plugins->")) path = path.substring("plugins->".length());
+			var plugin = path.split("->|:", 2)[0];
+			if (path.endsWith(":num")) {
+				if (!value.matches("-?[0-9]{1,30}([.][0-9]{1,30})?")) return null;
+				return new PluginValueFilter(plugin, "plugins->" + path, new BigDecimal(value));
+			}
+			if (path.endsWith(":len")) {
+				if (!value.matches("[0-9]{1,9}")) return null;
+				return new PluginValueFilter(plugin, "plugins->" + path, new BigDecimal(value));
+			}
+			return new PluginValueFilter(plugin, "plugins->" + path, value);
 		}
 	}
 

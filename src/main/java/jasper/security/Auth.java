@@ -15,6 +15,7 @@ import jasper.repository.RefRepository;
 import jasper.repository.filter.Query;
 import jasper.repository.filter.RefFilter;
 import jasper.repository.spec.QualifiedTag;
+import jasper.repository.spec.SortSpec.PluginValueFilter;
 import jasper.repository.spec.SortSpec.TagValueFilter;
 import jasper.security.jwt.Claims;
 import jasper.security.jwt.JwtAuthentication;
@@ -616,12 +617,19 @@ public class Auth {
 		// Min Role
 		if (!minRole()) return false;
 		var tagValues = filter instanceof RefFilter f
-			? Stream.of(f.getTagBefore(), f.getTagAfter())
-				.filter(Objects::nonNull)
-				.flatMap(List::stream)
-				.map(TagValueFilter::parse)
-				.filter(Objects::nonNull)
-				.map(v -> v.sort().tag())
+			? Stream.concat(
+				Stream.of(f.getTagBefore(), f.getTagAfter())
+					.filter(Objects::nonNull)
+					.flatMap(List::stream)
+					.map(TagValueFilter::parse)
+					.filter(Objects::nonNull)
+					.map(v -> v.sort().tag()),
+				Stream.of(f.getPluginBefore(), f.getPluginAfter())
+					.filter(Objects::nonNull)
+					.flatMap(List::stream)
+					.map(PluginValueFilter::parse)
+					.filter(Objects::nonNull)
+					.map(PluginValueFilter::plugin))
 				.toList()
 			: List.<String>of();
 		// Anyone can read the empty query (retrieve all Refs)

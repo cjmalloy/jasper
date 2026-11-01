@@ -7,6 +7,7 @@ import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Root;
 import jasper.domain.Ref;
 import jasper.domain.Ref_;
+import jasper.repository.spec.SortSpec.PluginValueFilter;
 import jasper.repository.spec.SortSpec.TagValueFilter;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -21,6 +22,7 @@ import static jasper.domain.proj.Tag.publicTag;
 import static jasper.domain.proj.Tag.userUrlPrefix;
 import static jasper.repository.spec.OriginSpec.none;
 import static jasper.repository.spec.SortSpec.createJsonbSortExpression;
+import static jasper.repository.spec.SortSpec.createJsonbValue;
 import static jasper.repository.spec.SortSpec.isJsonbSortProperty;
 import static org.springframework.data.jpa.domain.Specification.unrestricted;
 
@@ -350,6 +352,35 @@ public class RefSpec {
 			return cb.and(
 				cb.notEqual(text, ""),
 				before ? cb.lessThan(number, value) : cb.greaterThan(number, value));
+		};
+	}
+
+	public static Specification<Ref> isPluginValueBefore(PluginValueFilter filter) {
+		return isPluginValue(filter, true);
+	}
+
+	public static Specification<Ref> isPluginValueAfter(PluginValueFilter filter) {
+		return isPluginValue(filter, false);
+	}
+
+	/**
+	 * Compares a field of plugin data, using the same expression as plugin sorting.
+	 * Refs without a value for the field never match.
+	 */
+	@SuppressWarnings("unchecked")
+	private static Specification<Ref> isPluginValue(PluginValueFilter filter, boolean before) {
+		if (filter == null) return unrestricted();
+		return (root, query, cb) -> {
+			var field = createJsonbValue(root, cb, filter.property(), "plugins");
+			if (filter.value() instanceof String value) {
+				Expression<String> text = field.expression();
+				return before ? cb.lessThan(text, value) : cb.greaterThan(text, value);
+			}
+			Expression<Double> number = field.numeric()
+				? field.expression()
+				: cb.function("cast_to_numeric", Double.class, field.expression());
+			var value = cb.function("cast_to_numeric", Double.class, cb.literal(filter.value()));
+			return before ? cb.lessThan(number, value) : cb.greaterThan(number, value);
 		};
 	}
 

@@ -1895,6 +1895,75 @@ public class RefServiceIT {
 			.isInstanceOf(InvalidQueryException.class);
 	}
 
+	Ref refWithUrlPlugins(String url, String plugins) throws JsonProcessingException {
+		var ref = new Ref();
+		ref.setUrl(url);
+		ref.setTags(new ArrayList<>(List.of("+user/tester")));
+		if (plugins != null) ref.setPlugins((ObjectNode) new ObjectMapper().readTree(plugins));
+		return refRepository.save(ref);
+	}
+
+	@Test
+	void testPluginValueFilter() throws JsonProcessingException {
+		refWithUrlPlugins("https://example.com/1", "{\"plugin/test\": {\"style\": {\"color\": \"blue\"}}}");
+		refWithUrlPlugins("https://example.com/2", "{\"plugin/test\": {\"style\": {\"color\": \"green\"}}}");
+		refWithUrlPlugins("https://example.com/3", null);
+		refWithUrlPlugins("https://example.com/4", "{\"plugin/test\": {\"style\": {}}}");
+		refWithUrlPlugins("https://example.com/5", "{\"plugin/test\": {\"style\": {\"color\": \"red\"}}}");
+
+		assertThat(filteredUrls(RefFilter.builder().pluginBefore(List.of("plugin/test->style->color=green")).build()))
+			.containsExactly("https://example.com/1");
+		assertThat(filteredUrls(RefFilter.builder().pluginAfter(List.of("plugins->plugin/test->style->color=blue")).build()))
+			.containsExactly("https://example.com/2", "https://example.com/5");
+		assertThat(filteredUrls(RefFilter.builder()
+				.pluginAfter(List.of("plugin/test->style->color=blue"))
+				.pluginBefore(List.of("plugin/test->style->color=red")).build()))
+			.containsExactly("https://example.com/2");
+	}
+
+	@Test
+	void testPluginValueNumericFilter() throws JsonProcessingException {
+		refWithUrlPlugins("https://example.com/1", "{\"_plugin/cache\": {\"contentLength\": 100}}");
+		refWithUrlPlugins("https://example.com/2", "{\"_plugin/cache\": {\"contentLength\": 20}}");
+		refWithUrlPlugins("https://example.com/3", null);
+		refWithUrlPlugins("https://example.com/4", "{\"_plugin/cache\": {\"contentLength\": 2.5}}");
+		refWithUrlPlugins("https://example.com/5", "{\"_plugin/cache\": {\"contentLength\": -3}}");
+
+		assertThat(filteredUrls(RefFilter.builder().pluginBefore(List.of("_plugin/cache->contentLength:num=20")).build()))
+			.containsExactly("https://example.com/4", "https://example.com/5");
+		assertThat(filteredUrls(RefFilter.builder().pluginAfter(List.of("_plugin/cache->contentLength:num=3")).build()))
+			.containsExactly("https://example.com/1", "https://example.com/2");
+		assertThat(filteredUrls(RefFilter.builder().pluginAfter(List.of("_plugin/cache->contentLength:num=-3.5")).build()))
+			.containsExactly("https://example.com/1", "https://example.com/2", "https://example.com/4", "https://example.com/5");
+	}
+
+	@Test
+	void testPluginValueLengthFilter() throws JsonProcessingException {
+		refWithUrlPlugins("https://example.com/1", "{\"plugin/test\": {\"ids\": [\"a\"]}}");
+		refWithUrlPlugins("https://example.com/2", "{\"plugin/test\": {\"ids\": [\"a\", \"b\", \"c\"]}}");
+		refWithUrlPlugins("https://example.com/3", null);
+		refWithUrlPlugins("https://example.com/4", "{\"plugin/test\": {\"ids\": []}}");
+
+		assertThat(filteredUrls(RefFilter.builder().pluginAfter(List.of("plugin/test->ids:len=0")).build()))
+			.containsExactly("https://example.com/1", "https://example.com/2");
+		assertThat(filteredUrls(RefFilter.builder().pluginBefore(List.of("plugin/test->ids:len=3")).build()))
+			.containsExactly("https://example.com/1", "https://example.com/4");
+	}
+
+	@Test
+	void testInvalidPluginValueFilter() {
+		assertThatThrownBy(() -> RefFilter.builder().pluginBefore(List.of("plugin/test->size:num=abc")).build().spec())
+			.isInstanceOf(InvalidQueryException.class);
+		assertThatThrownBy(() -> RefFilter.builder().pluginAfter(List.of("plugin/test->ids:len=-1")).build().spec())
+			.isInstanceOf(InvalidQueryException.class);
+		assertThatThrownBy(() -> RefFilter.builder().pluginAfter(List.of("custom->size=1")).build().spec())
+			.isInstanceOf(InvalidQueryException.class);
+		assertThatThrownBy(() -> RefFilter.builder().pluginAfter(List.of("plugin/test->size")).build().spec())
+			.isInstanceOf(InvalidQueryException.class);
+		assertThatThrownBy(() -> RefFilter.builder().pluginAfter(List.of("plugin/test->it's=1")).build().spec())
+			.isInstanceOf(InvalidQueryException.class);
+	}
+
 	Ref refWithSchemaPlugin(String defaults) throws JsonProcessingException {
 		var mapper = new ObjectMapper();
 		var plugin = new Plugin();

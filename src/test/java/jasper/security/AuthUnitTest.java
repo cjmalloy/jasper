@@ -982,6 +982,36 @@ public class AuthUnitTest {
 	}
 
 	@Test
+	void testCanReadQuery_PluginValuePublic() {
+		var user = getUser("+user/test");
+		var auth = getAuth(user, VIEWER);
+
+		assertThat(auth.canReadQuery(RefFilter.builder().pluginAfter(List.of("plugin/test->size:num=50")).build()))
+			.isTrue();
+	}
+
+	@Test
+	void testCanReadQuery_PluginValuePrivate() {
+		var user = getUser("+user/test");
+		user.getTagReadAccess().add("_plugin/secret");
+		var auth = getAuth(user, VIEWER);
+
+		assertThat(auth.canReadQuery(RefFilter.builder().pluginBefore(List.of("plugins->_plugin/secret->size:num=50")).build()))
+			.isTrue();
+	}
+
+	@Test
+	void testCanReadQuery_PluginValuePrivateFailed() {
+		var user = getUser("+user/test");
+		var auth = getAuth(user, USER);
+
+		assertThat(auth.canReadQuery(RefFilter.builder().pluginAfter(List.of("_plugin/secret->size:num=50")).build()))
+			.isFalse();
+		assertThat(auth.canReadQuery(RefFilter.builder().query("custom").pluginBefore(List.of("_plugin/secret=a")).build()))
+			.isFalse();
+	}
+
+	@Test
 	void testFilterSort_PrivatePluginWithAccess() {
 		var user = getUser("+user/test");
 		user.getTagReadAccess().add("_custom");
