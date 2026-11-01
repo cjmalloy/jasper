@@ -1009,6 +1009,10 @@ public class AuthUnitTest {
 			.isFalse();
 		assertThat(auth.canReadQuery(RefFilter.builder().query("custom").pluginBefore(List.of("plugins->_plugin/secret->name/a")).build()))
 			.isFalse();
+		assertThat(auth.canReadQuery(RefFilter.builder().pluginAfter(List.of("plugins->_plugin/secret:num/50")).build()))
+			.isFalse();
+		assertThat(auth.canReadQuery(RefFilter.builder().pluginAfter(List.of("plugins->_plugin/secret/a")).build()))
+			.isFalse();
 	}
 
 	@Test

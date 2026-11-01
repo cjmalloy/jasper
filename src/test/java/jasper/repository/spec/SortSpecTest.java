@@ -101,6 +101,40 @@ class SortSpecTest {
 		assertThat(f.value()).isEqualTo(new BigDecimal("3"));
 	}
 
+	@Test
+	void testPluginValueFilterPrimitive() {
+		var f = PluginValueFilter.parse("plugins->plugin/test/value");
+		assertThat(f.plugin()).isEqualTo("plugin/test");
+		assertThat(f.property()).isEqualTo("plugins->plugin/test");
+		assertThat(f.value()).isEqualTo("value");
+		assertThat("plugins->plugin/test/value").matches(PluginValueFilter.REGEX);
+	}
+
+	@Test
+	void testPluginValueFilterPrimitiveLastSegment() {
+		var f = PluginValueFilter.parse("plugins->plugin/a/b/c");
+		assertThat(f.plugin()).isEqualTo("plugin/a/b");
+		assertThat(f.property()).isEqualTo("plugins->plugin/a/b");
+		assertThat(f.value()).isEqualTo("c");
+	}
+
+	@Test
+	void testPluginValueFilterPrimitiveNum() {
+		var f = PluginValueFilter.parse("plugins->plugin/game/score:num/-5.5");
+		assertThat(f.plugin()).isEqualTo("plugin/game/score");
+		assertThat(f.property()).isEqualTo("plugins->plugin/game/score:num");
+		assertThat(f.value()).isEqualTo(new BigDecimal("-5.5"));
+		assertThat("plugins->plugin/game/score:num/-5.5").matches(PluginValueFilter.REGEX);
+	}
+
+	@Test
+	void testPluginValueFilterPrimitiveLen() {
+		var f = PluginValueFilter.parse("plugins->plugin:len/3");
+		assertThat(f.plugin()).isEqualTo("plugin");
+		assertThat(f.property()).isEqualTo("plugins->plugin:len");
+		assertThat(f.value()).isEqualTo(new BigDecimal("3"));
+	}
+
 	@ParameterizedTest
 	@ValueSource(strings = {
 		"plugin/test->size/1",
@@ -112,8 +146,9 @@ class SortSpecTest {
 		"plugins->plugin/test->it's/1",
 		"plugins->plugin/test->name/a,b",
 		"plugins->custom->size/1",
-		"plugins->plugin/test/value",
-		"plugins->plugin/test:num/5",
+		"plugins->plugin/test/a->b",
+		"plugins->plugin/test:num/x",
+		"plugins->plugin/test:dur/pt1h",
 	})
 	void testInvalidPluginValueFilter(String filter) {
 		assertThat(PluginValueFilter.parse(filter)).isNull();
@@ -128,8 +163,10 @@ class SortSpecTest {
 		"plugins->plugin/test->it's/1",
 		"plugins->plugin/test->name/a,b",
 		"plugins->custom->size/1",
-		"plugins->plugin/test/value",
-		"plugins->plugin/test:num/5",
+		"plugins->plugin/test/a->b",
+		"plugins->plugin/test:dur/pt1h",
+		"plugins->plugin",
+		"plugins->plugin/",
 	})
 	void testInvalidPluginValueFilterRegex(String filter) {
 		assertThat(filter).doesNotMatch(PluginValueFilter.REGEX);

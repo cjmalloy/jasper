@@ -1964,6 +1964,21 @@ public class RefServiceIT {
 	}
 
 	@Test
+	void testPluginValuePrimitiveFilter() throws JsonProcessingException {
+		refWithUrlPlugins("https://example.com/1", "{\"plugin/score\": 100, \"plugin/name\": \"kiwi\"}");
+		refWithUrlPlugins("https://example.com/2", "{\"plugin/score\": 20, \"plugin/name\": \"apple\"}");
+		refWithUrlPlugins("https://example.com/3", null);
+		refWithUrlPlugins("https://example.com/4", "{\"plugin/score\": -3.5}");
+
+		assertThat(filteredUrls(RefFilter.builder().pluginBefore(List.of("plugins->plugin/score:num/20")).build()))
+			.containsExactly("https://example.com/4");
+		assertThat(filteredUrls(RefFilter.builder().pluginAfter(List.of("plugins->plugin/score:num/-4")).build()))
+			.containsExactly("https://example.com/1", "https://example.com/2", "https://example.com/4");
+		assertThat(filteredUrls(RefFilter.builder().pluginAfter(List.of("plugins->plugin/name/banana")).build()))
+			.containsExactly("https://example.com/1");
+	}
+
+	@Test
 	void testPluginValueIndexedFilter() throws JsonProcessingException {
 		refWithUrlPlugins("https://example.com/1", "{\"plugin/test\": {\"items\": [{\"score\": 3, \"color\": \"blue\"}], \"groups\": [[1, 2, 3]]}}");
 		refWithUrlPlugins("https://example.com/2", "{\"plugin/test\": {\"items\": [{\"score\": 10, \"color\": \"red\"}], \"groups\": [[1]]}}");

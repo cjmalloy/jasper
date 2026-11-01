@@ -165,12 +165,14 @@ Refs without a value never match. Every filter parameter can be repeated, and al
   `tagAfter=tags->plugin/progress:num/9&tagBefore=tags->plugin/progress:num/50` matches `plugin/progress/37/100`,
   and `tagBefore=tags->plugin/duration:dur/pt1h` matches `plugin/duration/pt10m25s`. Hot tag indexes are used
   for filtering as well as sorting.
-* `pluginBefore` and `pluginAfter` take `plugins->{plugin}->{field}[->{field}...][:num|:len]/{value}`, with at
-  least one field. Fields and suffixes cannot contain `/`, so the value starts after the first `/` following the
-  last field or suffix, and may itself contain `/`. Use `:num` to compare numbers (which may be negative) or `:len`
+* `pluginBefore` and `pluginAfter` take `plugins->{plugin}[->{field}...][:num|:len]/{value}`. Fields are optional,
+  since plugin data may be a primitive. Fields and suffixes cannot contain `/`, so with a field or suffix the value
+  starts after the first `/` following it, and may itself contain `/`. Without a field or suffix the value is the
+  last `/` segment, like a tag value. Use `:num` to compare numbers (which may be negative) or `:len`
   to compare array lengths, otherwise values compare as strings. For example,
   `pluginAfter=plugins->_plugin/cache->contentLength:num/1000` matches Refs with a cached file over 1000 bytes,
-  and `pluginBefore=plugins->plugin/test->ids:len/3` matches Refs with fewer than three `ids`.
+  `pluginBefore=plugins->plugin/test->ids:len/3` matches Refs with fewer than three `ids`,
+  and `pluginAfter=plugins->plugin/score:num/10` matches Refs whose `plugin/score` data is a number over 10.
 
 Values cannot contain `,`, since a single parameter is split on commas into a list.
 Invalid filters are rejected with `400 Bad Request`.

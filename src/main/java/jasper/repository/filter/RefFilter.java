@@ -204,7 +204,7 @@ public class RefFilter implements Query {
 
 	private static PluginValueFilter pluginValueFilter(String filter) {
 		var result = PluginValueFilter.parse(filter);
-		if (result == null) throw new InvalidQueryException(filter, "expected plugins->{plugin}->{field}/{value}, plugins->{plugin}->{field}:num/{number} or plugins->{plugin}->{field}:len/{length}");
+		if (result == null) throw new InvalidQueryException(filter, "expected plugins->{plugin}[->{field}...]/{value}, plugins->{plugin}[->{field}...]:num/{number} or plugins->{plugin}[->{field}...]:len/{length}");
 		return result;
 	}
 }

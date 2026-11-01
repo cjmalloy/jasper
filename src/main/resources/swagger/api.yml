@@ -321,7 +321,7 @@ paths:
               $ref: '#/components/schemas/tagValueFilter'
         - name: pluginBefore
           in: query
-          description: 'Only match Refs whose plugin field is strictly less than the value: plugins->{plugin}->{field}[->{field}...][:num|:len]/{value}. The value starts after the first ''/'' following the last field or suffix, and may contain ''/'' but not '',''. Refs without the field never match. Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering-by-value'
+          description: 'Only match Refs whose plugin value is strictly less than the value: plugins->{plugin}[->{field}...][:num|:len]/{value}. With a field or suffix the value starts after the first ''/'' following it and may contain ''/'', otherwise the value is the last ''/'' segment. Values cannot contain '',''. Refs without the value never match. Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering-by-value'
           required: false
           example: ['plugins->plugin/test->ids:len/3']
           schema:
@@ -331,7 +331,7 @@ paths:
               $ref: '#/components/schemas/pluginValueFilter'
         - name: pluginAfter
           in: query
-          description: 'Only match Refs whose plugin field is strictly greater than the value: plugins->{plugin}->{field}[->{field}...][:num|:len]/{value}. The value starts after the first ''/'' following the last field or suffix, and may contain ''/'' but not '',''. Refs without the field never match. Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering-by-value'
+          description: 'Only match Refs whose plugin value is strictly greater than the value: plugins->{plugin}[->{field}...][:num|:len]/{value}. With a field or suffix the value starts after the first ''/'' following it and may contain ''/'', otherwise the value is the last ''/'' segment. Values cannot contain '',''. Refs without the value never match. Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering-by-value'
           required: false
           example: ['plugins->_plugin/cache->contentLength:num/1000']
           schema:
@@ -542,7 +542,7 @@ paths:
               $ref: '#/components/schemas/tagValueFilter'
         - name: pluginBefore
           in: query
-          description: 'Only match Refs whose plugin field is strictly less than the value: plugins->{plugin}->{field}[->{field}...][:num|:len]/{value}. The value starts after the first ''/'' following the last field or suffix, and may contain ''/'' but not '',''. Refs without the field never match. Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering-by-value'
+          description: 'Only match Refs whose plugin value is strictly less than the value: plugins->{plugin}[->{field}...][:num|:len]/{value}. With a field or suffix the value starts after the first ''/'' following it and may contain ''/'', otherwise the value is the last ''/'' segment. Values cannot contain '',''. Refs without the value never match. Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering-by-value'
           required: false
           example: ['plugins->plugin/test->ids:len/3']
           schema:
@@ -552,7 +552,7 @@ paths:
               $ref: '#/components/schemas/pluginValueFilter'
         - name: pluginAfter
           in: query
-          description: 'Only match Refs whose plugin field is strictly greater than the value: plugins->{plugin}->{field}[->{field}...][:num|:len]/{value}. The value starts after the first ''/'' following the last field or suffix, and may contain ''/'' but not '',''. Refs without the field never match. Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering-by-value'
+          description: 'Only match Refs whose plugin value is strictly greater than the value: plugins->{plugin}[->{field}...][:num|:len]/{value}. With a field or suffix the value starts after the first ''/'' following it and may contain ''/'', otherwise the value is the last ''/'' segment. Values cannot contain '',''. Refs without the value never match. Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering-by-value'
           required: false
           example: ['plugins->_plugin/cache->contentLength:num/1000']
           schema:
@@ -3292,8 +3292,8 @@ components:
       maxLength: 139
     pluginValueFilter:
       type: string
-      pattern: '^plugins->[_+]?plugin(?:/[a-z0-9]+(?:[./][a-z0-9]+)*)?(?:->(?:[A-Za-z0-9_$-]+(?:\[[0-9]{1,9}\])?|\[[0-9]{1,9}\]))+(?::num|:len)?/[^,]+$'
-      description: 'Plugin value filter: plugins->{plugin}->{field}[->{field}...][:num|:len]/{value}. Fields may be array indices ([0]). The field is compared as text, as a number (:num) or by array or string length (:len).'
+      pattern: '^(?:plugins->[_+]?plugin(?:/[a-z0-9]+(?:[./][a-z0-9]+)*)?(?:(?:->(?:[A-Za-z0-9_$-]+(?:\[[0-9]{1,9}\])?|\[[0-9]{1,9}\]))+(?::num|:len)?|:num|:len)/[^,]+|plugins->[_+]?plugin(?:/[a-z0-9]+(?:[./][a-z0-9]+)*)?/(?:(?!->)[^/,])+)$'
+      description: 'Plugin value filter: plugins->{plugin}[->{field}...][:num|:len]/{value}. Fields are optional, since plugin data may be a primitive, and may be array indices ([0]). The value is compared as text, as a number (:num) or by array length (:len).'
       example: 'plugins->plugin/test->size:num/1000'
       minLength: 1
       maxLength: 1024
