@@ -97,7 +97,8 @@ public class SQLiteDialect extends org.hibernate.community.dialect.SQLiteDialect
 		// jsonb_array_length
 		functionRegistry.registerPattern("jsonb_array_length", "json_array_length(?1)", integer);
 		// jsonb_array_element: get element at index from a JSON array as JSON
-		functionRegistry.registerPattern("jsonb_array_element", "json_extract(?1, '$[' || ?2 || ']')", jsonb);
+		// Uses -> so scalar elements stay valid JSON (json_extract would unquote strings)
+		functionRegistry.registerPattern("jsonb_array_element", "((?1) -> ('$[' || ?2 || ']'))", jsonb);
 		// jsonb_array_element_text: get element at index from a JSON array
 		functionRegistry.registerPattern("jsonb_array_element_text", "json_extract(?1, '$[' || ?2 || ']')", string);
 		// string_to_array: in SQLite just pass through the comma-separated string (used with jsonb_exists_any)

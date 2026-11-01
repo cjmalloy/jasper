@@ -1968,6 +1968,7 @@ public class RefServiceIT {
 		refWithUrlPlugins("https://example.com/1", "{\"plugin/test\": {\"items\": [{\"score\": 3, \"color\": \"blue\"}], \"groups\": [[1, 2, 3]]}}");
 		refWithUrlPlugins("https://example.com/2", "{\"plugin/test\": {\"items\": [{\"score\": 10, \"color\": \"red\"}], \"groups\": [[1]]}}");
 		refWithUrlPlugins("https://example.com/3", null);
+		refWithUrlPlugins("https://example.com/4", "{\"plugin/test\": {\"items\": [\"blue\"]}}");
 
 		assertThat(filteredUrls(RefFilter.builder().pluginBefore(List.of("plugins->plugin/test->items[0]->score:num/5")).build()))
 			.containsExactly("https://example.com/1");
