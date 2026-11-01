@@ -98,6 +98,13 @@ paths:
           required: false
           schema:
             $ref: '#/components/schemas/origin'
+        - name: cursor
+          in: query
+          description: The modified date of the entity being patched, used for optimistic locking
+          required: true
+          schema:
+            type: string
+            format: date-time
       requestBody:
         content:
           application/json-patch+json:
@@ -164,7 +171,7 @@ paths:
             default: 10
         - name: sort
           in: query
-          description: 'Sorting criteria in the format: property,(asc|desc). Default sort order is ascending. Multiple sort criteria are supported.'
+          description: 'Sorting criteria in the format: column[,asc|,desc]. Default sort order is ascending. Multiple sort criteria are supported. JSON columns can be sorted by field with -> (e.g. plugins->plugin/test->size:num, metadata->responses), append :num for numeric or :len for length. Tag values sort with tags->{tag}[:num|:dur] (e.g. tags->plugin/progress:num). See https://github.com/cjmalloy/jasper#sorting'
           required: false
           schema:
             type: array
@@ -175,181 +182,206 @@ paths:
               - 'modified,DESC'
         - name: query
           in: query
+          description: Tag query, see https://github.com/cjmalloy/jasper#tag-queries
           required: false
+          example: 'science:!funny'
           schema:
             $ref: '#/components/schemas/query'
         - name: noDescendents
           in: query
+          description: Exclude Refs that have a descendant tag of this tag, e.g. noDescendents=plugin/thread excludes Refs tagged plugin/thread/x
           required: false
           schema:
             $ref: '#/components/schemas/tag'
+        - name: nesting
+          in: query
+          description: Only match Refs with this origin nesting level, where the local origin '' is 0, '@a' is 1 and '@a.b' is 2
+          required: false
+          schema:
+            type: integer
+            minimum: 0
         - name: url
           in: query
+          description: Only match Refs with this URL
           required: false
           schema:
             $ref: '#/components/schemas/url'
+        - name: obsolete
+          in: query
+          description: true to only match obsolete Refs (another origin has a newer copy of the URL), false to exclude them
+          required: false
+          schema:
+            type: boolean
         - name: scheme
           in: query
+          description: Only match Refs with this URL scheme
           required: false
+          example: 'https:'
           schema:
             $ref: '#/components/schemas/scheme'
         - name: sources
           in: query
+          description: Only match Refs that are sources of this URL (this URL is a response to them)
           required: false
           schema:
             $ref: '#/components/schemas/url'
         - name: noSources
           in: query
+          description: Exclude Refs that are sources of this URL
           required: false
           schema:
             $ref: '#/components/schemas/url'
         - name: responses
           in: query
+          description: Only match Refs that are responses to this URL (this URL is one of their sources)
           required: false
           schema:
             $ref: '#/components/schemas/url'
         - name: noResponses
           in: query
+          description: Exclude Refs that are responses to this URL
           required: false
           schema:
             $ref: '#/components/schemas/url'
         - name: modifiedBefore
           in: query
+          description: Only match Refs modified strictly before this time
           required: false
           schema:
             type: string
             format: date-time
         - name: modifiedAfter
           in: query
+          description: Only match Refs modified strictly after this time
           required: false
           schema:
             type: string
             format: date-time
         - name: publishedBefore
           in: query
+          description: Only match Refs published strictly before this time
           required: false
           schema:
             type: string
             format: date-time
         - name: publishedAfter
           in: query
+          description: Only match Refs published strictly after this time
           required: false
           schema:
             type: string
             format: date-time
         - name: createdBefore
           in: query
+          description: Only match Refs created strictly before this time
           required: false
           schema:
             type: string
             format: date-time
         - name: createdAfter
           in: query
+          description: Only match Refs created strictly after this time
           required: false
           schema:
             type: string
             format: date-time
         - name: responseBefore
           in: query
+          description: Only match Refs with a response strictly before this time
           required: false
           schema:
             type: string
             format: date-time
         - name: responseAfter
           in: query
+          description: Only match Refs with a response strictly after this time
           required: false
           schema:
             type: string
             format: date-time
         - name: tagBefore
           in: query
+          description: 'Only match Refs whose tag value is strictly less than the value: tags->{tag}[:num|:dur]/{value}. The value is always after the last ''/''. Refs without a value never match. Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering-by-value'
           required: false
+          example: ['tags->plugin/progress:num/50']
           schema:
-            maxItems: 100
-            minItems: 0
             type: array
+            maxItems: 100
             items:
-              maxLength: 133
-              minLength: 0
-              pattern: "[_+]?[a-z0-9]+(?:[./][a-z0-9]+)*/[a-z0-9]+(?:[.][a-z0-9]+)*(?::num|:dur)?"
-              type: string
+              $ref: '#/components/schemas/tagValueFilter'
         - name: tagAfter
           in: query
+          description: 'Only match Refs whose tag value is strictly greater than the value: tags->{tag}[:num|:dur]/{value}. The value is always after the last ''/''. Refs without a value never match. Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering-by-value'
           required: false
+          example: ['tags->plugin/duration:dur/pt1h']
           schema:
-            maxItems: 100
-            minItems: 0
             type: array
+            maxItems: 100
             items:
-              maxLength: 133
-              minLength: 0
-              pattern: "[_+]?[a-z0-9]+(?:[./][a-z0-9]+)*/[a-z0-9]+(?:[.][a-z0-9]+)*(?::num|:dur)?"
-              type: string
+              $ref: '#/components/schemas/tagValueFilter'
         - name: pluginBefore
           in: query
+          description: 'Only match Refs whose plugin field is strictly less than the value: plugins->{plugin}->{field}[->{field}...][:num|:len]/{value}. The value starts after the first ''/'' following the last field or suffix, and may contain ''/'' but not '',''. Refs without the field never match. Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering-by-value'
           required: false
+          example: ['plugins->plugin/test->ids:len/3']
           schema:
-            maxItems: 100
-            minItems: 0
             type: array
+            maxItems: 100
             items:
-              maxLength: 1024
-              minLength: 0
-              pattern: "(?:plugins->)?[_+]?plugin(?:/[a-z0-9]+(?:[./][a-z0-9]+)*)?(?:->(?:[A-Za-z0-9_$-]+(?:\\[[0-9]{1,9}])?|\\[[0-9]{1,9}]))*(?::num|:len)?=.*"
-              type: string
+              $ref: '#/components/schemas/pluginValueFilter'
         - name: pluginAfter
           in: query
+          description: 'Only match Refs whose plugin field is strictly greater than the value: plugins->{plugin}->{field}[->{field}...][:num|:len]/{value}. The value starts after the first ''/'' following the last field or suffix, and may contain ''/'' but not '',''. Refs without the field never match. Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering-by-value'
           required: false
+          example: ['plugins->_plugin/cache->contentLength:num/1000']
           schema:
-            maxItems: 100
-            minItems: 0
             type: array
+            maxItems: 100
             items:
-              maxLength: 1024
-              minLength: 0
-              pattern: "(?:plugins->)?[_+]?plugin(?:/[a-z0-9]+(?:[./][a-z0-9]+)*)?(?:->(?:[A-Za-z0-9_$-]+(?:\\[[0-9]{1,9}])?|\\[[0-9]{1,9}]))*(?::num|:len)?=.*"
-              type: string
+              $ref: '#/components/schemas/pluginValueFilter'
         - name: pluginResponse
           in: query
+          description: Only match Refs with a response tagged with each of these plugins
           required: false
           schema:
-            maxItems: 100
-            minItems: 0
             type: array
+            maxItems: 100
             items:
               $ref: '#/components/schemas/tag-plugin'
         - name: noPluginResponse
           in: query
+          description: Exclude Refs with a response tagged with any of these plugins
           required: false
           schema:
-            maxItems: 100
-            minItems: 0
             type: array
+            maxItems: 100
             items:
               $ref: '#/components/schemas/tag-plugin'
         - name: userResponse
           in: query
+          description: Only match Refs the current user has responded to with each of these plugins
           required: false
           schema:
-            maxItems: 100
-            minItems: 0
             type: array
+            maxItems: 100
             items:
               $ref: '#/components/schemas/tag-plugin'
         - name: noUserResponse
           in: query
+          description: Exclude Refs the current user has responded to with any of these plugins
           required: false
           schema:
-            maxItems: 100
-            minItems: 0
             type: array
+            maxItems: 100
             items:
               $ref: '#/components/schemas/tag-plugin'
         - name: search
           in: query
+          description: Full text search, or an exact URL
           required: false
           schema:
             type: string
+            maxLength: 512
       responses:
         '200':
           description: OK
@@ -371,176 +403,206 @@ paths:
       parameters:
         - name: query
           in: query
+          description: Tag query, see https://github.com/cjmalloy/jasper#tag-queries
           required: false
+          example: 'science:!funny'
           schema:
             $ref: '#/components/schemas/query'
+        - name: noDescendents
+          in: query
+          description: Exclude Refs that have a descendant tag of this tag, e.g. noDescendents=plugin/thread excludes Refs tagged plugin/thread/x
+          required: false
+          schema:
+            $ref: '#/components/schemas/tag'
+        - name: nesting
+          in: query
+          description: Only match Refs with this origin nesting level, where the local origin '' is 0, '@a' is 1 and '@a.b' is 2
+          required: false
+          schema:
+            type: integer
+            minimum: 0
         - name: url
           in: query
+          description: Only match Refs with this URL
           required: false
           schema:
             $ref: '#/components/schemas/url'
+        - name: obsolete
+          in: query
+          description: true to only match obsolete Refs (another origin has a newer copy of the URL), false to exclude them
+          required: false
+          schema:
+            type: boolean
+        - name: scheme
+          in: query
+          description: Only match Refs with this URL scheme
+          required: false
+          example: 'https:'
+          schema:
+            $ref: '#/components/schemas/scheme'
         - name: sources
           in: query
+          description: Only match Refs that are sources of this URL (this URL is a response to them)
+          required: false
+          schema:
+            $ref: '#/components/schemas/url'
+        - name: noSources
+          in: query
+          description: Exclude Refs that are sources of this URL
           required: false
           schema:
             $ref: '#/components/schemas/url'
         - name: responses
           in: query
+          description: Only match Refs that are responses to this URL (this URL is one of their sources)
           required: false
           schema:
             $ref: '#/components/schemas/url'
-        - name: untagged
+        - name: noResponses
           in: query
+          description: Exclude Refs that are responses to this URL
           required: false
           schema:
-            type: boolean
-        - name: uncited
-          in: query
-          required: false
-          schema:
-            type: boolean
-        - name: unsourced
-          in: query
-          required: false
-          schema:
-            type: boolean
+            $ref: '#/components/schemas/url'
         - name: modifiedBefore
           in: query
+          description: Only match Refs modified strictly before this time
           required: false
           schema:
             type: string
             format: date-time
         - name: modifiedAfter
           in: query
+          description: Only match Refs modified strictly after this time
           required: false
           schema:
             type: string
             format: date-time
         - name: publishedBefore
           in: query
+          description: Only match Refs published strictly before this time
           required: false
           schema:
             type: string
             format: date-time
         - name: publishedAfter
           in: query
+          description: Only match Refs published strictly after this time
           required: false
           schema:
             type: string
             format: date-time
         - name: createdBefore
           in: query
+          description: Only match Refs created strictly before this time
           required: false
           schema:
             type: string
             format: date-time
         - name: createdAfter
           in: query
+          description: Only match Refs created strictly after this time
           required: false
           schema:
             type: string
             format: date-time
         - name: responseBefore
           in: query
+          description: Only match Refs with a response strictly before this time
           required: false
           schema:
             type: string
             format: date-time
         - name: responseAfter
           in: query
+          description: Only match Refs with a response strictly after this time
           required: false
           schema:
             type: string
             format: date-time
         - name: tagBefore
           in: query
+          description: 'Only match Refs whose tag value is strictly less than the value: tags->{tag}[:num|:dur]/{value}. The value is always after the last ''/''. Refs without a value never match. Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering-by-value'
           required: false
+          example: ['tags->plugin/progress:num/50']
           schema:
-            maxItems: 100
-            minItems: 0
             type: array
+            maxItems: 100
             items:
-              maxLength: 133
-              minLength: 0
-              pattern: "[_+]?[a-z0-9]+(?:[./][a-z0-9]+)*/[a-z0-9]+(?:[.][a-z0-9]+)*(?::num|:dur)?"
-              type: string
+              $ref: '#/components/schemas/tagValueFilter'
         - name: tagAfter
           in: query
+          description: 'Only match Refs whose tag value is strictly greater than the value: tags->{tag}[:num|:dur]/{value}. The value is always after the last ''/''. Refs without a value never match. Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering-by-value'
           required: false
+          example: ['tags->plugin/duration:dur/pt1h']
           schema:
-            maxItems: 100
-            minItems: 0
             type: array
+            maxItems: 100
             items:
-              maxLength: 133
-              minLength: 0
-              pattern: "[_+]?[a-z0-9]+(?:[./][a-z0-9]+)*/[a-z0-9]+(?:[.][a-z0-9]+)*(?::num|:dur)?"
-              type: string
+              $ref: '#/components/schemas/tagValueFilter'
         - name: pluginBefore
           in: query
+          description: 'Only match Refs whose plugin field is strictly less than the value: plugins->{plugin}->{field}[->{field}...][:num|:len]/{value}. The value starts after the first ''/'' following the last field or suffix, and may contain ''/'' but not '',''. Refs without the field never match. Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering-by-value'
           required: false
+          example: ['plugins->plugin/test->ids:len/3']
           schema:
-            maxItems: 100
-            minItems: 0
             type: array
+            maxItems: 100
             items:
-              maxLength: 1024
-              minLength: 0
-              pattern: "(?:plugins->)?[_+]?plugin(?:/[a-z0-9]+(?:[./][a-z0-9]+)*)?(?:->(?:[A-Za-z0-9_$-]+(?:\\[[0-9]{1,9}])?|\\[[0-9]{1,9}]))*(?::num|:len)?=.*"
-              type: string
+              $ref: '#/components/schemas/pluginValueFilter'
         - name: pluginAfter
           in: query
+          description: 'Only match Refs whose plugin field is strictly greater than the value: plugins->{plugin}->{field}[->{field}...][:num|:len]/{value}. The value starts after the first ''/'' following the last field or suffix, and may contain ''/'' but not '',''. Refs without the field never match. Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering-by-value'
           required: false
+          example: ['plugins->_plugin/cache->contentLength:num/1000']
           schema:
-            maxItems: 100
-            minItems: 0
             type: array
+            maxItems: 100
             items:
-              maxLength: 1024
-              minLength: 0
-              pattern: "(?:plugins->)?[_+]?plugin(?:/[a-z0-9]+(?:[./][a-z0-9]+)*)?(?:->(?:[A-Za-z0-9_$-]+(?:\\[[0-9]{1,9}])?|\\[[0-9]{1,9}]))*(?::num|:len)?=.*"
-              type: string
+              $ref: '#/components/schemas/pluginValueFilter'
         - name: pluginResponse
           in: query
+          description: Only match Refs with a response tagged with each of these plugins
           required: false
           schema:
-            maxItems: 100
-            minItems: 0
             type: array
+            maxItems: 100
             items:
               $ref: '#/components/schemas/tag-plugin'
         - name: noPluginResponse
           in: query
+          description: Exclude Refs with a response tagged with any of these plugins
           required: false
           schema:
-            maxItems: 100
-            minItems: 0
             type: array
+            maxItems: 100
             items:
               $ref: '#/components/schemas/tag-plugin'
         - name: userResponse
           in: query
+          description: Only match Refs the current user has responded to with each of these plugins
           required: false
           schema:
-            maxItems: 100
-            minItems: 0
             type: array
+            maxItems: 100
             items:
               $ref: '#/components/schemas/tag-plugin'
         - name: noUserResponse
           in: query
+          description: Exclude Refs the current user has responded to with any of these plugins
           required: false
           schema:
-            maxItems: 100
-            minItems: 0
             type: array
+            maxItems: 100
             items:
               $ref: '#/components/schemas/tag-plugin'
         - name: search
           in: query
+          description: Full text search, or an exact URL
           required: false
           schema:
             type: string
+            maxLength: 512
       responses:
         '200':
           description: OK
@@ -568,11 +630,6 @@ paths:
             type: array
             items:
               $ref: '#/components/schemas/url'
-        - name: origin
-          in: query
-          required: false
-          schema:
-            $ref: '#/components/schemas/origin'
       responses:
         '200':
           description: OK
@@ -690,21 +747,11 @@ paths:
         - Tagging
       operationId: getResponse
       parameters:
-        - name: tag
-          in: query
-          required: false
-          schema:
-            $ref: '#/components/schemas/tag'
         - name: url
           in: query
           required: false
           schema:
             $ref: '#/components/schemas/url'
-        - name: origin
-          in: query
-          required: false
-          schema:
-            $ref: '#/components/schemas/origin'
       responses:
         '200':
           description: OK
@@ -733,11 +780,6 @@ paths:
           required: false
           schema:
             $ref: '#/components/schemas/url'
-        - name: origin
-          in: query
-          required: false
-          schema:
-            $ref: '#/components/schemas/origin'
       responses:
         '201':
           description: Created
@@ -764,11 +806,6 @@ paths:
           required: false
           schema:
             $ref: '#/components/schemas/url'
-        - name: origin
-          in: query
-          required: false
-          schema:
-            $ref: '#/components/schemas/origin'
       responses:
         '204':
           description: No Content
@@ -835,6 +872,11 @@ paths:
           schema:
             type: boolean
             default: false
+        - name: origin
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/origin'
       responses:
         '200':
           description: OK
@@ -859,6 +901,8 @@ paths:
               schema:
                 type: string
                 format: binary
+        '400':
+          $ref: '#/components/responses/BadRequest'
         '404':
           $ref: '#/components/responses/NotFound'
         '416':
@@ -879,11 +923,24 @@ paths:
       operationId: save
       description: Uploads a file to the cache and returns a generated Ref to access it with.
       parameters:
-        - name: url
+        - name: title
           in: query
-          required: true
+          description: File name used for the generated Ref title and URL
+          required: false
           schema:
-            $ref: '#/components/schemas/url'
+            type: string
+        - name: mime
+          in: query
+          description: Mime type of the uploaded file
+          required: false
+          example: 'image/png'
+          schema:
+            type: string
+        - name: origin
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/origin'
       requestBody:
         content:
           '*/*':
@@ -896,6 +953,8 @@ paths:
             '*/*':
               schema:
                 $ref: '#/components/schemas/Ref'
+        '400':
+          $ref: '#/components/responses/BadRequest'
         '500':
           description: Error caching
           content:
@@ -906,11 +965,88 @@ paths:
       tags:
         - Proxy
       operationId: clearDeleted
+      parameters:
+        - name: origin
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/origin'
       responses:
         '204':
           description: No Content
+        '400':
+          $ref: '#/components/responses/BadRequest'
         '500':
           description: Error clearing deleted
+          content:
+            '*/*':
+              schema:
+                $ref: 'https://opensource.zalando.com/problem/schema.yaml#/Problem'
+  /api/v1/proxy/{filename}:
+    get:
+      tags:
+        - Proxy
+      operationId: fetchFile
+      description: Immediately scrape a webpage and return the contents. Will check and update cache.
+      parameters:
+        - name: filename
+          in: path
+          required: true
+          description: File name to suggest in the Content-Disposition header, ignored otherwise
+          schema:
+            type: string
+        - name: url
+          in: query
+          required: true
+          schema:
+            $ref: '#/components/schemas/url'
+        - name: thumbnail
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: false
+        - name: origin
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/origin'
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: string
+                format: binary
+        '206':
+          description: Partial content (returned when Range header is provided)
+          headers:
+            Content-Range:
+              schema:
+                type: string
+              description: 'The range of bytes being returned (e.g., bytes 200-1023/1024)'
+            Accept-Ranges:
+              schema:
+                type: string
+              description: 'Indicates the server accepts range requests for this resource (value: bytes)'
+          content:
+            '*/*':
+              schema:
+                type: string
+                format: binary
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '416':
+          description: Range not satisfiable
+          content:
+            '*/*':
+              schema:
+                $ref: 'https://opensource.zalando.com/problem/schema.yaml#/Problem'
+        '500':
+          description: Error fetching
           content:
             '*/*':
               schema:
@@ -933,6 +1069,11 @@ paths:
           schema:
             type: boolean
             default: false
+        - name: origin
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/origin'
       responses:
         '200':
           description: Mime type scraped
@@ -940,6 +1081,52 @@ paths:
             '*/*':
               schema:
                 type: string
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          description: Error fetching
+          content:
+            '*/*':
+              schema:
+                $ref: 'https://opensource.zalando.com/problem/schema.yaml#/Problem'
+  /api/v1/proxy/prefetch/{filename}:
+    get:
+      tags:
+        - Proxy
+      operationId: preFetchFile
+      description: Immediately scrape a webpage if it is not in the cache.
+      parameters:
+        - name: filename
+          in: path
+          required: true
+          description: File name to suggest in the Content-Disposition header, ignored otherwise
+          schema:
+            type: string
+        - name: url
+          in: query
+          required: true
+          schema:
+            $ref: '#/components/schemas/url'
+        - name: thumbnail
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: false
+        - name: origin
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/origin'
+      responses:
+        '200':
+          description: Mime type scraped
+          content:
+            '*/*':
+              schema:
+                type: string
+        '400':
+          $ref: '#/components/responses/BadRequest'
         '500':
           description: Error fetching
           content:
@@ -966,6 +1153,8 @@ paths:
             '*/*':
               schema:
                 $ref: '#/components/schemas/Ref'
+        '400':
+          $ref: '#/components/responses/BadRequest'
         '500':
           description: Error scraping
           content:
@@ -993,6 +1182,8 @@ paths:
               schema:
                 type: string
                 format: binary
+        '400':
+          $ref: '#/components/responses/BadRequest'
         '500':
           description: Error fetching
           content:
@@ -1114,6 +1305,13 @@ paths:
           required: true
           schema:
             $ref: '#/components/schemas/qtag'
+        - name: cursor
+          in: query
+          description: The modified date of the entity being patched, used for optimistic locking
+          required: true
+          schema:
+            type: string
+            format: date-time
       requestBody:
         content:
           application/json-patch+json:
@@ -1175,7 +1373,7 @@ paths:
             default: 10
         - name: sort
           in: query
-          description: 'Sorting criteria in the format: property,(asc|desc). Default sort order is ascending. Multiple sort criteria are supported.'
+          description: 'Sorting criteria in the format: column[,asc|,desc]. Default sort order is ascending. Multiple sort criteria are supported. JSON columns can be sorted by field with -> (e.g. config->name), append :num for numeric or :len for length. See https://github.com/cjmalloy/jasper#sorting'
           required: false
           schema:
             type: array
@@ -1188,6 +1386,13 @@ paths:
           required: false
           schema:
             $ref: '#/components/schemas/query'
+        - name: nesting
+          in: query
+          description: Only match entities with this origin nesting level, where the local origin '' is 0, '@a' is 1 and '@a.b' is 2
+          required: false
+          schema:
+            type: integer
+            minimum: 0
         - name: level
           in: query
           required: false
@@ -1234,37 +1439,24 @@ paths:
         - Ext
       operationId: countExts
       parameters:
-        - name: page
-          in: query
-          description: Zero-based page index (0..N)
-          required: false
-          schema:
-            minimum: 0
-            type: integer
-            default: 0
-        - name: size
-          in: query
-          description: The size of the page to be returned
-          required: false
-          schema:
-            minimum: 1
-            type: integer
-            default: 10
-        - name: sort
-          in: query
-          description: 'Sorting criteria in the format: property,(asc|desc). Default sort order is ascending. Multiple sort criteria are supported.'
-          required: false
-          schema:
-            type: array
-            items:
-              type: string
-            default:
-              - 'tag,ASC'
         - name: query
           in: query
           required: false
           schema:
             $ref: '#/components/schemas/query'
+        - name: nesting
+          in: query
+          description: Only match entities with this origin nesting level, where the local origin '' is 0, '@a' is 1 and '@a.b' is 2
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+        - name: level
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
         - name: deleted
           in: query
           required: false
@@ -1375,6 +1567,13 @@ paths:
           required: true
           schema:
             $ref: '#/components/schemas/qtag'
+        - name: cursor
+          in: query
+          description: The modified date of the entity being patched, used for optimistic locking
+          required: true
+          schema:
+            type: string
+            format: date-time
       requestBody:
         content:
           application/json-patch+json:
@@ -1436,7 +1635,7 @@ paths:
             default: 10
         - name: sort
           in: query
-          description: 'Sorting criteria in the format: property,(asc|desc). Default sort order is ascending. Multiple sort criteria are supported.'
+          description: 'Sorting criteria in the format: column[,asc|,desc]. Default sort order is ascending. Multiple sort criteria are supported. JSON columns can be sorted by field with -> (e.g. config->name), append :num for numeric or :len for length. See https://github.com/cjmalloy/jasper#sorting'
           required: false
           schema:
             type: array
@@ -1449,6 +1648,13 @@ paths:
           required: false
           schema:
             $ref: '#/components/schemas/query'
+        - name: nesting
+          in: query
+          description: Only match entities with this origin nesting level, where the local origin '' is 0, '@a' is 1 and '@a.b' is 2
+          required: false
+          schema:
+            type: integer
+            minimum: 0
         - name: level
           in: query
           required: false
@@ -1471,6 +1677,13 @@ paths:
           schema:
             type: string
             format: date-time
+        - name: search
+          in: query
+          description: Full text search
+          required: false
+          schema:
+            type: string
+            maxLength: 512
       responses:
         '200':
           description: OK
@@ -1560,6 +1773,13 @@ paths:
           required: true
           schema:
             $ref: '#/components/schemas/qtag'
+        - name: cursor
+          in: query
+          description: The modified date of the entity being patched, used for optimistic locking
+          required: true
+          schema:
+            type: string
+            format: date-time
       requestBody:
         content:
           application/json-patch+json:
@@ -1621,7 +1841,7 @@ paths:
             default: 10
         - name: sort
           in: query
-          description: 'Sorting criteria in the format: property,(asc|desc). Default sort order is ascending. Multiple sort criteria are supported.'
+          description: 'Sorting criteria in the format: column[,asc|,desc]. Default sort order is ascending. Multiple sort criteria are supported. JSON columns can be sorted by field with -> (e.g. config->name), append :num for numeric or :len for length. See https://github.com/cjmalloy/jasper#sorting'
           required: false
           schema:
             type: array
@@ -1634,6 +1854,13 @@ paths:
           required: false
           schema:
             $ref: '#/components/schemas/query'
+        - name: nesting
+          in: query
+          description: Only match entities with this origin nesting level, where the local origin '' is 0, '@a' is 1 and '@a.b' is 2
+          required: false
+          schema:
+            type: integer
+            minimum: 0
         - name: level
           in: query
           required: false
@@ -1750,6 +1977,13 @@ paths:
           required: true
           schema:
             $ref: '#/components/schemas/qtag'
+        - name: cursor
+          in: query
+          description: The modified date of the entity being patched, used for optimistic locking
+          required: true
+          schema:
+            type: string
+            format: date-time
       requestBody:
         content:
           application/json-patch+json:
@@ -1811,7 +2045,7 @@ paths:
             default: 10
         - name: sort
           in: query
-          description: 'Sorting criteria in the format: property,(asc|desc). Default sort order is ascending. Multiple sort criteria are supported.'
+          description: 'Sorting criteria in the format: column[,asc|,desc]. Default sort order is ascending. Multiple sort criteria are supported. JSON columns can be sorted by field with -> (e.g. config->name), append :num for numeric or :len for length. See https://github.com/cjmalloy/jasper#sorting'
           required: false
           schema:
             type: array
@@ -1824,6 +2058,13 @@ paths:
           required: false
           schema:
             $ref: '#/components/schemas/query'
+        - name: nesting
+          in: query
+          description: Only match entities with this origin nesting level, where the local origin '' is 0, '@a' is 1 and '@a.b' is 2
+          required: false
+          schema:
+            type: integer
+            minimum: 0
         - name: level
           in: query
           required: false
@@ -1895,6 +2136,220 @@ paths:
                     type: boolean
         '403':
           $ref: '#/components/responses/Forbidden'
+  /api/v1/user/keygen:
+    post:
+      tags:
+        - User
+      operationId: keygen
+      description: Generate a new RSA key pair for a user, replacing the user's key and pubKey.
+      parameters:
+        - name: tag
+          in: query
+          required: true
+          schema:
+            $ref: '#/components/schemas/qtag-user'
+      responses:
+        '204':
+          description: No Content
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /api/v1/profile:
+    post:
+      tags:
+        - Profile
+      operationId: createProfile
+      description: Create a login for a user. Only available with the scim profile.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Profile'
+        required: true
+      responses:
+        '201':
+          description: Created
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    get:
+      tags:
+        - Profile
+      operationId: getProfile
+      description: Get the login for a user. Only available with the scim profile.
+      parameters:
+        - name: tag
+          in: query
+          required: true
+          schema:
+            $ref: '#/components/schemas/qtag-user'
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/Profile'
+        '304':
+          description: Not Modified
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    delete:
+      tags:
+        - Profile
+      operationId: deleteProfile
+      description: Delete the login for a user. Only available with the scim profile.
+      parameters:
+        - name: tag
+          in: query
+          required: true
+          schema:
+            $ref: '#/components/schemas/qtag-user'
+      responses:
+        '204':
+          description: No Content
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v1/profile/page:
+    get:
+      tags:
+        - Profile
+      operationId: getProfilePage
+      description: Page through user logins. Only available with the scim profile.
+      parameters:
+        - name: page
+          in: query
+          description: Zero-based page index (0..N)
+          required: false
+          schema:
+            minimum: 0
+            type: integer
+            default: 0
+        - name: size
+          in: query
+          description: The size of the page to be returned
+          required: false
+          schema:
+            minimum: 1
+            type: integer
+            default: 10
+        - name: sort
+          in: query
+          description: Ignored, profiles are always sorted by tag
+          required: false
+          schema:
+            type: array
+            items:
+              type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/PageProfile'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v1/profile/password:
+    post:
+      tags:
+        - Profile
+      operationId: changeProfilePassword
+      description: Change the password of a user login. Only available with the scim profile.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Profile'
+        required: true
+      responses:
+        '204':
+          description: No Content
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v1/profile/role:
+    post:
+      tags:
+        - Profile
+      operationId: changeProfileRole
+      description: Change the role of a user login. Only available with the scim profile.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Profile'
+        required: true
+      responses:
+        '204':
+          description: No Content
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v1/profile/activate:
+    post:
+      tags:
+        - Profile
+      operationId: activateProfile
+      description: Activate a user login. Only available with the scim profile.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/qtag-user'
+        required: true
+      responses:
+        '204':
+          description: No Content
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v1/profile/deactivate:
+    post:
+      tags:
+        - Profile
+      operationId: deactivateProfile
+      description: Deactivate a user login. Only available with the scim profile.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/qtag-user'
+        required: true
+      responses:
+        '204':
+          description: No Content
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
   /api/v1/backup:
     get:
       tags:
@@ -1915,6 +2370,8 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/BackupDto'
+        '400':
+          $ref: '#/components/responses/BadRequest'
         '403':
           $ref: '#/components/responses/Forbidden'
     post:
@@ -1940,6 +2397,8 @@ paths:
               schema:
                 type: string
                 format: uuid
+        '400':
+          $ref: '#/components/responses/BadRequest'
 
         '403':
           $ref: '#/components/responses/Forbidden'
@@ -1993,9 +2452,16 @@ paths:
           schema:
             type: string
             format: uuid
+        - name: origin
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/origin'
       responses:
         '204':
           description: No Content
+        '400':
+          $ref: '#/components/responses/BadRequest'
         '403':
           $ref: '#/components/responses/Forbidden'
   /api/v1/backup/upload/{id}:
@@ -2023,6 +2489,8 @@ paths:
       responses:
         '201':
           description: Created
+        '400':
+          $ref: '#/components/responses/BadRequest'
         '403':
           $ref: '#/components/responses/Forbidden'
   /api/v1/backup/restore/{id}:
@@ -2050,6 +2518,8 @@ paths:
       responses:
         '204':
           description: No Content
+        '400':
+          $ref: '#/components/responses/BadRequest'
         '403':
           $ref: '#/components/responses/Forbidden'
         '404':
@@ -2095,6 +2565,8 @@ paths:
       responses:
         '204':
           description: No Content
+        '400':
+          $ref: '#/components/responses/BadRequest'
         '403':
           $ref: '#/components/responses/Forbidden'
   /pub/api/v1/repl/ref:
@@ -2143,6 +2615,12 @@ paths:
       tags:
         - Repl
       operationId: refPush
+      parameters:
+        - name: origin
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/origin'
       requestBody:
         content:
           application/json:
@@ -2227,6 +2705,12 @@ paths:
       tags:
         - Repl
       operationId: extPush
+      parameters:
+        - name: origin
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/origin'
       requestBody:
         content:
           application/json:
@@ -2311,6 +2795,12 @@ paths:
       tags:
         - Repl
       operationId: pluginPush
+      parameters:
+        - name: origin
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/origin'
       requestBody:
         content:
           application/json:
@@ -2378,11 +2868,6 @@ paths:
           schema:
             type: string
             format: date-time
-        - name: search
-          in: query
-          required: false
-          schema:
-            type: string
       responses:
         '200':
           description: OK
@@ -2400,6 +2885,12 @@ paths:
       tags:
         - Repl
       operationId: templatePush
+      parameters:
+        - name: origin
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/origin'
       requestBody:
         content:
           application/json:
@@ -2484,6 +2975,12 @@ paths:
       tags:
         - Repl
       operationId: userPush
+      parameters:
+        - name: origin
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/origin'
       requestBody:
         content:
           application/json:
@@ -2534,6 +3031,11 @@ paths:
           required: true
           schema:
             $ref: '#/components/schemas/url'
+        - name: origin
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/origin'
       responses:
         '200':
           description: OK
@@ -2542,6 +3044,8 @@ paths:
               schema:
                 type: string
                 format: binary
+        '400':
+          $ref: '#/components/responses/BadRequest'
         '404':
           $ref: '#/components/responses/NotFound'
         '500':
@@ -2556,11 +3060,24 @@ paths:
       operationId: repl-save-cache
       description: Uploads a file to the cache and returns a generated Ref to access it with.
       parameters:
-        - name: url
+        - name: title
           in: query
-          required: true
+          description: File name used for the generated Ref title and URL
+          required: false
           schema:
-            $ref: '#/components/schemas/url'
+            type: string
+        - name: mime
+          in: query
+          description: Mime type of the uploaded file
+          required: false
+          example: 'image/png'
+          schema:
+            type: string
+        - name: origin
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/origin'
       requestBody:
         content:
           '*/*':
@@ -2573,6 +3090,43 @@ paths:
             '*/*':
               schema:
                 $ref: '#/components/schemas/Ref'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          description: Error caching
+          content:
+            '*/*':
+              schema:
+                $ref: 'https://opensource.zalando.com/problem/schema.yaml#/Problem'
+    put:
+      tags:
+        - Repl
+      operationId: repl-push-cache
+      description: Push a file into the cache for an existing URL.
+      parameters:
+        - name: url
+          in: query
+          required: true
+          schema:
+            $ref: '#/components/schemas/url'
+        - name: origin
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/origin'
+      requestBody:
+        content:
+          '*/*':
+            schema:
+              type: string
+              format: binary
+      responses:
+        '201':
+          description: Created
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
         '500':
           description: Error caching
           content:
@@ -2604,7 +3158,7 @@ paths:
         '404':
           description: Not Found
   /api/v1/oembed/defaults:
-    get:
+    post:
       tags:
         - oEmbed
       operationId: defaults
@@ -2616,6 +3170,12 @@ paths:
       tags:
         - webhook
       operationId: smtp
+      parameters:
+        - name: origin
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/origin'
       requestBody:
         content:
           application/json:
@@ -2641,13 +3201,13 @@ components:
     url:
       type: string
       format: uri
-      pattern: '[^:/?#]+:(\/\/([^\/?#]*))?([^?#]*)(\?([^#]*))?(#(.*))?'
+      pattern: '^[^:/?#]+:(?://[^/?#]*)?[^?#]*(?:\?[^#]*)?(?:#.*)?$'
       description: URL
       example: http://jasper-kms.info/
       maxLength: 4096
     scheme:
       type: string
-      pattern: '[^:/?#]+:'
+      pattern: '^[^:/?#]+:$'
       description: Scheme
       example: 'http:'
       maxLength: 4096
@@ -2658,71 +3218,85 @@ components:
       maxLength: 512
     origin:
       type: string
-      pattern: '@[a-z0-9]+([.][a-z0-9])*'
+      pattern: '^(?:@[a-z0-9]+(?:[.][a-z0-9]+)*)?$'
       default: ''
       description: Origin
       example: '@origin'
       maxLength: 64
     tag:
       type: string
-      pattern: '[_+]?[a-z0-9]+([./][a-z0-9]+)*'
+      pattern: '^[_+]?[a-z0-9]+(?:[./][a-z0-9]+)*$'
       description: Tag
       example: 'tag'
       maxLength: 64
     tagPatch:
       type: string
-      pattern: '-?[_+]?[a-z0-9]+([./][a-z0-9]+)*'
+      pattern: '^[-]?[_+]?[a-z0-9]+(?:[./][a-z0-9]+)*$'
       description: Tag
       example: 'tag'
       maxLength: 65
     qtag:
       type: string
-      pattern: '[_+]?[a-z0-9]+([./][a-z0-9]+)*(@[a-z0-9]+([.][a-z0-9]+)*)?'
+      pattern: '^[_+]?[a-z0-9]+(?:[./][a-z0-9]+)*(?:@|(?:@[a-z0-9]+(?:[.][a-z0-9]+)*)?)$'
       description: Optionally Qualified Tag
       example: 'tag@origin'
-      maxLength: 127
+      maxLength: 129
     query:
       type: string
-      description: Tag Query
-      pattern: '(!?([_+]?[a-z0-9]+([./][a-z0-9]+)*|([_+]?[a-z0-9]+([./][a-z0-9]+)*)?(@[a-z0-9]+([.][a-z0-9]+)*([.][*])?|@\*))|\(!?([_+]?[a-z0-9]+([./][a-z0-9]+)*|([_+]?[a-z0-9]+([./][a-z0-9]+)*)?(@[a-z0-9]+([.][a-z0-9]+)*([.][*])?|@\*))([ |]!?([_+]?[a-z0-9]+([./][a-z0-9]+)*|([_+]?[a-z0-9]+([./][a-z0-9]+)*)?(@[a-z0-9]+([.][a-z0-9]+)*([.][*])?|@\*)))*\))([ |:&](!?([_+]?[a-z0-9]+([./][a-z0-9]+)*|([_+]?[a-z0-9]+([./][a-z0-9]+)*)?(@[a-z0-9]+([.][a-z0-9]+)*([.][*])?|@\*))|\(!?([_+]?[a-z0-9]+([./][a-z0-9]+)*|([_+]?[a-z0-9]+([./][a-z0-9]+)*)?(@[a-z0-9]+([.][a-z0-9]+)*([.][*])?|@\*))([ |]!?([_+]?[a-z0-9]+([./][a-z0-9]+)*|([_+]?[a-z0-9]+([./][a-z0-9]+)*)?(@[a-z0-9]+([.][a-z0-9]+)*([.][*])?|@\*)))*\)))*'
+      description: "Tag query: tags and origins combined with : (and), | (or), ! (not) and parentheses. See https://github.com/cjmalloy/jasper#querying"
+      pattern: '^[!_+a-z0-9/.@|:()*]+$'
       example: '(politics|science):!funny'
-      maxLength: 1024
+      maxLength: 4096
     tag-template:
       type: string
-      pattern: '(_?[a-z0-9]+([./][a-z0-9]+)*)?'
+      pattern: '^(?:_?[a-z0-9]+(?:[./][a-z0-9]+)*)?$'
       description: Template Tag
       example: 'kanban'
       maxLength: 64
     qtag-template:
       type: string
-      pattern: '(_?[a-z0-9]+([./][a-z0-9]+)*)?(@[a-z0-9]+([.][a-z0-9]+)*)?'
+      pattern: '^(?:_?[a-z0-9]+(?:[./][a-z0-9]+)*)?(?:@[a-z0-9]+(?:[.][a-z0-9]+)*)?$'
       description: Optionally Qualified Template Tag
       example: 'kanban@origin'
-      maxLength: 127
+      maxLength: 129
     tag-plugin:
       type: string
-      pattern: '[_+]?plugin/[a-z0-9]+([./][a-z0-9]+)*'
+      pattern: '^[_+]?plugin(?:/[a-z0-9]+(?:[./][a-z0-9]+)*)?$'
       description: Plugin Tag
       example: 'plugin/thumbnail'
       maxLength: 64
     qtag-plugin:
       type: string
-      pattern: '[_+]?plugin/[a-z0-9]+([./][a-z0-9]+)*(@[a-z0-9]+([.][a-z0-9]+)*)?'
+      pattern: '^[_+]?plugin(?:/[a-z0-9]+(?:[./][a-z0-9]+)*)?(?:@[a-z0-9]+(?:[.][a-z0-9]+)*)?$'
       description: Optionally Qualified Plugin Tag
       example: 'plugin/thumbnail@origin'
-      maxLength: 127
+      maxLength: 129
     tag-user:
       type: string
-      pattern: '[_+]user(/[a-z0-9]+([./][a-z0-9]+)*)?'
+      pattern: '^[_+]user(?:/[a-z0-9]+(?:[./][a-z0-9]+)*)?$'
       description: User Tag
       example: '+user/charlie'
       maxLength: 64
     qtag-user:
       type: string
-      pattern: '[_+]user(/[a-z0-9]+([./][a-z0-9]+)*)?(@[a-z0-9]+([.][a-z0-9]+)*)?'
+      pattern: '^[_+]user(?:/[a-z0-9]+(?:[./][a-z0-9]+)*)?(?:@[a-z0-9]+(?:[.][a-z0-9]+)*)?$'
       description: Optionally Qualified User Tag
       example: '+user/charlie@origin'
-      maxLength: 127
+      maxLength: 129
+    tagValueFilter:
+      type: string
+      pattern: '^tags->[_+]?[a-z0-9]+(?:[./][a-z0-9]+)*(?::num|:dur)?/[a-z0-9]+(?:[.][a-z0-9]+)*$'
+      description: 'Tag value filter: tags->{tag}[:num|:dur]/{value}. The value is the child tag of {tag}, compared as text, as a number (:num, no negative numbers) or as an ISO 8601 duration (:dur, lowercase).'
+      example: 'tags->plugin/progress:num/50'
+      minLength: 1
+      maxLength: 139
+    pluginValueFilter:
+      type: string
+      pattern: '^plugins->[_+]?plugin(?:/[a-z0-9]+(?:[./][a-z0-9]+)*)?(?:->(?:[A-Za-z0-9_$-]+(?:\[[0-9]{1,9}\])?|\[[0-9]{1,9}\]))+(?::num|:len)?/[^,]+$'
+      description: 'Plugin value filter: plugins->{plugin}->{field}[->{field}...][:num|:len]/{value}. Fields may be array indices ([0]). The field is compared as text, as a number (:num) or by array or string length (:len).'
+      example: 'plugins->plugin/test->size:num/1000'
+      minLength: 1
+      maxLength: 1024
     Page:
       type: object
       properties:
@@ -2953,28 +3527,34 @@ components:
     PageUser:
       type: object
       properties:
-        totalPages:
-          type: integer
-          format: int32
-        totalElements:
-          type: integer
-          format: int64
-        size:
-          type: integer
-          format: int32
         content:
           type: array
           items:
             $ref: '#/components/schemas/User'
-        first:
+        page:
+          $ref: '#/components/schemas/Page'
+    Profile:
+      type: object
+      properties:
+        tag:
+          $ref: '#/components/schemas/qtag-user'
+        active:
           type: boolean
-        last:
-          type: boolean
-        numberOfElements:
-          type: integer
-          format: int32
-        empty:
-          type: boolean
+        password:
+          type: string
+          description: Only used when creating a profile or changing the password, never returned
+        role:
+          type: string
+          example: ROLE_USER
+    PageProfile:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: '#/components/schemas/Profile'
+        page:
+          $ref: '#/components/schemas/Page'
     BackupOptions:
       type: object
       properties:

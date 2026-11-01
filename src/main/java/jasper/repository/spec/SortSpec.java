@@ -211,7 +211,7 @@ public class SortSpec {
 	 * @param value the value to compare against: a String, or a BigDecimal for :num and :len
 	 */
 	public record PluginValueFilter(String plugin, String property, Object value) {
-		public static final String FIELD_REGEX = "(?:[A-Za-z0-9_$-]+(?:\\[[0-9]{1,9}])?|\\[[0-9]{1,9}])";
+		public static final String FIELD_REGEX = "(?:[A-Za-z0-9_$-]+(?:\\[[0-9]{1,9}\\])?|\\[[0-9]{1,9}\\])";
 		public static final String COLUMN_REGEX = "plugins->" + Plugin.REGEX + "(?:->" + FIELD_REGEX + ")+(?::num|:len)?";
 		public static final String VALUE_REGEX = "[^,]+";
 		public static final String REGEX = COLUMN_REGEX + "/" + VALUE_REGEX;

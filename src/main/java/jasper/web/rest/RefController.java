@@ -100,6 +100,7 @@ public class RefController {
 		@PageableDefault @ParameterObject Pageable pageable,
 		@RequestParam(required = false) @Length(max = QUERY_LEN) @Pattern(regexp = RefFilter.QUERY) String query,
 		@RequestParam(required = false) @Length(max = TAG_LEN) @Pattern(regexp = jasper.domain.proj.Tag.REGEX) String noDescendents,
+		@RequestParam(required = false) Integer nesting,
 		@RequestParam(required = false) @Length(max = URL_LEN) @Pattern(regexp = Ref.REGEX) String url,
 		@RequestParam(required = false) Boolean obsolete,
 		@RequestParam(required = false) @Length(max = URL_LEN) @Pattern(regexp = Ref.SCHEME_REGEX) String scheme,
@@ -158,6 +159,7 @@ public class RefController {
 				.scheme(scheme)
 				.query(query)
 				.noDescendents(noDescendents)
+				.nesting(nesting)
 				.search(search)
 				.rankedOrder(rankedSort)
 				.sources(sources)
