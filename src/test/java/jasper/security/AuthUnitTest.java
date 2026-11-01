@@ -8,6 +8,7 @@ import jasper.config.SecurityConfiguration;
 import jasper.domain.Ref;
 import jasper.domain.User;
 import jasper.repository.RefRepository;
+import jasper.repository.filter.RefFilter;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -931,6 +932,52 @@ public class AuthUnitTest {
 		var auth = getAuth(user, USER);
 
 		assertThat(auth.canReadQuery(() -> "_custom"))
+			.isFalse();
+	}
+
+	@Test
+	void testCanReadQuery_TagValuePublic() {
+		var user = getUser("+user/test");
+		var auth = getAuth(user, VIEWER);
+
+		assertThat(auth.canReadQuery(RefFilter.builder().tagAfter(List.of("custom/progress/50:num")).build()))
+			.isTrue();
+	}
+
+	@Test
+	void testCanReadQuery_TagValuePrivate() {
+		var user = getUser("+user/test");
+		user.getTagReadAccess().add("_custom");
+		var auth = getAuth(user, VIEWER);
+
+		assertThat(auth.canReadQuery(RefFilter.builder().tagBefore(List.of("_custom/progress/50:num")).build()))
+			.isTrue();
+	}
+
+	@Test
+	void testCanReadQuery_TagValueUserTag() {
+		var user = getUser("_user/test");
+		var auth = getAuth(user, VIEWER);
+
+		assertThat(auth.canReadQuery(RefFilter.builder().tagAfter(List.of("_user/test/50:num")).build()))
+			.isTrue();
+	}
+
+	@Test
+	void testCanReadQuery_TagValueAfterPrivateFailed() {
+		var user = getUser("+user/test");
+		var auth = getAuth(user, USER);
+
+		assertThat(auth.canReadQuery(RefFilter.builder().tagAfter(List.of("_custom/progress/50:num")).build()))
+			.isFalse();
+	}
+
+	@Test
+	void testCanReadQuery_TagValueBeforePrivateFailed() {
+		var user = getUser("+user/test");
+		var auth = getAuth(user, USER);
+
+		assertThat(auth.canReadQuery(RefFilter.builder().query("custom").tagBefore(List.of("_custom/progress/50")).build()))
 			.isFalse();
 	}
 
