@@ -23,10 +23,8 @@ public class PostgreSQLDialect extends org.hibernate.dialect.PostgreSQLDialect {
 
 	/**
 	 * A JSON number as numeric, otherwise NULL instead of an error, so it can be used in an expression index.
-	 * Same as the SQLite dialect, which checks for a JSON number with json_type.
-	 * Avoids "?" in the regex so it is not mistaken for a parameter.
 	 */
-	public static final String SAFE_NUMERIC = "(CASE WHEN (?1) ~ '^-{0,1}(0|[1-9][0-9]{0,29})([.][0-9]{1,30}){0,1}([eE][-+]{0,1}[0-9]{1,4}){0,1}$' THEN (?1)::numeric END)";
+	public static final String SAFE_NUMERIC = "(CASE WHEN jsonb_typeof(?1) = 'number' THEN (?1)::numeric END)";
 	/**
 	 * The length of a JSON array, otherwise NULL instead of an error, so it can be used in an expression index.
 	 */

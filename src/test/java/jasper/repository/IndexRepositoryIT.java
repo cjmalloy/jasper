@@ -206,11 +206,11 @@ public class IndexRepositoryIT {
 		assertThat(IndexRepositoryImplPostgres.hotPluginExpression("plugins->plugin/test->name"))
 			.isEqualTo("((plugins)->('plugin/test'))->>('name')");
 		assertThat(IndexRepositoryImplPostgres.hotPluginExpression("plugins->plugin/score:num"))
-			.isEqualTo(safeNumeric("(plugins)->>('plugin/score')"));
+			.isEqualTo(safeNumeric("(plugins)->('plugin/score')"));
 		assertThat(IndexRepositoryImplPostgres.hotPluginExpression("plugins->plugin/test->tags:len"))
 			.isEqualTo("(" + safeLength("((plugins)->('plugin/test'))->('tags')") + ")::numeric");
 		assertThat(IndexRepositoryImplPostgres.hotPluginExpression("plugins->plugin/test->items[0]->score:num"))
-			.isEqualTo(safeNumeric("(jsonb_array_element(((plugins)->('plugin/test'))->('items'), 0))->>('score')"));
+			.isEqualTo(safeNumeric("(jsonb_array_element(((plugins)->('plugin/test'))->('items'), 0))->('score')"));
 		assertThat(IndexRepositoryImplPostgres.hotPluginExpression("plugins->plugin/test->items[1]"))
 			.isEqualTo("jsonb_array_element_text(((plugins)->('plugin/test'))->('items'), 1)");
 		assertThat(IndexRepositoryImplPostgres.hotPluginExpression("plugins->plugin/test->items[1]:len"))
@@ -271,11 +271,11 @@ public class IndexRepositoryIT {
 		indexRepository.updateHotPlugins(List.of("plugin/test->items[0]->score:num", "plugin/score:num"));
 		assertThat(explainPostgres("""
 			select r1_0.url from ref r1_0
-			where""" + safeNumeric("(jsonb_array_element(((r1_0.plugins)->('plugin/test'))->('items'),0))->>('score')") + "<(20)::numeric"))
+			where""" + safeNumeric("(jsonb_array_element(((r1_0.plugins)->('plugin/test'))->('items'),0))->('score')") + "<(20)::numeric"))
 			.contains(IndexRepositoryImplPostgres.hotPluginIndexName("plugins->plugin/test->items[0]->score:num"));
 		assertThat(explainPostgres("""
 			select r1_0.url from ref r1_0
-			where""" + safeNumeric("(r1_0.plugins)->>('plugin/score')") + ">=(20)::numeric"))
+			where""" + safeNumeric("(r1_0.plugins)->('plugin/score')") + ">=(20)::numeric"))
 			.contains(IndexRepositoryImplPostgres.hotPluginIndexName("plugins->plugin/score:num"));
 	}
 

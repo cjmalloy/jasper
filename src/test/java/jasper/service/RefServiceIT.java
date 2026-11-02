@@ -1952,6 +1952,22 @@ public class RefServiceIT {
 	}
 
 	@Test
+	void testPluginValueNumericFilterLimits() throws JsonProcessingException {
+		refWithUrlPlugins("https://example.com/1", "{\"plugin/test\": {\"size\": 1e31, \"items\": [1e31]}}");
+		refWithUrlPlugins("https://example.com/2", "{\"plugin/test\": {\"size\": 1e-31, \"items\": [1e-31]}}");
+		refWithUrlPlugins("https://example.com/3", "{\"plugin/test\": {\"size\": -1e31, \"items\": [-1e31]}}");
+
+		assertThat(filteredUrls(RefFilter.builder().pluginAfter(List.of("plugins->plugin/test->size:num/999999999999999999999999999999")).build()))
+			.containsExactly("https://example.com/1");
+		assertThat(filteredUrls(RefFilter.builder().pluginAfter(List.of("plugins->plugin/test->size:num/0")).build()))
+			.containsExactly("https://example.com/1", "https://example.com/2");
+		assertThat(filteredUrls(RefFilter.builder().pluginBefore(List.of("plugins->plugin/test->size:num/0.000000000000000000000000000001")).build()))
+			.containsExactly("https://example.com/2", "https://example.com/3");
+		assertThat(filteredUrls(RefFilter.builder().pluginBefore(List.of("plugins->plugin/test->items[0]:num/-999999999999999999999999999999")).build()))
+			.containsExactly("https://example.com/3");
+	}
+
+	@Test
 	void testPluginValueLengthFilter() throws JsonProcessingException {
 		refWithUrlPlugins("https://example.com/1", "{\"plugin/test\": {\"ids\": [\"a\"]}}");
 		refWithUrlPlugins("https://example.com/2", "{\"plugin/test\": {\"ids\": [\"a\", \"b\", \"c\"]}}");
@@ -2023,7 +2039,7 @@ public class RefServiceIT {
 		refWithUrlPlugins("https://example.com/9", "{\"plugin/test\": {\"nested\": {\"score\": 1}}}");
 
 		assertThat(filteredUrls(RefFilter.builder().pluginBefore(List.of("plugins->plugin/test->size:num/10")).build()))
-			.containsExactly("https://example.com/2", "https://example.com/6");
+			.containsExactly("https://example.com/2");
 		assertThat(filteredUrls(RefFilter.builder().pluginAfter(List.of("plugins->plugin/test->size:num/0")).build()))
 			.containsExactly("https://example.com/2");
 		assertThat(filteredUrls(RefFilter.builder().pluginBefore(List.of("plugins->plugin/test->items:len/3")).build()))

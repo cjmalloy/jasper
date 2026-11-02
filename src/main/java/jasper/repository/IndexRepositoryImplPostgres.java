@@ -254,12 +254,12 @@ public class IndexRepositoryImplPostgres implements IndexRepository {
 				} else if (length) {
 					return "(" + SAFE_JSONB_ARRAY_LENGTH.replace("?1", "jsonb_array_element(" + expr + ", " + m.group(2) + ")") + ")::numeric";
 				} else {
-					expr = "jsonb_array_element_text(" + expr + ", " + m.group(2) + ")";
+					expr = "jsonb_array_element" + (numeric ? "" : "_text") + "(" + expr + ", " + m.group(2) + ")";
 				}
 			} else if (last && length) {
 				return "(" + SAFE_JSONB_ARRAY_LENGTH.replace("?1", "(" + expr + ")->('" + parts[i] + "')") + ")::numeric";
 			} else if (last) {
-				expr = "(" + expr + ")->>('" + parts[i] + "')";
+				expr = "(" + expr + ")->" + (numeric ? "" : ">") + "('" + parts[i] + "')";
 			} else {
 				expr = "(" + expr + ")->('" + parts[i] + "')";
 			}

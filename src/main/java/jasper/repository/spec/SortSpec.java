@@ -119,6 +119,9 @@ public class SortSpec {
 					// Last element with length sort - get as JSONB and apply jsonb_array_length
 					expr = cb.function("jsonb_array_element", Object.class, expr, cb.literal(index));
 					return new JsonbValue(cb.function("safe_jsonb_array_length", Integer.class, expr), false, true);
+				} else if (numericSort) {
+					// Last element with numeric sort - get as JSONB to check for a JSON number
+					expr = cb.function("jsonb_array_element", Object.class, expr, cb.literal(index));
 				} else {
 					// Last element - get as text
 					expr = cb.function("jsonb_array_element_text", String.class, expr, cb.literal(index));
@@ -127,6 +130,9 @@ public class SortSpec {
 				// Last field with length sort - get as JSONB and apply jsonb_array_length
 				expr = cb.function("jsonb_object_field", Object.class, expr, cb.literal(field));
 				return new JsonbValue(cb.function("safe_jsonb_array_length", Integer.class, expr), false, true);
+			} else if (i == parts.length - 1 && numericSort) {
+				// Last field with numeric sort - get as JSONB to check for a JSON number
+				expr = cb.function("jsonb_object_field", Object.class, expr, cb.literal(field));
 			} else if (i == parts.length - 1) {
 				// Last field - get as text
 				expr = cb.function("jsonb_object_field_text", String.class, expr, cb.literal(field));
