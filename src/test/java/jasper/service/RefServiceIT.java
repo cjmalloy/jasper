@@ -2005,6 +2005,8 @@ public class RefServiceIT {
 		refWithUrlPlugins("https://example.com/5", "{\"plugin/test\": {\"size\": \"2e\"}}");
 		refWithUrlPlugins("https://example.com/6", "{\"plugin/test\": {\"size\": \"-2.5e1\"}}");
 		refWithUrlPlugins("https://example.com/7", "{\"plugin/test\": {\"size\": true}}");
+		refWithUrlPlugins("https://example.com/8", "{\"plugin/test\": {\"items\": \"[1,2]\", \"groups\": \"[[1]]\", \"nested\": \"{\\\"score\\\": 1}\"}}");
+		refWithUrlPlugins("https://example.com/9", "{\"plugin/test\": {\"nested\": {\"score\": 1}}}");
 
 		assertThat(filteredUrls(RefFilter.builder().pluginBefore(List.of("plugins->plugin/test->size:num/10")).build()))
 			.containsExactly("https://example.com/2", "https://example.com/6");
@@ -2014,6 +2016,10 @@ public class RefServiceIT {
 			.containsExactly("https://example.com/2");
 		assertThat(filteredUrls(RefFilter.builder().pluginBefore(List.of("plugins->plugin/test->groups[0]:len/3")).build()))
 			.containsExactly("https://example.com/2");
+		assertThat(filteredUrls(RefFilter.builder().pluginBefore(List.of("plugins->plugin/test->nested->score:num/5")).build()))
+			.containsExactly("https://example.com/9");
+		assertThat(filteredUrls(RefFilter.builder().pluginBefore(List.of("plugins->plugin/test->size->x/z")).build()))
+			.isEmpty();
 	}
 
 	@Test

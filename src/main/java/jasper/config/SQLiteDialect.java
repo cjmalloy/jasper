@@ -63,9 +63,10 @@ public class SQLiteDialect extends org.hibernate.community.dialect.SQLiteDialect
 		);
 		// jsonb_object_field: get a JSON field by key (equivalent to PostgreSQL's -> operator)
 		// Use quoted key to handle keys with special characters (e.g., plugin/user/...)
+		// Uses -> so the result is always JSON, like PostgreSQL (json_extract would unquote strings)
 		functionRegistry.registerPattern(
 			"jsonb_object_field",
-			"json_extract(?1, '$.\"' || REPLACE(?2, '\"', '\"\"') || '\"')",
+			"((?1) -> ('$.\"' || REPLACE(?2, '\"', '\"\"') || '\"'))",
 			jsonb
 		);
 		// jsonb_object_field_text: get a JSON field as text (equivalent to PostgreSQL's ->> operator)
