@@ -2001,9 +2001,13 @@ public class RefServiceIT {
 		refWithUrlPlugins("https://example.com/1", "{\"plugin/test\": {\"size\": \"big\", \"items\": \"none\", \"groups\": [null]}}");
 		refWithUrlPlugins("https://example.com/2", "{\"plugin/test\": {\"size\": 5, \"items\": [1, 2], \"groups\": [[1]]}}");
 		refWithUrlPlugins("https://example.com/3", "{\"plugin/test\": {\"size\": null, \"items\": null, \"groups\": [{\"a\": 1}]}}");
+		refWithUrlPlugins("https://example.com/4", "{\"plugin/test\": {\"size\": \"1.2.3\"}}");
+		refWithUrlPlugins("https://example.com/5", "{\"plugin/test\": {\"size\": \"2e\"}}");
+		refWithUrlPlugins("https://example.com/6", "{\"plugin/test\": {\"size\": \"-2.5e1\"}}");
+		refWithUrlPlugins("https://example.com/7", "{\"plugin/test\": {\"size\": true}}");
 
 		assertThat(filteredUrls(RefFilter.builder().pluginBefore(List.of("plugins->plugin/test->size:num/10")).build()))
-			.containsExactly("https://example.com/2");
+			.containsExactly("https://example.com/2", "https://example.com/6");
 		assertThat(filteredUrls(RefFilter.builder().pluginAfter(List.of("plugins->plugin/test->size:num/0")).build()))
 			.containsExactly("https://example.com/2");
 		assertThat(filteredUrls(RefFilter.builder().pluginBefore(List.of("plugins->plugin/test->items:len/3")).build()))

@@ -187,17 +187,6 @@
 				FROM (SELECT upper(tag_value(tags, tag)) AS v) tv
 			$$ LANGUAGE SQL IMMUTABLE PARALLEL SAFE SET search_path FROM CURRENT;
 		</sql>
-		<!-- JSON value sorting and filtering: NULL instead of an error for values of the wrong type, so they can be indexed. -->
-		<sql splitStatements="false">
-			CREATE OR REPLACE FUNCTION safe_numeric(v text) RETURNS numeric AS $$
-				SELECT CASE WHEN v ~ '^-?[0-9]{1,30}([.][0-9]{1,30})?([eE][-+]?[0-9]{1,4})?$' THEN v::numeric END
-			$$ LANGUAGE SQL IMMUTABLE PARALLEL SAFE SET search_path FROM CURRENT;
-		</sql>
-		<sql splitStatements="false">
-			CREATE OR REPLACE FUNCTION safe_jsonb_array_length(v jsonb) RETURNS integer AS $$
-				SELECT CASE WHEN jsonb_typeof(v) = 'array' THEN jsonb_array_length(v) END
-			$$ LANGUAGE SQL IMMUTABLE PARALLEL SAFE SET search_path FROM CURRENT;
-		</sql>
 	</changeSet>
 
 </databaseChangeLog>

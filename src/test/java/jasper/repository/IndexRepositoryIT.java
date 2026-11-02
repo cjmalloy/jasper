@@ -4,6 +4,7 @@ import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import jasper.DisabledOnSqlite;
 import jasper.IntegrationTest;
+import jasper.config.PostgreSQLDialect;
 import jasper.repository.spec.SortSpec.TagValueSort;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -175,6 +176,16 @@ public class IndexRepositoryIT {
 			.contains(IndexRepositoryImplPostgres.hotTagIndexName(TagValueSort.parse("plugin/progress:num")));
 	}
 
+	// SQL rendered by the PostgreSQL dialect for safe_numeric and safe_jsonb_array_length
+
+	static String safeNumeric(String expr) {
+		return PostgreSQLDialect.SAFE_NUMERIC.replace("?1", expr);
+	}
+
+	static String safeLength(String expr) {
+		return PostgreSQLDialect.SAFE_JSONB_ARRAY_LENGTH.replace("?1", expr);
+	}
+
 	List<String> hotPluginIndexes() {
 		return jdbc.queryForList("SELECT indexname FROM pg_indexes WHERE tablename = 'ref' AND indexname LIKE 'ref\\_hotp\\_%' ORDER BY indexname", String.class);
 	}
@@ -195,15 +206,15 @@ public class IndexRepositoryIT {
 		assertThat(IndexRepositoryImplPostgres.hotPluginExpression("plugins->plugin/test->name"))
 			.isEqualTo("((plugins)->('plugin/test'))->>('name')");
 		assertThat(IndexRepositoryImplPostgres.hotPluginExpression("plugins->plugin/score:num"))
-			.isEqualTo("safe_numeric((plugins)->>('plugin/score'))");
+			.isEqualTo(safeNumeric("(plugins)->>('plugin/score')"));
 		assertThat(IndexRepositoryImplPostgres.hotPluginExpression("plugins->plugin/test->tags:len"))
-			.isEqualTo("(safe_jsonb_array_length(((plugins)->('plugin/test'))->('tags')))::numeric");
+			.isEqualTo("(" + safeLength("((plugins)->('plugin/test'))->('tags')") + ")::numeric");
 		assertThat(IndexRepositoryImplPostgres.hotPluginExpression("plugins->plugin/test->items[0]->score:num"))
-			.isEqualTo("safe_numeric((jsonb_array_element(((plugins)->('plugin/test'))->('items'), 0))->>('score'))");
+			.isEqualTo(safeNumeric("(jsonb_array_element(((plugins)->('plugin/test'))->('items'), 0))->>('score')"));
 		assertThat(IndexRepositoryImplPostgres.hotPluginExpression("plugins->plugin/test->items[1]"))
 			.isEqualTo("jsonb_array_element_text(((plugins)->('plugin/test'))->('items'), 1)");
 		assertThat(IndexRepositoryImplPostgres.hotPluginExpression("plugins->plugin/test->items[1]:len"))
-			.isEqualTo("(safe_jsonb_array_length(jsonb_array_element(((plugins)->('plugin/test'))->('items'), 1)))::numeric");
+			.isEqualTo("(" + safeLength("jsonb_array_element(((plugins)->('plugin/test'))->('items'), 1)") + ")::numeric");
 		assertThat(IndexRepositoryImplPostgres.hotPluginIndexName("plugins->plugin/" + "a".repeat(200)).length()).isLessThanOrEqualTo(63);
 	}
 
@@ -260,11 +271,11 @@ public class IndexRepositoryIT {
 		indexRepository.updateHotPlugins(List.of("plugin/test->items[0]->score:num", "plugin/score:num"));
 		assertThat(explainPostgres("""
 			select r1_0.url from ref r1_0
-			where safe_numeric((jsonb_array_element(((r1_0.plugins)->('plugin/test'))->('items'),0))->>('score'))<(20)::numeric"""))
+			where""" + safeNumeric("(jsonb_array_element(((r1_0.plugins)->('plugin/test'))->('items'),0))->>('score')") + "<(20)::numeric"))
 			.contains(IndexRepositoryImplPostgres.hotPluginIndexName("plugins->plugin/test->items[0]->score:num"));
 		assertThat(explainPostgres("""
 			select r1_0.url from ref r1_0
-			where safe_numeric((r1_0.plugins)->>('plugin/score'))>=(20)::numeric"""))
+			where""" + safeNumeric("(r1_0.plugins)->>('plugin/score')") + ">=(20)::numeric"))
 			.contains(IndexRepositoryImplPostgres.hotPluginIndexName("plugins->plugin/score:num"));
 	}
 
@@ -275,7 +286,7 @@ public class IndexRepositoryIT {
 		indexRepository.updateHotPlugins(List.of("plugin/test->tags:len"));
 		assertThat(explainPostgres("""
 			select r1_0.url from ref r1_0
-			where (safe_jsonb_array_length(((r1_0.plugins)->('plugin/test'))->('tags')))::numeric>(2)::numeric"""))
+			where (""" + safeLength("((r1_0.plugins)->('plugin/test'))->('tags')") + ")::numeric>(2)::numeric"))
 			.contains(IndexRepositoryImplPostgres.hotPluginIndexName("plugins->plugin/test->tags:len"));
 	}
 

@@ -20,6 +20,18 @@ import static org.hibernate.query.sqm.produce.function.StandardArgumentsValidato
 import static org.hibernate.query.sqm.produce.function.StandardFunctionReturnTypeResolvers.invariant;
 
 public class PostgreSQLDialect extends org.hibernate.dialect.PostgreSQLDialect {
+
+	/**
+	 * A JSON number as numeric, otherwise NULL instead of an error, so it can be used in an expression index.
+	 * Same as the SQLite dialect, which checks for a JSON number with json_type.
+	 * Avoids "?" in the regex so it is not mistaken for a parameter.
+	 */
+	public static final String SAFE_NUMERIC = "(CASE WHEN (?1) ~ '^-{0,1}(0|[1-9][0-9]{0,29})([.][0-9]{1,30}){0,1}([eE][-+]{0,1}[0-9]{1,4}){0,1}$' THEN (?1)::numeric END)";
+	/**
+	 * The length of a JSON array, otherwise NULL instead of an error, so it can be used in an expression index.
+	 */
+	public static final String SAFE_JSONB_ARRAY_LENGTH = "(CASE WHEN jsonb_typeof(?1) = 'array' THEN jsonb_array_length(?1) END)";
+
 	@Override
 	public void initializeFunctionRegistry(FunctionContributions functionContributions) {
 		super.initializeFunctionRegistry(functionContributions);
@@ -73,9 +85,8 @@ public class PostgreSQLDialect extends org.hibernate.dialect.PostgreSQLDialect {
 		functionRegistry.registerPattern("cast_to_int", "(?1)::integer", integer);
 		functionRegistry.registerPattern("cast_to_numeric", "(?1)::numeric", doubleType);
 		functionRegistry.registerPattern("jsonb_array_length", "jsonb_array_length(?1)", integer);
-		// safe_numeric / safe_jsonb_array_length: NULL for values of the wrong type instead of an error, so they can be indexed
-		functionRegistry.registerPattern("safe_numeric", "safe_numeric(?1)", doubleType);
-		functionRegistry.registerPattern("safe_jsonb_array_length", "safe_jsonb_array_length(?1)", integer);
+		functionRegistry.registerPattern("safe_numeric", SAFE_NUMERIC, doubleType);
+		functionRegistry.registerPattern("safe_jsonb_array_length", SAFE_JSONB_ARRAY_LENGTH, integer);
 		functionRegistry.registerPattern("jsonb_array_element", "jsonb_array_element(?1, ?2)", jsonb);
 		functionRegistry.registerPattern("jsonb_array_element_text", "jsonb_array_element_text(?1, ?2)", string);
 		// origin_nesting: returns 0 for blank or '@', otherwise count of '.' + 1

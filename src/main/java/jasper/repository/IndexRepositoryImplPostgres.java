@@ -15,6 +15,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.regex.Pattern;
 
+import static jasper.config.PostgreSQLDialect.SAFE_JSONB_ARRAY_LENGTH;
+import static jasper.config.PostgreSQLDialect.SAFE_NUMERIC;
 import static org.apache.commons.lang3.StringUtils.truncate;
 import static org.springframework.util.DigestUtils.md5DigestAsHex;
 
@@ -250,19 +252,19 @@ public class IndexRepositoryImplPostgres implements IndexRepository {
 				if (!last) {
 					expr = "jsonb_array_element(" + expr + ", " + m.group(2) + ")";
 				} else if (length) {
-					return "(safe_jsonb_array_length(jsonb_array_element(" + expr + ", " + m.group(2) + ")))::numeric";
+					return "(" + SAFE_JSONB_ARRAY_LENGTH.replace("?1", "jsonb_array_element(" + expr + ", " + m.group(2) + ")") + ")::numeric";
 				} else {
 					expr = "jsonb_array_element_text(" + expr + ", " + m.group(2) + ")";
 				}
 			} else if (last && length) {
-				return "(safe_jsonb_array_length((" + expr + ")->('" + parts[i] + "')))::numeric";
+				return "(" + SAFE_JSONB_ARRAY_LENGTH.replace("?1", "(" + expr + ")->('" + parts[i] + "')") + ")::numeric";
 			} else if (last) {
 				expr = "(" + expr + ")->>('" + parts[i] + "')";
 			} else {
 				expr = "(" + expr + ")->('" + parts[i] + "')";
 			}
 		}
-		if (numeric) return "safe_numeric(" + expr + ")";
+		if (numeric) return SAFE_NUMERIC.replace("?1", expr);
 		return expr;
 	}
 
