@@ -63,7 +63,6 @@ public class SQLiteDialect extends org.hibernate.community.dialect.SQLiteDialect
 		);
 		// jsonb_object_field: get a JSON field by key (equivalent to PostgreSQL's -> operator)
 		// Use quoted key to handle keys with special characters (e.g., plugin/user/...)
-		// Uses -> so the result is always JSON, like PostgreSQL (json_extract would unquote strings)
 		functionRegistry.registerPattern(
 			"jsonb_object_field",
 			"((?1) -> ('$.\"' || REPLACE(?2, '\"', '\"\"') || '\"'))",
@@ -101,7 +100,6 @@ public class SQLiteDialect extends org.hibernate.community.dialect.SQLiteDialect
 		functionRegistry.registerPattern("safe_numeric", "(CASE WHEN json_type(?1) IN ('integer', 'real') THEN CAST((?1) AS REAL) END)", doubleType);
 		functionRegistry.registerPattern("safe_jsonb_array_length", "(CASE WHEN json_valid(?1) THEN (CASE WHEN json_type(?1) = 'array' THEN json_array_length(?1) END) END)", integer);
 		// jsonb_array_element: get element at index from a JSON array as JSON
-		// Uses -> so scalar elements stay valid JSON (json_extract would unquote strings)
 		functionRegistry.registerPattern("jsonb_array_element", "((?1) -> ('$[' || ?2 || ']'))", jsonb);
 		// jsonb_array_element_text: get element at index from a JSON array as text (equivalent to PostgreSQL's jsonb_array_element_text)
 		// Same normalization as jsonb_object_field_text: "true"/"false" for booleans and numbers as TEXT
