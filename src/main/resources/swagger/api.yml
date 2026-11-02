@@ -1075,12 +1075,8 @@ paths:
           schema:
             $ref: '#/components/schemas/origin'
       responses:
-        '200':
-          description: Mime type scraped
-          content:
-            '*/*':
-              schema:
-                type: string
+        '204':
+          description: No Content
         '400':
           $ref: '#/components/responses/BadRequest'
         '500':
@@ -1119,12 +1115,8 @@ paths:
           schema:
             $ref: '#/components/schemas/origin'
       responses:
-        '200':
-          description: Mime type scraped
-          content:
-            '*/*':
-              schema:
-                type: string
+        '204':
+          description: No Content
         '400':
           $ref: '#/components/responses/BadRequest'
         '500':
@@ -1605,8 +1597,8 @@ paths:
           schema:
             $ref: '#/components/schemas/qtag-plugin'
       responses:
-        '200':
-          $ref: '#/components/responses/Modified'
+        '204':
+          description: No Content
         '400':
           $ref: '#/components/responses/BadRequest'
         '403':
@@ -2390,8 +2382,8 @@ paths:
             schema:
               $ref: '#/components/schemas/BackupOptions'
       responses:
-        '201':
-          description: Created
+        '200':
+          description: Backup ID
           content:
             '*/*':
               schema:
@@ -2630,7 +2622,7 @@ paths:
                 $ref: '#/components/schemas/Ref'
         required: true
       responses:
-        '204':
+        '200':
           description: OK
         '400':
           $ref: '#/components/responses/BadRequest'
@@ -2720,7 +2712,7 @@ paths:
                 $ref: '#/components/schemas/Ext'
         required: true
       responses:
-        '204':
+        '200':
           description: OK
         '400':
           $ref: '#/components/responses/BadRequest'
@@ -2810,7 +2802,7 @@ paths:
                 $ref: '#/components/schemas/Plugin'
         required: true
       responses:
-        '204':
+        '200':
           description: OK
         '400':
           $ref: '#/components/responses/BadRequest'
@@ -2900,7 +2892,7 @@ paths:
                 $ref: '#/components/schemas/Template'
         required: true
       responses:
-        '204':
+        '200':
           description: OK
         '400':
           $ref: '#/components/responses/BadRequest'
@@ -2990,7 +2982,7 @@ paths:
                 $ref: '#/components/schemas/User'
         required: true
       responses:
-        '204':
+        '200':
           description: OK
         '400':
           $ref: '#/components/responses/BadRequest'
@@ -3163,8 +3155,8 @@ paths:
         - oEmbed
       operationId: defaults
       responses:
-        '204':
-          description: No Content
+        '200':
+          description: OK
   /api/v1/webhook/smtp:
     post:
       tags:
@@ -3183,8 +3175,8 @@ paths:
               $ref: '#/components/schemas/SmtpWebhookDto'
         required: true
       responses:
-        '201':
-          description: Created
+        '200':
+          description: OK
         '400':
           $ref: '#/components/responses/BadRequest'
         '403':

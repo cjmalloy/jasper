@@ -150,7 +150,7 @@ public class ReplicateController {
 	}
 
 	@ApiResponses({
-		@ApiResponse(responseCode = "204"),
+		@ApiResponse(responseCode = "200"),
 	})
 	@PostMapping("ref")
 	void refPush(
@@ -203,7 +203,7 @@ public class ReplicateController {
 	}
 
 	@ApiResponses({
-		@ApiResponse(responseCode = "204"),
+		@ApiResponse(responseCode = "200"),
 	})
 	@PostMapping("ext")
 	void extPush(
@@ -256,7 +256,7 @@ public class ReplicateController {
 	}
 
 	@ApiResponses({
-		@ApiResponse(responseCode = "204"),
+		@ApiResponse(responseCode = "200"),
 	})
 	@PostMapping("user")
 	void userPush(
@@ -309,7 +309,7 @@ public class ReplicateController {
 	}
 
 	@ApiResponses({
-		@ApiResponse(responseCode = "204"),
+		@ApiResponse(responseCode = "200"),
 	})
 	@PostMapping("plugin")
 	void pluginPush(
@@ -362,7 +362,7 @@ public class ReplicateController {
 	}
 
 	@ApiResponses({
-		@ApiResponse(responseCode = "204"),
+		@ApiResponse(responseCode = "200"),
 	})
 	@PostMapping("template")
 	void templatePush(

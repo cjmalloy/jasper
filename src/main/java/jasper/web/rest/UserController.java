@@ -112,7 +112,7 @@ public class UserController {
 	}
 
 	@ApiResponses({
-		@ApiResponse(responseCode = "204"),
+		@ApiResponse(responseCode = "200"),
 		@ApiResponse(responseCode = "404", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
 		@ApiResponse(responseCode = "409", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
 	})
@@ -124,7 +124,7 @@ public class UserController {
 	}
 
 	@ApiResponses({
-		@ApiResponse(responseCode = "204"),
+		@ApiResponse(responseCode = "200"),
 		@ApiResponse(responseCode = "409", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
 	})
 	@PatchMapping(consumes = "application/json-patch+json")
@@ -137,11 +137,10 @@ public class UserController {
 	}
 
 	@ApiResponses({
-		@ApiResponse(responseCode = "204"),
+		@ApiResponse(responseCode = "200"),
 		@ApiResponse(responseCode = "409", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
 	})
 	@PatchMapping(consumes = "application/merge-patch+json")
-	@ResponseStatus(HttpStatus.NO_CONTENT)
 	Instant mergeUser(
 		@RequestParam @Length(max = QTAG_LEN) @Pattern(regexp = jasper.domain.proj.Tag.QTAG_REGEX) String tag,
 		@RequestParam Instant cursor,

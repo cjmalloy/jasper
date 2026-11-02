@@ -9,6 +9,7 @@ import jasper.domain.proj.Tag;
 import jasper.repository.filter.Query;
 import jasper.repository.spec.SortSpec.PluginValueFilter;
 import jasper.repository.spec.SortSpec.TagValueFilter;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.springframework.context.annotation.ClassPathScanningCandidateComponentProvider;
@@ -56,10 +57,14 @@ class ApiSpecTest {
 	 */
 	static Map<String, Set<String>> code = new TreeMap<>();
 	/**
-	 * Success status of operations in the controllers: "METHOD path" to status code.
+	 * Success status of operations in the controllers: "METHOD path" to status codes.
 	 * Operations returning a ResponseEntity set the status at runtime and are not included.
 	 */
-	static Map<String, String> status = new TreeMap<>();
+	static Map<String, Set<String>> status = new TreeMap<>();
+	/**
+	 * Controller methods whose springdoc success responses do not match the status they return.
+	 */
+	static List<String> annotated = new ArrayList<>();
 
 	@BeforeAll
 	static void init() throws IOException, ClassNotFoundException {
@@ -107,7 +112,15 @@ class ApiSpecTest {
 							var key = m.name() + " " + path;
 							if (!ResponseEntity.class.isAssignableFrom(method.getReturnType())) {
 								var rs = AnnotatedElementUtils.findMergedAnnotation(method, ResponseStatus.class);
-								status.put(key, String.valueOf(rs == null ? 200 : rs.code().value()));
+								var success = String.valueOf(rs == null ? 200 : rs.code().value());
+								status.computeIfAbsent(key, k -> new TreeSet<>()).add(success);
+								var docs = AnnotatedElementUtils.findMergedAnnotation(method, ApiResponses.class);
+								if (docs == null) docs = AnnotatedElementUtils.findMergedAnnotation(type, ApiResponses.class);
+								if (docs != null) {
+									var documented = new TreeSet<String>();
+									for (var d : docs.value()) if (d.responseCode().startsWith("2")) documented.add(d.responseCode());
+									if (!documented.equals(Set.of(success))) annotated.add(type.getSimpleName() + "." + method.getName() + ": annotated " + documented + " code " + success);
+								}
 							}
 							if (code.containsKey(key) && code.get(key) != null && params != null) {
 								// Same operation with a different consumes / produces
@@ -170,9 +183,14 @@ class ApiSpecTest {
 			for (var c : ((Map<Object, Object>) ops.get(op).getOrDefault("responses", Map.of())).keySet()) {
 				if (String.valueOf(c).startsWith("2")) documented.add(String.valueOf(c));
 			}
-			if (!documented.equals(Set.of(code))) mismatched.add(op + ": spec " + documented + " code " + code);
+			if (!documented.equals(code)) mismatched.add(op + ": spec " + documented + " code " + code);
 		});
 		assertThat(mismatched).isEmpty();
+	}
+
+	@Test
+	void testAnnotatedSuccessStatus() {
+		assertThat(annotated).isEmpty();
 	}
 
 	@Test

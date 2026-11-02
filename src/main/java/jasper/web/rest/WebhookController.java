@@ -29,7 +29,7 @@ import static jasper.domain.proj.HasOrigin.ORIGIN_LEN;
 @Validated
 @Tag(name = "webhook")
 @ApiResponses({
-	@ApiResponse(responseCode = "201"),
+	@ApiResponse(responseCode = "200"),
 	@ApiResponse(responseCode = "400", content = @Content()),
 	@ApiResponse(responseCode = "403", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
 	@ApiResponse(responseCode = "409", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),

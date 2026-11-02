@@ -44,7 +44,7 @@ public class OEmbedController {
 	}
 
 	@ApiResponses({
-		@ApiResponse(responseCode = "204"),
+		@ApiResponse(responseCode = "200"),
 	})
 	@PostMapping("defaults")
 	void defaults() throws IOException {
