@@ -175,6 +175,110 @@ public class IndexRepositoryIT {
 			.contains(IndexRepositoryImplPostgres.hotTagIndexName(TagValueSort.parse("plugin/progress:num")));
 	}
 
+	List<String> hotPluginIndexes() {
+		return jdbc.queryForList("SELECT indexname FROM pg_indexes WHERE tablename = 'ref' AND indexname LIKE 'ref\\_hotp\\_%' ORDER BY indexname", String.class);
+	}
+
+	@Test
+	void testUpdateHotPlugins() {
+		indexRepository.updateHotPlugins(List.of("plugin/test->size:num", "plugins->plugin/test->name", "plugin/test->items[0]->tags:len", "invalid'plugin"));
+		indexRepository.updateHotPlugins(List.of());
+	}
+
+	@Test
+	void testHotPluginExpression() {
+		assertThat(IndexRepositoryImplPostgres.hotPluginColumn("plugin/test->name")).isEqualTo("plugins->plugin/test->name");
+		assertThat(IndexRepositoryImplPostgres.hotPluginColumn("plugins->plugin/test->name")).isEqualTo("plugins->plugin/test->name");
+		assertThat(IndexRepositoryImplPostgres.hotPluginColumn("plugin/test->na'me")).isNull();
+		assertThat(IndexRepositoryImplPostgres.hotPluginColumn("plugin/test->name:dur")).isNull();
+		assertThat(IndexRepositoryImplPostgres.hotPluginColumn("+plugin/test")).isNotNull();
+		assertThat(IndexRepositoryImplPostgres.hotPluginExpression("plugins->plugin/test->name"))
+			.isEqualTo("((plugins)->('plugin/test'))->>('name')");
+		assertThat(IndexRepositoryImplPostgres.hotPluginExpression("plugins->plugin/score:num"))
+			.isEqualTo("safe_numeric((plugins)->>('plugin/score'))");
+		assertThat(IndexRepositoryImplPostgres.hotPluginExpression("plugins->plugin/test->tags:len"))
+			.isEqualTo("(safe_jsonb_array_length(((plugins)->('plugin/test'))->('tags')))::numeric");
+		assertThat(IndexRepositoryImplPostgres.hotPluginExpression("plugins->plugin/test->items[0]->score:num"))
+			.isEqualTo("safe_numeric((jsonb_array_element(((plugins)->('plugin/test'))->('items'), 0))->>('score'))");
+		assertThat(IndexRepositoryImplPostgres.hotPluginExpression("plugins->plugin/test->items[1]"))
+			.isEqualTo("jsonb_array_element_text(((plugins)->('plugin/test'))->('items'), 1)");
+		assertThat(IndexRepositoryImplPostgres.hotPluginExpression("plugins->plugin/test->items[1]:len"))
+			.isEqualTo("(safe_jsonb_array_length(jsonb_array_element(((plugins)->('plugin/test'))->('items'), 1)))::numeric");
+		assertThat(IndexRepositoryImplPostgres.hotPluginIndexName("plugins->plugin/" + "a".repeat(200)).length()).isLessThanOrEqualTo(63);
+	}
+
+	@Test
+	@DisabledOnSqlite
+	void testBuildAndDropHotPlugins() {
+		var size = IndexRepositoryImplPostgres.hotPluginIndexName("plugins->plugin/test->size:num");
+		var name = IndexRepositoryImplPostgres.hotPluginIndexName("plugins->plugin/test->name");
+		var sizeText = IndexRepositoryImplPostgres.hotPluginIndexName("plugins->plugin/test->size");
+		assertThat(size).startsWith("ref_hotp_plugin_test_size_num_");
+		assertThat(sizeText).isNotEqualTo(size);
+
+		indexRepository.updateHotTags(List.of("plugin/progress:num"));
+		indexRepository.updateHotPlugins(List.of("plugin/test->size:num", "plugins->plugin/test->name", "invalid'plugin"));
+		assertThat(hotPluginIndexes()).containsExactlyInAnyOrder(size, name);
+
+		indexRepository.updateHotPlugins(List.of("plugin/test->size:num", "plugin/test->size"));
+		assertThat(hotPluginIndexes()).containsExactlyInAnyOrder(size, sizeText);
+		assertThat(hotTagIndexes()).hasSize(1);
+
+		indexRepository.updateHotPlugins(List.of());
+		assertThat(hotPluginIndexes()).isEmpty();
+		assertThat(hotTagIndexes()).hasSize(1);
+		indexRepository.updateHotTags(List.of());
+	}
+
+	@Test
+	@DisabledOnSqlite
+	@Transactional
+	void testHotPluginIndexWriteNonMatchingTypesPostgres() {
+		indexRepository.updateHotPlugins(List.of("plugin/test->size:num", "plugin/test->items:len", "plugin/test->items[0]->score:num"));
+		em.createNativeQuery("""
+			INSERT INTO ref (url, origin, modified, published, created, plugins) VALUES
+			('https://www.example.com/hotp1', '', now() + interval '1 ms', now(), now(), '{"plugin/test": {"size": "big", "items": "none"}}'::jsonb),
+			('https://www.example.com/hotp2', '', now() + interval '2 ms', now(), now(), '{"plugin/test": {"size": 5, "items": [{"score": "high"}]}}'::jsonb),
+			('https://www.example.com/hotp3', '', now() + interval '3 ms', now(), now(), '{"plugin/test": {"items": {"0": 1}}}'::jsonb)""").executeUpdate();
+	}
+
+	@Test
+	@DisabledOnSqlite
+	@Transactional
+	void testHotPluginIndexUsedForPluginFilterPostgres() {
+		indexRepository.updateHotPlugins(List.of("plugin/test->name"));
+		assertThat(explainPostgres("""
+			select r1_0.url from ref r1_0
+			where ((r1_0.plugins)->('plugin/test'))->>('name')>'m'"""))
+			.contains(IndexRepositoryImplPostgres.hotPluginIndexName("plugins->plugin/test->name"));
+	}
+
+	@Test
+	@DisabledOnSqlite
+	@Transactional
+	void testHotPluginIndexUsedForNumericPluginFilterPostgres() {
+		indexRepository.updateHotPlugins(List.of("plugin/test->items[0]->score:num", "plugin/score:num"));
+		assertThat(explainPostgres("""
+			select r1_0.url from ref r1_0
+			where safe_numeric((jsonb_array_element(((r1_0.plugins)->('plugin/test'))->('items'),0))->>('score'))<(20)::numeric"""))
+			.contains(IndexRepositoryImplPostgres.hotPluginIndexName("plugins->plugin/test->items[0]->score:num"));
+		assertThat(explainPostgres("""
+			select r1_0.url from ref r1_0
+			where safe_numeric((r1_0.plugins)->>('plugin/score'))>=(20)::numeric"""))
+			.contains(IndexRepositoryImplPostgres.hotPluginIndexName("plugins->plugin/score:num"));
+	}
+
+	@Test
+	@DisabledOnSqlite
+	@Transactional
+	void testHotPluginIndexUsedForLengthPluginFilterPostgres() {
+		indexRepository.updateHotPlugins(List.of("plugin/test->tags:len"));
+		assertThat(explainPostgres("""
+			select r1_0.url from ref r1_0
+			where (safe_jsonb_array_length(((r1_0.plugins)->('plugin/test'))->('tags')))::numeric>(2)::numeric"""))
+			.contains(IndexRepositoryImplPostgres.hotPluginIndexName("plugins->plugin/test->tags:len"));
+	}
+
 	String explainSqlite(String sql) {
 		return ((List<?>) em.createNativeQuery("EXPLAIN QUERY PLAN " + sql).getResultList()).stream()
 			.map(row -> row instanceof Object[] cols ? cols[cols.length - 1].toString() : row.toString())

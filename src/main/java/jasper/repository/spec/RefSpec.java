@@ -342,6 +342,13 @@ public class RefSpec {
 		return (root, query, cb) -> {
 			var tag = cb.literal(filter.sort().tag());
 			var text = cb.function("tag_value", String.class, root.get(Ref_.tags), tag);
+			if (filter.sort().function().equals("tag_value_dur")) {
+				var number = cb.function("tag_value_dur", Double.class, root.get(Ref_.tags), tag);
+				var value = cb.function("iso_duration_seconds", Double.class, cb.literal(filter.value()));
+				return cb.and(
+					cb.notEqual(text, ""),
+					before ? cb.lessThan(number, value) : cb.greaterThan(number, value));
+			}
 			if (filter.value() instanceof String value) {
 				return cb.and(
 					cb.notEqual(text, ""),

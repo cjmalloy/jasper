@@ -73,6 +73,9 @@ public class PostgreSQLDialect extends org.hibernate.dialect.PostgreSQLDialect {
 		functionRegistry.registerPattern("cast_to_int", "(?1)::integer", integer);
 		functionRegistry.registerPattern("cast_to_numeric", "(?1)::numeric", doubleType);
 		functionRegistry.registerPattern("jsonb_array_length", "jsonb_array_length(?1)", integer);
+		// safe_numeric / safe_jsonb_array_length: NULL for values of the wrong type instead of an error, so they can be indexed
+		functionRegistry.registerPattern("safe_numeric", "safe_numeric(?1)", doubleType);
+		functionRegistry.registerPattern("safe_jsonb_array_length", "safe_jsonb_array_length(?1)", integer);
 		functionRegistry.registerPattern("jsonb_array_element", "jsonb_array_element(?1, ?2)", jsonb);
 		functionRegistry.registerPattern("jsonb_array_element_text", "jsonb_array_element_text(?1, ?2)", string);
 		// origin_nesting: returns 0 for blank or '@', otherwise count of '.' + 1

@@ -37,6 +37,11 @@ public class Index implements Serializable {
 	 */
 	@Builder.Default
 	private List<String> hotTags = new ArrayList<>();
+	/**
+	 * Plugin sort columns to index, e.g. "plugin/test->size:num" or "plugins->plugin/test->name".
+	 */
+	@Builder.Default
+	private List<String> hotPlugins = new ArrayList<>();
 	@Builder.Default
 	private boolean ignored = true;
 	@Builder.Default

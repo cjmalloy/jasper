@@ -187,6 +187,24 @@
 				FROM (SELECT upper(tag_value(tags, tag)) AS v) tv
 			$$ LANGUAGE SQL IMMUTABLE PARALLEL SAFE SET search_path FROM CURRENT;
 		</sql>
+		<!-- Tag value duration filters: the same conversion as tag_value_dur, NULL if invalid -->
+		<sql splitStatements="false">
+			CREATE OR REPLACE FUNCTION iso_duration_seconds(v text) RETURNS numeric AS $$
+				SELECT CASE WHEN upper(v) ~ '^P(?=[0-9]|T[0-9])([0-9]{1,6}Y)?([0-9]{1,6}M)?([0-9]{1,6}W)?([0-9]{1,6}D)?(T(?=[0-9])([0-9]{1,6}H)?([0-9]{1,6}M)?([0-9]{1,9}([.][0-9]{1,9})?S)?)?$'
+					THEN extract(epoch FROM upper(v)::interval) END
+			$$ LANGUAGE SQL IMMUTABLE PARALLEL SAFE SET search_path FROM CURRENT;
+		</sql>
+		<!-- JSON value sorting and filtering: NULL instead of an error for values of the wrong type, so they can be indexed. -->
+		<sql splitStatements="false">
+			CREATE OR REPLACE FUNCTION safe_numeric(v text) RETURNS numeric AS $$
+				SELECT CASE WHEN v ~ '^-?[0-9]{1,30}([.][0-9]{1,30})?([eE][-+]?[0-9]{1,4})?$' THEN v::numeric END
+			$$ LANGUAGE SQL IMMUTABLE PARALLEL SAFE SET search_path FROM CURRENT;
+		</sql>
+		<sql splitStatements="false">
+			CREATE OR REPLACE FUNCTION safe_jsonb_array_length(v jsonb) RETURNS integer AS $$
+				SELECT CASE WHEN jsonb_typeof(v) = 'array' THEN jsonb_array_length(v) END
+			$$ LANGUAGE SQL IMMUTABLE PARALLEL SAFE SET search_path FROM CURRENT;
+		</sql>
 	</changeSet>
 
 </databaseChangeLog>

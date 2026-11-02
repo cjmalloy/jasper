@@ -128,6 +128,11 @@ public class Index {
 		} catch (Exception e) {
 			logger.error("Error updating hot tag indices", e);
 		}
+		try {
+			indexRepository.updateHotPlugins(index.getHotPlugins());
+		} catch (Exception e) {
+			logger.error("Error updating hot plugin indices", e);
+		}
 	}
 
 }

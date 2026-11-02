@@ -31,6 +31,12 @@ public interface IndexRepository {
 	 * @param hotTags tag value sorts, e.g. "plugin/progress:num"
 	 */
 	void updateHotTags(List<String> hotTags);
+	/**
+	 * Build indexes for the given plugin sort columns and drop any other hot plugin indexes.
+	 *
+	 * @param hotPlugins plugin sort columns, e.g. "plugin/test->size:num"
+	 */
+	void updateHotPlugins(List<String> hotPlugins);
 	void dropIgnored();
 	void buildIgnored();
 	void dropCascade();

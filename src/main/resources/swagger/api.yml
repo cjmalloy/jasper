@@ -321,7 +321,7 @@ paths:
               $ref: '#/components/schemas/tagValueFilter'
         - name: pluginBefore
           in: query
-          description: 'Only match Refs whose plugin value is strictly less than the value: plugins->{plugin}[->{field}...][:num|:len]/{value}. The value is always after the last ''/'' and cannot contain ''/'', ''->'' or '',''. Refs without the value never match. Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering-by-value'
+          description: 'Only match Refs whose plugin value is strictly less than the value: plugins->{plugin}[->{field}...][:num|:len]/{value}. The value is always after the last ''/'' and cannot contain ''/'', ''->'' or '',''. Refs without the value never match. Strings compare using the database ordering (locale on PostgreSQL, bytes on SQLite). Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering-by-value'
           required: false
           example: ['plugins->plugin/test->ids:len/3']
           schema:
@@ -331,7 +331,7 @@ paths:
               $ref: '#/components/schemas/pluginValueFilter'
         - name: pluginAfter
           in: query
-          description: 'Only match Refs whose plugin value is strictly greater than the value: plugins->{plugin}[->{field}...][:num|:len]/{value}. The value is always after the last ''/'' and cannot contain ''/'', ''->'' or '',''. Refs without the value never match. Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering-by-value'
+          description: 'Only match Refs whose plugin value is strictly greater than the value: plugins->{plugin}[->{field}...][:num|:len]/{value}. The value is always after the last ''/'' and cannot contain ''/'', ''->'' or '',''. Refs without the value never match. Strings compare using the database ordering (locale on PostgreSQL, bytes on SQLite). Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering-by-value'
           required: false
           example: ['plugins->_plugin/cache->contentLength:num/1000']
           schema:
@@ -542,7 +542,7 @@ paths:
               $ref: '#/components/schemas/tagValueFilter'
         - name: pluginBefore
           in: query
-          description: 'Only match Refs whose plugin value is strictly less than the value: plugins->{plugin}[->{field}...][:num|:len]/{value}. The value is always after the last ''/'' and cannot contain ''/'', ''->'' or '',''. Refs without the value never match. Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering-by-value'
+          description: 'Only match Refs whose plugin value is strictly less than the value: plugins->{plugin}[->{field}...][:num|:len]/{value}. The value is always after the last ''/'' and cannot contain ''/'', ''->'' or '',''. Refs without the value never match. Strings compare using the database ordering (locale on PostgreSQL, bytes on SQLite). Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering-by-value'
           required: false
           example: ['plugins->plugin/test->ids:len/3']
           schema:
@@ -552,7 +552,7 @@ paths:
               $ref: '#/components/schemas/pluginValueFilter'
         - name: pluginAfter
           in: query
-          description: 'Only match Refs whose plugin value is strictly greater than the value: plugins->{plugin}[->{field}...][:num|:len]/{value}. The value is always after the last ''/'' and cannot contain ''/'', ''->'' or '',''. Refs without the value never match. Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering-by-value'
+          description: 'Only match Refs whose plugin value is strictly greater than the value: plugins->{plugin}[->{field}...][:num|:len]/{value}. The value is always after the last ''/'' and cannot contain ''/'', ''->'' or '',''. Refs without the value never match. Strings compare using the database ordering (locale on PostgreSQL, bytes on SQLite). Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering-by-value'
           required: false
           example: ['plugins->_plugin/cache->contentLength:num/1000']
           schema:

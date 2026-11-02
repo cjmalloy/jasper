@@ -96,6 +96,9 @@ public class SQLiteDialect extends org.hibernate.community.dialect.SQLiteDialect
 		functionRegistry.registerPattern("cast_to_numeric", "CAST((?1) AS REAL)", doubleType);
 		// jsonb_array_length
 		functionRegistry.registerPattern("jsonb_array_length", "json_array_length(?1)", integer);
+		// safe_numeric / safe_jsonb_array_length: NULL for values of the wrong type, same as PostgreSQL
+		functionRegistry.registerPattern("safe_numeric", "(CASE WHEN (?1) GLOB '*[0-9]*' AND NOT (?1) GLOB '*[^0-9.eE+-]*' THEN CAST((?1) AS REAL) END)", doubleType);
+		functionRegistry.registerPattern("safe_jsonb_array_length", "(CASE WHEN json_valid(?1) THEN (CASE WHEN json_type(?1) = 'array' THEN json_array_length(?1) END) END)", integer);
 		// jsonb_array_element: get element at index from a JSON array as JSON
 		// Uses -> so scalar elements stay valid JSON (json_extract would unquote strings)
 		functionRegistry.registerPattern("jsonb_array_element", "((?1) -> ('$[' || ?2 || ']'))", jsonb);
