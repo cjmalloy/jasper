@@ -4,7 +4,6 @@ import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import jasper.DisabledOnSqlite;
 import jasper.IntegrationTest;
-import jasper.config.PostgreSQLDialect;
 import jasper.repository.spec.SortSpec.TagValueSort;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -179,11 +178,11 @@ public class IndexRepositoryIT {
 	// SQL rendered by the PostgreSQL dialect for safe_numeric and safe_jsonb_array_length
 
 	static String safeNumeric(String expr) {
-		return PostgreSQLDialect.SAFE_NUMERIC.replace("?1", expr);
+		return "(CASE WHEN jsonb_typeof(" + expr + ") = 'number' THEN (" + expr + ")::numeric END)";
 	}
 
 	static String safeLength(String expr) {
-		return PostgreSQLDialect.SAFE_JSONB_ARRAY_LENGTH.replace("?1", expr);
+		return "(CASE WHEN jsonb_typeof(" + expr + ") = 'array' THEN jsonb_array_length(" + expr + ") END)";
 	}
 
 	List<String> hotPluginIndexes() {

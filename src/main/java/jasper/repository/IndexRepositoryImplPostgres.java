@@ -15,8 +15,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.regex.Pattern;
 
-import static jasper.config.PostgreSQLDialect.SAFE_JSONB_ARRAY_LENGTH;
-import static jasper.config.PostgreSQLDialect.SAFE_NUMERIC;
 import static org.apache.commons.lang3.StringUtils.truncate;
 import static org.springframework.util.DigestUtils.md5DigestAsHex;
 
@@ -252,19 +250,21 @@ public class IndexRepositoryImplPostgres implements IndexRepository {
 				if (!last) {
 					expr = "jsonb_array_element(" + expr + ", " + m.group(2) + ")";
 				} else if (length) {
-					return "(" + SAFE_JSONB_ARRAY_LENGTH.replace("?1", "jsonb_array_element(" + expr + ", " + m.group(2) + ")") + ")::numeric";
+					var array = "jsonb_array_element(" + expr + ", " + m.group(2) + ")";
+					return "((CASE WHEN jsonb_typeof(" + array + ") = 'array' THEN jsonb_array_length(" + array + ") END))::numeric";
 				} else {
 					expr = "jsonb_array_element" + (numeric ? "" : "_text") + "(" + expr + ", " + m.group(2) + ")";
 				}
 			} else if (last && length) {
-				return "(" + SAFE_JSONB_ARRAY_LENGTH.replace("?1", "(" + expr + ")->('" + parts[i] + "')") + ")::numeric";
+				var array = "(" + expr + ")->('" + parts[i] + "')";
+				return "((CASE WHEN jsonb_typeof(" + array + ") = 'array' THEN jsonb_array_length(" + array + ") END))::numeric";
 			} else if (last) {
 				expr = "(" + expr + ")->" + (numeric ? "" : ">") + "('" + parts[i] + "')";
 			} else {
 				expr = "(" + expr + ")->('" + parts[i] + "')";
 			}
 		}
-		if (numeric) return SAFE_NUMERIC.replace("?1", expr);
+		if (numeric) return "(CASE WHEN jsonb_typeof(" + expr + ") = 'number' THEN (" + expr + ")::numeric END)";
 		return expr;
 	}
 
