@@ -40,6 +40,7 @@ import static jasper.util.Crypto.writeRsaPrivatePem;
 import static org.apache.sshd.common.SshConstants.SSH2_DISCONNECT_BY_APPLICATION;
 import static org.apache.sshd.common.SshConstants.SSH2_DISCONNECT_CONNECTION_LOST;
 import static org.apache.sshd.common.SshConstants.SSH2_DISCONNECT_HOST_KEY_NOT_VERIFIABLE;
+import static org.apache.sshd.common.SshConstants.SSH2_DISCONNECT_HOST_NOT_ALLOWED_TO_CONNECT;
 import static org.apache.sshd.common.SshConstants.SSH2_DISCONNECT_ILLEGAL_USER_NAME;
 import static org.apache.sshd.common.SshConstants.SSH2_DISCONNECT_KEY_EXCHANGE_FAILED;
 import static org.apache.sshd.common.SshConstants.SSH2_DISCONNECT_NO_MORE_AUTH_METHODS_AVAILABLE;
@@ -311,6 +312,7 @@ class TunnelClientTest {
 			Arguments.of(new SshException(SSH2_DISCONNECT_CONNECTION_LOST, "Connection lost"), false),
 			Arguments.of(new SshException(SSH2_DISCONNECT_TOO_MANY_CONNECTIONS, "Too many connections"), false),
 			Arguments.of(new SshException(SSH2_DISCONNECT_BY_APPLICATION, "Server restarting"), false),
+			Arguments.of(new SshException(SSH2_DISCONNECT_HOST_NOT_ALLOWED_TO_CONNECT, "Host not allowed to connect"), false),
 			Arguments.of(new IOException("Connection reset by peer"), false),
 			Arguments.of(new SshException(SSH2_DISCONNECT_NO_MORE_AUTH_METHODS_AVAILABLE, "No more authentication methods available"), true),
 			Arguments.of(new SshException("No more authentication methods available",

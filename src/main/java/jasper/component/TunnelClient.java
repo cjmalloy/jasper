@@ -46,7 +46,6 @@ import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.commons.lang3.exception.ExceptionUtils.getThrowableList;
 import static org.apache.sshd.common.NamedResource.ofName;
 import static org.apache.sshd.common.SshConstants.SSH2_DISCONNECT_HOST_KEY_NOT_VERIFIABLE;
-import static org.apache.sshd.common.SshConstants.SSH2_DISCONNECT_HOST_NOT_ALLOWED_TO_CONNECT;
 import static org.apache.sshd.common.SshConstants.SSH2_DISCONNECT_ILLEGAL_USER_NAME;
 import static org.apache.sshd.common.SshConstants.SSH2_DISCONNECT_KEY_EXCHANGE_FAILED;
 import static org.apache.sshd.common.SshConstants.SSH2_DISCONNECT_NO_MORE_AUTH_METHODS_AVAILABLE;
@@ -332,7 +331,6 @@ public class TunnelClient {
 	 * the tunnel configuration, key or remote server is changed.
 	 */
 	private static final Set<Integer> FATAL_DISCONNECT_CODES = Set.of(
-		SSH2_DISCONNECT_HOST_NOT_ALLOWED_TO_CONNECT,
 		SSH2_DISCONNECT_KEY_EXCHANGE_FAILED,
 		SSH2_DISCONNECT_HOST_KEY_NOT_VERIFIABLE,
 		SSH2_DISCONNECT_PROTOCOL_VERSION_NOT_SUPPORTED,
