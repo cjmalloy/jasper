@@ -75,6 +75,7 @@ public class PostgreSQLDialect extends org.hibernate.dialect.PostgreSQLDialect {
 			}
 		});
 		functionRegistry.registerPattern("jsonb_object_field", "(?1)->(?2)", jsonb);
+		functionRegistry.registerPattern("jsonb_object_field_json", "(?1)->(?2)", jsonb);
 		functionRegistry.registerPattern("jsonb_object_field_text", "(?1)->>(?2)", string);
 		functionRegistry.registerPattern("jsonb_set", "jsonb_set(?1, ?2, ?3, ?4)", jsonb);
 		functionRegistry.registerPattern("jsonb_strip_nulls", "jsonb_strip_nulls(?1)", jsonb);
