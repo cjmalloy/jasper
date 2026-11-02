@@ -173,9 +173,8 @@ public class SortSpec {
 	 * Tag values are a single tag segment, so the value is always after the last "/".
 	 *
 	 * @param sort the tag value expression to compare
-	 * @param value the value to compare against: a String for tag_value, a BigDecimal for tag_value_num,
-	 *              or the ISO-8601 duration String for tag_value_dur, converted to seconds by the database
-	 *              with the same precision as the tag values
+	 * @param value the value to compare against: a String for tag_value, or a BigDecimal
+	 *              of the number or duration in seconds for tag_value_num and tag_value_dur
 	 */
 	public record TagValueFilter(TagValueSort sort, Object value) {
 		public static final String VALUE_REGEX = "[a-z0-9]+(?:[.][a-z0-9]+)*";
@@ -201,9 +200,10 @@ public class SortSpec {
 				case "tag_value_num" -> value.matches("[0-9]{1,30}([.][0-9]{1,30})?")
 					? new TagValueFilter(sort, new BigDecimal(value))
 					: null;
-				case "tag_value_dur" -> isoDurationSeconds(value) == null
-					? null
-					: new TagValueFilter(sort, value);
+				case "tag_value_dur" -> {
+					var seconds = isoDurationSeconds(value);
+					yield seconds == null ? null : new TagValueFilter(sort, BigDecimal.valueOf(seconds));
+				}
 				default -> new TagValueFilter(sort, value);
 			};
 		}

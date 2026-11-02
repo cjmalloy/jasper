@@ -35,7 +35,7 @@ class SortSpecTest {
 		var f = TagValueFilter.parse("tags->_plugin/duration:dur/pt1h");
 		assertThat(f.sort().function()).isEqualTo("tag_value_dur");
 		assertThat(f.sort().tag()).isEqualTo("_plugin/duration");
-		assertThat(f.value()).isEqualTo("pt1h");
+		assertThat(f.value()).isEqualTo(BigDecimal.valueOf(3600.0));
 	}
 
 	@ParameterizedTest

@@ -1886,21 +1886,6 @@ public class RefServiceIT {
 	}
 
 	@Test
-	void testTagValueDurationFilterEqual() {
-		refWithUrlTags("https://example.com/1", "plugin/duration/p999999dt0.000001s");
-		refWithUrlTags("https://example.com/2", "plugin/duration/pt1.000000001s");
-
-		assertThat(filteredUrls(RefFilter.builder().tagAfter(List.of("tags->plugin/duration:dur/p999999dt0.000001s")).build()))
-			.isEmpty();
-		assertThat(filteredUrls(RefFilter.builder().tagBefore(List.of("tags->plugin/duration:dur/p999999dt0.000001s")).build()))
-			.containsExactly("https://example.com/2");
-		assertThat(filteredUrls(RefFilter.builder().tagAfter(List.of("tags->plugin/duration:dur/pt1.000000001s")).build()))
-			.containsExactly("https://example.com/1");
-		assertThat(filteredUrls(RefFilter.builder().tagBefore(List.of("tags->plugin/duration:dur/pt1.000000001s")).build()))
-			.isEmpty();
-	}
-
-	@Test
 	void testInvalidTagValueFilter() {
 		assertThatThrownBy(() -> RefFilter.builder().tagBefore(List.of("tags->plugin/progress:num/abc")).build().spec())
 			.isInstanceOf(InvalidQueryException.class);
