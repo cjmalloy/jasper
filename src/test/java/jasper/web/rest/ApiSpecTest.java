@@ -19,9 +19,11 @@ import org.springframework.core.env.Profiles;
 import org.springframework.core.env.StandardEnvironment;
 import org.springframework.core.type.filter.AnnotationTypeFilter;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.ResponseEntity;
 import org.springframework.util.ClassUtils;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import org.yaml.snakeyaml.Yaml;
 
@@ -53,6 +55,11 @@ class ApiSpecTest {
 	 * Operations in the controllers: "METHOD path" to query parameter names, or null for any.
 	 */
 	static Map<String, Set<String>> code = new TreeMap<>();
+	/**
+	 * Success status of operations in the controllers: "METHOD path" to status code.
+	 * Operations returning a ResponseEntity set the status at runtime and are not included.
+	 */
+	static Map<String, String> status = new TreeMap<>();
 
 	@BeforeAll
 	static void init() throws IOException, ClassNotFoundException {
@@ -98,6 +105,10 @@ class ApiSpecTest {
 							.replaceAll("\\{(\\w+):[^}]*}", "{$1}");
 						for (var m : mapping.method()) {
 							var key = m.name() + " " + path;
+							if (!ResponseEntity.class.isAssignableFrom(method.getReturnType())) {
+								var rs = AnnotatedElementUtils.findMergedAnnotation(method, ResponseStatus.class);
+								status.put(key, String.valueOf(rs == null ? 200 : rs.code().value()));
+							}
 							if (code.containsKey(key) && code.get(key) != null && params != null) {
 								// Same operation with a different consumes / produces
 								code.get(key).addAll(params);
@@ -143,6 +154,23 @@ class ApiSpecTest {
 			var documented = new TreeSet<String>();
 			for (var p : parameters(ops.get(op), "query")) documented.add((String) p.get("name"));
 			if (!documented.equals(params)) mismatched.add(op + ": spec " + documented + " code " + params);
+		});
+		assertThat(mismatched).isEmpty();
+	}
+
+	@Test
+	@SuppressWarnings("unchecked")
+	void testSuccessStatus() {
+		assertThat(status).isNotEmpty();
+		var ops = specOperations();
+		var mismatched = new ArrayList<String>();
+		status.forEach((op, code) -> {
+			if (!ops.containsKey(op)) return;
+			var documented = new TreeSet<String>();
+			for (var c : ((Map<Object, Object>) ops.get(op).getOrDefault("responses", Map.of())).keySet()) {
+				if (String.valueOf(c).startsWith("2")) documented.add(String.valueOf(c));
+			}
+			if (!documented.equals(Set.of(code))) mismatched.add(op + ": spec " + documented + " code " + code);
 		});
 		assertThat(mismatched).isEmpty();
 	}
