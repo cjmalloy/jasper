@@ -1,6 +1,9 @@
 package jasper.repository.filter;
 
 import jasper.domain.Ref;
+import jasper.errors.InvalidQueryException;
+import jasper.repository.spec.SortSpec.PluginValueFilter;
+import jasper.repository.spec.SortSpec.TagValueFilter;
 import lombok.Builder;
 import lombok.Getter;
 import org.slf4j.Logger;
@@ -23,6 +26,10 @@ import static org.springframework.data.jpa.domain.Specification.not;
 @Getter
 public class RefFilter implements Query {
 	public static final String QUERY = Query.REGEX;
+	public static final String TAG_VALUE = TagValueFilter.REGEX;
+	public static final int TAG_VALUE_LEN = TagValueFilter.LEN;
+	public static final String PLUGIN_VALUE = PluginValueFilter.REGEX;
+	public static final int PLUGIN_VALUE_LEN = PluginValueFilter.LEN;
 	private static final Logger logger = LoggerFactory.getLogger(RefFilter.class);
 
 	private String origin;
@@ -54,6 +61,10 @@ public class RefFilter implements Query {
 	private Instant createdAfter;
 	private Instant responseBefore;
 	private Instant responseAfter;
+	private List<String> tagBefore;
+	private List<String> tagAfter;
+	private List<String> pluginBefore;
+	private List<String> pluginAfter;
 
 	public Specification<Ref> spec(String user, String userOrigin) {
 		this.user = user;
@@ -162,6 +173,38 @@ public class RefFilter implements Query {
 		if (responseAfter != null) {
 			result = result.and(isResponseAfter(responseAfter));
 		}
+		if (tagBefore != null) {
+			for (var f : tagBefore) {
+				result = result.and(isTagValueBefore(tagValueFilter(f)));
+			}
+		}
+		if (tagAfter != null) {
+			for (var f : tagAfter) {
+				result = result.and(isTagValueAfter(tagValueFilter(f)));
+			}
+		}
+		if (pluginBefore != null) {
+			for (var f : pluginBefore) {
+				result = result.and(isPluginValueBefore(pluginValueFilter(f)));
+			}
+		}
+		if (pluginAfter != null) {
+			for (var f : pluginAfter) {
+				result = result.and(isPluginValueAfter(pluginValueFilter(f)));
+			}
+		}
+		return result;
+	}
+
+	private static TagValueFilter tagValueFilter(String filter) {
+		var result = TagValueFilter.parse(filter);
+		if (result == null) throw new InvalidQueryException(filter, "expected tags->{tag}/{value}, tags->{tag}:num/{number} or tags->{tag}:dur/{duration}");
+		return result;
+	}
+
+	private static PluginValueFilter pluginValueFilter(String filter) {
+		var result = PluginValueFilter.parse(filter);
+		if (result == null) throw new InvalidQueryException(filter, "expected plugins->{plugin}[->{field}...]/{value}, plugins->{plugin}[->{field}...]:num/{number} or plugins->{plugin}[->{field}...]:len/{length}");
 		return result;
 	}
 }

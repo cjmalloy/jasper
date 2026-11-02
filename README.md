@@ -6,7 +6,7 @@ Knowledge Management Server
 [![Gatling](https://github.com/cjmalloy/jasper/actions/workflows/gatling.yml/badge.svg)](https://cjmalloy.github.io/jasper/reports/latest-gatling/)
 [![E2E](https://github.com/cjmalloy/jasper/actions/workflows/e2e.yml/badge.svg)](https://cjmalloy.github.io/jasper/reports/latest-e2e/)
 [![Dependabot](https://img.shields.io/endpoint?url=https://cjmalloy.github.io/jasper/reports/dependabot-badge.json)](https://github.com/cjmalloy/jasper/security/dependabot)
-[![OpenAPI](https://img.shields.io/badge/OpenAPI-1.4.2-brightgreen)](https://editor.swagger.io/?url=https://raw.githubusercontent.com/cjmalloy/jasper/refs/heads/master/src/main/resources/swagger/api.yml)
+[![OpenAPI](https://img.shields.io/badge/OpenAPI-1.4.3-brightgreen)](https://editor.swagger.io/?url=https://raw.githubusercontent.com/cjmalloy/jasper/refs/heads/master/src/main/resources/swagger/api.yml)
 [![Artifact Hub](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/jasper)](https://artifacthub.io/packages/helm/jasper/jasper)
 
 ## Quickstart
@@ -152,6 +152,43 @@ that cannot be parsed, sort as `''` or `0`.
 To index a tag value sort on PostgreSQL, add it to `hotTags` in the `_config/index` template config,
 for example `{"hotTags": ["plugin/progress:num", "plugin/duration:dur"]}`. Hot tag indexes that are
 removed from the list are dropped. Hot tags are ignored on SQLite.
+
+### Filtering by value
+Refs can be filtered by the same values they can be sorted on, similar to `modifiedBefore` and `modifiedAfter`.
+Each filter is a sort column (including any `:num`, `:len` or `:dur` suffix) followed by `/` and the value
+to compare against, and keeps Refs whose value is strictly less than (`Before`) or greater than (`After`) it.
+Refs without a value never match. Every filter parameter can be repeated, and all filters must match.
+
+* `tagBefore` and `tagAfter` take `tags->{tag}[:num|:dur]/{value}`. Tag values are a single tag segment
+  (`[a-z0-9]` with `.` separators), so the value is always after the last `/`. This means numbers cannot be
+  negative and durations must be lowercase (`pt1h`). For example,
+  `tagAfter=tags->plugin/progress:num/9&tagBefore=tags->plugin/progress:num/50` matches `plugin/progress/37/100`,
+  and `tagBefore=tags->plugin/duration:dur/pt1h` matches `plugin/duration/pt10m25s`. Hot tag indexes are used
+  for filtering as well as sorting.
+* `pluginBefore` and `pluginAfter` take `plugins->{plugin}[->{field}...][:num|:len]/{value}`. Fields are optional,
+  since plugin data may be a primitive. Like tag values, the value is always after the last `/`, so it cannot
+  contain `/` (or `->`, so a missing value is never read as a field). Use `:num` to compare numbers (which may be negative) or `:len` to compare array lengths,
+  otherwise values compare as strings, so a prefix such as `pluginAfter=plugins->plugin/test->name/m` keeps
+  names after `m`. For example,
+  `pluginAfter=plugins->_plugin/cache->contentLength:num/1000` matches Refs with a cached file over 1000 bytes,
+  `pluginBefore=plugins->plugin/test->ids:len/3` matches Refs with fewer than three `ids`,
+  and `pluginAfter=plugins->plugin/score:num/10` matches Refs whose `plugin/score` data is a number over 10.
+  Values of the wrong type never match: `:num` skips values that are not numbers and `:len` skips values that
+  are not arrays (including `null`).
+  Strings compare using the database's ordering, so the same filter can match different Refs on different
+  databases. PostgreSQL uses the collation of the database locale, which usually ignores case and accents
+  except to break ties (`a` < `B` < `b`, `e` < `é` < `f`). SQLite compares bytes, so capitals sort before
+  lowercase letters and accented letters sort after `z`. Tag values are lowercase ASCII, so tag filters
+  are the same on both.
+
+To index a plugin filter on PostgreSQL, add its column to `hotPlugins` in the `_config/index` template config,
+for example `{"hotPlugins": ["plugin/test->size:num", "plugin/test->name", "plugin/test->ids:len"]}`
+(the `plugins->` prefix is optional). Hot plugin indexes are used by `pluginBefore` and `pluginAfter` filters,
+but not by plugin sorts, since sorts treat missing values as `''` or `0`. Hot plugin indexes that are removed
+from the list are dropped. Hot plugins are ignored on SQLite.
+
+Values cannot contain `,`, since a single parameter is split on commas into a list.
+Invalid filters are rejected with `400 Bad Request`.
 
 Metadata dates useful for sorting:
 - `metadata->modified`: updated whenever the responses, internal responses or plugin counts change.

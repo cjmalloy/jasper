@@ -13,7 +13,10 @@ import jasper.domain.proj.Tag;
 import jasper.errors.FreshLoginException;
 import jasper.repository.RefRepository;
 import jasper.repository.filter.Query;
+import jasper.repository.filter.RefFilter;
 import jasper.repository.spec.QualifiedTag;
+import jasper.repository.spec.SortSpec.PluginValueFilter;
+import jasper.repository.spec.SortSpec.TagValueFilter;
 import jasper.security.jwt.Claims;
 import jasper.security.jwt.JwtAuthentication;
 import jasper.service.dto.UserDto;
@@ -44,6 +47,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -612,11 +616,31 @@ public class Auth {
 	public boolean canReadQuery(Query filter) {
 		// Min Role
 		if (!minRole()) return false;
+		var tagValues = filter instanceof RefFilter f
+			? Stream.concat(
+				Stream.of(f.getTagBefore(), f.getTagAfter())
+					.filter(Objects::nonNull)
+					.flatMap(List::stream)
+					.map(TagValueFilter::parse)
+					.filter(Objects::nonNull)
+					.map(v -> v.sort().tag()),
+				Stream.of(f.getPluginBefore(), f.getPluginAfter())
+					.filter(Objects::nonNull)
+					.flatMap(List::stream)
+					.map(PluginValueFilter::parse)
+					.filter(Objects::nonNull)
+					.map(PluginValueFilter::plugin))
+				.toList()
+			: List.<String>of();
 		// Anyone can read the empty query (retrieve all Refs)
-		if (filter.getQuery() == null) return true;
+		if (filter.getQuery() == null && tagValues.isEmpty()) return true;
 		// Mod
 		if (hasRole(MOD)) return true;
-		var tagList = Arrays.stream(filter.getQuery().split("[!:|()\\s]+"))
+		if (tagValues.stream()
+			.filter(Auth::isPrivateTag)
+			.filter(tag -> !isUser(tag))
+			.anyMatch(tag -> !captures(getTagReadAccess(), QualifiedTag.selector(tag)))) return false;
+		var tagList = (filter.getQuery() == null ? Stream.<String>empty() : Arrays.stream(filter.getQuery().split("[!:|()\\s]+")))
 			.filter(StringUtils::isNotBlank)
 			.filter(Auth::isPrivateTag)
 			.filter(qt -> !isUser(qt))

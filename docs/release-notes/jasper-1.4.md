@@ -16,6 +16,11 @@ This release includes changes accumulated since v1.3.0. Features marked *Experim
 * Added audio and video support to the HTML sanitizer.
 * Added sorting Refs by tag value: `tags->plugin/title` (text), `tags->plugin/progress:num` (numeric, e.g. `37` from `plugin/progress/37/100`) and `tags->plugin/duration:dur` (ISO-8601 durations such as `pt10m25s`, sorted by length). See the [README sorting section](../../README.md#sorting).
 * Added `hotTags` to the `_config/index` template to index tag value sorts on PostgreSQL, e.g. `{"hotTags": ["plugin/duration:dur"]}`. Removing a hot tag drops its index.
+* Added filtering Refs by tag value with `tagBefore` and `tagAfter`, e.g. `tagBefore=tags->plugin/progress:num/50` or `tagAfter=tags->plugin/duration:dur/pt1h`. See the [README filtering section](../../README.md#filtering-by-value).
+* Added filtering Refs by plugin data with `pluginBefore` and `pluginAfter`, using plugin sort columns, e.g. `pluginAfter=plugins->_plugin/cache->contentLength:num/1000`. See the [README filtering section](../../README.md#filtering-by-value).
+* Added `hotPlugins` to the `_config/index` template to index plugin filters on PostgreSQL, e.g. `{"hotPlugins": ["plugin/test->size:num"]}`. Removing a hot plugin drops its index.
+* Sorting by plugin data with `:num` or `:len` no longer fails on PostgreSQL when a value is not a number or not an array; those values sort as `0`.
+* Request parameters that fail validation (for example a `query` with invalid characters) now return `400 Bad Request` instead of `500 Internal Server Error`.
 
 ## Upgrading
 

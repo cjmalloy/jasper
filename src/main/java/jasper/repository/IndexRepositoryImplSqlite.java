@@ -149,4 +149,9 @@ public class IndexRepositoryImplSqlite implements IndexRepository {
 	public void updateHotTags(List<String> hotTags) {
 		// SQLite cannot index the tag value subqueries — no-op
 	}
+
+	@Override
+	public void updateHotPlugins(List<String> hotPlugins) {
+		// Hot plugin indexes are only built on PostgreSQL — no-op
+	}
 }

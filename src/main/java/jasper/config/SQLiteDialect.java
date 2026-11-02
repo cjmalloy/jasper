@@ -65,7 +65,7 @@ public class SQLiteDialect extends org.hibernate.community.dialect.SQLiteDialect
 		// Use quoted key to handle keys with special characters (e.g., plugin/user/...)
 		functionRegistry.registerPattern(
 			"jsonb_object_field",
-			"json_extract(?1, '$.\"' || REPLACE(?2, '\"', '\"\"') || '\"')",
+			"((?1) -> ('$.\"' || REPLACE(?2, '\"', '\"\"') || '\"'))",
 			jsonb
 		);
 		// jsonb_object_field_text: get a JSON field as text (equivalent to PostgreSQL's ->> operator)
@@ -96,8 +96,22 @@ public class SQLiteDialect extends org.hibernate.community.dialect.SQLiteDialect
 		functionRegistry.registerPattern("cast_to_numeric", "CAST((?1) AS REAL)", doubleType);
 		// jsonb_array_length
 		functionRegistry.registerPattern("jsonb_array_length", "json_array_length(?1)", integer);
-		// jsonb_array_element_text: get element at index from a JSON array
-		functionRegistry.registerPattern("jsonb_array_element_text", "json_extract(?1, '$[' || ?2 || ']')", string);
+		// safe_numeric / safe_jsonb_array_length: NULL for values of the wrong type instead of an error, same as PostgreSQL
+		functionRegistry.registerPattern("safe_numeric", "(CASE WHEN json_type(?1) IN ('integer', 'real') THEN CAST((?1) AS REAL) END)", doubleType);
+		functionRegistry.registerPattern("safe_jsonb_array_length", "(CASE WHEN json_valid(?1) THEN (CASE WHEN json_type(?1) = 'array' THEN json_array_length(?1) END) END)", integer);
+		// jsonb_array_element: get element at index from a JSON array as JSON
+		functionRegistry.registerPattern("jsonb_array_element", "((?1) -> ('$[' || ?2 || ']'))", jsonb);
+		// jsonb_array_element_text: get element at index from a JSON array as text (equivalent to PostgreSQL's jsonb_array_element_text)
+		// Same normalization as jsonb_object_field_text: "true"/"false" for booleans and numbers as TEXT
+		functionRegistry.registerPattern(
+			"jsonb_array_element_text",
+			"(CASE " +
+				"WHEN json_type(?1, '$[' || ?2 || ']') IN ('true', 'false') " +
+					"THEN json_type(?1, '$[' || ?2 || ']') " +
+				"ELSE CAST(json_extract(?1, '$[' || ?2 || ']') AS TEXT) " +
+			"END)",
+			string
+		);
 		// string_to_array: in SQLite just pass through the comma-separated string (used with jsonb_exists_any)
 		functionRegistry.registerPattern("string_to_array", "(?1 || SUBSTR('', 1, 0 * LENGTH(?2)))", string);
 		// origin_nesting: returns 0 for blank or '@', otherwise count of '.' + 1

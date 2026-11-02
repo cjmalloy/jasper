@@ -3,11 +3,15 @@ package jasper.repository.spec;
 import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.Expression;
 import jakarta.persistence.criteria.Root;
+import jasper.domain.Plugin;
 import jasper.domain.proj.Tag;
 
+import java.math.BigDecimal;
 import java.util.Set;
 import java.util.regex.Pattern;
 
+import static jasper.config.SQLiteConfig.isoDurationSeconds;
+import static jasper.domain.proj.Tag.TAG_LEN;
 import static java.util.Arrays.stream;
 
 /**
@@ -54,6 +58,24 @@ public class SortSpec {
 	 * @return the sort expression, or null if property doesn't match allowed prefixes
 	 */
 	public static Expression<?> createJsonbSortExpression(Root<?> root, CriteriaBuilder cb, String property, String... prefixes) {
+		var value = createJsonbValue(root, cb, property, prefixes);
+		if (value == null) return null;
+		if (value.length()) return cb.coalesce(value.expression(), cb.literal(0));
+		if (value.numeric()) return cb.coalesce(value.expression(), cb.literal(0.0));
+		return cb.coalesce(value.expression(), cb.literal(""));
+	}
+
+	/**
+	 * A JSONB value without a default, so missing values are null.
+	 *
+	 * @param expression the value, an Integer for length, a Double for numeric, otherwise a String
+	 */
+	public record JsonbValue(Expression expression, boolean numeric, boolean length) {}
+
+	/**
+	 * Same as {@link #createJsonbSortExpression} without the COALESCE, so missing values are null.
+	 */
+	public static JsonbValue createJsonbValue(Root<?> root, CriteriaBuilder cb, String property, String... prefixes) {
 		var numericSort = property.endsWith(":num");
 		var lengthSort = property.endsWith(":len");
 		if (property.contains(":")) property = property.substring(0, property.lastIndexOf(":"));
@@ -90,11 +112,27 @@ public class SortSpec {
 				if (!fieldName.isEmpty()) {
 					expr = cb.function("jsonb_object_field", Object.class, expr, cb.literal(fieldName));
 				}
-				expr = cb.function("jsonb_array_element_text", String.class, expr, cb.literal(index));
+				if (i < parts.length - 1) {
+					// Intermediate element - keep as JSONB for further traversal
+					expr = cb.function("jsonb_array_element", Object.class, expr, cb.literal(index));
+				} else if (lengthSort) {
+					// Last element with length sort - get as JSONB and apply jsonb_array_length
+					expr = cb.function("jsonb_array_element", Object.class, expr, cb.literal(index));
+					return new JsonbValue(cb.function("safe_jsonb_array_length", Integer.class, expr), false, true);
+				} else if (numericSort) {
+					// Last element with numeric sort - get as JSONB to check for a JSON number
+					expr = cb.function("jsonb_array_element", Object.class, expr, cb.literal(index));
+				} else {
+					// Last element - get as text
+					expr = cb.function("jsonb_array_element_text", String.class, expr, cb.literal(index));
+				}
 			} else if (i == parts.length - 1 && lengthSort) {
 				// Last field with length sort - get as JSONB and apply jsonb_array_length
 				expr = cb.function("jsonb_object_field", Object.class, expr, cb.literal(field));
-				return cb.coalesce(cb.function("jsonb_array_length", Integer.class, expr), cb.literal(0));
+				return new JsonbValue(cb.function("safe_jsonb_array_length", Integer.class, expr), false, true);
+			} else if (i == parts.length - 1 && numericSort) {
+				// Last field with numeric sort - get as JSONB to check for a JSON number
+				expr = cb.function("jsonb_object_field", Object.class, expr, cb.literal(field));
 			} else if (i == parts.length - 1) {
 				// Last field - get as text
 				expr = cb.function("jsonb_object_field_text", String.class, expr, cb.literal(field));
@@ -103,11 +141,8 @@ public class SortSpec {
 				expr = cb.function("jsonb_object_field", Object.class, expr, cb.literal(field));
 			}
 		}
-		if (numericSort) {
-			return cb.coalesce(cb.function("cast_to_numeric", Double.class, expr), cb.literal(0.0));
-		} else {
-			return cb.coalesce(expr, cb.literal(""));
-		}
+		if (numericSort) return new JsonbValue(cb.function("safe_numeric", Double.class, expr), true, false);
+		return new JsonbValue(expr, false, false);
 	}
 
 	/**
@@ -135,6 +170,92 @@ public class SortSpec {
 			}
 			if (!property.matches(Tag.REGEX)) return null;
 			return new TagValueSort(function, property);
+		}
+	}
+
+	/**
+	 * A filter on the value of a tag in the tags array, e.g. "tags->plugin/progress:num/50".
+	 * The filter is a tag value sort column followed by "/" and the value.
+	 * Tag values are a single tag segment, so the value is always after the last "/".
+	 *
+	 * @param sort the tag value expression to compare
+	 * @param value the value to compare against: a String for tag_value, or a BigDecimal
+	 *              of the number or duration in seconds for tag_value_num and tag_value_dur
+	 */
+	public record TagValueFilter(TagValueSort sort, Object value) {
+		public static final String VALUE_REGEX = "[a-z0-9]+(?:[.][a-z0-9]+)*";
+		public static final String REGEX = "tags->" + Tag.REGEX + "(?::num|:dur)?/" + VALUE_REGEX;
+		/**
+		 * The longest valid filter: "tags->", a tag, ":num", "/" and a value as long as a tag.
+		 */
+		public static final int LEN = 6 + TAG_LEN + 4 + 1 + TAG_LEN;
+
+		/**
+		 * Parses "tags->{tag}/{value}", "tags->{tag}:num/{number}" or "tags->{tag}:dur/{duration}".
+		 *
+		 * @return the parsed filter, or null if the filter is not a valid tag value filter
+		 */
+		public static TagValueFilter parse(String filter) {
+			if (filter == null || !filter.startsWith("tags->")) return null;
+			var i = filter.lastIndexOf('/');
+			if (i < 0) return null;
+			var sort = TagValueSort.parse(filter.substring(0, i));
+			var value = filter.substring(i + 1);
+			if (sort == null || !value.matches(VALUE_REGEX)) return null;
+			return switch (sort.function()) {
+				case "tag_value_num" -> value.matches("[0-9]{1,30}([.][0-9]{1,30})?")
+					? new TagValueFilter(sort, new BigDecimal(value))
+					: null;
+				case "tag_value_dur" -> {
+					var seconds = isoDurationSeconds(value);
+					yield seconds == null ? null : new TagValueFilter(sort, BigDecimal.valueOf(seconds));
+				}
+				default -> new TagValueFilter(sort, value);
+			};
+		}
+	}
+
+	/**
+	 * A filter on plugin data, e.g. "plugins->plugin/progress->percent:num/50" or "plugins->plugin/score:num/10".
+	 * The filter is a plugin sort column followed by "/" and the value. Plugin data may be a primitive,
+	 * so fields are optional.
+	 * Like tag value filters, the value is always after the last "/", so it cannot contain "/".
+	 * Values cannot contain "->" so a missing value is not mistaken for a field.
+	 * Values cannot contain "," since Spring splits a single list parameter on commas.
+	 *
+	 * @param plugin the plugin tag
+	 * @param property the JSONB sort property, e.g. "plugins->plugin/progress->percent:num"
+	 * @param value the value to compare against: a String, or a BigDecimal for :num and :len
+	 */
+	public record PluginValueFilter(String plugin, String property, Object value) {
+		public static final String FIELD_REGEX = "(?:[A-Za-z0-9_$-]+(?:\\[[0-9]{1,9}\\])?|\\[[0-9]{1,9}\\])";
+		public static final String COLUMN_REGEX = "plugins->" + Plugin.REGEX + "(?:->" + FIELD_REGEX + ")*(?::num|:len)?";
+		public static final String VALUE_REGEX = "(?:(?!->)[^/,])+";
+		public static final String REGEX = COLUMN_REGEX + "/" + VALUE_REGEX;
+		public static final int LEN = 1024;
+		private static final Pattern PATTERN = Pattern.compile("(" + COLUMN_REGEX + ")/(" + VALUE_REGEX + ")");
+
+		/**
+		 * Parses "plugins->{plugin}[->{field}...][:num|:len]/{value}".
+		 *
+		 * @return the parsed filter, or null if the filter is not a valid plugin value filter
+		 */
+		public static PluginValueFilter parse(String filter) {
+			if (filter == null) return null;
+			var m = PATTERN.matcher(filter);
+			if (!m.matches()) return null;
+			var property = m.group(1);
+			var value = m.group(2);
+			var plugin = property.substring("plugins->".length()).split("->", 2)[0].replaceFirst(":(?:num|len)$", "");
+			if (property.endsWith(":num")) {
+				if (!value.matches("-?[0-9]{1,30}([.][0-9]{1,30})?")) return null;
+				return new PluginValueFilter(plugin, property, new BigDecimal(value));
+			}
+			if (property.endsWith(":len")) {
+				if (!value.matches("[0-9]{1,9}")) return null;
+				return new PluginValueFilter(plugin, property, new BigDecimal(value));
+			}
+			return new PluginValueFilter(plugin, property, value);
 		}
 	}
 
