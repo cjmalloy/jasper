@@ -21,6 +21,7 @@ import org.springframework.scheduling.TaskScheduler;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.io.IOException;
+import java.net.ConnectException;
 import java.time.Instant;
 import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
@@ -114,6 +115,28 @@ class TunnelClientTest {
 			eq(remote.getOrigin()),
 			contains("Error creating SSH tunnel"),
 			contains("Session is being closed"));
+		verify(tagger, never()).attachError(anyString(), anyString(), anyString(), anyString());
+	}
+
+	@Test
+	void connectionRefusedAddsLogWithoutError() throws Exception {
+		var failure = new SshException("DefaultConnectFuture[test@example.com/127.0.0.1:22]: Failed (ConnectException) to execute: Connection refused",
+			new ConnectException("Connection refused"));
+		when(sshClient.connect(anyString(), anyString(), anyInt())).thenThrow(failure);
+
+		try (MockedStatic<SshClient> clients = mockStatic(SshClient.class)) {
+			clients.when(SshClient::setUpDefaultClient).thenReturn(sshClient);
+
+			tunnelClient.proxy(remote, uri -> fail("Proxy request should not run"));
+			assertThatThrownBy(() -> tunnelClient.reserveProxy(remote))
+				.isInstanceOf(TunnelCooldownException.class);
+		}
+
+		verify(tagger).attachLogs(
+			eq(remote.getUrl()),
+			eq(remote.getOrigin()),
+			contains("Error creating SSH tunnel"),
+			contains("Connection refused"));
 		verify(tagger, never()).attachError(anyString(), anyString(), anyString(), anyString());
 	}
 

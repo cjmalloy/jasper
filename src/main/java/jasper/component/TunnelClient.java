@@ -22,6 +22,8 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import java.io.ByteArrayInputStream;
+import java.net.ConnectException;
+import java.net.NoRouteToHostException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.time.Duration;
@@ -296,6 +298,8 @@ public class TunnelClient {
 					logger.debug("{} Error creating tunnel SSH client", origin, e);
 					if (e instanceof SshException &&
 						getThrowableList(e).stream().noneMatch(cause ->
+							cause instanceof ConnectException ||
+							cause instanceof NoRouteToHostException ||
 							cause.getMessage() != null && (
 								cause.getMessage().contains("Broken pipe") ||
 								cause.getMessage().contains("Session is being closed")))) throw new RuntimeException(e);
