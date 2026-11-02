@@ -104,8 +104,17 @@ public class SQLiteDialect extends org.hibernate.community.dialect.SQLiteDialect
 		// jsonb_array_element: get element at index from a JSON array as JSON
 		// Uses -> so scalar elements stay valid JSON (json_extract would unquote strings)
 		functionRegistry.registerPattern("jsonb_array_element", "((?1) -> ('$[' || ?2 || ']'))", jsonb);
-		// jsonb_array_element_text: get element at index from a JSON array
-		functionRegistry.registerPattern("jsonb_array_element_text", "json_extract(?1, '$[' || ?2 || ']')", string);
+		// jsonb_array_element_text: get element at index from a JSON array as text (equivalent to PostgreSQL's jsonb_array_element_text)
+		// Same normalization as jsonb_object_field_text: "true"/"false" for booleans and numbers as TEXT
+		functionRegistry.registerPattern(
+			"jsonb_array_element_text",
+			"(CASE " +
+				"WHEN json_type(?1, '$[' || ?2 || ']') IN ('true', 'false') " +
+					"THEN json_type(?1, '$[' || ?2 || ']') " +
+				"ELSE CAST(json_extract(?1, '$[' || ?2 || ']') AS TEXT) " +
+			"END)",
+			string
+		);
 		// string_to_array: in SQLite just pass through the comma-separated string (used with jsonb_exists_any)
 		functionRegistry.registerPattern("string_to_array", "(?1 || SUBSTR('', 1, 0 * LENGTH(?2)))", string);
 		// origin_nesting: returns 0 for blank or '@', otherwise count of '.' + 1

@@ -1997,6 +1997,20 @@ public class RefServiceIT {
 	}
 
 	@Test
+	void testPluginValueIndexedTerminalFilter() throws JsonProcessingException {
+		refWithUrlPlugins("https://example.com/1", "{\"plugin/test\": {\"items\": [true]}}");
+		refWithUrlPlugins("https://example.com/2", "{\"plugin/test\": {\"items\": [5]}}");
+		refWithUrlPlugins("https://example.com/3", "{\"plugin/test\": {\"items\": [\"b\"]}}");
+
+		assertThat(filteredUrls(RefFilter.builder().pluginAfter(List.of("plugins->plugin/test->items[0]:num/0")).build()))
+			.containsExactly("https://example.com/2");
+		assertThat(filteredUrls(RefFilter.builder().pluginAfter(List.of("plugins->plugin/test->items[0]/3")).build()))
+			.containsExactly("https://example.com/1", "https://example.com/2", "https://example.com/3");
+		assertThat(filteredUrls(RefFilter.builder().pluginAfter(List.of("plugins->plugin/test->items[0]/s")).build()))
+			.containsExactly("https://example.com/1");
+	}
+
+	@Test
 	void testPluginValueFilterWrongType() throws JsonProcessingException {
 		refWithUrlPlugins("https://example.com/1", "{\"plugin/test\": {\"size\": \"big\", \"items\": \"none\", \"groups\": [null]}}");
 		refWithUrlPlugins("https://example.com/2", "{\"plugin/test\": {\"size\": 5, \"items\": [1, 2], \"groups\": [[1]]}}");
