@@ -65,6 +65,10 @@ class ApiSpecTest {
 	 * Controller methods whose springdoc success responses do not match the status they return.
 	 */
 	static List<String> annotated = new ArrayList<>();
+	/**
+	 * Controller methods returning 200 without a body, or 204 with a body.
+	 */
+	static List<String> noContent = new ArrayList<>();
 
 	@BeforeAll
 	static void init() throws IOException, ClassNotFoundException {
@@ -114,6 +118,9 @@ class ApiSpecTest {
 								var rs = AnnotatedElementUtils.findMergedAnnotation(method, ResponseStatus.class);
 								var success = String.valueOf(rs == null ? 200 : rs.code().value());
 								status.computeIfAbsent(key, k -> new TreeSet<>()).add(success);
+								if (success.equals(void.class.equals(method.getReturnType()) ? "200" : "204")) {
+									noContent.add(type.getSimpleName() + "." + method.getName() + ": returns " + method.getReturnType().getSimpleName() + " code " + success);
+								}
 								var docs = AnnotatedElementUtils.findMergedAnnotation(method, ApiResponses.class);
 								if (docs == null) docs = AnnotatedElementUtils.findMergedAnnotation(type, ApiResponses.class);
 								if (docs != null) {
@@ -191,6 +198,11 @@ class ApiSpecTest {
 	@Test
 	void testAnnotatedSuccessStatus() {
 		assertThat(annotated).isEmpty();
+	}
+
+	@Test
+	void testNoContent() {
+		assertThat(noContent).isEmpty();
 	}
 
 	@Test

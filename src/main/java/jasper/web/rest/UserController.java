@@ -150,12 +150,11 @@ public class UserController {
 	}
 
 	@ApiResponses({
-		@ApiResponse(responseCode = "204"),
+		@ApiResponse(responseCode = "200"),
 		@ApiResponse(responseCode = "404", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
 		@ApiResponse(responseCode = "409", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
 	})
 	@PostMapping("keygen")
-	@ResponseStatus(HttpStatus.NO_CONTENT)
 	Instant keygen(
 			@RequestParam @Length(max = QTAG_LEN) @Pattern(regexp = User.QTAG_REGEX) String tag
 	) throws NoSuchAlgorithmException, IOException {
