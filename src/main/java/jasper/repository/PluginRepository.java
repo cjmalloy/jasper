@@ -59,7 +59,7 @@ public interface PluginRepository extends JpaRepository<Plugin, TagId>, Qualifie
 	@Query("""
 		FROM Plugin AS p
 		WHERE p.origin = :origin
-			AND COALESCE(CAST(jsonb_object_field(p.config, 'disabled') as boolean), false) = false
+			AND COALESCE(jsonb_object_field_text(p.config, 'disabled'), '') != 'true'
 			AND p.tag = :tag""")
 	Optional<Plugin> findByTagAndOrigin(String tag, String origin);
 }

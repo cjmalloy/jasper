@@ -110,7 +110,7 @@ public class SortSpec {
 				if (indexStr == null || !indexStr.matches("\\d+")) throw new IllegalArgumentException("Invalid array index in field: '" + field + "'");
 				var index = Integer.parseInt(indexStr);
 				if (!fieldName.isEmpty()) {
-					expr = cb.function("jsonb_object_field_json", Object.class, expr, cb.literal(fieldName));
+					expr = cb.function("jsonb_object_field", Object.class, expr, cb.literal(fieldName));
 				}
 				if (i < parts.length - 1) {
 					// Intermediate element - keep as JSONB for further traversal
@@ -125,14 +125,14 @@ public class SortSpec {
 				}
 			} else if (i == parts.length - 1 && lengthSort) {
 				// Last field with length sort - get as JSONB and apply jsonb_array_length
-				expr = cb.function("jsonb_object_field_json", Object.class, expr, cb.literal(field));
+				expr = cb.function("jsonb_object_field", Object.class, expr, cb.literal(field));
 				return new JsonbValue(cb.function("safe_jsonb_array_length", Integer.class, expr), false, true);
 			} else if (i == parts.length - 1) {
 				// Last field - get as text
 				expr = cb.function("jsonb_object_field_text", String.class, expr, cb.literal(field));
 			} else {
 				// Intermediate field - get as JSONB object
-				expr = cb.function("jsonb_object_field_json", Object.class, expr, cb.literal(field));
+				expr = cb.function("jsonb_object_field", Object.class, expr, cb.literal(field));
 			}
 		}
 		if (numericSort) return new JsonbValue(cb.function("safe_numeric", Double.class, expr), true, false);
