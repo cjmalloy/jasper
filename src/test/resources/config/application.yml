@@ -63,6 +63,7 @@ spring:
       hibernate.query.fail_on_pagination_over_collection_fetch: true
       hibernate.format_sql: true
       hibernate.types.print.banner: false
+      hibernate.session_factory.statement_inspector: jasper.SqlCapture
   liquibase:
     analytics-enabled: false
     contexts: test
