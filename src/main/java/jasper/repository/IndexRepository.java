@@ -25,6 +25,10 @@ public interface IndexRepository {
 	void buildPublished();
 	void dropModified();
 	void buildModified();
+	void dropNewResponse();
+	void buildNewResponse();
+	void dropNewReaction();
+	void buildNewReaction();
 	/**
 	 * Build indexes for the given tag value sorts and drop any other hot tag indexes.
 	 *

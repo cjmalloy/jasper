@@ -108,6 +108,26 @@ public class IndexRepositoryImplSqlite implements IndexRepository {
 	}
 
 	@Override
+	public void dropNewResponse() {
+		em.createNativeQuery("DROP INDEX IF EXISTS ref_new_response_index").executeUpdate();
+	}
+
+	@Override
+	public void buildNewResponse() {
+		em.createNativeQuery("CREATE INDEX IF NOT EXISTS ref_new_response_index ON ref (COALESCE(" + field("newResponse") + ", ''))").executeUpdate();
+	}
+
+	@Override
+	public void dropNewReaction() {
+		em.createNativeQuery("DROP INDEX IF EXISTS ref_new_reaction_index").executeUpdate();
+	}
+
+	@Override
+	public void buildNewReaction() {
+		em.createNativeQuery("CREATE INDEX IF NOT EXISTS ref_new_reaction_index ON ref (COALESCE(" + field("newReaction") + ", ''))").executeUpdate();
+	}
+
+	@Override
 	public void dropIgnored() {
 		em.createNativeQuery("DROP INDEX IF EXISTS ref_ignored_index").executeUpdate();
 	}
