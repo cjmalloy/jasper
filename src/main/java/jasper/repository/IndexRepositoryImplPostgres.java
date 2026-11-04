@@ -198,13 +198,15 @@ public class IndexRepositoryImplPostgres implements IndexRepository {
 					logger.warn("Invalid hot plugin index: {}", hotPlugin);
 					continue;
 				}
-				wanted.put(hotPluginIndexName(column), column);
+				wanted.put(hotPluginIndexName(column), hotPluginExpression(column));
+				wanted.put(hotPluginSortIndexName(column), hotPluginSortExpression(column));
 			}
 		}
 		@SuppressWarnings("unchecked")
 		List<String> existing = em.createNativeQuery("""
 				SELECT indexname FROM pg_indexes
-				WHERE schemaname = current_schema() AND tablename = 'ref' AND indexname LIKE 'ref\\_hotp\\_%'""")
+				WHERE schemaname = current_schema() AND tablename = 'ref'
+					AND (indexname LIKE 'ref\\_hotp\\_%' OR indexname LIKE 'ref\\_hotps\\_%')""")
 			.getResultList();
 		for (var name : existing) {
 			if (wanted.containsKey(name)) continue;
@@ -213,8 +215,8 @@ public class IndexRepositoryImplPostgres implements IndexRepository {
 		}
 		for (var e : wanted.entrySet()) {
 			if (existing.contains(e.getKey())) continue;
-			logger.info("Building hot plugin index {} for {}", e.getKey(), e.getValue());
-			em.createNativeQuery("CREATE INDEX IF NOT EXISTS " + e.getKey() + " ON ref ((" + hotPluginExpression(e.getValue()) + "))").executeUpdate();
+			logger.info("Building hot plugin index {} on {}", e.getKey(), e.getValue());
+			em.createNativeQuery("CREATE INDEX IF NOT EXISTS " + e.getKey() + " ON ref ((" + e.getValue() + "))").executeUpdate();
 		}
 	}
 
@@ -237,6 +239,28 @@ public class IndexRepositoryImplPostgres implements IndexRepository {
 	 * The column must be validated with {@link #hotPluginColumn}, so plugin tags and fields are safe to inline.
 	 */
 	static String hotPluginExpression(String column) {
+		var value = hotPluginValue(column);
+		if (column.endsWith(":len")) return "(" + value + ")::numeric";
+		return value;
+	}
+
+	/**
+	 * The same SQL that {@link jasper.repository.spec.SortSpec#createJsonbSortExpression} renders for a plugin sort
+	 * with the PostgreSQL dialect, so the planner can match the index to plugin sorts.
+	 * Missing values default to 0 for lengths, 0.0 for numbers and '' for text, the same as the sort.
+	 * The column must be validated with {@link #hotPluginColumn}, so plugin tags and fields are safe to inline.
+	 */
+	static String hotPluginSortExpression(String column) {
+		var value = hotPluginValue(column);
+		if (column.endsWith(":len")) return "COALESCE(" + value + ", 0)";
+		if (column.endsWith(":num")) return "COALESCE(" + value + ", 0.0)";
+		return "COALESCE(" + value + ", '')";
+	}
+
+	/**
+	 * The same SQL that {@link jasper.repository.spec.SortSpec#createJsonbValue} renders with the PostgreSQL dialect.
+	 */
+	private static String hotPluginValue(String column) {
 		var numeric = column.endsWith(":num");
 		var length = column.endsWith(":len");
 		if (numeric || length) column = column.substring(0, column.length() - 4);
@@ -251,13 +275,13 @@ public class IndexRepositoryImplPostgres implements IndexRepository {
 					expr = "jsonb_array_element(" + expr + ", " + m.group(2) + ")";
 				} else if (length) {
 					var array = "jsonb_array_element(" + expr + ", " + m.group(2) + ")";
-					return "((CASE WHEN jsonb_typeof(" + array + ") = 'array' THEN jsonb_array_length(" + array + ") END))::numeric";
+					return "(CASE WHEN jsonb_typeof(" + array + ") = 'array' THEN jsonb_array_length(" + array + ") END)";
 				} else {
 					expr = "jsonb_array_element" + (numeric ? "" : "_text") + "(" + expr + ", " + m.group(2) + ")";
 				}
 			} else if (last && length) {
 				var array = "(" + expr + ")->('" + parts[i] + "')";
-				return "((CASE WHEN jsonb_typeof(" + array + ") = 'array' THEN jsonb_array_length(" + array + ") END))::numeric";
+				return "(CASE WHEN jsonb_typeof(" + array + ") = 'array' THEN jsonb_array_length(" + array + ") END)";
 			} else if (last) {
 				expr = "(" + expr + ")->" + (numeric ? "" : ">") + "('" + parts[i] + "')";
 			} else {
@@ -274,5 +298,13 @@ public class IndexRepositoryImplPostgres implements IndexRepository {
 	static String hotPluginIndexName(String column) {
 		var hash = md5DigestAsHex(column.getBytes(StandardCharsets.UTF_8)).substring(0, 8);
 		return "ref_hotp_" + truncate(column.substring("plugins->".length()).toLowerCase().replaceAll("[^a-z0-9]+", "_"), 40) + "_" + hash;
+	}
+
+	/**
+	 * Index name for a hot plugin sort, unique per column and within the 63 character limit.
+	 */
+	static String hotPluginSortIndexName(String column) {
+		var hash = md5DigestAsHex(column.getBytes(StandardCharsets.UTF_8)).substring(0, 8);
+		return "ref_hotps_" + truncate(column.substring("plugins->".length()).toLowerCase().replaceAll("[^a-z0-9]+", "_"), 40) + "_" + hash;
 	}
 }
