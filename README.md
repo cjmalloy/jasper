@@ -181,11 +181,11 @@ Refs without a value never match. Every filter parameter can be repeated, and al
   lowercase letters and accented letters sort after `z`. Tag values are lowercase ASCII, so tag filters
   are the same on both.
 
-To index a plugin filter on PostgreSQL, add its column to `hotPlugins` in the `_config/index` template config,
+To index a plugin filter or sort on PostgreSQL, add its column to `hotPlugins` in the `_config/index` template config,
 for example `{"hotPlugins": ["plugin/test->size:num", "plugin/test->name", "plugin/test->ids:len"]}`
-(the `plugins->` prefix is optional). Hot plugin indexes are used by `pluginBefore` and `pluginAfter` filters,
-but not by plugin sorts, since sorts treat missing values as `''` or `0`. Hot plugin indexes that are removed
-from the list are dropped. Hot plugins are ignored on SQLite.
+(the `plugins->` prefix is optional). Each hot plugin builds two indexes: one used by `pluginBefore` and
+`pluginAfter` filters, and one used by plugin sorts, since sorts treat missing values as `''` or `0`.
+Hot plugin indexes that are removed from the list are dropped. Hot plugins are ignored on SQLite.
 
 Values cannot contain `,`, since a single parameter is split on commas into a list.
 Invalid filters are rejected with `400 Bad Request`.

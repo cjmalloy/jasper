@@ -32,7 +32,7 @@ public interface IndexRepository {
 	 */
 	void updateHotTags(List<String> hotTags);
 	/**
-	 * Build indexes for the given plugin sort columns and drop any other hot plugin indexes.
+	 * Build filter and sort indexes for the given plugin sort columns and drop any other hot plugin indexes.
 	 *
 	 * @param hotPlugins plugin sort columns, e.g. "plugin/test->size:num"
 	 */
