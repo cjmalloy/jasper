@@ -20,6 +20,8 @@ This release includes changes accumulated since v1.3.0. Features marked *Experim
 * Added filtering Refs by plugin data with `pluginBefore` and `pluginAfter`, using plugin sort columns, e.g. `pluginAfter=plugins->_plugin/cache->contentLength:num/1000`. See the [README filtering section](../../README.md#filtering-by-value).
 * Added `hotPlugins` to the `_config/index` template to index plugin filters and sorts on PostgreSQL, e.g. `{"hotPlugins": ["plugin/test->size:num"]}`. Removing a hot plugin drops its index.
 * Added `newResponse` and `newReaction` to the `_config/index` template (both enabled by default) to index sorting Refs by `metadata->newResponse` and `metadata->newReaction`.
+* Added `hotResponses` and `hotRemoteResponses` to the `_config/index` template to index response counts on PostgreSQL, e.g. `{"hotRemoteResponses": ["plugin/comment"]}`, for sorting by `metadata->plugins->plugin/comment` or `metadata->remotePlugins->plugin/comment` and filtering with `pluginResponse` or `remotePluginResponse`. Removing a plugin drops its index.
+* Added sorting Refs by `metadata->remotePlugins->{plugin}` (response counts from all origins), and the `remotePluginResponse` and `noRemotePluginResponse` filters. Response counts now sort numerically without the `:num` suffix.
 * Sorting by plugin data with `:num` or `:len` no longer fails on PostgreSQL when a value is not a number or not an array; those values sort as `0`.
 * Request parameters that fail validation (for example a `query` with invalid characters) now return `400 Bad Request` instead of `500 Internal Server Error`.
 

@@ -27,7 +27,7 @@ public class SortSpec {
 	 * Only these fields can be accessed under metadata->.
 	 */
 	private static final Set<String> ALLOWED_METADATA_FIELDS = Set.of(
-		"modified", "newResponse", "newReaction", "expandedTags", "responses", "internalResponses", "plugins"
+		"modified", "newResponse", "newReaction", "expandedTags", "responses", "internalResponses", "plugins", "remotePlugins"
 	);
 
 	/**
@@ -39,8 +39,10 @@ public class SortSpec {
 
 	/**
 	 * Metadata fields that should automatically use :num suffix (numeric fields).
+	 * Response counts by plugin, e.g. "metadata->plugins->plugin/comment".
 	 */
 	private static final Set<String> METADATA_NUM_FIELDS = Set.of(
+		"plugins", "remotePlugins"
 	);
 
 	/**
@@ -49,7 +51,7 @@ public class SortSpec {
 	 * Uses COALESCE to handle nulls (0 for numeric/length, '' for string).
 	 *
 	 * For metadata fields, automatically applies the correct suffix and restricts access
-	 * to only allowed fields: modified, newResponse, newReaction, expandedTags, responses, internalResponses, plugins.
+	 * to only allowed fields: modified, newResponse, newReaction, expandedTags, responses, internalResponses, plugins, remotePlugins.
 	 *
 	 * @param root the query root
 	 * @param cb the criteria builder

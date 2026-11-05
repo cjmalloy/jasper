@@ -41,6 +41,20 @@ public interface IndexRepository {
 	 * @param hotPlugins plugin sort columns, e.g. "plugin/test->size:num"
 	 */
 	void updateHotPlugins(List<String> hotPlugins);
+	/**
+	 * Build indexes on the local response counts (metadata->plugins) of the given plugins
+	 * and drop any other hot response indexes.
+	 *
+	 * @param hotResponses plugin tags, e.g. "plugin/comment"
+	 */
+	void updateHotResponses(List<String> hotResponses);
+	/**
+	 * Build indexes on the response counts from all origins (metadata->remotePlugins) of the given plugins
+	 * and drop any other hot remote response indexes.
+	 *
+	 * @param hotRemoteResponses plugin tags, e.g. "plugin/comment"
+	 */
+	void updateHotRemoteResponses(List<String> hotRemoteResponses);
 	void dropIgnored();
 	void buildIgnored();
 	void dropCascade();

@@ -2,6 +2,7 @@ package jasper.repository;
 
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
+import jasper.domain.Plugin;
 import jasper.repository.spec.SortSpec.PluginValueFilter;
 import jasper.repository.spec.SortSpec.TagValueSort;
 import org.slf4j.Logger;
@@ -242,6 +243,68 @@ public class IndexRepositoryImplPostgres implements IndexRepository {
 			logger.info("Building hot plugin index {} on {}", e.getKey(), e.getValue());
 			em.createNativeQuery("CREATE INDEX IF NOT EXISTS " + e.getKey() + " ON ref ((" + e.getValue() + "))").executeUpdate();
 		}
+	}
+
+	@Override
+	public void updateHotResponses(List<String> hotResponses) {
+		updateHotResponses("plugins", hotResponses);
+	}
+
+	@Override
+	public void updateHotRemoteResponses(List<String> hotRemoteResponses) {
+		updateHotResponses("remotePlugins", hotRemoteResponses);
+	}
+
+	private void updateHotResponses(String field, List<String> plugins) {
+		var wanted = new HashMap<String, String>();
+		if (plugins != null) {
+			for (var plugin : plugins) {
+				if (plugin == null || !plugin.matches(Plugin.REGEX)) {
+					logger.warn("Invalid hot response index on {}: {}", field, plugin);
+					continue;
+				}
+				wanted.put(hotResponseIndexName(field, plugin), hotResponseExpression(field, plugin));
+			}
+		}
+		var prefix = hotResponseIndexPrefix(field).replace("_", "\\_");
+		@SuppressWarnings("unchecked")
+		List<String> existing = em.createNativeQuery("""
+				SELECT indexname FROM pg_indexes
+				WHERE schemaname = current_schema() AND tablename = 'ref' AND indexname LIKE '""" + prefix + "%'")
+			.getResultList();
+		for (var name : existing) {
+			if (wanted.containsKey(name)) continue;
+			logger.info("Dropping hot response index {}", name);
+			em.createNativeQuery("DROP INDEX IF EXISTS " + name).executeUpdate();
+		}
+		for (var e : wanted.entrySet()) {
+			if (existing.contains(e.getKey())) continue;
+			logger.info("Building hot response index {} on {}", e.getKey(), e.getValue());
+			em.createNativeQuery("CREATE INDEX IF NOT EXISTS " + e.getKey() + " ON ref ((" + e.getValue() + "))").executeUpdate();
+		}
+	}
+
+	/**
+	 * The same SQL that {@link jasper.repository.spec.SortSpec#createJsonbSortExpression} renders for a
+	 * "metadata->plugins->{plugin}" or "metadata->remotePlugins->{plugin}" sort with the PostgreSQL dialect,
+	 * which is also used by the response filters, so the planner can match the index to both.
+	 * The plugin must match {@link Plugin#REGEX}, so it is safe to inline.
+	 */
+	static String hotResponseExpression(String field, String plugin) {
+		var value = "((metadata)->('" + field + "'))->('" + plugin + "')";
+		return "COALESCE((CASE WHEN jsonb_typeof(" + value + ") = 'number' THEN (" + value + ")::numeric END), 0.0)";
+	}
+
+	private static String hotResponseIndexPrefix(String field) {
+		return "plugins".equals(field) ? "ref_hotr_" : "ref_hotrr_";
+	}
+
+	/**
+	 * Index name for a hot response count, unique per field and plugin and within the 63 character limit.
+	 */
+	static String hotResponseIndexName(String field, String plugin) {
+		var hash = md5DigestAsHex((field + ":" + plugin).getBytes(StandardCharsets.UTF_8)).substring(0, 8);
+		return hotResponseIndexPrefix(field) + truncate(plugin.replaceAll("[^a-z0-9]+", "_"), 40) + "_" + hash;
 	}
 
 	/**

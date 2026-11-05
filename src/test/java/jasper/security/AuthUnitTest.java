@@ -1016,6 +1016,32 @@ public class AuthUnitTest {
 	}
 
 	@Test
+	void testCanReadQuery_PluginResponsePrivate() {
+		var user = getUser("+user/test");
+		user.getTagReadAccess().add("_plugin/secret");
+		var auth = getAuth(user, VIEWER);
+
+		assertThat(auth.canReadQuery(RefFilter.builder().pluginResponse(List.of("_plugin/secret")).build())).isTrue();
+		assertThat(auth.canReadQuery(RefFilter.builder().noPluginResponse(List.of("_plugin/secret")).build())).isTrue();
+		assertThat(auth.canReadQuery(RefFilter.builder().remotePluginResponse(List.of("_plugin/secret")).build())).isTrue();
+		assertThat(auth.canReadQuery(RefFilter.builder().noRemotePluginResponse(List.of("_plugin/secret")).build())).isTrue();
+	}
+
+	@Test
+	void testCanReadQuery_PluginResponsePrivateFailed() {
+		var user = getUser("+user/test");
+		var auth = getAuth(user, USER);
+
+		assertThat(auth.canReadQuery(RefFilter.builder().pluginResponse(List.of("plugin/comment")).build())).isTrue();
+		assertThat(auth.canReadQuery(RefFilter.builder().remotePluginResponse(List.of("plugin/comment")).build())).isTrue();
+		assertThat(auth.canReadQuery(RefFilter.builder().pluginResponse(List.of("_plugin/secret")).build())).isFalse();
+		assertThat(auth.canReadQuery(RefFilter.builder().noPluginResponse(List.of("_plugin/secret")).build())).isFalse();
+		assertThat(auth.canReadQuery(RefFilter.builder().remotePluginResponse(List.of("_plugin/secret")).build())).isFalse();
+		assertThat(auth.canReadQuery(RefFilter.builder().noRemotePluginResponse(List.of("_plugin/secret")).build())).isFalse();
+		assertThat(auth.canReadQuery(RefFilter.builder().query("custom").remotePluginResponse(List.of("plugin/comment", "_plugin/secret")).build())).isFalse();
+	}
+
+	@Test
 	void testFilterSort_PrivatePluginWithAccess() {
 		var user = getUser("+user/test");
 		user.getTagReadAccess().add("_custom");
@@ -1064,6 +1090,31 @@ public class AuthUnitTest {
 
 		var pageable = PageRequest.of(0, 20, Sort.by("metadata->plugins->_custom->field"));
 		assertThat(auth.pageable(pageable).getSort().isUnsorted())
+			.isTrue();
+	}
+
+	@Test
+	void testFilterSort_MetadataRemotePrivatePluginWithAccess() {
+		var user = getUser("+user/test");
+		user.getTagReadAccess().add("_plugin/secret");
+		var auth = getAuth(user, VIEWER);
+
+		assertThat(auth.pageable(PageRequest.of(0, 20, Sort.by("metadata->remotePlugins->_plugin/secret"))).getSort().isSorted())
+			.isTrue();
+		assertThat(auth.pageable(PageRequest.of(0, 20, Sort.by("metadata->remotePlugins->_plugin/secret:num"))).getSort().isSorted())
+			.isTrue();
+	}
+
+	@Test
+	void testFilterSort_MetadataRemotePrivatePluginWithoutAccess() {
+		var user = getUser("+user/test");
+		var auth = getAuth(user, USER);
+
+		assertThat(auth.pageable(PageRequest.of(0, 20, Sort.by("metadata->remotePlugins->_plugin/secret"))).getSort().isUnsorted())
+			.isTrue();
+		assertThat(auth.pageable(PageRequest.of(0, 20, Sort.by("metadata->remotePlugins->_plugin/secret:num"))).getSort().isUnsorted())
+			.isTrue();
+		assertThat(auth.pageable(PageRequest.of(0, 20, Sort.by("metadata->remotePlugins->plugin/comment:num"))).getSort().isSorted())
 			.isTrue();
 	}
 
