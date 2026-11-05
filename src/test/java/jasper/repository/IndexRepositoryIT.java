@@ -790,4 +790,21 @@ public class IndexRepositoryIT {
 			}
 		}
 	}
+
+	@Test
+	@EnabledIf(expression = SQLITE, loadContext = true)
+	@Transactional
+	void testUserResponseSemiJoinIndexesUsedSqlite() {
+		var tagLike = "%\"plugin/user/read/%";
+		for (var filter : List.of(
+			RefFilter.builder().userResponse(List.of("plugin/user/read")).build(),
+			RefFilter.builder().noUserResponse(List.of("plugin/user/read")).build())) {
+			for (var origin : List.of("", "@other")) {
+				var params = origin.isEmpty() ? new Object[]{ tagLike } : new Object[]{ origin, origin + ".%", tagLike };
+				var plan = explainFilter(filter.spec("+user/tester", origin), true, params);
+				assertThat(plan).as(plan).doesNotContain("SCAN r2_0");
+				assertThat(plan).as(plan).contains("SEARCH r2_0 USING INDEX sqlite_autoindex_ref_1 (url>? AND url<?)");
+			}
+		}
+	}
 }

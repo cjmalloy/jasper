@@ -63,6 +63,23 @@ public class PostgreSQLDialect extends org.hibernate.dialect.PostgreSQLDialect {
 				appender.appendSql(")");
 			}
 		});
+		// url_prefix(url, like pattern, glob pattern): the LIKE pattern is escaped with a backslash and can use a text_pattern_ops index
+		functionRegistry.register("url_prefix", new AbstractSqmSelfRenderingFunctionDescriptor(
+			"url_prefix",
+			FunctionKind.NORMAL,
+			exactly(3),
+			invariant(bool),
+			null
+		) {
+			@Override
+			public void render(SqlAppender appender, List<? extends SqlAstNode> args, ReturnableType<?> type, SqlAstTranslator<?> translator) {
+				appender.appendSql("(");
+				translator.render(args.get(0), SqlAstNodeRenderingMode.DEFAULT);
+				appender.appendSql(" LIKE ");
+				translator.render(args.get(1), SqlAstNodeRenderingMode.DEFAULT);
+				appender.appendSql(" ESCAPE '\\')");
+			}
+		});
 		functionRegistry.registerPattern("jsonb_object_field", "(?1)->(?2)", jsonb);
 		functionRegistry.registerPattern("jsonb_object_field_text", "(?1)->>(?2)", string);
 		functionRegistry.registerPattern("jsonb_set", "jsonb_set(?1, ?2, ?3, ?4)", jsonb);

@@ -196,19 +196,62 @@ same origin and `metadata->remotePlugins->{plugin}` counts responses from all or
 plugin using `pluginResponse` and `noPluginResponse` (local counts) or `remotePluginResponse` and
 `noRemotePluginResponse` (counts from all origins). Every one of these parameters can be repeated.
 
+`pluginBefore` and `pluginAfter` also take response count thresholds:
+`metadata->plugins->{plugin}[:num]/{count}` (local counts) or `metadata->remotePlugins->{plugin}[:num]/{count}`
+(counts from all origins). Counts are always numbers, so `:num` is optional and the value must be a number.
+Refs without responses count as `0`, like the sort. For example,
+`pluginAfter=metadata->remotePlugins->plugin/user/read/10` matches Refs read by more than 10 users.
+
+Response filters on private plugins (`_plugin/...`), including count thresholds, need read access to the plugin
+tag, just like sorts and queries, otherwise the request is rejected with `403 Forbidden`. Mods can filter on any plugin.
+
 To index response count filters and sorts on PostgreSQL, add plugins to `hotResponses` (local counts) or
 `hotRemoteResponses` (counts from all origins) in the `_config/index` template config, for example
-`{"hotResponses": ["plugin/comment"], "hotRemoteResponses": ["plugin/comment"]}`. Hot response indexes that
+`{"hotResponses": ["plugin/comment"], "hotRemoteResponses": ["plugin/comment"]}`. The same index serves
+`pluginResponse`, `noPluginResponse`, count thresholds and the sort. Hot response indexes that
 are removed from the list are dropped. Hot responses are ignored on SQLite.
 
-Metadata dates useful for sorting:
-- `metadata->modified`: updated whenever the responses, internal responses or plugin counts change.
-- `metadata->newResponse`: updated only when a new response is created (not updated), ignoring
-  user urls (`tag:/user?url=...`).
-- `metadata->newReaction`: updated whenever any response is created or updated, including user urls.
+`userResponse` and `noUserResponse` take user plugin tags (`plugin/user/...`) and match Refs that the current user
+has (or has not) responded to with a user URL (`tag:/user/{name}?url=...`, `tag:/+user/...` or `tag:/_user/...`)
+tagged with that plugin, in the origin the user is logged in to. They look up the user's own user URL Refs by URL
+prefix, so they are indexed by the `urlPrefix` index and the primary key on PostgreSQL, and by the primary key on
+SQLite. Other plugins never match `userResponse`.
 
-`newResponse` and `newReaction` are always written with 9 fractional digits so that sorting them
-as text gives chronological order.
+Metadata dates useful for sorting and filtering:
+- `metadata->modified`: updated whenever the responses, internal responses or plugin counts change.
+  Filter with `responseBefore` and `responseAfter` (despite the name, these compare the metadata modified
+  date, as they always have). Indexed by `metadataModified`.
+- `metadata->newResponse`: updated only when a new response is created (not updated), ignoring
+  user urls (`tag:/user?url=...`). Filter with `newResponseBefore` and `newResponseAfter`, for example
+  `newResponseAfter=<now - 1 day>` for Refs active in the last day. Indexed by `newResponse`.
+  Prefer these to `responseBefore` / `responseAfter` to find Refs with recent responses.
+- `metadata->newReaction`: updated whenever any response is created or updated, including user urls.
+  Filter with `newReactionBefore` and `newReactionAfter`. Indexed by `newReaction`.
+
+`newResponse` and `newReaction` are always written with 9 fractional digits so that sorting and filtering them
+as text gives chronological order. `metadata->modified` uses the shortest ISO-8601 form, so values within the
+same second may compare out of order (for example `12:00:00Z` compares after `12:00:00.5Z`). Refs without
+the date never match its filters.
+
+Other date filters: `modifiedBefore` / `modifiedAfter` (indexed by `modified`), `publishedBefore` /
+`publishedAfter` (indexed by `published`) and `createdBefore` / `createdAfter` (indexed by `created`, which also
+serves the default `created` sort).
+
+Length sorts (`tags:len`, `sources:len`, `alternateUrls:len`, `origin:len`, `metadata->responses`,
+`metadata->internalResponses` and `metadata->expandedTags`) can be indexed by adding them to `hotLengths` in the
+`_config/index` template config, for example `{"hotLengths": ["tags", "origin", "metadata->responses"]}` (the
+`:len` suffix is optional). Each entry builds an expression index matching the sort, on PostgreSQL and SQLite.
+Removing an entry drops its index. There are no length filters.
+
+### Filtering Exts, Users, Plugins and Templates
+The page endpoints of Exts, Users, Plugins and Templates (and the Ext count endpoint) take `configBefore` and
+`configAfter`, which work like `pluginBefore` and `pluginAfter` on the JSON columns these entities can be sorted by:
+`{field}->{path}[:num|:len]/{value}`, using the same expression as the sort. Allowed fields are `config` for Exts,
+`external` for Users, and `config`, `defaults` and `schema` for Plugins and Templates. For example,
+`configAfter=config->pinned:len/0` matches Exts with pinned Refs, `configAfter=external->ids:len/1` matches Users with
+more than one external ID, and `configAfter=config->version:num/3` matches Plugins with a version over 3.
+User `external` data is only visible to mods, so only mods can filter or sort Users by it (other users get
+`403 Forbidden` for the filter, and the sort is ignored). These filters are not indexed: these tables are small.
 
 ## Modding
 Jasper allows extensive modification with server reuse. Since changes are done by creating
@@ -761,11 +804,19 @@ and each disabled index is dropped.
 | `fulltext`          | Full text search index.                                                          | `true`        |
 | `published`         | Index on the published date.                                                     | `true`        |
 | `modified`          | Index on the modified date.                                                      | `true`        |
-| `newResponse`       | Index on `metadata->newResponse`, used when sorting by it.                       | `true`        |
-| `newReaction`       | Index on `metadata->newReaction`, used when sorting by it.                       | `true`        |
+| `created`           | Index on the created date, used by the default sort and `createdBefore` / `createdAfter`. | `true` |
+| `metadataModified`  | Index on `metadata->modified`, used when sorting by it and by `responseBefore` / `responseAfter`. | `true` |
+| `newResponse`       | Index on `metadata->newResponse`, used when sorting by it and by `newResponseBefore` / `newResponseAfter`. | `true` |
+| `newReaction`       | Index on `metadata->newReaction`, used when sorting by it and by `newReactionBefore` / `newReactionAfter`. | `true` |
+| `urlPrefix`         | URL prefix index (`text_pattern_ops`) used by `userResponse` / `noUserResponse` (PostgreSQL only). | `true` |
 | `ignored`           | Partial index on Refs marked `ignored` during replication, used by pull batches. | `true`        |
 | `cascade`           | Partial index on Refs waiting for a metadata cascade.                            | `true`        |
 | `regen`             | Partial index on Refs waiting for metadata regeneration (background backfill).   | `true`        |
+| `hotTags`           | Tag value sorts and filters to index (PostgreSQL only), see [Sorting](#sorting). | `[]` (empty) |
+| `hotPlugins`        | Plugin value sorts and filters to index (PostgreSQL only), see [Filtering by value](#filtering-by-value). | `[]` (empty) |
+| `hotResponses`      | Plugins whose local response counts are indexed for sorts and filters (PostgreSQL only). | `[]` (empty) |
+| `hotRemoteResponses` | Plugins whose response counts from all origins are indexed for sorts and filters (PostgreSQL only). | `[]` (empty) |
+| `hotLengths`        | Length sorts to index: `tags`, `sources`, `alternateUrls`, `origin`, `metadata->responses`, `metadata->internalResponses`, `metadata->expandedTags`. | `[]` (empty) |
 
 ### Profiles
 Setting the active profiles is done through the `SPRING_PROFILES_ACTIVE` environment

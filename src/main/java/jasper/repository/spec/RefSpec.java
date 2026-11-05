@@ -205,9 +205,9 @@ public class RefSpec {
 			var url = cb.substring(u.get(Ref_.url), cb.sum(cb.locate(u.get(Ref_.url), cb.literal("?")), cb.literal(5)));
 			sub.select(url).where(
 				cb.or(
-					cb.like(u.get(Ref_.url), cb.literal(likePrefix("tag:/" + name + "?url=")), '\\'),
-					cb.like(u.get(Ref_.url), cb.literal(likePrefix("tag:/+" + name + "?url=")), '\\'),
-					cb.like(u.get(Ref_.url), cb.literal(likePrefix("tag:/_" + name + "?url=")), '\\')),
+					urlPrefix(u, cb, "tag:/" + name + "?url="),
+					urlPrefix(u, cb, "tag:/+" + name + "?url="),
+					urlPrefix(u, cb, "tag:/_" + name + "?url=")),
 				cb.equal(u.get(Ref_.origin), cb.literal(origin)),
 				tagExists(u, cb, plugin),
 				cb.isTrue(cb.function("jsonb_exists", Boolean.class, u.get(Ref_.sources), url)));
@@ -216,13 +216,33 @@ public class RefSpec {
 	}
 
 	/**
+	 * URL starts with the prefix. PostgreSQL uses LIKE (indexed by ref_url_prefix_index), SQLite uses GLOB,
+	 * since its LIKE is case-insensitive and cannot use the primary key.
+	 */
+	private static Predicate urlPrefix(Root<Ref> root, CriteriaBuilder cb, String prefix) {
+		return cb.isTrue(cb.function("url_prefix", Boolean.class, root.get(Ref_.url),
+			cb.literal(likePrefix(prefix)),
+			cb.literal(globPrefix(prefix))));
+	}
+
+	/**
 	 * A LIKE pattern matching strings starting with the prefix, escaped with a backslash.
 	 */
-	private static String likePrefix(String prefix) {
+	static String likePrefix(String prefix) {
 		return prefix
 			.replace("\\", "\\\\")
 			.replace("%", "\\%")
 			.replace("_", "\\_") + "%";
+	}
+
+	/**
+	 * A GLOB pattern matching strings starting with the prefix, escaping special characters with brackets.
+	 */
+	static String globPrefix(String prefix) {
+		return prefix
+			.replace("[", "[[]")
+			.replace("*", "[*]")
+			.replace("?", "[?]") + "*";
 	}
 
 	private static Predicate tagExists(Root<Ref> root, CriteriaBuilder cb, String tag) {
