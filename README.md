@@ -158,54 +158,55 @@ To index a tag value sort on PostgreSQL, add it to `hotTags` in the `_config/ind
 for example `{"hotTags": ["plugin/progress:num", "plugin/duration:dur"]}`. Hot tag indexes that are
 removed from the list are dropped. Hot tags are ignored on SQLite.
 
-### Filtering by value
-Refs can be filtered by the same values they can be sorted on. Each filter is a sort column (including any
-`:num`, `:len` or `:dur` suffix) followed by `/` and the value to compare against, and keeps Refs whose value is
-strictly less than (`Before`) or greater than (`After`) it. Refs without a value never match. Every filter parameter
-can be repeated, and all filters must match. Values cannot contain `,` or `/`. Invalid filters are rejected with
-`400 Bad Request`.
+### Filtering
+Anything you can sort by, you can filter by. Each filter is a sort column (including any `:num`, `:len` or `:dur`
+suffix) followed by `/` and a value:
+* `filterBefore` keeps values strictly less than the value
+* `filterAfter` keeps values strictly greater than the value
+* `filterEquals` keeps values equal to the value
 
-* `tagBefore` and `tagAfter` take `tags->{tag}[:num|:dur]/{value}`. Tag values are a single lowercase tag segment,
-  so numbers cannot be negative and durations must be lowercase (`pt1h`). For example,
-  `tagAfter=tags->plugin/progress:num/9&tagBefore=tags->plugin/progress:num/50` matches `plugin/progress/37/100`,
-  and `tagBefore=tags->plugin/duration:dur/pt1h` matches `plugin/duration/pt10m25s`.
-* `pluginBefore` and `pluginAfter` take `plugins->{plugin}[->{field}...][:num|:len]/{value}`. Fields are optional,
-  since plugin data may be a primitive. Use `:num` to compare numbers (which may be negative) or `:len` to compare
-  array lengths, otherwise values compare as strings. Values of the wrong type never match. For example,
-  `pluginAfter=plugins->_plugin/cache->contentLength:num/1000` matches Refs with a cached file over 1000 bytes,
-  `pluginBefore=plugins->plugin/test->ids:len/3` matches Refs with fewer than three `ids`,
-  and `pluginAfter=plugins->plugin/test->name/m` matches names after `m`. String order depends on the database:
-  PostgreSQL usually ignores case and accents except to break ties, while SQLite sorts capitals before lowercase.
-* `pluginBefore` and `pluginAfter` also take response counts: `metadata->plugins->{plugin}/{count}` (responses from
-  the same origin) or `metadata->remotePlugins->{plugin}/{count}` (responses from all origins). For example,
-  `pluginAfter=metadata->remotePlugins->plugin/user/read/10` matches Refs read by more than 10 users.
+Every filter parameter can be repeated, and all filters must match. Missing values never match, but response counts
+are never missing: a Ref without responses counts as `0`. Values cannot contain `/`, `->` or `,`. Invalid filters are
+rejected with `400 Bad Request`.
 
-Other filters:
-* `pluginResponse` / `noPluginResponse` match Refs with (or without) responses tagged with a plugin from the same
-  origin, and `remotePluginResponse` from all origins.
-* `userResponse` / `noUserResponse` take user plugin tags (`plugin/user/...`) and match Refs the current user has
-  (or has not) responded to with that plugin, for example `userResponse=plugin/user/read`.
-* `responseBefore` / `responseAfter` compare `metadata->newResponse`, the time of the latest new response
-  (ignoring user URLs). For example, `responseAfter=<now - 1 day>` matches Refs active in the last day.
-* `reactionBefore` / `reactionAfter` compare `metadata->newReaction`, the time of the latest response
-  created or updated, including user URLs.
-* `modifiedBefore` / `modifiedAfter`, `publishedBefore` / `publishedAfter` and `createdBefore` / `createdAfter`.
+The column decides how the value is read:
+* Dates (`modified`, `published`, `created`, `metadata->newResponse` and `metadata->newReaction`) take an ISO-8601
+  instant, e.g. `filterAfter=modified/2024-01-01T00:00:00Z`. Use `Z` rather than an offset, or URL encode the `+`.
+* Response counts (`metadata->plugins->{plugin}` and `metadata->remotePlugins->{plugin}`), vote sorts and `:num`
+  columns take a number, `:len` columns and `metadata->responses` take a length, and `:dur` columns take an ISO-8601
+  duration (`pt1h`).
+* Everything else compares as text. String order depends on the database: PostgreSQL usually ignores case and
+  accents except to break ties, while SQLite sorts capitals before lowercase.
 
-Response filters and sorts on private plugins (`_plugin/...`) need read access to the plugin, otherwise the
-request is rejected with `403 Forbidden`.
+Examples:
+* `filterAfter=metadata->newResponse/2024-01-01T00:00:00Z`: Refs with a new response since the start of 2024
+* `filterAfter=metadata->plugins->plugin/comment/0`: Refs with comments
+* `filterEquals=metadata->plugins->plugin/comment/0`: Refs without comments
+* `filterAfter=metadata->remotePlugins->plugin/user/read/10`: Refs read by more than 10 users
+* `filterAfter=tags->plugin/progress:num/9&filterBefore=tags->plugin/progress:num/50`: matches `plugin/progress/37/100`
+* `filterBefore=tags->plugin/duration:dur/pt1h`: matches `plugin/duration/pt10m25s`
+* `filterAfter=plugins->_plugin/cache->contentLength:num/1000`: Refs with a cached file over 1000 bytes
+* `filterBefore=plugins->plugin/test->ids:len/3`: Refs with fewer than three `ids`
+* `filterEquals=plugins->plugin/test->name/kiwi`: Refs named `kiwi`
 
-To make value sorts and filters fast on PostgreSQL, list them in the `_config/index` template config, for example
+Filters and sorts on private plugins or tags (`_plugin/...`) need read access, otherwise filters are rejected with
+`403 Forbidden` and sorts are ignored.
+
+`userResponse` / `noUserResponse` take user plugin tags (`plugin/user/...`) and match Refs the current user has
+(or has not) responded to with that plugin, for example `noUserResponse=plugin/user/read` for unread Refs.
+
+To make sorts and filters fast on PostgreSQL, list them in the `_config/index` template config, for example
 `{"hotTags": ["plugin/progress:num"], "hotPlugins": ["plugin/test->size:num"], "hotResponses": ["plugin/comment"],
 "hotRemoteResponses": ["plugin/user/read"]}`. Each entry indexes both the sort and the filters on that value.
 See [DB Indices](#db-indices-_configindex-template).
 
 ### Filtering Exts, Users, Plugins and Templates
-The page endpoints of Exts, Users, Plugins and Templates (and the Ext count endpoint) take `configBefore` and `configAfter`,
-which work like `pluginBefore` and `pluginAfter`: `{field}->{path}[:num|:len]/{value}`. Allowed fields are
-`config` for Exts, `external` for Users, and `config`, `defaults` and `schema` for Plugins and Templates.
-For example, `configAfter=config->pinned:len/0` matches Exts with pinned Refs, `configAfter=external->ids:len/1`
-matches Users with more than one external ID, and `configAfter=config->version:num/3` matches Plugins with a
-version over 3. Only mods can filter or sort Users by `external`. These filters are not indexed.
+Exts, Users, Plugins and Templates take the same filters on their sort columns: `modified`, `origin:len`, `tag:len`
+and `{field}->{path}[:num|:len]`, where `{field}` is `config` for Exts, `external` for Users, and `config`, `defaults`
+and `schema` for Plugins and Templates. For example, `filterAfter=config->pinned:len/0` matches Exts with pinned Refs,
+`filterAfter=external->ids:len/1` matches Users with more than one external ID, and
+`filterAfter=config->version:num/3` matches Plugins with a version over 3. Only mods can filter or sort Users by
+`external`. These filters are not indexed.
 
 ## Modding
 Jasper allows extensive modification with server reuse. Since changes are done by creating
@@ -758,14 +759,14 @@ and each disabled index is dropped.
 | `fulltext`          | Full text search index.                                                          | `true`        |
 | `published`         | Index on the published date.                                                     | `true`        |
 | `modified`          | Index on the modified date.                                                      | `true`        |
-| `created`           | Index on the created date, used by the default sort and `createdBefore` / `createdAfter`. | `true` |
-| `newResponse`       | Index on `metadata->newResponse`, used when sorting by it and by `responseBefore` / `responseAfter`. | `true` |
-| `newReaction`       | Index on `metadata->newReaction`, used when sorting by it and by `reactionBefore` / `reactionAfter`. | `true` |
+| `created`           | Index on the created date, used when sorting and filtering by `created`. | `true` |
+| `newResponse`       | Index on `metadata->newResponse`, used when sorting and filtering by it. | `true` |
+| `newReaction`       | Index on `metadata->newReaction`, used when sorting and filtering by it. | `true` |
 | `ignored`           | Partial index on Refs marked `ignored` during replication, used by pull batches. | `true`        |
 | `cascade`           | Partial index on Refs waiting for a metadata cascade.                            | `true`        |
 | `regen`             | Partial index on Refs waiting for metadata regeneration (background backfill).   | `true`        |
 | `hotTags`           | Tag value sorts and filters to index (PostgreSQL only), see [Sorting](#sorting). | `[]` (empty) |
-| `hotPlugins`        | Plugin value sorts and filters to index (PostgreSQL only), see [Filtering by value](#filtering-by-value). | `[]` (empty) |
+| `hotPlugins`        | Plugin value sorts and filters to index (PostgreSQL only), see [Filtering](#filtering). | `[]` (empty) |
 | `hotResponses`      | Plugins whose local response counts are indexed for sorts and filters (PostgreSQL only). | `[]` (empty) |
 | `hotRemoteResponses` | Plugins whose response counts from all origins are indexed for sorts and filters (PostgreSQL only). | `[]` (empty) |
 

@@ -3,7 +3,7 @@ package jasper.repository;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import jasper.domain.Plugin;
-import jasper.repository.spec.SortSpec.PluginValueFilter;
+import jasper.repository.spec.SortSpec;
 import jasper.repository.spec.SortSpec.TagValueSort;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -151,9 +151,9 @@ public class IndexRepositoryImplPostgres implements IndexRepository {
 	}
 
 	/**
-	 * Same SQL that {@link jasper.repository.spec.RefSpec#sort} renders for a
+	 * Same SQL that {@link jasper.repository.spec.RefSpec#column} renders for a
 	 * metadata date sort with the PostgreSQL dialect, so the planner can match the index to the sort and the
-	 * responseBefore / responseAfter filters.
+	 * filters on it.
 	 */
 	@Override
 	public void buildNewResponse() {
@@ -318,7 +318,7 @@ public class IndexRepositoryImplPostgres implements IndexRepository {
 	}
 
 	/**
-	 * The same SQL that {@link jasper.repository.spec.RefSpec#sort} renders for a
+	 * The same SQL that {@link jasper.repository.spec.RefSpec#column} renders for a
 	 * "metadata->plugins->{plugin}" or "metadata->remotePlugins->{plugin}" sort with the PostgreSQL dialect,
 	 * which is also used by the response filters, so the planner can match the index to both.
 	 * The plugin must match {@link Plugin#REGEX}, so it is safe to inline.
@@ -348,12 +348,12 @@ public class IndexRepositoryImplPostgres implements IndexRepository {
 	static String hotPluginColumn(String hotPlugin) {
 		if (hotPlugin == null) return null;
 		var column = hotPlugin.startsWith("plugins->") ? hotPlugin : "plugins->" + hotPlugin;
-		if (!column.matches(PluginValueFilter.COLUMN_REGEX)) return null;
+		if (!column.matches(SortSpec.PLUGIN_COLUMN_REGEX)) return null;
 		return column;
 	}
 
 	/**
-	 * The same SQL that {@link jasper.repository.spec.SortSpec#createJsonbValue} renders with the PostgreSQL dialect
+	 * The same SQL that {@link jasper.repository.spec.SortSpec#jsonbColumn} renders with the PostgreSQL dialect
 	 * for a plugin sort or filter, so the planner can match one NULLS FIRST index to both.
 	 * The column must be validated with {@link #hotPluginColumn}, so plugin tags and fields are safe to inline.
 	 */

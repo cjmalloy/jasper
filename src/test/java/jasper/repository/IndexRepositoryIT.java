@@ -367,10 +367,10 @@ public class IndexRepositoryIT {
 			var index = IndexRepositoryImplPostgres.hotPluginIndexName("plugins->" + column);
 			// Numbers and lengths are inlined, text is bound
 			var params = column.endsWith(":num") || column.endsWith(":len") ? new Object[0] : new Object[]{ value };
-			assertThat(explainFilter(RefFilter.builder().pluginBefore(List.of("plugins->" + filter)).build().spec(), false, params))
+			assertThat(explainFilter(RefFilter.builder().filterBefore(List.of("plugins->" + filter)).build().spec(), false, params))
 				.as("%s before", filter)
 				.contains(index);
-			assertThat(explainFilter(RefFilter.builder().pluginAfter(List.of("plugins->" + filter)).build().spec(), false, params))
+			assertThat(explainFilter(RefFilter.builder().filterAfter(List.of("plugins->" + filter)).build().spec(), false, params))
 				.as("%s after", filter)
 				.contains(index);
 		}
@@ -511,11 +511,11 @@ public class IndexRepositoryIT {
 	void testHotResponseIndexUsedForFilterPostgres() {
 		indexRepository.updateHotResponses(List.of("plugin/comment"));
 		indexRepository.updateHotRemoteResponses(List.of("plugin/comment"));
-		assertThat(explainFilterPostgres(RefFilter.builder().pluginResponse(List.of("plugin/comment")).build()))
+		assertThat(explainFilterPostgres(RefFilter.builder().filterAfter(List.of("metadata->plugins->plugin/comment/0")).build()))
 			.contains(IndexRepositoryImplPostgres.hotResponseIndexName("plugins", "plugin/comment"));
-		assertThat(explainFilterPostgres(RefFilter.builder().noPluginResponse(List.of("plugin/comment")).build()))
+		assertThat(explainFilterPostgres(RefFilter.builder().filterEquals(List.of("metadata->plugins->plugin/comment/0")).build()))
 			.contains(IndexRepositoryImplPostgres.hotResponseIndexName("plugins", "plugin/comment"));
-		assertThat(explainFilterPostgres(RefFilter.builder().remotePluginResponse(List.of("plugin/comment")).build()))
+		assertThat(explainFilterPostgres(RefFilter.builder().filterAfter(List.of("metadata->remotePlugins->plugin/comment/0")).build()))
 			.contains(IndexRepositoryImplPostgres.hotResponseIndexName("remotePlugins", "plugin/comment"));
 	}
 
@@ -601,8 +601,8 @@ public class IndexRepositoryIT {
 		}
 		var now = Instant.parse("2026-01-01T00:00:00Z");
 		var param = Timestamp.from(now);
-		assertThat(explainFilter(RefFilter.builder().createdBefore(now).build().spec(), false, param)).contains("ref_created_index");
-		assertThat(explainFilter(RefFilter.builder().createdAfter(now).build().spec(), false, param)).contains("ref_created_index");
+		assertThat(explainFilter(RefFilter.builder().filterBefore(List.of("created/" + now)).build().spec(), false, param)).contains("ref_created_index");
+		assertThat(explainFilter(RefFilter.builder().filterAfter(List.of("created/" + now)).build().spec(), false, param)).contains("ref_created_index");
 	}
 
 	@Test
@@ -615,8 +615,8 @@ public class IndexRepositoryIT {
 		}
 		var now = Instant.parse("2026-01-01T00:00:00Z");
 		var param = Timestamp.from(now);
-		assertThat(explainFilter(RefFilter.builder().createdBefore(now).build().spec(), true, param)).contains("ref_created_index");
-		assertThat(explainFilter(RefFilter.builder().createdAfter(now).build().spec(), true, param)).contains("ref_created_index");
+		assertThat(explainFilter(RefFilter.builder().filterBefore(List.of("created/" + now)).build().spec(), true, param)).contains("ref_created_index");
+		assertThat(explainFilter(RefFilter.builder().filterAfter(List.of("created/" + now)).build().spec(), true, param)).contains("ref_created_index");
 	}
 
 	/**
@@ -626,10 +626,10 @@ public class IndexRepositoryIT {
 		indexRepository.buildNewResponse();
 		indexRepository.buildNewReaction();
 		var now = Instant.parse("2026-01-01T00:00:00.5Z");
-		assertThat(explainFilter(RefFilter.builder().responseBefore(now).build().spec(), sqlite)).contains("ref_new_response_index");
-		assertThat(explainFilter(RefFilter.builder().responseAfter(now).build().spec(), sqlite)).contains("ref_new_response_index");
-		assertThat(explainFilter(RefFilter.builder().reactionBefore(now).build().spec(), sqlite)).contains("ref_new_reaction_index");
-		assertThat(explainFilter(RefFilter.builder().reactionAfter(now).build().spec(), sqlite)).contains("ref_new_reaction_index");
+		assertThat(explainFilter(RefFilter.builder().filterBefore(List.of("metadata->newResponse/" + now)).build().spec(), sqlite)).contains("ref_new_response_index");
+		assertThat(explainFilter(RefFilter.builder().filterAfter(List.of("metadata->newResponse/" + now)).build().spec(), sqlite)).contains("ref_new_response_index");
+		assertThat(explainFilter(RefFilter.builder().filterBefore(List.of("metadata->newReaction/" + now)).build().spec(), sqlite)).contains("ref_new_reaction_index");
+		assertThat(explainFilter(RefFilter.builder().filterAfter(List.of("metadata->newReaction/" + now)).build().spec(), sqlite)).contains("ref_new_reaction_index");
 	}
 
 	@Test
@@ -652,11 +652,11 @@ public class IndexRepositoryIT {
 	void testHotResponseIndexUsedForCountFilterPostgres() {
 		indexRepository.updateHotResponses(List.of("plugin/comment"));
 		indexRepository.updateHotRemoteResponses(List.of("plugin/user/read"));
-		assertThat(explainFilter(RefFilter.builder().pluginAfter(List.of("metadata->plugins->plugin/comment/10")).build().spec(), false))
+		assertThat(explainFilter(RefFilter.builder().filterAfter(List.of("metadata->plugins->plugin/comment/10")).build().spec(), false))
 			.contains(IndexRepositoryImplPostgres.hotResponseIndexName("plugins", "plugin/comment"));
-		assertThat(explainFilter(RefFilter.builder().pluginBefore(List.of("metadata->plugins->plugin/comment:num/3")).build().spec(), false))
+		assertThat(explainFilter(RefFilter.builder().filterBefore(List.of("metadata->plugins->plugin/comment:num/3")).build().spec(), false))
 			.contains(IndexRepositoryImplPostgres.hotResponseIndexName("plugins", "plugin/comment"));
-		assertThat(explainFilter(RefFilter.builder().pluginAfter(List.of("metadata->remotePlugins->plugin/user/read/10")).build().spec(), false))
+		assertThat(explainFilter(RefFilter.builder().filterAfter(List.of("metadata->remotePlugins->plugin/user/read/10")).build().spec(), false))
 			.contains(IndexRepositoryImplPostgres.hotResponseIndexName("remotePlugins", "plugin/user/read"));
 	}
 }

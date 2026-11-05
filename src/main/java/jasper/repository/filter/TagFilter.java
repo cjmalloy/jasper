@@ -1,8 +1,7 @@
 package jasper.repository.filter;
 
 import jasper.domain.proj.Tag;
-import jasper.errors.InvalidQueryException;
-import jasper.repository.spec.SortSpec.ConfigValueFilter;
+import jasper.repository.spec.SortSpec.Filter;
 import lombok.Builder;
 import lombok.Getter;
 import org.slf4j.Logger;
@@ -17,9 +16,7 @@ import static jasper.repository.spec.OriginSpec.isNesting;
 import static jasper.repository.spec.OriginSpec.isOrigin;
 import static jasper.repository.spec.OriginSpec.none;
 import static jasper.repository.spec.ReplicationSpec.isModifiedAfter;
-import static jasper.repository.spec.ReplicationSpec.isModifiedBefore;
-import static jasper.repository.spec.SortSpec.compareJsonbValue;
-import static jasper.repository.spec.SortSpec.createJsonbValue;
+import static jasper.repository.spec.SortSpec.filterTags;
 import static jasper.repository.spec.TagSpec.isLevel;
 import static jasper.repository.spec.TagSpec.searchTagOrName;
 import static jasper.repository.spec.TagSpec.tagEndsWith;
@@ -30,8 +27,8 @@ import static org.springframework.data.jpa.domain.Specification.not;
 @Getter
 public class TagFilter implements Query {
 	public static final String QUERY = Query.REGEX;
-	public static final String CONFIG_VALUE = ConfigValueFilter.REGEX;
-	public static final int CONFIG_VALUE_LEN = ConfigValueFilter.LEN;
+	public static final String FILTER = Filter.REGEX;
+	public static final int FILTER_LEN = Filter.LEN;
 	private static final Logger logger = LoggerFactory.getLogger(TagFilter.class);
 
 	private String origin;
@@ -40,16 +37,15 @@ public class TagFilter implements Query {
 	private Integer level;
 	private Boolean deleted;
 	private String search;
-	private Instant modifiedBefore;
 	private Instant modifiedAfter;
-	private List<String> configBefore;
-	private List<String> configAfter;
+	private List<String> filterBefore;
+	private List<String> filterAfter;
+	private List<String> filterEquals;
 
 	/**
-	 * @param configRoots the JSONB columns configBefore and configAfter may filter on,
-	 *                    the same columns the entity can be sorted by, e.g. "config"
+	 * @param roots the JSONB columns of the entity, the same columns it can be sorted by, e.g. "config"
 	 */
-	public <T extends Tag> Specification<T> spec(String... configRoots) {
+	public <T extends Tag> Specification<T> spec(String... roots) {
 		if ("!@*".equals(query)) return none();
 		var result = Specification.<T>unrestricted();
 		if (origin != null && !origin.equals("@*")) {
@@ -70,36 +66,20 @@ public class TagFilter implements Query {
 		if (isNotBlank(search)) {
 			result = result.and(searchTagOrName(search));
 		}
-		if (modifiedBefore != null) {
-			result = result.and(isModifiedBefore(modifiedBefore));
-		}
 		if (modifiedAfter != null) {
 			result = result.and(isModifiedAfter(modifiedAfter));
 		}
-		if (configBefore != null) {
-			for (var f : configBefore) {
-				var filter = configValueFilter(f, configRoots);
-				result = result.and((root, query, cb) -> compareJsonbValue(cb, createJsonbValue(root, cb, filter.property(), filter.root()), filter.value(), true));
-			}
-		}
-		if (configAfter != null) {
-			for (var f : configAfter) {
-				var filter = configValueFilter(f, configRoots);
-				result = result.and((root, query, cb) -> compareJsonbValue(cb, createJsonbValue(root, cb, filter.property(), filter.root()), filter.value(), false));
-			}
+		for (var f : filters()) {
+			result = result.and(filterTags(f, roots));
 		}
 		return result;
 	}
 
-	public boolean hasConfigFilter() {
-		return configBefore != null && !configBefore.isEmpty()
-			|| configAfter != null && !configAfter.isEmpty();
-	}
-
-	private static ConfigValueFilter configValueFilter(String filter, String... roots) {
-		var result = ConfigValueFilter.parse(filter, roots);
-		if (result == null) throw new InvalidQueryException(filter, "expected {field}->{path}/{value}, {field}->{path}:num/{number} or {field}->{path}:len/{length} with {field} one of " + String.join(", ", roots));
-		return result;
+	/**
+	 * The parsed filterBefore, filterAfter and filterEquals.
+	 */
+	public List<Filter> filters() {
+		return Filter.parse(filterBefore, filterAfter, filterEquals);
 	}
 
 	public String cacheKey(Pageable pageable) {
@@ -110,10 +90,10 @@ public class TagFilter implements Query {
 			origin + "_" +
 			query + "_" +
 			deleted + "_" +
-			modifiedBefore + "_" +
 			modifiedAfter + "_" +
-			configBefore + "_" +
-			configAfter + "_" +
+			filterBefore + "_" +
+			filterAfter + "_" +
+			filterEquals + "_" +
 			search;
 	}
 }

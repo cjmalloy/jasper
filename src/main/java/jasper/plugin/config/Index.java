@@ -50,13 +50,13 @@ public class Index implements Serializable {
 	private List<String> hotPlugins = new ArrayList<>();
 	/**
 	 * Plugins to index local response counts for, e.g. "plugin/comment" for
-	 * sorting by "metadata->plugins->plugin/comment" and the pluginResponse filter.
+	 * sorting and filtering by "metadata->plugins->plugin/comment".
 	 */
 	@Builder.Default
 	private List<String> hotResponses = new ArrayList<>();
 	/**
 	 * Plugins to index response counts from all origins for, e.g. "plugin/comment" for
-	 * sorting by "metadata->remotePlugins->plugin/comment" and the remotePluginResponse filter.
+	 * sorting and filtering by "metadata->remotePlugins->plugin/comment".
 	 */
 	@Builder.Default
 	private List<String> hotRemoteResponses = new ArrayList<>();

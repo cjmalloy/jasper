@@ -182,23 +182,23 @@ public class TemplateServiceIT {
 		withConfig("plugin/b", "{\"version\": 2}", "{\"size\": 5}", null);
 		withConfig("plugin/c", "{\"version\": \"x\"}", null, null);
 
-		assertThat(configFiltered(TagFilter.builder().configAfter(List.of("config->version:num/3")).build()))
+		assertThat(configFiltered(TagFilter.builder().filterAfter(List.of("config->version:num/3")).build()))
 			.containsExactly("plugin/a");
-		assertThat(configFiltered(TagFilter.builder().configBefore(List.of("defaults->size:num/3")).build()))
+		assertThat(configFiltered(TagFilter.builder().filterBefore(List.of("defaults->size:num/3")).build()))
 			.containsExactly("plugin/a");
-		assertThat(configFiltered(TagFilter.builder().configAfter(List.of("schema->properties->x->type/r")).build()))
+		assertThat(configFiltered(TagFilter.builder().filterAfter(List.of("schema->properties->x->type/r")).build()))
 			.containsExactly("plugin/a");
 		assertThat(configFiltered(TagFilter.builder()
-				.configAfter(List.of("config->version:num/1"))
-				.configBefore(List.of("defaults->size:num/3")).build()))
+				.filterAfter(List.of("config->version:num/1"))
+				.filterBefore(List.of("defaults->size:num/3")).build()))
 			.containsExactly("plugin/a");
 	}
 
 	@Test
 	void testInvalidConfigValueFilter() {
-		assertThatThrownBy(() -> templateService.page(TagFilter.builder().configAfter(List.of("external->ids:len/0")).build(), PageRequest.of(0, 10)))
+		assertThatThrownBy(() -> templateService.page(TagFilter.builder().filterAfter(List.of("external->ids:len/0")).build(), PageRequest.of(0, 10)))
 			.isInstanceOf(InvalidQueryException.class);
-		assertThatThrownBy(() -> templateService.page(TagFilter.builder().configAfter(List.of("config->version:num/abc")).build(), PageRequest.of(0, 10)))
+		assertThatThrownBy(() -> templateService.page(TagFilter.builder().filterAfter(List.of("config->version:num/abc")).build(), PageRequest.of(0, 10)))
 			.isInstanceOf(InvalidQueryException.class);
 	}
 }

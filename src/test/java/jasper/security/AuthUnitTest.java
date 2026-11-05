@@ -942,7 +942,7 @@ public class AuthUnitTest {
 		var user = getUser("+user/test");
 		var auth = getAuth(user, VIEWER);
 
-		assertThat(auth.canReadQuery(RefFilter.builder().tagAfter(List.of("tags->custom/progress:num/50")).build()))
+		assertThat(auth.canReadQuery(RefFilter.builder().filterAfter(List.of("tags->custom/progress:num/50")).build()))
 			.isTrue();
 	}
 
@@ -952,7 +952,7 @@ public class AuthUnitTest {
 		user.getTagReadAccess().add("_custom");
 		var auth = getAuth(user, VIEWER);
 
-		assertThat(auth.canReadQuery(RefFilter.builder().tagBefore(List.of("tags->_custom/progress:num/50")).build()))
+		assertThat(auth.canReadQuery(RefFilter.builder().filterBefore(List.of("tags->_custom/progress:num/50")).build()))
 			.isTrue();
 	}
 
@@ -961,7 +961,7 @@ public class AuthUnitTest {
 		var user = getUser("_user/test");
 		var auth = getAuth(user, VIEWER);
 
-		assertThat(auth.canReadQuery(RefFilter.builder().tagAfter(List.of("tags->_user/test:num/50")).build()))
+		assertThat(auth.canReadQuery(RefFilter.builder().filterAfter(List.of("tags->_user/test:num/50")).build()))
 			.isTrue();
 	}
 
@@ -970,7 +970,7 @@ public class AuthUnitTest {
 		var user = getUser("+user/test");
 		var auth = getAuth(user, USER);
 
-		assertThat(auth.canReadQuery(RefFilter.builder().tagAfter(List.of("tags->_custom/progress:num/50")).build()))
+		assertThat(auth.canReadQuery(RefFilter.builder().filterAfter(List.of("tags->_custom/progress:num/50")).build()))
 			.isFalse();
 	}
 
@@ -979,7 +979,7 @@ public class AuthUnitTest {
 		var user = getUser("+user/test");
 		var auth = getAuth(user, USER);
 
-		assertThat(auth.canReadQuery(RefFilter.builder().query("custom").tagBefore(List.of("tags->_custom/progress/50")).build()))
+		assertThat(auth.canReadQuery(RefFilter.builder().query("custom").filterBefore(List.of("tags->_custom/progress/50")).build()))
 			.isFalse();
 	}
 
@@ -988,7 +988,7 @@ public class AuthUnitTest {
 		var user = getUser("+user/test");
 		var auth = getAuth(user, VIEWER);
 
-		assertThat(auth.canReadQuery(RefFilter.builder().pluginAfter(List.of("plugins->plugin/test->size:num/50")).build()))
+		assertThat(auth.canReadQuery(RefFilter.builder().filterAfter(List.of("plugins->plugin/test->size:num/50")).build()))
 			.isTrue();
 	}
 
@@ -998,7 +998,7 @@ public class AuthUnitTest {
 		user.getTagReadAccess().add("_plugin/secret");
 		var auth = getAuth(user, VIEWER);
 
-		assertThat(auth.canReadQuery(RefFilter.builder().pluginBefore(List.of("plugins->_plugin/secret->size:num/50")).build()))
+		assertThat(auth.canReadQuery(RefFilter.builder().filterBefore(List.of("plugins->_plugin/secret->size:num/50")).build()))
 			.isTrue();
 	}
 
@@ -1007,13 +1007,13 @@ public class AuthUnitTest {
 		var user = getUser("+user/test");
 		var auth = getAuth(user, USER);
 
-		assertThat(auth.canReadQuery(RefFilter.builder().pluginAfter(List.of("plugins->_plugin/secret->size:num/50")).build()))
+		assertThat(auth.canReadQuery(RefFilter.builder().filterAfter(List.of("plugins->_plugin/secret->size:num/50")).build()))
 			.isFalse();
-		assertThat(auth.canReadQuery(RefFilter.builder().query("custom").pluginBefore(List.of("plugins->_plugin/secret->name/a")).build()))
+		assertThat(auth.canReadQuery(RefFilter.builder().query("custom").filterBefore(List.of("plugins->_plugin/secret->name/a")).build()))
 			.isFalse();
-		assertThat(auth.canReadQuery(RefFilter.builder().pluginAfter(List.of("plugins->_plugin/secret:num/50")).build()))
+		assertThat(auth.canReadQuery(RefFilter.builder().filterAfter(List.of("plugins->_plugin/secret:num/50")).build()))
 			.isFalse();
-		assertThat(auth.canReadQuery(RefFilter.builder().pluginAfter(List.of("plugins->_plugin/secret/a")).build()))
+		assertThat(auth.canReadQuery(RefFilter.builder().filterAfter(List.of("plugins->_plugin/secret/a")).build()))
 			.isFalse();
 	}
 
@@ -1023,9 +1023,9 @@ public class AuthUnitTest {
 		user.getTagReadAccess().add("_plugin/secret");
 		var auth = getAuth(user, VIEWER);
 
-		assertThat(auth.canReadQuery(RefFilter.builder().pluginResponse(List.of("_plugin/secret")).build())).isTrue();
-		assertThat(auth.canReadQuery(RefFilter.builder().noPluginResponse(List.of("_plugin/secret")).build())).isTrue();
-		assertThat(auth.canReadQuery(RefFilter.builder().remotePluginResponse(List.of("_plugin/secret")).build())).isTrue();
+		assertThat(auth.canReadQuery(RefFilter.builder().filterAfter(List.of("metadata->plugins->_plugin/secret/0")).build())).isTrue();
+		assertThat(auth.canReadQuery(RefFilter.builder().filterEquals(List.of("metadata->plugins->_plugin/secret/0")).build())).isTrue();
+		assertThat(auth.canReadQuery(RefFilter.builder().filterAfter(List.of("metadata->remotePlugins->_plugin/secret/0")).build())).isTrue();
 	}
 
 	@Test
@@ -1033,12 +1033,12 @@ public class AuthUnitTest {
 		var user = getUser("+user/test");
 		var auth = getAuth(user, USER);
 
-		assertThat(auth.canReadQuery(RefFilter.builder().pluginResponse(List.of("plugin/comment")).build())).isTrue();
-		assertThat(auth.canReadQuery(RefFilter.builder().remotePluginResponse(List.of("plugin/comment")).build())).isTrue();
-		assertThat(auth.canReadQuery(RefFilter.builder().pluginResponse(List.of("_plugin/secret")).build())).isFalse();
-		assertThat(auth.canReadQuery(RefFilter.builder().noPluginResponse(List.of("_plugin/secret")).build())).isFalse();
-		assertThat(auth.canReadQuery(RefFilter.builder().remotePluginResponse(List.of("_plugin/secret")).build())).isFalse();
-		assertThat(auth.canReadQuery(RefFilter.builder().query("custom").remotePluginResponse(List.of("plugin/comment", "_plugin/secret")).build())).isFalse();
+		assertThat(auth.canReadQuery(RefFilter.builder().filterAfter(List.of("metadata->plugins->plugin/comment/0")).build())).isTrue();
+		assertThat(auth.canReadQuery(RefFilter.builder().filterAfter(List.of("metadata->remotePlugins->plugin/comment/0")).build())).isTrue();
+		assertThat(auth.canReadQuery(RefFilter.builder().filterAfter(List.of("metadata->plugins->_plugin/secret/0")).build())).isFalse();
+		assertThat(auth.canReadQuery(RefFilter.builder().filterEquals(List.of("metadata->plugins->_plugin/secret/0")).build())).isFalse();
+		assertThat(auth.canReadQuery(RefFilter.builder().filterAfter(List.of("metadata->remotePlugins->_plugin/secret/0")).build())).isFalse();
+		assertThat(auth.canReadQuery(RefFilter.builder().query("custom").filterAfter(List.of("metadata->remotePlugins->plugin/comment/0", "metadata->remotePlugins->_plugin/secret/0")).build())).isFalse();
 	}
 
 	@Test
@@ -1047,8 +1047,8 @@ public class AuthUnitTest {
 		user.getTagReadAccess().add("_plugin/secret");
 		var auth = getAuth(user, VIEWER);
 
-		assertThat(auth.canReadQuery(RefFilter.builder().pluginAfter(List.of("metadata->plugins->_plugin/secret/10")).build())).isTrue();
-		assertThat(auth.canReadQuery(RefFilter.builder().pluginBefore(List.of("metadata->remotePlugins->_plugin/secret:num/10")).build())).isTrue();
+		assertThat(auth.canReadQuery(RefFilter.builder().filterAfter(List.of("metadata->plugins->_plugin/secret/10")).build())).isTrue();
+		assertThat(auth.canReadQuery(RefFilter.builder().filterBefore(List.of("metadata->remotePlugins->_plugin/secret:num/10")).build())).isTrue();
 	}
 
 	@Test
@@ -1056,9 +1056,9 @@ public class AuthUnitTest {
 		var user = getUser("+user/test");
 		var auth = getAuth(user, USER);
 
-		assertThat(auth.canReadQuery(RefFilter.builder().pluginAfter(List.of("metadata->remotePlugins->plugin/user/read/10")).build())).isTrue();
-		assertThat(auth.canReadQuery(RefFilter.builder().pluginAfter(List.of("metadata->plugins->_plugin/secret/10")).build())).isFalse();
-		assertThat(auth.canReadQuery(RefFilter.builder().pluginBefore(List.of("metadata->remotePlugins->_plugin/secret:num/10")).build())).isFalse();
+		assertThat(auth.canReadQuery(RefFilter.builder().filterAfter(List.of("metadata->remotePlugins->plugin/user/read/10")).build())).isTrue();
+		assertThat(auth.canReadQuery(RefFilter.builder().filterAfter(List.of("metadata->plugins->_plugin/secret/10")).build())).isFalse();
+		assertThat(auth.canReadQuery(RefFilter.builder().filterBefore(List.of("metadata->remotePlugins->_plugin/secret:num/10")).build())).isFalse();
 	}
 
 	@Test
@@ -1066,8 +1066,8 @@ public class AuthUnitTest {
 		var user = getUser("+user/test");
 		var auth = getAuth(user, MOD);
 
-		assertThat(auth.canReadQuery(RefFilter.builder().pluginAfter(List.of("metadata->plugins->_plugin/secret/10")).build())).isTrue();
-		assertThat(auth.canReadQuery(RefFilter.builder().pluginResponse(List.of("_plugin/secret")).build())).isTrue();
+		assertThat(auth.canReadQuery(RefFilter.builder().filterAfter(List.of("metadata->plugins->_plugin/secret/10")).build())).isTrue();
+		assertThat(auth.canReadQuery(RefFilter.builder().filterAfter(List.of("metadata->plugins->_plugin/secret/0")).build())).isTrue();
 	}
 
 	@Test
@@ -1075,9 +1075,9 @@ public class AuthUnitTest {
 		var auth = getAuth(getUser("+user/test"), USER);
 
 		assertThat(auth.canFilterUsers(TagFilter.builder().build())).isTrue();
-		assertThat(auth.canFilterUsers(TagFilter.builder().configAfter(List.of("external->ids:len/0")).build())).isFalse();
-		assertThat(auth.canFilterUsers(TagFilter.builder().configBefore(List.of("external->ids:len/0")).build())).isFalse();
-		assertThat(getAuth(getUser("+user/test"), MOD).canFilterUsers(TagFilter.builder().configAfter(List.of("external->ids:len/0")).build())).isTrue();
+		assertThat(auth.canFilterUsers(TagFilter.builder().filterAfter(List.of("external->ids:len/0")).build())).isFalse();
+		assertThat(auth.canFilterUsers(TagFilter.builder().filterBefore(List.of("external->ids:len/0")).build())).isFalse();
+		assertThat(getAuth(getUser("+user/test"), MOD).canFilterUsers(TagFilter.builder().filterAfter(List.of("external->ids:len/0")).build())).isTrue();
 	}
 
 	@Test

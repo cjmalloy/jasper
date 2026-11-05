@@ -94,10 +94,9 @@ public class ExtController {
 		@RequestParam(required = false) Integer nesting,
 		@RequestParam(required = false) Integer level,
 		@RequestParam(required = false) Boolean deleted,
-		@RequestParam(required = false) Instant modifiedAfter,
-		@RequestParam(required = false) Instant modifiedBefore,
-		@RequestParam(required = false) @Size(max = 100) List<@NotBlank @Length(max = TagFilter.CONFIG_VALUE_LEN) @Pattern(regexp = TagFilter.CONFIG_VALUE) String> configBefore,
-		@RequestParam(required = false) @Size(max = 100) List<@NotBlank @Length(max = TagFilter.CONFIG_VALUE_LEN) @Pattern(regexp = TagFilter.CONFIG_VALUE) String> configAfter,
+		@RequestParam(required = false) @Size(max = 100) List<@NotBlank @Length(max = TagFilter.FILTER_LEN) @Pattern(regexp = TagFilter.FILTER) String> filterBefore,
+		@RequestParam(required = false) @Size(max = 100) List<@NotBlank @Length(max = TagFilter.FILTER_LEN) @Pattern(regexp = TagFilter.FILTER) String> filterAfter,
+		@RequestParam(required = false) @Size(max = 100) List<@NotBlank @Length(max = TagFilter.FILTER_LEN) @Pattern(regexp = TagFilter.FILTER) String> filterEquals,
 		@RequestParam(required = false) @Length(max = SEARCH_LEN) String search
 	) {
 		return httpCache.ifNotModifiedPage(extService.page(
@@ -107,10 +106,9 @@ public class ExtController {
 				.level(level)
 				.deleted(deleted)
 				.search(search)
-				.modifiedBefore(modifiedBefore)
-				.modifiedAfter(modifiedAfter)
-				.configBefore(configBefore)
-				.configAfter(configAfter).build(),
+				.filterBefore(filterBefore)
+				.filterAfter(filterAfter)
+				.filterEquals(filterEquals).build(),
 			pageable));
 	}
 
@@ -124,10 +122,9 @@ public class ExtController {
 		@RequestParam(required = false) Integer nesting,
 		@RequestParam(required = false) Integer level,
 		@RequestParam(required = false) Boolean deleted,
-		@RequestParam(required = false) Instant modifiedAfter,
-		@RequestParam(required = false) Instant modifiedBefore,
-		@RequestParam(required = false) @Size(max = 100) List<@NotBlank @Length(max = TagFilter.CONFIG_VALUE_LEN) @Pattern(regexp = TagFilter.CONFIG_VALUE) String> configBefore,
-		@RequestParam(required = false) @Size(max = 100) List<@NotBlank @Length(max = TagFilter.CONFIG_VALUE_LEN) @Pattern(regexp = TagFilter.CONFIG_VALUE) String> configAfter,
+		@RequestParam(required = false) @Size(max = 100) List<@NotBlank @Length(max = TagFilter.FILTER_LEN) @Pattern(regexp = TagFilter.FILTER) String> filterBefore,
+		@RequestParam(required = false) @Size(max = 100) List<@NotBlank @Length(max = TagFilter.FILTER_LEN) @Pattern(regexp = TagFilter.FILTER) String> filterAfter,
+		@RequestParam(required = false) @Size(max = 100) List<@NotBlank @Length(max = TagFilter.FILTER_LEN) @Pattern(regexp = TagFilter.FILTER) String> filterEquals,
 		@RequestParam(required = false) @Length(max = SEARCH_LEN) String search
 	) {
 		return extService.count(
@@ -137,10 +134,9 @@ public class ExtController {
 				.level(level)
 				.deleted(deleted)
 				.search(search)
-				.modifiedBefore(modifiedBefore)
-				.modifiedAfter(modifiedAfter)
-				.configBefore(configBefore)
-				.configAfter(configAfter).build());
+				.filterBefore(filterBefore)
+				.filterAfter(filterAfter)
+				.filterEquals(filterEquals).build());
 	}
 
 	@ApiResponses({

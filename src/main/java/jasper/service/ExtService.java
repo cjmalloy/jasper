@@ -29,7 +29,7 @@ import java.time.Instant;
 
 import static jasper.domain.proj.Tag.localTag;
 import static jasper.domain.proj.Tag.tagOrigin;
-import static jasper.repository.spec.ExtSpec.sort;
+import static jasper.repository.spec.SortSpec.sortTags;
 import static org.springframework.data.domain.PageRequest.of;
 
 @Service
@@ -86,10 +86,10 @@ public class ExtService {
 	public Page<ExtDto> page(TagFilter filter, Pageable pageable) {
 		return extRepository
 			.findAll(
-				sort(
+				sortTags(
 					auth.<Ext>tagReadSpec()
 						.and(filter.spec("config")),
-					pageable),
+					pageable, "config"),
 				of(pageable.getPageNumber(), pageable.getPageSize()))
 			.map(mapper::domainToDto);
 	}

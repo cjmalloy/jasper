@@ -10,7 +10,7 @@ import jasper.errors.InvalidQueryException;
 import jasper.errors.NotFoundException;
 import jasper.repository.UserRepository;
 import jasper.repository.filter.TagFilter;
-import jasper.repository.spec.UserSpec;
+import jasper.repository.spec.SortSpec;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -977,9 +977,9 @@ public class UserServiceIT {
 		user2.setName("Test2");
 		userRepository.save(user2);
 
-		var spec = UserSpec.sort(
+		var spec = SortSpec.<User>sortTags(
 			TagFilter.builder().build().spec(),
-			PageRequest.of(0, 10));
+			PageRequest.of(0, 10), "external");
 
 		// Execute query to verify no exceptions
 		var result = userRepository.findAll(spec, PageRequest.of(0, 10));
@@ -1003,9 +1003,9 @@ public class UserServiceIT {
 		userRepository.save(user2);
 
 		var pageable = PageRequest.of(0, 10, by("external->ids[0]"));
-		var spec = UserSpec.sort(
+		var spec = SortSpec.<User>sortTags(
 			TagFilter.builder().build().spec(),
-			pageable);
+			pageable, "external");
 
 		// Execute query to verify array index sorting works
 		var result = userRepository.findAll(spec, PageRequest.of(0, 10));
@@ -1040,9 +1040,9 @@ public class UserServiceIT {
 
 		// Sort by external->ids:len ascending (1 element should come before 3 elements)
 		var pageable = PageRequest.of(0, 10, by("external->ids:len"));
-		var spec = UserSpec.sort(
+		var spec = SortSpec.<User>sortTags(
 			TagFilter.builder().build().spec(),
-			pageable);
+			pageable, "external");
 		var result = userRepository.findAll(spec, PageRequest.of(0, 10));
 
 		// Should have at least our 2 test users
@@ -1076,10 +1076,10 @@ public class UserServiceIT {
 		userWithIds("+user/b", "1", "2");
 		userWithIds("+user/c");
 
-		assertThat(userService.page(TagFilter.builder().configAfter(List.of("external->ids:len/1")).build(), PageRequest.of(0, 10, by(User_.TAG))).getContent())
+		assertThat(userService.page(TagFilter.builder().filterAfter(List.of("external->ids:len/1")).build(), PageRequest.of(0, 10, by(User_.TAG))).getContent())
 			.extracting(u -> u.getTag())
 			.containsExactly("+user/b");
-		assertThat(userService.page(TagFilter.builder().configBefore(List.of("external->ids:len/2")).build(), PageRequest.of(0, 10, by(User_.TAG))).getContent())
+		assertThat(userService.page(TagFilter.builder().filterBefore(List.of("external->ids:len/2")).build(), PageRequest.of(0, 10, by(User_.TAG))).getContent())
 			.extracting(u -> u.getTag())
 			.containsExactly("+user/a");
 	}
@@ -1088,14 +1088,14 @@ public class UserServiceIT {
 	void testConfigValueFilterFailed() {
 		userWithIds("+user/a", "1");
 
-		assertThatThrownBy(() -> userService.page(TagFilter.builder().configAfter(List.of("external->ids:len/0")).build(), PageRequest.of(0, 10)))
+		assertThatThrownBy(() -> userService.page(TagFilter.builder().filterAfter(List.of("external->ids:len/0")).build(), PageRequest.of(0, 10)))
 			.isInstanceOf(AccessDeniedException.class);
 	}
 
 	@Test
 	@WithMockUser(value = "+user/tester", roles = "MOD")
 	void testInvalidConfigValueFilter() {
-		assertThatThrownBy(() -> userService.page(TagFilter.builder().configAfter(List.of("config->ids:len/0")).build(), PageRequest.of(0, 10)))
+		assertThatThrownBy(() -> userService.page(TagFilter.builder().filterAfter(List.of("config->ids:len/0")).build(), PageRequest.of(0, 10)))
 			.isInstanceOf(InvalidQueryException.class);
 	}
 
