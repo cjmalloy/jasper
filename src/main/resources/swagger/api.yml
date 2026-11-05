@@ -287,14 +287,42 @@ paths:
             format: date-time
         - name: responseBefore
           in: query
-          description: Only match Refs with a response strictly before this time
+          description: 'Only match Refs whose metadata was last modified strictly before this time (metadata->modified, set whenever responses, plugins or user URLs are recomputed). Refs without metadata never match. Indexed by the metadataModified _config/index flag. For the latest response, use newResponseBefore.'
           required: false
           schema:
             type: string
             format: date-time
         - name: responseAfter
           in: query
-          description: Only match Refs with a response strictly after this time
+          description: 'Only match Refs whose metadata was last modified strictly after this time (metadata->modified, set whenever responses, plugins or user URLs are recomputed). Indexed by the metadataModified _config/index flag. For the latest response, use newResponseAfter.'
+          required: false
+          schema:
+            type: string
+            format: date-time
+        - name: newResponseBefore
+          in: query
+          description: 'Only match Refs whose latest response (metadata->newResponse) is strictly before this time. Refs without responses never match. Indexed by the newResponse _config/index flag.'
+          required: false
+          schema:
+            type: string
+            format: date-time
+        - name: newResponseAfter
+          in: query
+          description: 'Only match Refs whose latest response (metadata->newResponse) is strictly after this time, e.g. now minus one day for Refs active in the last day. Indexed by the newResponse _config/index flag.'
+          required: false
+          schema:
+            type: string
+            format: date-time
+        - name: newReactionBefore
+          in: query
+          description: 'Only match Refs whose latest reaction (metadata->newReaction) is strictly before this time. Refs without reactions never match. Indexed by the newReaction _config/index flag.'
+          required: false
+          schema:
+            type: string
+            format: date-time
+        - name: newReactionAfter
+          in: query
+          description: 'Only match Refs whose latest reaction (metadata->newReaction) is strictly after this time. Indexed by the newReaction _config/index flag.'
           required: false
           schema:
             type: string
@@ -321,7 +349,7 @@ paths:
               $ref: '#/components/schemas/tagValueFilter'
         - name: pluginBefore
           in: query
-          description: 'Only match Refs whose plugin value is strictly less than the value: plugins->{plugin}[->{field}...][:num|:len]/{value}. The value is always after the last ''/'' and cannot contain ''/'', ''->'' or '',''. Refs without the value never match. Strings compare using the database ordering (locale on PostgreSQL, bytes on SQLite). Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering-by-value'
+          description: 'Only match Refs whose plugin value or response count is strictly less than the value: plugins->{plugin}[->{field}...][:num|:len]/{value}, metadata->plugins->{plugin}[:num]/{count} or metadata->remotePlugins->{plugin}[:num]/{count}. Response counts are numbers, Refs without responses count as 0, and are indexed by hotResponses / hotRemoteResponses. The value is always after the last ''/'' and cannot contain ''/'', ''->'' or '',''. Refs without the value never match. Strings compare using the database ordering (locale on PostgreSQL, bytes on SQLite). Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering-by-value'
           required: false
           example: ['plugins->plugin/test->ids:len/3']
           schema:
@@ -331,7 +359,7 @@ paths:
               $ref: '#/components/schemas/pluginValueFilter'
         - name: pluginAfter
           in: query
-          description: 'Only match Refs whose plugin value is strictly greater than the value: plugins->{plugin}[->{field}...][:num|:len]/{value}. The value is always after the last ''/'' and cannot contain ''/'', ''->'' or '',''. Refs without the value never match. Strings compare using the database ordering (locale on PostgreSQL, bytes on SQLite). Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering-by-value'
+          description: 'Only match Refs whose plugin value or response count is strictly greater than the value: plugins->{plugin}[->{field}...][:num|:len]/{value}, metadata->plugins->{plugin}[:num]/{count} or metadata->remotePlugins->{plugin}[:num]/{count}. Response counts are numbers, Refs without responses count as 0, and are indexed by hotResponses / hotRemoteResponses. The value is always after the last ''/'' and cannot contain ''/'', ''->'' or '',''. Refs without the value never match. Strings compare using the database ordering (locale on PostgreSQL, bytes on SQLite). Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering-by-value'
           required: false
           example: ['plugins->_plugin/cache->contentLength:num/1000']
           schema:
@@ -526,14 +554,42 @@ paths:
             format: date-time
         - name: responseBefore
           in: query
-          description: Only match Refs with a response strictly before this time
+          description: 'Only match Refs whose metadata was last modified strictly before this time (metadata->modified, set whenever responses, plugins or user URLs are recomputed). Refs without metadata never match. Indexed by the metadataModified _config/index flag. For the latest response, use newResponseBefore.'
           required: false
           schema:
             type: string
             format: date-time
         - name: responseAfter
           in: query
-          description: Only match Refs with a response strictly after this time
+          description: 'Only match Refs whose metadata was last modified strictly after this time (metadata->modified, set whenever responses, plugins or user URLs are recomputed). Indexed by the metadataModified _config/index flag. For the latest response, use newResponseAfter.'
+          required: false
+          schema:
+            type: string
+            format: date-time
+        - name: newResponseBefore
+          in: query
+          description: 'Only match Refs whose latest response (metadata->newResponse) is strictly before this time. Refs without responses never match. Indexed by the newResponse _config/index flag.'
+          required: false
+          schema:
+            type: string
+            format: date-time
+        - name: newResponseAfter
+          in: query
+          description: 'Only match Refs whose latest response (metadata->newResponse) is strictly after this time, e.g. now minus one day for Refs active in the last day. Indexed by the newResponse _config/index flag.'
+          required: false
+          schema:
+            type: string
+            format: date-time
+        - name: newReactionBefore
+          in: query
+          description: 'Only match Refs whose latest reaction (metadata->newReaction) is strictly before this time. Refs without reactions never match. Indexed by the newReaction _config/index flag.'
+          required: false
+          schema:
+            type: string
+            format: date-time
+        - name: newReactionAfter
+          in: query
+          description: 'Only match Refs whose latest reaction (metadata->newReaction) is strictly after this time. Indexed by the newReaction _config/index flag.'
           required: false
           schema:
             type: string
@@ -560,7 +616,7 @@ paths:
               $ref: '#/components/schemas/tagValueFilter'
         - name: pluginBefore
           in: query
-          description: 'Only match Refs whose plugin value is strictly less than the value: plugins->{plugin}[->{field}...][:num|:len]/{value}. The value is always after the last ''/'' and cannot contain ''/'', ''->'' or '',''. Refs without the value never match. Strings compare using the database ordering (locale on PostgreSQL, bytes on SQLite). Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering-by-value'
+          description: 'Only match Refs whose plugin value or response count is strictly less than the value: plugins->{plugin}[->{field}...][:num|:len]/{value}, metadata->plugins->{plugin}[:num]/{count} or metadata->remotePlugins->{plugin}[:num]/{count}. Response counts are numbers, Refs without responses count as 0, and are indexed by hotResponses / hotRemoteResponses. The value is always after the last ''/'' and cannot contain ''/'', ''->'' or '',''. Refs without the value never match. Strings compare using the database ordering (locale on PostgreSQL, bytes on SQLite). Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering-by-value'
           required: false
           example: ['plugins->plugin/test->ids:len/3']
           schema:
@@ -570,7 +626,7 @@ paths:
               $ref: '#/components/schemas/pluginValueFilter'
         - name: pluginAfter
           in: query
-          description: 'Only match Refs whose plugin value is strictly greater than the value: plugins->{plugin}[->{field}...][:num|:len]/{value}. The value is always after the last ''/'' and cannot contain ''/'', ''->'' or '',''. Refs without the value never match. Strings compare using the database ordering (locale on PostgreSQL, bytes on SQLite). Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering-by-value'
+          description: 'Only match Refs whose plugin value or response count is strictly greater than the value: plugins->{plugin}[->{field}...][:num|:len]/{value}, metadata->plugins->{plugin}[:num]/{count} or metadata->remotePlugins->{plugin}[:num]/{count}. Response counts are numbers, Refs without responses count as 0, and are indexed by hotResponses / hotRemoteResponses. The value is always after the last ''/'' and cannot contain ''/'', ''->'' or '',''. Refs without the value never match. Strings compare using the database ordering (locale on PostgreSQL, bytes on SQLite). Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering-by-value'
           required: false
           example: ['plugins->_plugin/cache->contentLength:num/1000']
           schema:
@@ -1443,6 +1499,26 @@ paths:
           schema:
             type: string
             format: date-time
+        - name: configBefore
+          in: query
+          description: 'Only match Exts whose value is strictly less than the value: {field}->{path}[:num|:len]/{value}, where {field} is config. Not indexed. Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering-by-value'
+          required: false
+          example: ['config->pinned:len/0']
+          schema:
+            type: array
+            maxItems: 100
+            items:
+              $ref: '#/components/schemas/configValueFilter'
+        - name: configAfter
+          in: query
+          description: 'Only match Exts whose value is strictly greater than the value: {field}->{path}[:num|:len]/{value}, where {field} is config. Not indexed. Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering-by-value'
+          required: false
+          example: ['config->pinned:len/0']
+          schema:
+            type: array
+            maxItems: 100
+            items:
+              $ref: '#/components/schemas/configValueFilter'
         - name: search
           in: query
           required: false
@@ -1502,6 +1578,26 @@ paths:
           schema:
             type: string
             format: date-time
+        - name: configBefore
+          in: query
+          description: 'Only match Exts whose value is strictly less than the value: {field}->{path}[:num|:len]/{value}, where {field} is config. Not indexed. Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering-by-value'
+          required: false
+          example: ['config->pinned:len/0']
+          schema:
+            type: array
+            maxItems: 100
+            items:
+              $ref: '#/components/schemas/configValueFilter'
+        - name: configAfter
+          in: query
+          description: 'Only match Exts whose value is strictly greater than the value: {field}->{path}[:num|:len]/{value}, where {field} is config. Not indexed. Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering-by-value'
+          required: false
+          example: ['config->pinned:len/0']
+          schema:
+            type: array
+            maxItems: 100
+            items:
+              $ref: '#/components/schemas/configValueFilter'
         - name: search
           in: query
           required: false
@@ -1705,6 +1801,26 @@ paths:
           schema:
             type: string
             format: date-time
+        - name: configBefore
+          in: query
+          description: 'Only match Plugins whose value is strictly less than the value: {field}->{path}[:num|:len]/{value}, where {field} is config, defaults or schema. Not indexed. Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering-by-value'
+          required: false
+          example: ['config->version:num/3']
+          schema:
+            type: array
+            maxItems: 100
+            items:
+              $ref: '#/components/schemas/configValueFilter'
+        - name: configAfter
+          in: query
+          description: 'Only match Plugins whose value is strictly greater than the value: {field}->{path}[:num|:len]/{value}, where {field} is config, defaults or schema. Not indexed. Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering-by-value'
+          required: false
+          example: ['config->version:num/3']
+          schema:
+            type: array
+            maxItems: 100
+            items:
+              $ref: '#/components/schemas/configValueFilter'
         - name: search
           in: query
           description: Full text search
@@ -1911,6 +2027,26 @@ paths:
           schema:
             type: string
             format: date-time
+        - name: configBefore
+          in: query
+          description: 'Only match Templates whose value is strictly less than the value: {field}->{path}[:num|:len]/{value}, where {field} is config, defaults or schema. Not indexed. Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering-by-value'
+          required: false
+          example: ['config->version:num/3']
+          schema:
+            type: array
+            maxItems: 100
+            items:
+              $ref: '#/components/schemas/configValueFilter'
+        - name: configAfter
+          in: query
+          description: 'Only match Templates whose value is strictly greater than the value: {field}->{path}[:num|:len]/{value}, where {field} is config, defaults or schema. Not indexed. Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering-by-value'
+          required: false
+          example: ['config->version:num/3']
+          schema:
+            type: array
+            maxItems: 100
+            items:
+              $ref: '#/components/schemas/configValueFilter'
         - name: search
           in: query
           required: false
@@ -2115,6 +2251,26 @@ paths:
           schema:
             type: string
             format: date-time
+        - name: configBefore
+          in: query
+          description: 'Only match Users whose value is strictly less than the value: {field}->{path}[:num|:len]/{value}, where {field} is external (MOD only, otherwise 403). Not indexed. Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering-by-value'
+          required: false
+          example: ['external->ids:len/1']
+          schema:
+            type: array
+            maxItems: 100
+            items:
+              $ref: '#/components/schemas/configValueFilter'
+        - name: configAfter
+          in: query
+          description: 'Only match Users whose value is strictly greater than the value: {field}->{path}[:num|:len]/{value}, where {field} is external (MOD only, otherwise 403). Not indexed. Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering-by-value'
+          required: false
+          example: ['external->ids:len/1']
+          schema:
+            type: array
+            maxItems: 100
+            items:
+              $ref: '#/components/schemas/configValueFilter'
         - name: search
           in: query
           required: false
@@ -3320,9 +3476,16 @@ components:
       maxLength: 139
     pluginValueFilter:
       type: string
-      pattern: '^plugins->[_+]?plugin(?:/[a-z0-9]+(?:[./][a-z0-9]+)*)?(?:->(?:[A-Za-z0-9_$-]+(?:\[[0-9]{1,9}\])?|\[[0-9]{1,9}\]))*(?::num|:len)?/(?:(?!->)[^/,])+$'
-      description: 'Plugin value filter: plugins->{plugin}[->{field}...][:num|:len]/{value}. Fields are optional, since plugin data may be a primitive, and may be array indices ([0]). The value is compared as text, as a number (:num) or by array length (:len).'
+      pattern: '^(?:plugins->[_+]?plugin(?:/[a-z0-9]+(?:[./][a-z0-9]+)*)?(?:->(?:[A-Za-z0-9_$-]+(?:\[[0-9]{1,9}\])?|\[[0-9]{1,9}\]))*(?::num|:len)?|metadata->(?:plugins|remotePlugins)->[_+]?plugin(?:/[a-z0-9]+(?:[./][a-z0-9]+)*)?(?::num)?)/(?:(?!->)[^/,])+$'
+      description: 'Plugin value filter: plugins->{plugin}[->{field}...][:num|:len]/{value}. Fields are optional, since plugin data may be a primitive, and may be array indices ([0]). The value is compared as text, as a number (:num) or by array length (:len). Response count filter: metadata->plugins->{plugin}[:num]/{count} or metadata->remotePlugins->{plugin}[:num]/{count}, the count must be a number.'
       example: 'plugins->plugin/test->size:num/1000'
+      minLength: 1
+      maxLength: 1024
+    configValueFilter:
+      type: string
+      pattern: '^(?:config|defaults|schema|external)(?:->(?:[A-Za-z0-9_$-]+(?:\[[0-9]{1,9}\])?|\[[0-9]{1,9}\]))+(?::num|:len)?/(?:(?!->)[^/,])+$'
+      description: 'Config value filter: {field}->{path}[:num|:len]/{value}. Ext allows config, User allows external (MOD only), Plugin and Template allow config, defaults and schema. The value is compared as text, as a number (:num, non-numbers never match) or by array length (:len, non-arrays never match).'
+      example: 'config->pinned:len/0'
       minLength: 1
       maxLength: 1024
     Page:

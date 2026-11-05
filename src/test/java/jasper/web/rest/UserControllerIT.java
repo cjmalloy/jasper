@@ -98,4 +98,13 @@ class UserControllerIT {
 		assertThat(existing).isPresent();
 		assertThat(existing.get().getRole()).isEqualTo("ROLE_USER");
 	}
+
+	@Test
+	@WithMockUser(value = "+user/tester@a", roles = {"USER"})
+	void testPageWithConfigFiltersFailed() throws Exception {
+		mockMvc
+			.perform(get("/api/v1/user/page")
+				.param("configAfter", "external->ids:len/0"))
+			.andExpect(status().isForbidden());
+	}
 }

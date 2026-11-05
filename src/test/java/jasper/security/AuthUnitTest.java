@@ -9,6 +9,7 @@ import jasper.domain.Ref;
 import jasper.domain.User;
 import jasper.repository.RefRepository;
 import jasper.repository.filter.RefFilter;
+import jasper.repository.filter.TagFilter;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -28,6 +29,7 @@ import static jasper.repository.spec.QualifiedTag.qt;
 import static jasper.repository.spec.QualifiedTag.selector;
 import static jasper.security.AuthoritiesConstants.ANONYMOUS;
 import static jasper.security.AuthoritiesConstants.EDITOR;
+import static jasper.security.AuthoritiesConstants.MOD;
 import static jasper.security.AuthoritiesConstants.USER;
 import static jasper.security.AuthoritiesConstants.VIEWER;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -1039,6 +1041,57 @@ public class AuthUnitTest {
 		assertThat(auth.canReadQuery(RefFilter.builder().remotePluginResponse(List.of("_plugin/secret")).build())).isFalse();
 		assertThat(auth.canReadQuery(RefFilter.builder().noRemotePluginResponse(List.of("_plugin/secret")).build())).isFalse();
 		assertThat(auth.canReadQuery(RefFilter.builder().query("custom").remotePluginResponse(List.of("plugin/comment", "_plugin/secret")).build())).isFalse();
+	}
+
+	@Test
+	void testCanReadQuery_ResponseCountPrivate() {
+		var user = getUser("+user/test");
+		user.getTagReadAccess().add("_plugin/secret");
+		var auth = getAuth(user, VIEWER);
+
+		assertThat(auth.canReadQuery(RefFilter.builder().pluginAfter(List.of("metadata->plugins->_plugin/secret/10")).build())).isTrue();
+		assertThat(auth.canReadQuery(RefFilter.builder().pluginBefore(List.of("metadata->remotePlugins->_plugin/secret:num/10")).build())).isTrue();
+	}
+
+	@Test
+	void testCanReadQuery_ResponseCountPrivateFailed() {
+		var user = getUser("+user/test");
+		var auth = getAuth(user, USER);
+
+		assertThat(auth.canReadQuery(RefFilter.builder().pluginAfter(List.of("metadata->remotePlugins->plugin/user/read/10")).build())).isTrue();
+		assertThat(auth.canReadQuery(RefFilter.builder().pluginAfter(List.of("metadata->plugins->_plugin/secret/10")).build())).isFalse();
+		assertThat(auth.canReadQuery(RefFilter.builder().pluginBefore(List.of("metadata->remotePlugins->_plugin/secret:num/10")).build())).isFalse();
+	}
+
+	@Test
+	void testCanReadQuery_ResponseCountPrivateMod() {
+		var user = getUser("+user/test");
+		var auth = getAuth(user, MOD);
+
+		assertThat(auth.canReadQuery(RefFilter.builder().pluginAfter(List.of("metadata->plugins->_plugin/secret/10")).build())).isTrue();
+		assertThat(auth.canReadQuery(RefFilter.builder().pluginResponse(List.of("_plugin/secret")).build())).isTrue();
+	}
+
+	@Test
+	void testCanFilterUsers() {
+		var auth = getAuth(getUser("+user/test"), USER);
+
+		assertThat(auth.canFilterUsers(TagFilter.builder().build())).isTrue();
+		assertThat(auth.canFilterUsers(TagFilter.builder().configAfter(List.of("external->ids:len/0")).build())).isFalse();
+		assertThat(auth.canFilterUsers(TagFilter.builder().configBefore(List.of("external->ids:len/0")).build())).isFalse();
+		assertThat(getAuth(getUser("+user/test"), MOD).canFilterUsers(TagFilter.builder().configAfter(List.of("external->ids:len/0")).build())).isTrue();
+	}
+
+	@Test
+	void testUserPageable() {
+		var pageable = PageRequest.of(0, 20, Sort.by("external->ids[0]", "tag"));
+
+		assertThat(getAuth(getUser("+user/test"), USER).userPageable(pageable).getSort().toList())
+			.extracting(Sort.Order::getProperty)
+			.containsExactly("tag");
+		assertThat(getAuth(getUser("+user/test"), MOD).userPageable(pageable).getSort().toList())
+			.extracting(Sort.Order::getProperty)
+			.containsExactly("external->ids[0]", "tag");
 	}
 
 	@Test

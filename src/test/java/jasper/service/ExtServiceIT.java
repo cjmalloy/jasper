@@ -1,9 +1,12 @@
 package jasper.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import jasper.IntegrationTest;
 import jasper.component.ConfigCache;
 import jasper.domain.Ext;
 import jasper.domain.User;
+import jasper.errors.InvalidQueryException;
 import jasper.errors.NotFoundException;
 import jasper.repository.ExtRepository;
 import jasper.repository.UserRepository;
@@ -705,4 +708,59 @@ public class ExtServiceIT {
 		}
 	}
 
+
+	Ext extWithConfig(String tag, String config) throws Exception {
+		var ext = new Ext();
+		ext.setTag(tag);
+		if (config != null) ext.setConfig((ObjectNode) new ObjectMapper().readTree(config));
+		return extRepository.save(ext);
+	}
+
+	List<String> configFiltered(TagFilter filter) {
+		return extService.page(filter, PageRequest.of(0, 10, Sort.by("tag"))).getContent().stream().map(e -> e.getTag()).toList();
+	}
+
+	@Test
+	void testConfigValueFilter() throws Exception {
+		extWithConfig("a", "{\"pinned\": [\"x\"], \"order\": 3, \"title\": \"apple\"}");
+		extWithConfig("b", "{\"pinned\": [], \"order\": \"high\", \"title\": \"kiwi\"}");
+		extWithConfig("c", "{\"pinned\": \"x\", \"order\": 10}");
+		extWithConfig("d", null);
+
+		assertThat(configFiltered(TagFilter.builder().configAfter(List.of("config->pinned:len/0")).build()))
+			.containsExactly("a");
+		assertThat(configFiltered(TagFilter.builder().configBefore(List.of("config->pinned:len/1")).build()))
+			.containsExactly("b");
+		assertThat(configFiltered(TagFilter.builder().configAfter(List.of("config->order:num/2")).build()))
+			.containsExactly("a", "c");
+		assertThat(configFiltered(TagFilter.builder().configBefore(List.of("config->order:num/10")).build()))
+			.containsExactly("a");
+		assertThat(configFiltered(TagFilter.builder().configAfter(List.of("config->title/b")).build()))
+			.containsExactly("b");
+		assertThat(extService.count(TagFilter.builder().configAfter(List.of("config->order:num/2")).build()))
+			.isEqualTo(2);
+	}
+
+	@Test
+	void testConfigValueFilterPrivateExtHidden() throws Exception {
+		extWithConfig("_secret", "{\"order\": 3}");
+		extWithConfig("public", "{\"order\": 3}");
+
+		assertThat(configFiltered(TagFilter.builder().configAfter(List.of("config->order:num/2")).build()))
+			.containsExactly("public");
+		assertThat(extService.count(TagFilter.builder().configAfter(List.of("config->order:num/2")).build()))
+			.isEqualTo(1);
+	}
+
+	@Test
+	void testInvalidConfigValueFilter() {
+		assertThatThrownBy(() -> extService.page(TagFilter.builder().configAfter(List.of("external->ids:len/0")).build(), PageRequest.of(0, 10)))
+			.isInstanceOf(InvalidQueryException.class);
+		assertThatThrownBy(() -> extService.page(TagFilter.builder().configAfter(List.of("schema->x/0")).build(), PageRequest.of(0, 10)))
+			.isInstanceOf(InvalidQueryException.class);
+		assertThatThrownBy(() -> extService.page(TagFilter.builder().configAfter(List.of("config->x:num/abc")).build(), PageRequest.of(0, 10)))
+			.isInstanceOf(InvalidQueryException.class);
+		assertThatThrownBy(() -> extService.page(TagFilter.builder().configAfter(List.of("config/1")).build(), PageRequest.of(0, 10)))
+			.isInstanceOf(InvalidQueryException.class);
+	}
 }

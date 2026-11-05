@@ -2210,7 +2210,20 @@ public class RefServiceIT {
 		ref.setMetadata(Metadata.builder()
 			.userUrls(new HashMap<>(Map.of("+plugin/user/run", List.of(userUrl))))
 			.build());
+		saveUserUrl(url, userUrl);
 		return refRepository.save(ref);
+	}
+
+	/**
+	 * The user URL Ref the userUrls metadata points to, which the userResponse filters join against.
+	 */
+	void saveUserUrl(String url, String userUrl) {
+		var user = new Ref();
+		user.setUrl(userUrl.replaceFirst("@[^?]*\\?", "?"));
+		user.setOrigin(userUrl.contains("@") ? userUrl.replaceFirst("^[^@]*(@[^?]*)\\?.*$", "$1") : "");
+		user.setTags(new ArrayList<>(List.of("+plugin/user/run")));
+		user.setSources(new ArrayList<>(List.of(url)));
+		refRepository.save(user);
 	}
 
 	@Test
@@ -2230,14 +2243,207 @@ public class RefServiceIT {
 		saveWithUserUrl(URL + 2, "tag:/user/tester@other?url=" + URL + 2);
 
 		assertThat(refService.page(
-				RefFilter.builder().userResponse(List.of("+plugin/user/run")).build(),
+				RefFilter.builder().query("public").userResponse(List.of("+plugin/user/run")).build(),
 				PageRequest.of(0, 10)).getContent())
 			.extracting(r -> r.getUrl())
 			.containsExactly(URL);
 		assertThat(refService.page(
-				RefFilter.builder().noUserResponse(List.of("+plugin/user/run")).build(),
+				RefFilter.builder().query("public").noUserResponse(List.of("+plugin/user/run")).build(),
 				PageRequest.of(0, 10)).getContent())
 			.extracting(r -> r.getUrl())
 			.containsExactly(URL + 2);
+	}
+
+	Ref refWithMetadata(String url, Metadata metadata) {
+		var ref = new Ref();
+		ref.setUrl(url);
+		ref.setTags(new ArrayList<>(List.of("+user/tester")));
+		ref.setMetadata(metadata);
+		return refRepository.save(ref);
+	}
+
+	@Test
+	void testResponseCountFilter() {
+		refWithMetadata("https://example.com/1", Metadata.builder().plugins(new HashMap<>(Map.of("plugin/comment", 3L))).build());
+		refWithMetadata("https://example.com/2", Metadata.builder().plugins(new HashMap<>(Map.of("plugin/comment", 12L))).build());
+		refWithMetadata("https://example.com/3", Metadata.builder().build());
+		refWithMetadata("https://example.com/4", Metadata.builder().remotePlugins(new HashMap<>(Map.of("plugin/user/read", 11L))).build());
+		refWithMetadata("https://example.com/5", Metadata.builder().remotePlugins(new HashMap<>(Map.of("plugin/user/read", 10L))).build());
+
+		assertThat(filteredUrls(RefFilter.builder().pluginAfter(List.of("metadata->plugins->plugin/comment/10")).build()))
+			.containsExactly("https://example.com/2");
+		assertThat(filteredUrls(RefFilter.builder().pluginAfter(List.of("metadata->plugins->plugin/comment:num/2")).build()))
+			.containsExactly("https://example.com/1", "https://example.com/2");
+		assertThat(filteredUrls(RefFilter.builder().pluginBefore(List.of("metadata->plugins->plugin/comment/4")).build()))
+			.containsExactly("https://example.com/1", "https://example.com/3", "https://example.com/4", "https://example.com/5");
+		assertThat(filteredUrls(RefFilter.builder()
+				.pluginAfter(List.of("metadata->plugins->plugin/comment/0"))
+				.pluginBefore(List.of("metadata->plugins->plugin/comment/12")).build()))
+			.containsExactly("https://example.com/1");
+		assertThat(filteredUrls(RefFilter.builder().pluginAfter(List.of("metadata->remotePlugins->plugin/user/read/10")).build()))
+			.containsExactly("https://example.com/4");
+		assertThat(filteredUrls(RefFilter.builder().pluginAfter(List.of("metadata->remotePlugins->plugin/user/read/9.5")).build()))
+			.containsExactly("https://example.com/4", "https://example.com/5");
+	}
+
+	@Test
+	void testInvalidResponseCountFilter() {
+		assertThatThrownBy(() -> RefFilter.builder().pluginAfter(List.of("metadata->plugins->plugin/comment/abc")).build().spec())
+			.isInstanceOf(InvalidQueryException.class);
+		assertThatThrownBy(() -> RefFilter.builder().pluginAfter(List.of("metadata->plugins->plugin/comment:len/1")).build().spec())
+			.isInstanceOf(InvalidQueryException.class);
+		assertThatThrownBy(() -> RefFilter.builder().pluginAfter(List.of("metadata->plugins->plugin/comment->x/1")).build().spec())
+			.isInstanceOf(InvalidQueryException.class);
+		assertThatThrownBy(() -> RefFilter.builder().pluginAfter(List.of("metadata->responses/1")).build().spec())
+			.isInstanceOf(InvalidQueryException.class);
+	}
+
+	@Test
+	void testResponseCountFilterPrivatePluginFailed() {
+		refWithMetadata("https://example.com/1", Metadata.builder().plugins(new HashMap<>(Map.of("_plugin/secret", 3L))).build());
+
+		assertThatThrownBy(() -> refService.page(
+				RefFilter.builder().pluginAfter(List.of("metadata->plugins->_plugin/secret/1")).build(),
+				PageRequest.of(0, 10)))
+			.isInstanceOf(AccessDeniedException.class);
+		assertThatThrownBy(() -> refService.count(
+				RefFilter.builder().pluginBefore(List.of("metadata->remotePlugins->_plugin/secret/1")).build()))
+			.isInstanceOf(AccessDeniedException.class);
+	}
+
+	@Test
+	@WithMockUser(value = "+user/tester", roles = {"MOD"})
+	void testResponseCountFilterPrivatePlugin() {
+		refWithMetadata("https://example.com/1", Metadata.builder().plugins(new HashMap<>(Map.of("_plugin/secret", 3L))).build());
+
+		assertThat(refService.page(
+				RefFilter.builder().pluginAfter(List.of("metadata->plugins->_plugin/secret/1")).build(),
+				PageRequest.of(0, 10)).getContent())
+			.extracting(r -> r.getUrl())
+			.containsExactly("https://example.com/1");
+	}
+
+	@Test
+	void testNewResponseAndReactionFilter() {
+		var t1 = Instant.parse("2026-01-01T00:00:00.123456789Z");
+		var t2 = Instant.parse("2026-01-01T00:00:00.5Z");
+		var t3 = Instant.parse("2026-01-01T00:00:01Z");
+		refWithMetadata("https://example.com/1", Metadata.builder().newResponse(Metadata.timestamp(t1)).newReaction(Metadata.timestamp(t3)).build());
+		refWithMetadata("https://example.com/2", Metadata.builder().newResponse(Metadata.timestamp(t2)).build());
+		refWithMetadata("https://example.com/3", Metadata.builder().newResponse(Metadata.timestamp(t3)).newReaction(Metadata.timestamp(t1)).build());
+		refWithMetadata("https://example.com/4", Metadata.builder().build());
+
+		assertThat(filteredUrls(RefFilter.builder().newResponseAfter(t2).build()))
+			.containsExactly("https://example.com/3");
+		assertThat(filteredUrls(RefFilter.builder().newResponseAfter(Instant.parse("2026-01-01T00:00:00.1Z")).build()))
+			.containsExactly("https://example.com/1", "https://example.com/2", "https://example.com/3");
+		assertThat(filteredUrls(RefFilter.builder().newResponseBefore(t2).build()))
+			.containsExactly("https://example.com/1");
+		assertThat(filteredUrls(RefFilter.builder().newResponseBefore(Instant.parse("2026-01-01T00:00:00.9Z")).build()))
+			.containsExactly("https://example.com/1", "https://example.com/2");
+		assertThat(filteredUrls(RefFilter.builder().newReactionAfter(t2).build()))
+			.containsExactly("https://example.com/1");
+		assertThat(filteredUrls(RefFilter.builder().newReactionBefore(t2).build()))
+			.containsExactly("https://example.com/3");
+	}
+
+	@Test
+	void testResponseBeforeAfterFilterMetadataModified() {
+		refWithMetadata("https://example.com/1", Metadata.builder().modified("2026-01-01T00:00:00Z").build());
+		refWithMetadata("https://example.com/2", Metadata.builder().modified("2026-01-02T00:00:00Z").build());
+		refWithMetadata("https://example.com/3", Metadata.builder().modified("2026-01-03T00:00:00Z").build());
+
+		assertThat(filteredUrls(RefFilter.builder().responseAfter(Instant.parse("2026-01-01T12:00:00Z")).build()))
+			.containsExactly("https://example.com/2", "https://example.com/3");
+		assertThat(filteredUrls(RefFilter.builder().responseBefore(Instant.parse("2026-01-02T12:00:00Z")).build()))
+			.containsExactly("https://example.com/1", "https://example.com/2");
+	}
+
+	@Test
+	void testCreatedFilter() {
+		var ref1 = refWithMetadata("https://example.com/1", null);
+		var ref2 = refWithMetadata("https://example.com/2", null);
+		var c1 = refRepository.findOneByUrlAndOrigin(ref1.getUrl(), "").orElseThrow().getCreated();
+		var c2 = refRepository.findOneByUrlAndOrigin(ref2.getUrl(), "").orElseThrow().getCreated();
+
+		assertThat(filteredUrls(RefFilter.builder().createdAfter(c1).build()))
+			.containsExactly("https://example.com/2");
+		assertThat(filteredUrls(RefFilter.builder().createdBefore(c2).build()))
+			.containsExactly("https://example.com/1");
+	}
+
+	@Test
+	void testUserResponseFilterEscapesUrls() {
+		var urls = List.of("https://example.com/a_b", "https://example.com/a%b", "https://example.com/a'b?c=1&d=_");
+		for (var url : urls) refWithUrlTags(url, "public");
+		refWithUrlTags("https://example.com/aXb", "public");
+		refWithUrlTags("https://example.com/axb", "public");
+		for (var url : urls) saveUserUrl(url, "tag:/user/tester?url=" + url);
+
+		assertThat(refService.page(
+				RefFilter.builder().query("public").userResponse(List.of("+plugin/user/run")).build(),
+				PageRequest.of(0, 10, Sort.by("url"))).getContent())
+			.extracting(r -> r.getUrl())
+			.containsExactlyInAnyOrderElementsOf(urls);
+		assertThat(refService.page(
+				RefFilter.builder().query("public").noUserResponse(List.of("+plugin/user/run")).build(),
+				PageRequest.of(0, 10)).getContent())
+			.extracting(r -> r.getUrl())
+			.containsExactlyInAnyOrder("https://example.com/aXb", "https://example.com/axb");
+	}
+
+	@Test
+	void testUserResponseFilterMatchesProtectedAndPrivateUserUrls() {
+		refWithUrlTags(URL, "public");
+		refWithUrlTags(URL + 2, "public");
+		refWithUrlTags(URL + 3, "public");
+		saveUserUrl(URL, "tag:/+user/tester?url=" + URL);
+		saveUserUrl(URL + 2, "tag:/_user/tester?url=" + URL + 2);
+		saveUserUrl(URL + 3, "tag:/user/other?url=" + URL + 3);
+
+		assertThat(refService.page(
+				RefFilter.builder().query("public").userResponse(List.of("+plugin/user/run")).build(),
+				PageRequest.of(0, 10)).getContent())
+			.extracting(r -> r.getUrl())
+			.containsExactlyInAnyOrder(URL, URL + 2);
+	}
+
+	@Test
+	void testUserResponseFilterRequiresPluginAndSource() {
+		refWithUrlTags(URL, "public");
+		refWithUrlTags(URL + 2, "public");
+		var wrongPlugin = new Ref();
+		wrongPlugin.setUrl("tag:/user/tester?url=" + URL);
+		wrongPlugin.setTags(new ArrayList<>(List.of("plugin/user/other")));
+		wrongPlugin.setSources(new ArrayList<>(List.of(URL)));
+		refRepository.save(wrongPlugin);
+		var noSource = new Ref();
+		noSource.setUrl("tag:/user/tester?url=" + URL + 2);
+		noSource.setTags(new ArrayList<>(List.of("+plugin/user/run")));
+		refRepository.save(noSource);
+
+		assertThat(refService.page(
+				RefFilter.builder().query("public").userResponse(List.of("+plugin/user/run")).build(),
+				PageRequest.of(0, 10)).getContent())
+			.isEmpty();
+		assertThat(refService.page(
+				RefFilter.builder().query("public").userResponse(List.of("plugin/comment")).build(),
+				PageRequest.of(0, 10)).getContent())
+			.isEmpty();
+	}
+
+	@Test
+	@WithMockUser("+user/te_st")
+	void testUserResponseFilterEscapesUserName() {
+		refWithUrlTags(URL, "public");
+		refWithUrlTags(URL + 2, "public");
+		saveUserUrl(URL, "tag:/user/te_st?url=" + URL);
+		saveUserUrl(URL + 2, "tag:/user/teXst?url=" + URL + 2);
+
+		assertThat(refService.page(
+				RefFilter.builder().query("public").userResponse(List.of("+plugin/user/run")).build(),
+				PageRequest.of(0, 10)).getContent())
+			.extracting(r -> r.getUrl())
+			.containsExactly(URL);
 	}
 }
