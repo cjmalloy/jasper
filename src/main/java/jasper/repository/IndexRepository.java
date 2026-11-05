@@ -25,6 +25,10 @@ public interface IndexRepository {
 	void buildPublished();
 	void dropModified();
 	void buildModified();
+	void dropNewResponse();
+	void buildNewResponse();
+	void dropNewReaction();
+	void buildNewReaction();
 	/**
 	 * Build indexes for the given tag value sorts and drop any other hot tag indexes.
 	 *
@@ -32,7 +36,7 @@ public interface IndexRepository {
 	 */
 	void updateHotTags(List<String> hotTags);
 	/**
-	 * Build indexes for the given plugin sort columns and drop any other hot plugin indexes.
+	 * Build filter and sort indexes for the given plugin sort columns and drop any other hot plugin indexes.
 	 *
 	 * @param hotPlugins plugin sort columns, e.g. "plugin/test->size:num"
 	 */

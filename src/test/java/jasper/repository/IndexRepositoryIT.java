@@ -4,9 +4,14 @@ import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import jasper.DisabledOnSqlite;
 import jasper.IntegrationTest;
+import jasper.SqlCapture;
+import jasper.repository.filter.RefFilter;
+import jasper.repository.spec.RefSpec;
 import jasper.repository.spec.SortSpec.TagValueSort;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.junit.jupiter.EnabledIf;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,6 +26,9 @@ public class IndexRepositoryIT {
 
 	@Autowired
 	IndexRepository indexRepository;
+
+	@Autowired
+	RefRepository refRepository;
 
 	@Autowired
 	JdbcTemplate jdbc;
@@ -97,6 +105,67 @@ public class IndexRepositoryIT {
 		indexRepository.buildCascade();
 		indexRepository.buildRegen();
 		indexRepository.buildRegen();
+	}
+
+	@Test
+	void testBuildAndDropNewResponse() {
+		indexRepository.dropNewResponse();
+		indexRepository.buildNewResponse();
+		indexRepository.buildNewResponse();
+		indexRepository.dropNewResponse();
+	}
+
+	@Test
+	void testBuildAndDropNewReaction() {
+		indexRepository.dropNewReaction();
+		indexRepository.buildNewReaction();
+		indexRepository.buildNewReaction();
+		indexRepository.dropNewReaction();
+	}
+
+	/**
+	 * Runs a sort through {@link RefSpec#sort} and explains the SQL Hibernate rendered for it,
+	 * so the test fails if Hibernate or the dialect stops rendering the indexed expression.
+	 */
+	String explainSort(String column, Sort.Direction direction, boolean sqlite) {
+		var sql = SqlCapture.capture(() -> refRepository.findAll(
+				RefSpec.sort(RefFilter.builder().build().spec(), PageRequest.of(0, 20, Sort.by(direction, column))),
+				PageRequest.ofSize(20)))
+			.stream()
+			.filter(s -> s.contains(" order by "))
+			.findFirst()
+			.orElseThrow();
+		if (!sqlite) em.createNativeQuery("SET LOCAL enable_seqscan = off").executeUpdate();
+		return ((List<?>) em.createNativeQuery((sqlite ? "EXPLAIN QUERY PLAN " : "EXPLAIN ") + sql)
+				.setParameter(1, sqlite ? 20 : 0)
+				.setParameter(2, sqlite ? 0 : 20)
+				.getResultList()).stream()
+			.map(row -> row instanceof Object[] cols ? cols[cols.length - 1].toString() : row.toString())
+			.collect(Collectors.joining("\n"));
+	}
+
+	@Test
+	@DisabledOnSqlite
+	@Transactional
+	void testNewResponseAndReactionIndexUsedForSortPostgres() {
+		indexRepository.buildNewResponse();
+		indexRepository.buildNewReaction();
+		for (var direction : Sort.Direction.values()) {
+			assertThat(explainSort("metadata->newResponse", direction, false)).as("newResponse %s", direction).contains("ref_new_response_index");
+			assertThat(explainSort("metadata->newReaction", direction, false)).as("newReaction %s", direction).contains("ref_new_reaction_index");
+		}
+	}
+
+	@Test
+	@EnabledIf(expression = "#{environment.acceptsProfiles(T(org.springframework.core.env.Profiles).of('sqlite'))}", loadContext = true)
+	@Transactional
+	void testNewResponseAndReactionIndexUsedForSortSqlite() {
+		indexRepository.buildNewResponse();
+		indexRepository.buildNewReaction();
+		for (var direction : Sort.Direction.values()) {
+			assertThat(explainSort("metadata->newResponse", direction, true)).as("newResponse %s", direction).contains("ref_new_response_index");
+			assertThat(explainSort("metadata->newReaction", direction, true)).as("newReaction %s", direction).contains("ref_new_reaction_index");
+		}
 	}
 
 	String explainPostgres(String sql) {
@@ -186,7 +255,7 @@ public class IndexRepositoryIT {
 	}
 
 	List<String> hotPluginIndexes() {
-		return jdbc.queryForList("SELECT indexname FROM pg_indexes WHERE tablename = 'ref' AND indexname LIKE 'ref\\_hotp\\_%' ORDER BY indexname", String.class);
+		return jdbc.queryForList("SELECT indexname FROM pg_indexes WHERE tablename = 'ref' AND (indexname LIKE 'ref\\_hotp\\_%' OR indexname LIKE 'ref\\_hotps\\_%') ORDER BY indexname", String.class);
 	}
 
 	@Test
@@ -218,20 +287,39 @@ public class IndexRepositoryIT {
 	}
 
 	@Test
+	void testHotPluginSortExpression() {
+		assertThat(IndexRepositoryImplPostgres.hotPluginSortExpression("plugins->plugin/test->name"))
+			.isEqualTo("COALESCE(((plugins)->('plugin/test'))->>('name'), '')");
+		assertThat(IndexRepositoryImplPostgres.hotPluginSortExpression("plugins->plugin/score:num"))
+			.isEqualTo("COALESCE(" + safeNumeric("(plugins)->('plugin/score')") + ", 0.0)");
+		assertThat(IndexRepositoryImplPostgres.hotPluginSortExpression("plugins->plugin/test->tags:len"))
+			.isEqualTo("COALESCE(" + safeLength("((plugins)->('plugin/test'))->('tags')") + ", 0)");
+		assertThat(IndexRepositoryImplPostgres.hotPluginSortExpression("plugins->plugin/test->items[1]"))
+			.isEqualTo("COALESCE(jsonb_array_element_text(((plugins)->('plugin/test'))->('items'), 1), '')");
+		assertThat(IndexRepositoryImplPostgres.hotPluginSortIndexName("plugins->plugin/test->size:num"))
+			.startsWith("ref_hotps_plugin_test_size_num_")
+			.isNotEqualTo(IndexRepositoryImplPostgres.hotPluginIndexName("plugins->plugin/test->size:num"));
+		assertThat(IndexRepositoryImplPostgres.hotPluginSortIndexName("plugins->plugin/" + "a".repeat(200)).length()).isLessThanOrEqualTo(63);
+	}
+
+	@Test
 	@DisabledOnSqlite
 	void testBuildAndDropHotPlugins() {
 		var size = IndexRepositoryImplPostgres.hotPluginIndexName("plugins->plugin/test->size:num");
 		var name = IndexRepositoryImplPostgres.hotPluginIndexName("plugins->plugin/test->name");
 		var sizeText = IndexRepositoryImplPostgres.hotPluginIndexName("plugins->plugin/test->size");
+		var sizeSort = IndexRepositoryImplPostgres.hotPluginSortIndexName("plugins->plugin/test->size:num");
+		var nameSort = IndexRepositoryImplPostgres.hotPluginSortIndexName("plugins->plugin/test->name");
+		var sizeTextSort = IndexRepositoryImplPostgres.hotPluginSortIndexName("plugins->plugin/test->size");
 		assertThat(size).startsWith("ref_hotp_plugin_test_size_num_");
 		assertThat(sizeText).isNotEqualTo(size);
 
 		indexRepository.updateHotTags(List.of("plugin/progress:num"));
 		indexRepository.updateHotPlugins(List.of("plugin/test->size:num", "plugins->plugin/test->name", "invalid'plugin"));
-		assertThat(hotPluginIndexes()).containsExactlyInAnyOrder(size, name);
+		assertThat(hotPluginIndexes()).containsExactlyInAnyOrder(size, name, sizeSort, nameSort);
 
 		indexRepository.updateHotPlugins(List.of("plugin/test->size:num", "plugin/test->size"));
-		assertThat(hotPluginIndexes()).containsExactlyInAnyOrder(size, sizeText);
+		assertThat(hotPluginIndexes()).containsExactlyInAnyOrder(size, sizeText, sizeSort, sizeTextSort);
 		assertThat(hotTagIndexes()).hasSize(1);
 
 		indexRepository.updateHotPlugins(List.of());
@@ -287,6 +375,45 @@ public class IndexRepositoryIT {
 			select r1_0.url from ref r1_0
 			where (""" + safeLength("((r1_0.plugins)->('plugin/test'))->('tags')") + ")::numeric>(2)::numeric"))
 			.contains(IndexRepositoryImplPostgres.hotPluginIndexName("plugins->plugin/test->tags:len"));
+	}
+
+	/**
+	 * Runs a plugin sort through {@link RefSpec#sort} and explains the SQL Hibernate rendered for it,
+	 * so the test fails if Hibernate or the dialect stops rendering the indexed expression.
+	 */
+	String explainPluginSortPostgres(String column, Sort.Direction direction) {
+		var sql = SqlCapture.capture(() -> refRepository.findAll(
+				RefSpec.sort(RefFilter.builder().build().spec(), PageRequest.of(0, 20, Sort.by(direction, column))),
+				PageRequest.ofSize(20)))
+			.stream()
+			.filter(s -> s.contains(" order by "))
+			.findFirst()
+			.orElseThrow();
+		assertThat(sql).containsIgnoringCase("coalesce(");
+		em.createNativeQuery("SET LOCAL enable_seqscan = off").executeUpdate();
+		// Bind the page offset and limit
+		return ((List<?>) em.createNativeQuery("EXPLAIN " + sql)
+				.setParameter(1, 0)
+				.setParameter(2, 20)
+				.getResultList()).stream()
+			.map(Object::toString)
+			.collect(Collectors.joining("\n"));
+	}
+
+	@Test
+	@DisabledOnSqlite
+	@Transactional
+	void testHotPluginIndexUsedForPluginSortPostgres() {
+		var columns = List.of("plugin/test->name", "plugin/test->size:num", "plugin/test->tags:len",
+			"plugin/test->items[0]->score:num", "plugin/test->items[1]", "plugin/test->items[1]:len", "plugin/score:num");
+		indexRepository.updateHotPlugins(columns);
+		for (var column : columns) {
+			for (var direction : Sort.Direction.values()) {
+				assertThat(explainPluginSortPostgres("plugins->" + column, direction))
+					.as("%s %s", column, direction)
+					.contains(IndexRepositoryImplPostgres.hotPluginSortIndexName("plugins->" + column));
+			}
+		}
 	}
 
 	String explainSqlite(String sql) {

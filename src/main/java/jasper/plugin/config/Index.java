@@ -32,6 +32,10 @@ public class Index implements Serializable {
 	private boolean published = true;
 	@Builder.Default
 	private boolean modified = true;
+	@Builder.Default
+	private boolean newResponse = true;
+	@Builder.Default
+	private boolean newReaction = true;
 	/**
 	 * Tag value sorts to index, e.g. "plugin/progress:num" or "tags->plugin/duration:dur".
 	 */

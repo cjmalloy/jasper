@@ -102,6 +102,20 @@ public class Index {
 		} else {
 			indexRepository.dropModified();
 		}
+		if (index.isNewResponse()) {
+			try {
+				indexRepository.buildNewResponse();
+			} catch (Exception ignored) {}
+		} else {
+			indexRepository.dropNewResponse();
+		}
+		if (index.isNewReaction()) {
+			try {
+				indexRepository.buildNewReaction();
+			} catch (Exception ignored) {}
+		} else {
+			indexRepository.dropNewReaction();
+		}
 		if (index.isIgnored()) {
 			try {
 				indexRepository.buildIgnored();
