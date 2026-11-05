@@ -114,8 +114,6 @@ public class SQLiteDialect extends org.hibernate.community.dialect.SQLiteDialect
 		);
 		// string_to_array: in SQLite just pass through the comma-separated string (used with jsonb_exists_any)
 		functionRegistry.registerPattern("string_to_array", "(?1 || SUBSTR('', 1, 0 * LENGTH(?2)))", string);
-		// url_prefix(url, like pattern, glob pattern): GLOB is case-sensitive, so it can use the primary key
-		functionRegistry.registerPattern("url_prefix", "(?1 GLOB ?3)", bool);
 		// origin_nesting: returns 0 for blank or '@', otherwise count of '.' + 1
 		functionRegistry.registerPattern("origin_nesting", "CASE WHEN ?1 = '' OR ?1 = '@' THEN 0 ELSE (LENGTH(?1) - LENGTH(REPLACE(?1, '.', '')) + 1) END", integer);
 		// tag_levels: returns 0 for blank tag, otherwise count of '/' + 1

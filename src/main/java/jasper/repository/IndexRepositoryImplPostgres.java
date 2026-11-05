@@ -146,19 +146,6 @@ public class IndexRepositoryImplPostgres implements IndexRepository {
 	}
 
 	@Override
-	public void dropUrlPrefix() {
-		em.createNativeQuery("DROP INDEX IF EXISTS ref_url_prefix_index").executeUpdate();
-	}
-
-	/**
-	 * The primary key uses the database collation, which cannot serve LIKE 'prefix%' unless the collation is C.
-	 */
-	@Override
-	public void buildUrlPrefix() {
-		em.createNativeQuery("CREATE INDEX IF NOT EXISTS ref_url_prefix_index ON ref (url text_pattern_ops)").executeUpdate();
-	}
-
-	@Override
 	public void dropNewResponse() {
 		em.createNativeQuery("DROP INDEX IF EXISTS ref_new_response_index").executeUpdate();
 	}

@@ -19,17 +19,14 @@ import java.util.List;
 
 import static jasper.domain.Metadata.timestamp;
 import static jasper.domain.proj.Tag.isPublicTag;
-import static jasper.domain.proj.Tag.matchesTemplate;
 import static jasper.domain.proj.Tag.publicTag;
-import static jasper.repository.spec.OriginSpec.isUnderOrigin;
+import static jasper.domain.proj.Tag.userUrlPrefix;
 import static jasper.repository.spec.OriginSpec.none;
 import static jasper.repository.spec.SortSpec.compareJsonbValue;
 import static jasper.repository.spec.SortSpec.createJsonbOrder;
 import static jasper.repository.spec.SortSpec.createJsonbSortExpression;
 import static jasper.repository.spec.SortSpec.createJsonbValue;
 import static jasper.repository.spec.SortSpec.isJsonbSortProperty;
-import static org.apache.commons.lang3.StringUtils.isBlank;
-import static org.springframework.data.jpa.domain.Specification.not;
 import static org.springframework.data.jpa.domain.Specification.unrestricted;
 
 public class RefSpec {
@@ -179,71 +176,42 @@ public class RefSpec {
 			cb.function("cast_to_numeric", Double.class, cb.literal(0)));
 	}
 
-	/**
-	 * Refs the user has not responded to with a user URL Ref tagged with the plugin.
-	 * See {@link #hasPluginResponses(String, String, String)}.
-	 */
 	public static Specification<Ref> hasNoPluginResponses(String user, String userOrigin, String plugin) {
-		return not(hasPluginResponses(user, userOrigin, plugin));
+		return (root, query, cb) ->
+			cb.or(
+				cb.isNull(root.get(Ref_.metadata)),
+				cb.isNull(
+					cb.function("jsonb_object_field", Object.class,
+						root.get(Ref_.metadata),
+						cb.literal("userUrls"))),
+				cb.isNull(
+					cb.function("jsonb_object_field", Object.class,
+						cb.function("jsonb_object_field", Object.class,
+							root.get(Ref_.metadata),
+							cb.literal("userUrls")),
+						cb.literal(plugin))),
+				cb.isFalse(
+					cb.function("jsonb_exists", Boolean.class,
+						cb.function("jsonb_object_field", Object.class,
+							cb.function("jsonb_object_field", Object.class,
+								root.get(Ref_.metadata),
+								cb.literal("userUrls")),
+							cb.literal(plugin)),
+						cb.concat(userUrlPrefix(user, userOrigin), root.get(Ref_.url)))));
 	}
 
-	/**
-	 * Refs the user has responded to with a user URL Ref ("tag:/user/{name}?url={url}", or the
-	 * "+user" and "_user" forms) in the user's origin, tagged with the plugin and citing the Ref as a source.
-	 * This is what metadata userUrls records, but instead of checking the userUrls of every Ref
-	 * (whose key depends on the Ref's own URL, so no index can help), this is a semi-join against the
-	 * user's own user URL Refs. On PostgreSQL the URL prefix index (urlPrefix), the tags GIN index and the
-	 * primary key serve it.
-	 * Like metadata userUrls, only "plugin/user" plugins are recorded, and only Refs under the user's origin.
-	 */
 	public static Specification<Ref> hasPluginResponses(String user, String userOrigin, String plugin) {
-		if (!matchesTemplate("plugin/user", plugin)) return none();
-		var origin = isBlank(userOrigin) || userOrigin.equals("@") ? "" : userOrigin;
-		var name = publicTag(user);
-		return Specification.<Ref>where(isUnderOrigin(origin)).and((root, query, cb) -> {
-			var sub = query.subquery(String.class);
-			var u = sub.from(Ref.class);
-			var url = cb.substring(u.get(Ref_.url), cb.sum(cb.locate(u.get(Ref_.url), cb.literal("?")), cb.literal(5)));
-			sub.select(url).where(
-				cb.or(
-					urlPrefix(u, cb, "tag:/" + name + "?url="),
-					urlPrefix(u, cb, "tag:/+" + name + "?url="),
-					urlPrefix(u, cb, "tag:/_" + name + "?url=")),
-				cb.equal(u.get(Ref_.origin), cb.literal(origin)),
-				tagExists(u, cb, plugin),
-				cb.isTrue(cb.function("jsonb_exists", Boolean.class, u.get(Ref_.sources), url)));
-			return root.get(Ref_.url).in(sub);
-		});
-	}
-
-	/**
-	 * URL starts with the prefix. PostgreSQL uses LIKE (indexed by ref_url_prefix_index), SQLite uses GLOB,
-	 * since its LIKE is case-insensitive and cannot use the primary key.
-	 */
-	private static Predicate urlPrefix(Root<Ref> root, CriteriaBuilder cb, String prefix) {
-		return cb.isTrue(cb.function("url_prefix", Boolean.class, root.get(Ref_.url),
-			cb.literal(likePrefix(prefix)),
-			cb.literal(globPrefix(prefix))));
-	}
-
-	/**
-	 * A LIKE pattern matching strings starting with the prefix, escaped with a backslash.
-	 */
-	static String likePrefix(String prefix) {
-		return prefix
-			.replace("\\", "\\\\")
-			.replace("%", "\\%")
-			.replace("_", "\\_") + "%";
-	}
-
-	/**
-	 * A GLOB pattern matching strings starting with the prefix, escaping special characters with brackets.
-	 */
-	static String globPrefix(String prefix) {
-		return prefix
-			.replace("[", "[[]")
-			.replace("*", "[*]")
-			.replace("?", "[?]") + "*";
+		return (root, query, cb) ->
+			cb.and(
+				cb.isNotNull(root.get(Ref_.metadata)),
+				cb.isTrue(
+					cb.function("jsonb_exists", Boolean.class,
+						cb.function("jsonb_object_field", Object.class,
+							cb.function("jsonb_object_field", Object.class,
+								root.get(Ref_.metadata),
+								cb.literal("userUrls")),
+							cb.literal(plugin)),
+						cb.concat(userUrlPrefix(user, userOrigin), root.get(Ref_.url)))));
 	}
 
 	private static Predicate tagExists(Root<Ref> root, CriteriaBuilder cb, String tag) {

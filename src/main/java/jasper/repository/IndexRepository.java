@@ -27,8 +27,6 @@ public interface IndexRepository {
 	void buildModified();
 	void dropCreated();
 	void buildCreated();
-	void dropUrlPrefix();
-	void buildUrlPrefix();
 	void dropNewResponse();
 	void buildNewResponse();
 	void dropNewReaction();

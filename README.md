@@ -761,7 +761,6 @@ and each disabled index is dropped.
 | `created`           | Index on the created date, used by the default sort and `createdBefore` / `createdAfter`. | `true` |
 | `newResponse`       | Index on `metadata->newResponse`, used when sorting by it and by `responseBefore` / `responseAfter`. | `true` |
 | `newReaction`       | Index on `metadata->newReaction`, used when sorting by it and by `reactionBefore` / `reactionAfter`. | `true` |
-| `urlPrefix`         | Index used by `userResponse` / `noUserResponse` (PostgreSQL only). | `true` |
 | `ignored`           | Partial index on Refs marked `ignored` during replication, used by pull batches. | `true`        |
 | `cascade`           | Partial index on Refs waiting for a metadata cascade.                            | `true`        |
 | `regen`             | Partial index on Refs waiting for metadata regeneration (background backfill).   | `true`        |

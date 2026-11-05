@@ -60,12 +60,6 @@ public class Index implements Serializable {
 	 */
 	@Builder.Default
 	private List<String> hotRemoteResponses = new ArrayList<>();
-	/**
-	 * Index for URL prefix matches (url LIKE 'prefix%'), used by the userResponse / noUserResponse
-	 * filters and the scheme filter.
-	 */
-	@Builder.Default
-	private boolean urlPrefix = true;
 	@Builder.Default
 	private boolean ignored = true;
 	@Builder.Default

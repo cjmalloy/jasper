@@ -1480,19 +1480,7 @@ public class RefServiceMTIT {
 		ref.setMetadata(Metadata.builder()
 			.userUrls(new HashMap<>(Map.of("+plugin/user/run", List.of(userUrl))))
 			.build());
-		saveUserUrl(url, userUrl);
 		return refRepository.save(ref);
-	}
-
-	/**
-	 * The user URL Ref the userUrls metadata points to, which the userResponse filters join against.
-	 */
-	void saveUserUrl(String url, String userUrl) {
-		var user = getRef(userUrl.contains("@") ? userUrl.replaceFirst("^[^@]*(@[^?]*)\\?.*$", "$1") : "");
-		user.setUrl(userUrl.replaceFirst("@[^?]*\\?", "?"));
-		user.setTags(new ArrayList<>(List.of("+plugin/user/run")));
-		user.setSources(new ArrayList<>(List.of(url)));
-		refRepository.save(user);
 	}
 
 	@Test
@@ -1512,14 +1500,14 @@ public class RefServiceMTIT {
 		saveWithUserUrl(URL + 2, "tag:/user/tester?url=" + URL + 2);
 
 		var page = refService.page(
-			RefFilter.builder().query("public").userResponse(List.of("+plugin/user/run")).build(),
+			RefFilter.builder().userResponse(List.of("+plugin/user/run")).build(),
 			PageRequest.of(0, 10));
 		assertThat(page.getContent())
 			.extracting(r -> r.getUrl())
 			.containsExactly(URL);
 
 		var noPage = refService.page(
-			RefFilter.builder().query("public").noUserResponse(List.of("+plugin/user/run")).build(),
+			RefFilter.builder().noUserResponse(List.of("+plugin/user/run")).build(),
 			PageRequest.of(0, 10));
 		assertThat(noPage.getContent())
 			.extracting(r -> r.getUrl())
@@ -1536,12 +1524,12 @@ public class RefServiceMTIT {
 		assertThat(refService.get(URL + 2, "@other.sub").getMetadata().getUserUrls())
 			.isNullOrEmpty();
 		assertThat(refService.page(
-				RefFilter.builder().query("public:@other.sub").userResponse(List.of("+plugin/user/run")).build(),
+				RefFilter.builder().query("@other.sub").userResponse(List.of("+plugin/user/run")).build(),
 				PageRequest.of(0, 10)).getContent())
 			.extracting(r -> r.getUrl())
 			.containsExactly(URL);
 		assertThat(refService.page(
-				RefFilter.builder().query("public:@other.sub").noUserResponse(List.of("+plugin/user/run")).build(),
+				RefFilter.builder().query("@other.sub").noUserResponse(List.of("+plugin/user/run")).build(),
 				PageRequest.of(0, 10)).getContent())
 			.extracting(r -> r.getUrl())
 			.containsExactly(URL + 2);

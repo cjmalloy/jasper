@@ -580,7 +580,6 @@ public class IndexRepositoryIT {
 			.findFirst()
 			.orElseThrow();
 		if (!sqlite) em.createNativeQuery("SET LOCAL enable_seqscan = off").executeUpdate();
-		// Plain JDBC, Hibernate's native query parser treats the backslash in ESCAPE '\' as a string escape
 		return jdbc.queryForList((sqlite ? "EXPLAIN QUERY PLAN " : "EXPLAIN ") + sql, params).stream()
 			.map(row -> row.values().stream().reduce((a, b) -> b).orElseThrow().toString())
 			.collect(Collectors.joining("\n"));
@@ -592,14 +591,6 @@ public class IndexRepositoryIT {
 		indexRepository.buildCreated();
 		indexRepository.buildCreated();
 		indexRepository.dropCreated();
-	}
-
-	@Test
-	void testBuildAndDropUrlPrefix() {
-		indexRepository.dropUrlPrefix();
-		indexRepository.buildUrlPrefix();
-		indexRepository.buildUrlPrefix();
-		indexRepository.dropUrlPrefix();
 	}
 
 	@Test
@@ -669,50 +660,5 @@ public class IndexRepositoryIT {
 			.contains(IndexRepositoryImplPostgres.hotResponseIndexName("plugins", "plugin/comment"));
 		assertThat(explainFilter(RefFilter.builder().pluginAfter(List.of("metadata->remotePlugins->plugin/user/read/10")).build().spec(), false))
 			.contains(IndexRepositoryImplPostgres.hotResponseIndexName("remotePlugins", "plugin/user/read"));
-	}
-
-	@Test
-	@DisabledOnSqlite
-	@Transactional
-	void testUserResponseSemiJoinIndexesUsedPostgres() {
-		indexRepository.buildUrlPrefix();
-		// Realistic statistics, so the planner prefers the URL prefix over a full scan of the origin
-		jdbc.update("""
-			INSERT INTO ref (url, origin, modified, created, published, tags, sources)
-			SELECT 'https://example.com/' || g, CASE WHEN g % 2 = 0 THEN '' ELSE '@other' END, now() + g * interval '1 ms', now(), now(), '["public"]', '[]'
-			FROM generate_series(1, 5000) g""");
-		jdbc.update("""
-			INSERT INTO ref (url, origin, modified, created, published, tags, sources)
-			SELECT 'tag:/user/tester?url=https://example.com/' || g, '', now() - g * interval '1 ms', now(), now(), '["plugin/user/read"]', jsonb_build_array('https://example.com/' || g)
-			FROM generate_series(1, 50) g""");
-		jdbc.execute("ANALYZE ref");
-		var tagLike = "%\"plugin/user/read/%";
-		for (var filter : List.of(
-			RefFilter.builder().userResponse(List.of("plugin/user/read")).build(),
-			RefFilter.builder().noUserResponse(List.of("plugin/user/read")).build())) {
-			for (var origin : List.of("", "@other")) {
-				var params = origin.isEmpty() ? new Object[]{ tagLike } : new Object[]{ origin, origin + ".%", tagLike };
-				var plan = explainFilter(filter.spec("+user/tester", origin), false, params);
-				assertThat(plan).as(plan).contains("ref_url_prefix_index");
-				assertThat(plan).as(plan).contains("~>=~");
-			}
-		}
-	}
-
-	@Test
-	@EnabledIf(expression = SQLITE, loadContext = true)
-	@Transactional
-	void testUserResponseSemiJoinIndexesUsedSqlite() {
-		var tagLike = "%\"plugin/user/read/%";
-		for (var filter : List.of(
-			RefFilter.builder().userResponse(List.of("plugin/user/read")).build(),
-			RefFilter.builder().noUserResponse(List.of("plugin/user/read")).build())) {
-			for (var origin : List.of("", "@other")) {
-				var params = origin.isEmpty() ? new Object[]{ tagLike } : new Object[]{ origin, origin + ".%", tagLike };
-				var plan = explainFilter(filter.spec("+user/tester", origin), true, params);
-				assertThat(plan).as(plan).doesNotContain("SCAN r2_0");
-				assertThat(plan).as(plan).contains("SEARCH r2_0 USING INDEX sqlite_autoindex_ref_1 (url>? AND url<?)");
-			}
-		}
 	}
 }

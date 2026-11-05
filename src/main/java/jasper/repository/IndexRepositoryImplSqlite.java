@@ -123,16 +123,6 @@ public class IndexRepositoryImplSqlite implements IndexRepository {
 	}
 
 	@Override
-	public void dropUrlPrefix() {
-		em.createNativeQuery("DROP INDEX IF EXISTS ref_url_prefix_index").executeUpdate();
-	}
-
-	@Override
-	public void buildUrlPrefix() {
-		// SQLite LIKE is case-insensitive, so a binary index on url cannot serve it — no-op
-	}
-
-	@Override
 	public void dropNewResponse() {
 		em.createNativeQuery("DROP INDEX IF EXISTS ref_new_response_index").executeUpdate();
 	}
