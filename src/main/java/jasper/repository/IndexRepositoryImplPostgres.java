@@ -213,18 +213,24 @@ public class IndexRepositoryImplPostgres implements IndexRepository {
 				wanted.put(hotTagIndexName(sort), sort);
 			}
 		}
+		// Indexes without NULLS FIRST are from before missing tag values were NULL
 		@SuppressWarnings("unchecked")
-		List<String> existing = em.createNativeQuery("""
-				SELECT indexname FROM pg_indexes
+		List<Object[]> existing = em.createNativeQuery("""
+				SELECT indexname, indexdef LIKE '%NULLS FIRST%' FROM pg_indexes
 				WHERE schemaname = current_schema() AND tablename = 'ref' AND indexname LIKE 'ref\\_hot\\_%'""")
 			.getResultList();
-		for (var name : existing) {
-			if (wanted.containsKey(name)) continue;
+		var current = new HashSet<String>();
+		for (var row : existing) {
+			var name = (String) row[0];
+			if (wanted.containsKey(name) && Boolean.TRUE.equals(row[1])) {
+				current.add(name);
+				continue;
+			}
 			logger.info("Dropping hot tag index {}", name);
 			em.createNativeQuery("DROP INDEX IF EXISTS " + name).executeUpdate();
 		}
 		for (var e : wanted.entrySet()) {
-			if (existing.contains(e.getKey())) continue;
+			if (current.contains(e.getKey())) continue;
 			logger.info("Building hot tag index {} for {} {}", e.getKey(), e.getValue().function(), e.getValue().tag());
 			// Tag is validated against Tag.REGEX, so it is safe to inline
 			em.createNativeQuery("CREATE INDEX IF NOT EXISTS " + e.getKey() + " ON ref ((" + e.getValue().function() + "(tags, '" + e.getValue().tag() + "')) NULLS FIRST)").executeUpdate();

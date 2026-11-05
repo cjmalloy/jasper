@@ -24,4 +24,4 @@ This release includes changes accumulated since v1.4.0. Only the latest minor re
 ## Upgrading
 
 * Clients must switch to the new filter parameters; the removed parameters are ignored.
-* Existing hot tag indexes are dropped by a database migration, since the tag value functions changed. `newResponse`, `newReaction`, `hotTags` and `hotPlugins` indexes are rebuilt on startup when the `_config/index` template is enabled.
+* Existing `newResponse`, `newReaction`, `hotTags` and `hotPlugins` indexes are dropped and rebuilt on startup to match the new sort order.
