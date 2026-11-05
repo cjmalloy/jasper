@@ -9,7 +9,7 @@ import org.springframework.data.jpa.domain.Specification;
 
 import java.util.ArrayList;
 
-import static jasper.repository.spec.SortSpec.createJsonbSortExpression;
+import static jasper.repository.spec.SortSpec.createJsonbOrder;
 import static jasper.repository.spec.SortSpec.createOriginNestingExpression;
 import static jasper.repository.spec.SortSpec.createTagLevelsExpression;
 import static jasper.repository.spec.SortSpec.isJsonbSortProperty;
@@ -25,7 +25,7 @@ public class PluginSpec {
 	 * Creates a Specification with sorting applied based on the PageRequest's sort orders.
 	 * JSONB field sort columns are rewritten as JPA Specification orderBy clauses.
 	 * Supports config->, defaults->, schema->, origin:len, and tag:len sorting.
-	 * Uses COALESCE to handle nulls (0 for numeric/length, '' for string).
+	 * Missing JSONB values sort first ascending and last descending.
 	 *
 	 * @param spec the base specification to add sorting to
 	 * @param pageable the page request containing sort orders
@@ -46,8 +46,11 @@ public class PluginSpec {
 				var ascending = order.isAscending();
 				Expression<?> expr;
 				if (isJsonbSortProperty(property, JSONB_FIELDS)) {
-					expr = createJsonbSortExpression(root, cb, property, JSONB_FIELDS);
-				} else if (property.equals("origin:len")) {
+					var jsonbOrder = createJsonbOrder(root, cb, property, ascending, JSONB_FIELDS);
+					if (jsonbOrder != null) jpaOrders.add(jsonbOrder);
+					continue;
+				}
+				if (property.equals("origin:len")) {
 					expr = createOriginNestingExpression(root, cb);
 				} else if (property.equals("tag:len")) {
 					expr = createTagLevelsExpression(root, cb);

@@ -13,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.regex.Pattern;
 
@@ -135,13 +136,29 @@ public class IndexRepositoryImplPostgres implements IndexRepository {
 	}
 
 	/**
-	 * Same SQL that {@link jasper.repository.spec.SortSpec#createJsonbSortExpression} renders for a
+	 * Same SQL that {@link jasper.repository.spec.SortSpec#createJsonbOrder} renders for a
 	 * "metadata->modified" sort with the PostgreSQL dialect, which is also used by the responseBefore and
 	 * responseAfter filters, so the planner can match the index to both.
 	 */
 	@Override
 	public void buildMetadataModified() {
-		em.createNativeQuery("CREATE INDEX IF NOT EXISTS ref_metadata_modified_index ON ref ((COALESCE((metadata)->>('modified'), '')))").executeUpdate();
+		buildNullsFirst("ref_metadata_modified_index", "(metadata)->>('modified')");
+	}
+
+	/**
+	 * Builds an expression index matching JSONB sorts, which order missing values first ascending
+	 * and last descending, so the index serves both directions and filters on the same expression.
+	 * Drops an index of the same name built before sorts used NULLS FIRST.
+	 */
+	private void buildNullsFirst(String name, String expression) {
+		var stale = em.createNativeQuery("""
+				SELECT indexname FROM pg_indexes
+				WHERE schemaname = current_schema() AND tablename = 'ref' AND indexname = :name
+					AND indexdef NOT LIKE '%NULLS FIRST%'""")
+			.setParameter("name", name)
+			.getResultList();
+		if (!stale.isEmpty()) em.createNativeQuery("DROP INDEX IF EXISTS " + name).executeUpdate();
+		em.createNativeQuery("CREATE INDEX IF NOT EXISTS " + name + " ON ref ((" + expression + ") NULLS FIRST)").executeUpdate();
 	}
 
 	@Override
@@ -163,12 +180,13 @@ public class IndexRepositoryImplPostgres implements IndexRepository {
 	}
 
 	/**
-	 * Same SQL that {@link jasper.repository.spec.SortSpec#createJsonbSortExpression} renders for a
-	 * metadata sort with the PostgreSQL dialect, so the planner can match the index to the sort.
+	 * Same SQL that {@link jasper.repository.spec.SortSpec#createJsonbOrder} renders for a
+	 * metadata sort with the PostgreSQL dialect, so the planner can match the index to the sort and the
+	 * newResponseBefore / newResponseAfter filters.
 	 */
 	@Override
 	public void buildNewResponse() {
-		em.createNativeQuery("CREATE INDEX IF NOT EXISTS ref_new_response_index ON ref ((COALESCE((metadata)->>('newResponse'), '')))").executeUpdate();
+		buildNullsFirst("ref_new_response_index", "(metadata)->>('newResponse')");
 	}
 
 	@Override
@@ -178,7 +196,7 @@ public class IndexRepositoryImplPostgres implements IndexRepository {
 
 	@Override
 	public void buildNewReaction() {
-		em.createNativeQuery("CREATE INDEX IF NOT EXISTS ref_new_reaction_index ON ref ((COALESCE((metadata)->>('newReaction'), '')))").executeUpdate();
+		buildNullsFirst("ref_new_reaction_index", "(metadata)->>('newReaction')");
 	}
 
 	@Override
@@ -308,24 +326,29 @@ public class IndexRepositoryImplPostgres implements IndexRepository {
 					continue;
 				}
 				wanted.put(hotPluginIndexName(column), hotPluginExpression(column));
-				wanted.put(hotPluginSortIndexName(column), hotPluginSortExpression(column));
 			}
 		}
+		// Separate sort indexes (ref_hotps_) and indexes without NULLS FIRST are from before sorts used NULLS FIRST
 		@SuppressWarnings("unchecked")
-		List<String> existing = em.createNativeQuery("""
-				SELECT indexname FROM pg_indexes
+		List<Object[]> existing = em.createNativeQuery("""
+				SELECT indexname, indexdef LIKE '%NULLS FIRST%' FROM pg_indexes
 				WHERE schemaname = current_schema() AND tablename = 'ref'
 					AND (indexname LIKE 'ref\\_hotp\\_%' OR indexname LIKE 'ref\\_hotps\\_%')""")
 			.getResultList();
-		for (var name : existing) {
-			if (wanted.containsKey(name)) continue;
+		var current = new HashSet<String>();
+		for (var row : existing) {
+			var name = (String) row[0];
+			if (wanted.containsKey(name) && Boolean.TRUE.equals(row[1])) {
+				current.add(name);
+				continue;
+			}
 			logger.info("Dropping hot plugin index {}", name);
 			em.createNativeQuery("DROP INDEX IF EXISTS " + name).executeUpdate();
 		}
 		for (var e : wanted.entrySet()) {
-			if (existing.contains(e.getKey())) continue;
+			if (current.contains(e.getKey())) continue;
 			logger.info("Building hot plugin index {} on {}", e.getKey(), e.getValue());
-			em.createNativeQuery("CREATE INDEX IF NOT EXISTS " + e.getKey() + " ON ref ((" + e.getValue() + "))").executeUpdate();
+			em.createNativeQuery("CREATE INDEX IF NOT EXISTS " + e.getKey() + " ON ref ((" + e.getValue() + ") NULLS FIRST)").executeUpdate();
 		}
 	}
 
@@ -404,34 +427,11 @@ public class IndexRepositoryImplPostgres implements IndexRepository {
 	}
 
 	/**
-	 * The same SQL that {@link jasper.repository.spec.RefSpec#isPluginValueBefore} renders for a plugin filter
-	 * with the PostgreSQL dialect, so the planner can match the index to plugin filters.
-	 * Lengths are cast to numeric to match the comparison with the filter value.
+	 * The same SQL that {@link jasper.repository.spec.SortSpec#createJsonbValue} renders with the PostgreSQL dialect
+	 * for a plugin sort or filter, so the planner can match one NULLS FIRST index to both.
 	 * The column must be validated with {@link #hotPluginColumn}, so plugin tags and fields are safe to inline.
 	 */
 	static String hotPluginExpression(String column) {
-		var value = hotPluginValue(column);
-		if (column.endsWith(":len")) return "(" + value + ")::numeric";
-		return value;
-	}
-
-	/**
-	 * The same SQL that {@link jasper.repository.spec.SortSpec#createJsonbSortExpression} renders for a plugin sort
-	 * with the PostgreSQL dialect, so the planner can match the index to plugin sorts.
-	 * Missing values default to 0 for lengths, 0.0 for numbers and '' for text, the same as the sort.
-	 * The column must be validated with {@link #hotPluginColumn}, so plugin tags and fields are safe to inline.
-	 */
-	static String hotPluginSortExpression(String column) {
-		var value = hotPluginValue(column);
-		if (column.endsWith(":len")) return "COALESCE(" + value + ", 0)";
-		if (column.endsWith(":num")) return "COALESCE(" + value + ", 0.0)";
-		return "COALESCE(" + value + ", '')";
-	}
-
-	/**
-	 * The same SQL that {@link jasper.repository.spec.SortSpec#createJsonbValue} renders with the PostgreSQL dialect.
-	 */
-	private static String hotPluginValue(String column) {
 		var numeric = column.endsWith(":num");
 		var length = column.endsWith(":len");
 		if (numeric || length) column = column.substring(0, column.length() - 4);
@@ -471,11 +471,4 @@ public class IndexRepositoryImplPostgres implements IndexRepository {
 		return "ref_hotp_" + truncate(column.substring("plugins->".length()).toLowerCase().replaceAll("[^a-z0-9]+", "_"), 40) + "_" + hash;
 	}
 
-	/**
-	 * Index name for a hot plugin sort, unique per column and within the 63 character limit.
-	 */
-	static String hotPluginSortIndexName(String column) {
-		var hash = md5DigestAsHex(column.getBytes(StandardCharsets.UTF_8)).substring(0, 8);
-		return "ref_hotps_" + truncate(column.substring("plugins->".length()).toLowerCase().replaceAll("[^a-z0-9]+", "_"), 40) + "_" + hash;
-	}
 }

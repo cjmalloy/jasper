@@ -140,6 +140,12 @@ database schema changes.
 The `:num` and `:len` suffixes are automatically applied to metadata fields, so you can use
 `metadata->responses` instead of `metadata->responses:len`.
 
+Missing JSONB values (and values of the wrong type for `:num` or `:len`) sort first ascending and last
+descending, on both PostgreSQL and SQLite. Metadata counts (`metadata->responses`, `metadata->internalResponses`,
+`metadata->expandedTags`, `metadata->plugins->…` and `metadata->remotePlugins->…`) are never missing: a Ref
+without them counts as `0`. Since sorts and value filters use the same expression, a filter keeps exactly the
+part of the sort order before or after its value, and one index serves both.
+
 Refs can also be sorted by the value of a tag using `tags->{tag}`. The value is the first
 sub-tag after the prefix of the first tag that has one. For example, `tags->plugin/title`
 sorts on `hello` for the tag `plugin/title/hello`, and `tags->plugin/progress:num`
@@ -183,8 +189,8 @@ Refs without a value never match. Every filter parameter can be repeated, and al
 
 To index a plugin filter or sort on PostgreSQL, add its column to `hotPlugins` in the `_config/index` template config,
 for example `{"hotPlugins": ["plugin/test->size:num", "plugin/test->name", "plugin/test->ids:len"]}`
-(the `plugins->` prefix is optional). Each hot plugin builds two indexes: one used by `pluginBefore` and
-`pluginAfter` filters, and one used by plugin sorts, since sorts treat missing values as `''` or `0`.
+(the `plugins->` prefix is optional). Each hot plugin builds one `NULLS FIRST` index used by `pluginBefore`
+and `pluginAfter` filters and by plugin sorts in both directions.
 Hot plugin indexes that are removed from the list are dropped. Hot plugins are ignored on SQLite.
 
 Values cannot contain `,`, since a single parameter is split on commas into a list.

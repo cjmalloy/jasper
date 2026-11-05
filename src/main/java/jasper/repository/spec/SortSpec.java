@@ -2,6 +2,8 @@ package jasper.repository.spec;
 
 import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.Expression;
+import jakarta.persistence.criteria.Nulls;
+import jakarta.persistence.criteria.Order;
 import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Root;
 import jasper.domain.Plugin;
@@ -50,7 +52,8 @@ public class SortSpec {
 	/**
 	 * Creates a JSONB sort expression for the given property path.
 	 * Supports ":num" suffix for numeric sorting and ":len" suffix for array length sorting.
-	 * Uses COALESCE to handle nulls (0 for numeric/length, '' for string).
+	 * Metadata counts (response counts and response lists) default to 0, since a missing count is 0.
+	 * Other values are null when missing or of the wrong type, see {@link #createJsonbOrder}.
 	 *
 	 * For metadata fields, automatically applies the correct suffix and restricts access
 	 * to only allowed fields: modified, newResponse, newReaction, expandedTags, responses, internalResponses, plugins, remotePlugins.
@@ -64,20 +67,41 @@ public class SortSpec {
 	public static Expression<?> createJsonbSortExpression(Root<?> root, CriteriaBuilder cb, String property, String... prefixes) {
 		var value = createJsonbValue(root, cb, property, prefixes);
 		if (value == null) return null;
+		return sortExpression(cb, value);
+	}
+
+	private static Expression<?> sortExpression(CriteriaBuilder cb, JsonbValue value) {
+		if (!value.count()) return value.expression();
 		if (value.length()) return cb.coalesce(value.expression(), cb.literal(0));
-		if (value.numeric()) return cb.coalesce(value.expression(), cb.literal(0.0));
-		return cb.coalesce(value.expression(), cb.literal(""));
+		return cb.coalesce(value.expression(), cb.literal(0.0));
+	}
+
+	/**
+	 * Orders by a JSONB sort expression. Missing values sort first ascending and last descending,
+	 * so one "(expression) NULLS FIRST" index serves both directions, and filters on the same expression
+	 * skip missing values. This is the default null order on SQLite, so no NULLS clause is rendered there.
+	 * Metadata counts are never null, so they use the default order to match plain expression indexes.
+	 *
+	 * @return the order, or null if property doesn't match allowed prefixes
+	 */
+	public static Order createJsonbOrder(Root<?> root, CriteriaBuilder cb, String property, boolean ascending, String... prefixes) {
+		var value = createJsonbValue(root, cb, property, prefixes);
+		if (value == null) return null;
+		var expr = sortExpression(cb, value);
+		if (value.count()) return ascending ? cb.asc(expr) : cb.desc(expr);
+		return ascending ? cb.asc(expr, Nulls.FIRST) : cb.desc(expr, Nulls.LAST);
 	}
 
 	/**
 	 * A JSONB value without a default, so missing values are null.
 	 *
 	 * @param expression the value, an Integer for length, a Double for numeric, otherwise a String
+	 * @param count a metadata count, where a missing value means 0
 	 */
-	public record JsonbValue(Expression expression, boolean numeric, boolean length) {}
+	public record JsonbValue(Expression expression, boolean numeric, boolean length, boolean count) {}
 
 	/**
-	 * Same as {@link #createJsonbSortExpression} without the COALESCE, so missing values are null.
+	 * Same as {@link #createJsonbSortExpression} without the default for metadata counts, so missing values are null.
 	 */
 	public static JsonbValue createJsonbValue(Root<?> root, CriteriaBuilder cb, String property, String... prefixes) {
 		var numericSort = property.endsWith(":num");
@@ -88,11 +112,13 @@ public class SortSpec {
 		var jsonbFieldName = parts[0];
 		if (stream(prefixes).noneMatch(jsonbFieldName::equals)) return null;
 
+		var count = false;
 		// Special handling for metadata prefix
 		if ("metadata".equals(jsonbFieldName)) {
 			var metadataField = parts[1];
 			// Only allow access to specific metadata fields
 			if (!ALLOWED_METADATA_FIELDS.contains(metadataField)) return null;
+			count = METADATA_LEN_FIELDS.contains(metadataField) || METADATA_NUM_FIELDS.contains(metadataField);
 			// Auto-apply correct suffix for known metadata fields (only if not already specified)
 			if (!numericSort && !lengthSort) {
 				if (METADATA_LEN_FIELDS.contains(metadataField)) {
@@ -122,7 +148,7 @@ public class SortSpec {
 				} else if (lengthSort) {
 					// Last element with length sort - get as JSONB and apply jsonb_array_length
 					expr = cb.function("jsonb_array_element", Object.class, expr, cb.literal(index));
-					return new JsonbValue(cb.function("safe_jsonb_array_length", Integer.class, expr), false, true);
+					return new JsonbValue(cb.function("safe_jsonb_array_length", Integer.class, expr), false, true, count);
 				} else if (numericSort) {
 					// Last element with numeric sort - get as JSONB to check for a JSON number
 					expr = cb.function("jsonb_array_element", Object.class, expr, cb.literal(index));
@@ -133,7 +159,7 @@ public class SortSpec {
 			} else if (i == parts.length - 1 && lengthSort) {
 				// Last field with length sort - get as JSONB and apply jsonb_array_length
 				expr = cb.function("jsonb_object_field", Object.class, expr, cb.literal(field));
-				return new JsonbValue(cb.function("safe_jsonb_array_length", Integer.class, expr), false, true);
+				return new JsonbValue(cb.function("safe_jsonb_array_length", Integer.class, expr), false, true, count);
 			} else if (i == parts.length - 1 && numericSort) {
 				// Last field with numeric sort - get as JSONB to check for a JSON number
 				expr = cb.function("jsonb_object_field", Object.class, expr, cb.literal(field));
@@ -145,8 +171,8 @@ public class SortSpec {
 				expr = cb.function("jsonb_object_field", Object.class, expr, cb.literal(field));
 			}
 		}
-		if (numericSort) return new JsonbValue(cb.function("safe_numeric", Double.class, expr), true, false);
-		return new JsonbValue(expr, false, false);
+		if (numericSort) return new JsonbValue(cb.function("safe_numeric", Double.class, expr), true, false, count);
+		return new JsonbValue(expr, false, false, count);
 	}
 
 	/**
@@ -331,7 +357,7 @@ public class SortSpec {
 	}
 
 	/**
-	 * Compares a JSONB value with a filter value, using the same expression as sorting without the COALESCE,
+	 * Compares a JSONB value with a filter value, using the same expression as sorting,
 	 * so missing values and values of the wrong type never match.
 	 *
 	 * @param field the value from {@link #createJsonbValue}
@@ -344,9 +370,12 @@ public class SortSpec {
 			Expression<String> expr = field.expression();
 			return before ? cb.lessThan(expr, text) : cb.greaterThan(expr, text);
 		}
-		Expression<Double> number = field.numeric()
-			? field.expression()
-			: cb.function("cast_to_numeric", Double.class, field.expression());
+		if (field.length()) {
+			Expression<Integer> length = field.expression();
+			var literal = cb.literal(((BigDecimal) value).intValueExact());
+			return before ? cb.lessThan(length, literal) : cb.greaterThan(length, literal);
+		}
+		Expression<Double> number = field.expression();
 		var literal = cb.function("cast_to_numeric", Double.class, cb.literal(value));
 		return before ? cb.lessThan(number, literal) : cb.greaterThan(number, literal);
 	}

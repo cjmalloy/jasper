@@ -1990,6 +1990,37 @@ public class RefServiceIT {
 			.containsExactly("https://example.com/2");
 	}
 
+	List<String> sortedUrls(String column, Sort.Direction direction, RefFilter filter) {
+		var spec = RefSpec.sort(filter.spec(), PageRequest.of(0, 10, Sort.by(new Sort.Order(direction, column), Sort.Order.asc("url"))));
+		return refRepository.findAll(spec, PageRequest.ofSize(10)).getContent().stream().map(Ref::getUrl).toList();
+	}
+
+	@Test
+	void testPluginValueSortMissingValues() throws JsonProcessingException {
+		refWithUrlPlugins("https://example.com/1", "{\"plugin/test\": {\"n\": 5, \"s\": \"b\", \"ids\": [1, 2]}}");
+		refWithUrlPlugins("https://example.com/2", null);
+		refWithUrlPlugins("https://example.com/3", "{\"plugin/test\": {\"n\": 0, \"s\": \"\", \"ids\": []}}");
+		refWithUrlPlugins("https://example.com/4", "{\"plugin/test\": {\"n\": -3, \"s\": \"a\", \"ids\": [1]}}");
+		refWithUrlPlugins("https://example.com/5", "{\"plugin/test\": {\"n\": \"x\", \"s\": 1, \"ids\": \"x\"}}");
+		var none = RefFilter.builder().build();
+
+		// Missing values and values of the wrong type sort first ascending and last descending
+		assertThat(sortedUrls("plugins->plugin/test->n:num", Sort.Direction.ASC, none))
+			.containsExactly("https://example.com/2", "https://example.com/5", "https://example.com/4", "https://example.com/3", "https://example.com/1");
+		assertThat(sortedUrls("plugins->plugin/test->n:num", Sort.Direction.DESC, none))
+			.containsExactly("https://example.com/1", "https://example.com/3", "https://example.com/4", "https://example.com/2", "https://example.com/5");
+		assertThat(sortedUrls("plugins->plugin/test->ids:len", Sort.Direction.ASC, none))
+			.containsExactly("https://example.com/2", "https://example.com/5", "https://example.com/3", "https://example.com/4", "https://example.com/1");
+		assertThat(sortedUrls("plugins->plugin/test->s", Sort.Direction.DESC, none))
+			.containsExactly("https://example.com/1", "https://example.com/4", "https://example.com/5", "https://example.com/3", "https://example.com/2");
+
+		// A filter is a slice of the sort: the rows after the last value of a page, without missing values
+		assertThat(sortedUrls("plugins->plugin/test->n:num", Sort.Direction.DESC, RefFilter.builder().pluginBefore(List.of("plugins->plugin/test->n:num/5")).build()))
+			.containsExactly("https://example.com/3", "https://example.com/4");
+		assertThat(sortedUrls("plugins->plugin/test->ids:len", Sort.Direction.ASC, RefFilter.builder().pluginAfter(List.of("plugins->plugin/test->ids:len/0")).build()))
+			.containsExactly("https://example.com/4", "https://example.com/1");
+	}
+
 	@Test
 	void testPluginValueFilterTextPrefix() throws JsonProcessingException {
 		refWithUrlPlugins("https://example.com/1", "{\"plugin/test\": {\"name\": \"apple\"}}");

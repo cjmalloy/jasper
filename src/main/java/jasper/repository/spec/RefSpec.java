@@ -24,6 +24,7 @@ import static jasper.domain.proj.Tag.publicTag;
 import static jasper.repository.spec.OriginSpec.isUnderOrigin;
 import static jasper.repository.spec.OriginSpec.none;
 import static jasper.repository.spec.SortSpec.compareJsonbValue;
+import static jasper.repository.spec.SortSpec.createJsonbOrder;
 import static jasper.repository.spec.SortSpec.createJsonbSortExpression;
 import static jasper.repository.spec.SortSpec.createJsonbValue;
 import static jasper.repository.spec.SortSpec.isJsonbSortProperty;
@@ -384,9 +385,8 @@ public class RefSpec {
 	}
 
 	/**
-	 * Compares a metadata date as text, using the same expression as sorting by "metadata->{field}"
-	 * (including the COALESCE), so the metadataModified, newResponse and newReaction indexes apply.
-	 * Missing dates are '', so they never match: before also requires a value greater than ''.
+	 * Compares a metadata date as text, using the same expression as sorting by "metadata->{field}",
+	 * so the metadataModified, newResponse and newReaction indexes apply. Missing dates never match.
 	 *
 	 * @param value the date in the same text format the metadata field is written in
 	 */
@@ -394,10 +394,7 @@ public class RefSpec {
 	private static Specification<Ref> isMetadataDate(String field, String value, boolean before) {
 		return (root, query, cb) -> {
 			var date = (Expression<String>) createJsonbSortExpression(root, cb, "metadata->" + field, "metadata");
-			if (!before) return cb.greaterThan(date, cb.literal(value));
-			return cb.and(
-				cb.greaterThan(date, cb.literal("")),
-				cb.lessThan(date, cb.literal(value)));
+			return before ? cb.lessThan(date, cb.literal(value)) : cb.greaterThan(date, cb.literal(value));
 		};
 	}
 
@@ -440,10 +437,10 @@ public class RefSpec {
 	}
 
 	/**
-	 * Compares a field of plugin data, using the same expression as plugin sorting.
+	 * Compares a field of plugin data, using the same expression as plugin sorting, so hot plugin indexes apply.
 	 * Refs without a value for the field never match.
 	 * Response counts use the same expression as sorting by "metadata->plugins->{plugin}" and the
-	 * pluginResponse filters, including the COALESCE, so hot response indexes apply and missing counts are 0.
+	 * pluginResponse filters, so hot response indexes apply and missing counts are 0.
 	 */
 	@SuppressWarnings("unchecked")
 	private static Specification<Ref> isPluginValue(PluginValueFilter filter, boolean before) {
@@ -496,7 +493,9 @@ public class RefSpec {
 				} else if (property.startsWith("tags->")) {
 					expr = SortSpec.createTagValueSortExpression(root, cb, property);
 				} else if (isJsonbSortProperty(property, "metadata", "plugins")) {
-					expr = createJsonbSortExpression(root, cb, property, "metadata", "plugins");
+					var jsonbOrder = createJsonbOrder(root, cb, property, ascending, "metadata", "plugins");
+					if (jsonbOrder != null) jpaOrders.add(jsonbOrder);
+					continue;
 				} else if (property.endsWith(":len")) {
 					var fieldName = property.substring(0, property.length() - ":len".length());
 					if ("origin".equals(fieldName)) {
