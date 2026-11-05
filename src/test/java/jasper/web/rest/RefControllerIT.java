@@ -303,22 +303,23 @@ class RefControllerIT {
 		for (var path : List.of("/api/v1/ref/page", "/api/v1/ref/count")) {
 			mockMvc
 				.perform(get(path)
-					.param("pluginAfter", "metadata->remotePlugins->plugin/user/read/10")
-					.param("pluginBefore", "metadata->plugins->plugin/comment:num/3")
-					.param("responseAfter", "2026-01-01T00:00:00.5Z")
-					.param("responseBefore", "2026-01-02T00:00:00Z")
-					.param("reactionAfter", "2026-01-01T00:00:00Z")
-					.param("reactionBefore", "2026-01-02T00:00:00Z"))
+					.param("filterAfter", "metadata->remotePlugins->plugin/user/read/10")
+					.param("filterBefore", "metadata->plugins->plugin/comment:num/3")
+					.param("filterAfter", "metadata->newResponse/2026-01-01T00:00:00.5Z")
+					.param("filterBefore", "metadata->newResponse/2026-01-02T00:00:00Z")
+					.param("filterAfter", "metadata->newReaction/2026-01-01T00:00:00Z")
+					.param("filterEquals", "metadata->plugins->plugin/comment/0")
+					.param("filterAfter", "created/2026-01-01T00:00:00Z"))
 				.andExpect(status().isOk());
 		}
 	}
 
 	@Test
 	void testPageWithInvalidResponseCountFilterShouldFail() throws Exception {
-		for (var value : List.of("metadata->plugins->plugin/comment/abc", "metadata->plugins->plugin/comment:len/1", "metadata->responses/1")) {
+		for (var value : List.of("metadata->plugins->plugin/comment/abc", "metadata->plugins->plugin/comment:len/1", "metadata->newResponse/yesterday", "title/abc")) {
 			mockMvc
 				.perform(get("/api/v1/ref/page")
-					.param("pluginAfter", value))
+					.param("filterAfter", value))
 				.andExpect(status().isBadRequest());
 		}
 	}
@@ -328,7 +329,7 @@ class RefControllerIT {
 	void testPageWithPrivateResponseCountFilterShouldFail() throws Exception {
 		mockMvc
 			.perform(get("/api/v1/ref/page")
-				.param("pluginAfter", "metadata->plugins->_plugin/secret/1"))
+				.param("filterEquals", "metadata->plugins->_plugin/secret/0"))
 			.andExpect(status().isForbidden());
 	}
 }

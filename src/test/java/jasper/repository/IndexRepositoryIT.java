@@ -17,6 +17,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.junit.jupiter.EnabledIf;
 import org.springframework.transaction.annotation.Transactional;
 
+import jasper.domain.Metadata;
 import jasper.domain.Ref;
 
 import java.sql.Timestamp;
@@ -626,10 +627,11 @@ public class IndexRepositoryIT {
 		indexRepository.buildNewResponse();
 		indexRepository.buildNewReaction();
 		var now = Instant.parse("2026-01-01T00:00:00.5Z");
-		assertThat(explainFilter(RefFilter.builder().filterBefore(List.of("metadata->newResponse/" + now)).build().spec(), sqlite)).contains("ref_new_response_index");
-		assertThat(explainFilter(RefFilter.builder().filterAfter(List.of("metadata->newResponse/" + now)).build().spec(), sqlite)).contains("ref_new_response_index");
-		assertThat(explainFilter(RefFilter.builder().filterBefore(List.of("metadata->newReaction/" + now)).build().spec(), sqlite)).contains("ref_new_reaction_index");
-		assertThat(explainFilter(RefFilter.builder().filterAfter(List.of("metadata->newReaction/" + now)).build().spec(), sqlite)).contains("ref_new_reaction_index");
+		var param = Metadata.timestamp(now);
+		assertThat(explainFilter(RefFilter.builder().filterBefore(List.of("metadata->newResponse/" + now)).build().spec(), sqlite, param)).contains("ref_new_response_index");
+		assertThat(explainFilter(RefFilter.builder().filterAfter(List.of("metadata->newResponse/" + now)).build().spec(), sqlite, param)).contains("ref_new_response_index");
+		assertThat(explainFilter(RefFilter.builder().filterBefore(List.of("metadata->newReaction/" + now)).build().spec(), sqlite, param)).contains("ref_new_reaction_index");
+		assertThat(explainFilter(RefFilter.builder().filterAfter(List.of("metadata->newReaction/" + now)).build().spec(), sqlite, param)).contains("ref_new_reaction_index");
 	}
 
 	@Test

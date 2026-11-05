@@ -104,7 +104,7 @@ class UserControllerIT {
 	void testPageWithConfigFiltersFailed() throws Exception {
 		mockMvc
 			.perform(get("/api/v1/user/page")
-				.param("configAfter", "external->ids:len/0"))
+				.param("filterAfter", "external->ids:len/0"))
 			.andExpect(status().isForbidden());
 	}
 }
