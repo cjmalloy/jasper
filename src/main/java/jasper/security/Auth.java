@@ -617,7 +617,7 @@ public class Auth {
 		// Min Role
 		if (!minRole()) return false;
 		var tagValues = filter instanceof RefFilter f
-			? Stream.concat(
+			? Stream.of(
 				Stream.of(f.getTagBefore(), f.getTagAfter())
 					.filter(Objects::nonNull)
 					.flatMap(List::stream)
@@ -629,7 +629,11 @@ public class Auth {
 					.flatMap(List::stream)
 					.map(PluginValueFilter::parse)
 					.filter(Objects::nonNull)
-					.map(PluginValueFilter::plugin))
+					.map(PluginValueFilter::plugin),
+				Stream.of(f.getPluginResponse(), f.getNoPluginResponse(), f.getRemotePluginResponse(), f.getNoRemotePluginResponse())
+					.filter(Objects::nonNull)
+					.flatMap(List::stream))
+				.flatMap(s -> s)
 				.toList()
 			: List.<String>of();
 		// Anyone can read the empty query (retrieve all Refs)

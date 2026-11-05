@@ -1795,6 +1795,22 @@ public class RefServiceIT {
 	}
 
 	@Test
+	void testPrivatePluginResponseFiltersDenied() {
+		for (var filter : List.of(
+			RefFilter.builder().pluginResponse(List.of("_plugin/secret")).build(),
+			RefFilter.builder().noPluginResponse(List.of("_plugin/secret")).build(),
+			RefFilter.builder().remotePluginResponse(List.of("_plugin/secret")).build(),
+			RefFilter.builder().noRemotePluginResponse(List.of("_plugin/secret")).build())) {
+			assertThatThrownBy(() -> refService.page(filter, PageRequest.of(0, 10)))
+				.isInstanceOf(AccessDeniedException.class);
+			assertThatThrownBy(() -> refService.count(filter))
+				.isInstanceOf(AccessDeniedException.class);
+		}
+		assertThat(refService.count(RefFilter.builder().remotePluginResponse(List.of("plugin/comment")).build()))
+			.isZero();
+	}
+
+	@Test
 	void testApplySortingSpec_WithPluginsSort() throws JsonProcessingException {
 		// Create refs with plugins data containing contentLength
 		var mapper = new ObjectMapper();
