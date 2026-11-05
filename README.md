@@ -190,6 +190,17 @@ Hot plugin indexes that are removed from the list are dropped. Hot plugins are i
 Values cannot contain `,`, since a single parameter is split on commas into a list.
 Invalid filters are rejected with `400 Bad Request`.
 
+Response counts by plugin are sorted numerically: `metadata->plugins->{plugin}` counts responses from the
+same origin and `metadata->remotePlugins->{plugin}` counts responses from all origins, for example
+`metadata->remotePlugins->plugin/comment`. Refs can be filtered by whether they have responses tagged with a
+plugin using `pluginResponse` and `noPluginResponse` (local counts) or `remotePluginResponse` and
+`noRemotePluginResponse` (counts from all origins). Every one of these parameters can be repeated.
+
+To index response count filters and sorts on PostgreSQL, add plugins to `hotResponses` (local counts) or
+`hotRemoteResponses` (counts from all origins) in the `_config/index` template config, for example
+`{"hotResponses": ["plugin/comment"], "hotRemoteResponses": ["plugin/comment"]}`. Hot response indexes that
+are removed from the list are dropped. Hot responses are ignored on SQLite.
+
 Metadata dates useful for sorting:
 - `metadata->modified`: updated whenever the responses, internal responses or plugin counts change.
 - `metadata->newResponse`: updated only when a new response is created (not updated), ignoring

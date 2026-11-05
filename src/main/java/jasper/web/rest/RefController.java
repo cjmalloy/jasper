@@ -122,6 +122,8 @@ public class RefController {
 		@RequestParam(required = false) @Size(max = 100) List<@NotBlank @Length(max = RefFilter.PLUGIN_VALUE_LEN) @Pattern(regexp = RefFilter.PLUGIN_VALUE) String> pluginAfter,
 		@RequestParam(required = false) @Size(max = 100) List<@NotBlank @Length(max = TAG_LEN) @Pattern(regexp = Plugin.REGEX) String> pluginResponse,
 		@RequestParam(required = false) @Size(max = 100) List<@NotBlank @Length(max = TAG_LEN) @Pattern(regexp = Plugin.REGEX) String> noPluginResponse,
+		@RequestParam(required = false) @Size(max = 100) List<@NotBlank @Length(max = TAG_LEN) @Pattern(regexp = Plugin.REGEX) String> remotePluginResponse,
+		@RequestParam(required = false) @Size(max = 100) List<@NotBlank @Length(max = TAG_LEN) @Pattern(regexp = Plugin.REGEX) String> noRemotePluginResponse,
 		@RequestParam(required = false) @Size(max = 100) List<@NotBlank @Length(max = TAG_LEN) @Pattern(regexp = Plugin.REGEX) String> userResponse,
 		@RequestParam(required = false) @Size(max = 100) List<@NotBlank @Length(max = TAG_LEN) @Pattern(regexp = Plugin.REGEX) String> noUserResponse,
 		@RequestParam(required = false) @Length(max = SEARCH_LEN) String search
@@ -168,6 +170,8 @@ public class RefController {
 				.noResponses(noResponses)
 				.pluginResponse(pluginResponse)
 				.noPluginResponse(noPluginResponse)
+				.remotePluginResponse(remotePluginResponse)
+				.noRemotePluginResponse(noRemotePluginResponse)
 				.userResponse(userResponse)
 				.noUserResponse(noUserResponse)
 				.modifiedBefore(modifiedBefore)
@@ -215,6 +219,8 @@ public class RefController {
 		@RequestParam(required = false) @Size(max = 100) List<@NotBlank @Length(max = RefFilter.PLUGIN_VALUE_LEN) @Pattern(regexp = RefFilter.PLUGIN_VALUE) String> pluginAfter,
 		@RequestParam(required = false) @Size(max = 100) List<@NotBlank @Length(max = TAG_LEN) @Pattern(regexp = Plugin.REGEX) String> pluginResponse,
 		@RequestParam(required = false) @Size(max = 100) List<@NotBlank @Length(max = TAG_LEN) @Pattern(regexp = Plugin.REGEX) String> noPluginResponse,
+		@RequestParam(required = false) @Size(max = 100) List<@NotBlank @Length(max = TAG_LEN) @Pattern(regexp = Plugin.REGEX) String> remotePluginResponse,
+		@RequestParam(required = false) @Size(max = 100) List<@NotBlank @Length(max = TAG_LEN) @Pattern(regexp = Plugin.REGEX) String> noRemotePluginResponse,
 		@RequestParam(required = false) @Size(max = 100) List<@NotBlank @Length(max = TAG_LEN) @Pattern(regexp = Plugin.REGEX) String> userResponse,
 		@RequestParam(required = false) @Size(max = 100) List<@NotBlank @Length(max = TAG_LEN) @Pattern(regexp = Plugin.REGEX) String> noUserResponse,
 		@RequestParam(required = false) @Length(max = SEARCH_LEN) String search
@@ -234,6 +240,8 @@ public class RefController {
 				.noResponses(noResponses)
 				.pluginResponse(pluginResponse)
 				.noPluginResponse(noPluginResponse)
+				.remotePluginResponse(remotePluginResponse)
+				.noRemotePluginResponse(noRemotePluginResponse)
 				.userResponse(userResponse)
 				.noUserResponse(noUserResponse)
 				.modifiedBefore(modifiedBefore)

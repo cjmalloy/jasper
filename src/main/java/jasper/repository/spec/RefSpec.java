@@ -141,30 +141,36 @@ public class RefSpec {
 	}
 
 	public static Specification<Ref> hasNoPluginResponses(String plugin) {
-		return (root, query, cb) ->
-			cb.or(
-				cb.isNull(root.get(Ref_.metadata)),
-				cb.isNull(
-					cb.function("jsonb_object_field", Object.class,
-						root.get(Ref_.metadata),
-						cb.literal("plugins"))),
-				cb.isFalse(
-					cb.function("jsonb_exists", Boolean.class,
-						cb.function("jsonb_object_field", Object.class,
-							root.get(Ref_.metadata),
-							cb.literal("plugins")),
-						cb.literal(plugin))));
+		return hasNoResponseCount("plugins", plugin);
 	}
 
 	public static Specification<Ref> hasPluginResponses(String plugin) {
-		return (root, query, cb) ->
-			cb.and(
-				cb.isNotNull(root.get(Ref_.metadata)),
-				cb.function("jsonb_exists", Boolean.class,
-					cb.function("jsonb_object_field", Object.class,
-						root.get(Ref_.metadata),
-						cb.literal("plugins")),
-					cb.literal(plugin)));
+		return hasResponseCount("plugins", plugin);
+	}
+
+	public static Specification<Ref> hasNoRemotePluginResponses(String plugin) {
+		return hasNoResponseCount("remotePlugins", plugin);
+	}
+
+	public static Specification<Ref> hasRemotePluginResponses(String plugin) {
+		return hasResponseCount("remotePlugins", plugin);
+	}
+
+	/**
+	 * Compares the response count using the same expression as sorting by "metadata->{field}->{plugin}",
+	 * so hot response indexes apply to both.
+	 */
+	@SuppressWarnings("unchecked")
+	private static Specification<Ref> hasResponseCount(String field, String plugin) {
+		return (root, query, cb) -> cb.greaterThan(
+			(Expression<Double>) createJsonbSortExpression(root, cb, "metadata->" + field + "->" + plugin + ":num", "metadata"),
+			cb.function("cast_to_numeric", Double.class, cb.literal(0)));
+	}
+
+	private static Specification<Ref> hasNoResponseCount(String field, String plugin) {
+		return (root, query, cb) -> cb.equal(
+			createJsonbSortExpression(root, cb, "metadata->" + field + "->" + plugin + ":num", "metadata"),
+			cb.function("cast_to_numeric", Double.class, cb.literal(0)));
 	}
 
 	public static Specification<Ref> hasNoPluginResponses(String user, String userOrigin, String plugin) {

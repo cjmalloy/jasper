@@ -147,6 +147,16 @@ public class Index {
 		} catch (Exception e) {
 			logger.error("Error updating hot plugin indices", e);
 		}
+		try {
+			indexRepository.updateHotResponses(index.getHotResponses());
+		} catch (Exception e) {
+			logger.error("Error updating hot response indices", e);
+		}
+		try {
+			indexRepository.updateHotRemoteResponses(index.getHotRemoteResponses());
+		} catch (Exception e) {
+			logger.error("Error updating hot remote response indices", e);
+		}
 	}
 
 }

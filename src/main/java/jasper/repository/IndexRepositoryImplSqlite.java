@@ -174,4 +174,14 @@ public class IndexRepositoryImplSqlite implements IndexRepository {
 	public void updateHotPlugins(List<String> hotPlugins) {
 		// Hot plugin indexes are only built on PostgreSQL — no-op
 	}
+
+	@Override
+	public void updateHotResponses(List<String> hotResponses) {
+		// Hot response indexes are only built on PostgreSQL — no-op
+	}
+
+	@Override
+	public void updateHotRemoteResponses(List<String> hotRemoteResponses) {
+		// Hot remote response indexes are only built on PostgreSQL — no-op
+	}
 }
