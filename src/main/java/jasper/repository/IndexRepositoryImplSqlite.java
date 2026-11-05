@@ -2,16 +2,22 @@ package jasper.repository;
 
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.HashMap;
 import java.util.List;
+
+import static jasper.repository.IndexRepository.HOT_LENGTHS;
 
 @Repository
 @Profile("sqlite")
 @Transactional
 public class IndexRepositoryImplSqlite implements IndexRepository {
+	private static final Logger logger = LoggerFactory.getLogger(IndexRepositoryImplSqlite.class);
 
 	@PersistenceContext
 	private EntityManager em;
@@ -108,6 +114,36 @@ public class IndexRepositoryImplSqlite implements IndexRepository {
 	}
 
 	@Override
+	public void dropCreated() {
+		em.createNativeQuery("DROP INDEX IF EXISTS ref_created_index").executeUpdate();
+	}
+
+	@Override
+	public void buildCreated() {
+		em.createNativeQuery("CREATE INDEX IF NOT EXISTS ref_created_index ON ref (created)").executeUpdate();
+	}
+
+	@Override
+	public void dropMetadataModified() {
+		em.createNativeQuery("DROP INDEX IF EXISTS ref_metadata_modified_index").executeUpdate();
+	}
+
+	@Override
+	public void buildMetadataModified() {
+		em.createNativeQuery("CREATE INDEX IF NOT EXISTS ref_metadata_modified_index ON ref (COALESCE(" + field("modified") + ", ''))").executeUpdate();
+	}
+
+	@Override
+	public void dropUrlPrefix() {
+		em.createNativeQuery("DROP INDEX IF EXISTS ref_url_prefix_index").executeUpdate();
+	}
+
+	@Override
+	public void buildUrlPrefix() {
+		// SQLite LIKE is case-insensitive, so a binary index on url cannot serve it — no-op
+	}
+
+	@Override
 	public void dropNewResponse() {
 		em.createNativeQuery("DROP INDEX IF EXISTS ref_new_response_index").executeUpdate();
 	}
@@ -163,6 +199,51 @@ public class IndexRepositoryImplSqlite implements IndexRepository {
 	private static String field(String key) {
 		var path = "'$.\"' || REPLACE('" + key + "', '\"', '\"\"') || '\"'";
 		return "(CASE WHEN json_type(metadata, " + path + ") IN ('true', 'false') THEN json_type(metadata, " + path + ") ELSE CAST(json_extract(metadata, " + path + ") AS TEXT) END)";
+	}
+
+	@Override
+	public void updateHotLengths(List<String> hotLengths) {
+		var wanted = new HashMap<String, String>();
+		if (hotLengths != null) {
+			for (var hotLength : hotLengths) {
+				var key = IndexRepository.hotLength(hotLength);
+				if (key == null) {
+					logger.warn("Invalid hot length index: {}", hotLength);
+					continue;
+				}
+				wanted.put(HOT_LENGTHS.get(key), hotLengthExpression(key));
+			}
+		}
+		@SuppressWarnings("unchecked")
+		List<String> existing = em.createNativeQuery("""
+				SELECT name FROM sqlite_master
+				WHERE type = 'index' AND tbl_name = 'ref' AND name LIKE 'ref\\_hotl\\_%' ESCAPE '\\'""")
+			.getResultList();
+		for (var name : existing) {
+			if (wanted.containsKey(name)) continue;
+			logger.info("Dropping hot length index {}", name);
+			em.createNativeQuery("DROP INDEX IF EXISTS " + name).executeUpdate();
+		}
+		for (var e : wanted.entrySet()) {
+			if (existing.contains(e.getKey())) continue;
+			logger.info("Building hot length index {} on {}", e.getKey(), e.getValue());
+			em.createNativeQuery("CREATE INDEX IF NOT EXISTS " + e.getKey() + " ON ref (" + e.getValue() + ")").executeUpdate();
+		}
+	}
+
+	/**
+	 * The same SQL that {@link jasper.repository.spec.RefSpec#sort} renders for a length sort with
+	 * {@link jasper.config.SQLiteDialect}, so SQLite can match the index to the sort.
+	 * The key must be validated with {@link IndexRepository#hotLength}, so it is safe to inline.
+	 */
+	static String hotLengthExpression(String key) {
+		if ("origin".equals(key)) return "CASE WHEN origin = '' OR origin = '@' THEN 0 ELSE (LENGTH(origin) - LENGTH(REPLACE(origin, '.', '')) + 1) END";
+		if (key.startsWith("metadata->")) {
+			var value = "((metadata) -> ('$.\"' || REPLACE('" + key.substring("metadata->".length()) + "', '\"', '\"\"') || '\"'))";
+			return "COALESCE((CASE WHEN json_valid(" + value + ") THEN (CASE WHEN json_type(" + value + ") = 'array' THEN json_array_length(" + value + ") END) END), 0)";
+		}
+		var column = "alternateUrls".equals(key) ? "alternate_urls" : key;
+		return "COALESCE(json_array_length(" + column + "), 0)";
 	}
 
 	@Override

@@ -28,6 +28,7 @@ import java.time.Instant;
 
 import static jasper.domain.proj.Tag.localTag;
 import static jasper.domain.proj.Tag.tagOrigin;
+import static jasper.repository.spec.TemplateSpec.JSONB_FIELDS;
 import static jasper.repository.spec.TemplateSpec.sort;
 import static org.springframework.data.domain.PageRequest.of;
 
@@ -87,7 +88,7 @@ public class TemplateService {
 		return templateRepository.findAll(
 			sort(
 				auth.<Template>tagReadSpec()
-					.and(filter.spec()),
+					.and(filter.spec(JSONB_FIELDS)),
 				pageable),
 			of(pageable.getPageNumber(), pageable.getPageSize()))
 			.map(mapper::domainToDto);

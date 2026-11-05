@@ -17,6 +17,11 @@ import static jasper.repository.spec.SortSpec.isJsonbSortProperty;
 public class ExtSpec {
 
 	/**
+	 * The JSONB columns Exts can be sorted and filtered (configBefore / configAfter) by.
+	 */
+	public static final String[] JSONB_FIELDS = { "config" };
+
+	/**
 	 * Creates a Specification with sorting applied based on the PageRequest's sort orders.
 	 * JSONB field sort columns are rewritten as JPA Specification orderBy clauses.
 	 * Uses COALESCE to handle nulls (0 for numeric/length, '' for string).
@@ -39,8 +44,8 @@ public class ExtSpec {
 				var property = order.getProperty();
 				var ascending = order.isAscending();
 				Expression<?> expr;
-				if (isJsonbSortProperty(property, "config")) {
-					expr = createJsonbSortExpression(root, cb, property, "config");
+				if (isJsonbSortProperty(property, JSONB_FIELDS)) {
+					expr = createJsonbSortExpression(root, cb, property, JSONB_FIELDS);
 				} else if (property.equals("origin:len")) {
 					expr = createOriginNestingExpression(root, cb);
 				} else if (property.equals("tag:len")) {

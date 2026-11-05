@@ -63,6 +63,10 @@ public class RefFilter implements Query {
 	private Instant createdAfter;
 	private Instant responseBefore;
 	private Instant responseAfter;
+	private Instant newResponseBefore;
+	private Instant newResponseAfter;
+	private Instant newReactionBefore;
+	private Instant newReactionAfter;
 	private List<String> tagBefore;
 	private List<String> tagAfter;
 	private List<String> pluginBefore;
@@ -185,6 +189,18 @@ public class RefFilter implements Query {
 		if (responseAfter != null) {
 			result = result.and(isResponseAfter(responseAfter));
 		}
+		if (newResponseBefore != null) {
+			result = result.and(isNewResponseBefore(newResponseBefore));
+		}
+		if (newResponseAfter != null) {
+			result = result.and(isNewResponseAfter(newResponseAfter));
+		}
+		if (newReactionBefore != null) {
+			result = result.and(isNewReactionBefore(newReactionBefore));
+		}
+		if (newReactionAfter != null) {
+			result = result.and(isNewReactionAfter(newReactionAfter));
+		}
 		if (tagBefore != null) {
 			for (var f : tagBefore) {
 				result = result.and(isTagValueBefore(tagValueFilter(f)));
@@ -216,7 +232,7 @@ public class RefFilter implements Query {
 
 	private static PluginValueFilter pluginValueFilter(String filter) {
 		var result = PluginValueFilter.parse(filter);
-		if (result == null) throw new InvalidQueryException(filter, "expected plugins->{plugin}[->{field}...]/{value}, plugins->{plugin}[->{field}...]:num/{number} or plugins->{plugin}[->{field}...]:len/{length}");
+		if (result == null) throw new InvalidQueryException(filter, "expected plugins->{plugin}[->{field}...]/{value}, plugins->{plugin}[->{field}...]:num/{number}, plugins->{plugin}[->{field}...]:len/{length}, metadata->plugins->{plugin}/{count} or metadata->remotePlugins->{plugin}/{count}");
 		return result;
 	}
 }

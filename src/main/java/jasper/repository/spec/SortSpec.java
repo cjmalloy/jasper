@@ -2,9 +2,11 @@ package jasper.repository.spec;
 
 import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.Expression;
+import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Root;
 import jasper.domain.Plugin;
 import jasper.domain.proj.Tag;
+import org.springframework.data.jpa.domain.Specification;
 
 import java.math.BigDecimal;
 import java.util.Set;
@@ -218,7 +220,8 @@ public class SortSpec {
 	}
 
 	/**
-	 * A filter on plugin data, e.g. "plugins->plugin/progress->percent:num/50" or "plugins->plugin/score:num/10".
+	 * A filter on plugin data, e.g. "plugins->plugin/progress->percent:num/50" or "plugins->plugin/score:num/10",
+	 * or on a response count, e.g. "metadata->remotePlugins->plugin/user/read/10".
 	 * The filter is a plugin sort column followed by "/" and the value. Plugin data may be a primitive,
 	 * so fields are optional.
 	 * Like tag value filters, the value is always after the last "/", so it cannot contain "/".
@@ -227,18 +230,25 @@ public class SortSpec {
 	 *
 	 * @param plugin the plugin tag
 	 * @param property the JSONB sort property, e.g. "plugins->plugin/progress->percent:num"
-	 * @param value the value to compare against: a String, or a BigDecimal for :num and :len
+	 *                 or "metadata->plugins->plugin/comment:num" for response counts
+	 * @param value the value to compare against: a String, or a BigDecimal for :num, :len and response counts
 	 */
 	public record PluginValueFilter(String plugin, String property, Object value) {
 		public static final String FIELD_REGEX = "(?:[A-Za-z0-9_$-]+(?:\\[[0-9]{1,9}\\])?|\\[[0-9]{1,9}\\])";
 		public static final String COLUMN_REGEX = "plugins->" + Plugin.REGEX + "(?:->" + FIELD_REGEX + ")*(?::num|:len)?";
+		/**
+		 * Response counts by plugin, which are always numeric, so the ":num" suffix is optional.
+		 */
+		public static final String RESPONSE_COLUMN_REGEX = "metadata->(?:plugins|remotePlugins)->" + Plugin.REGEX + "(?::num)?";
 		public static final String VALUE_REGEX = "(?:(?!->)[^/,])+";
-		public static final String REGEX = COLUMN_REGEX + "/" + VALUE_REGEX;
+		public static final String NUM_REGEX = "-?[0-9]{1,30}([.][0-9]{1,30})?";
+		public static final String REGEX = "(?:" + COLUMN_REGEX + "|" + RESPONSE_COLUMN_REGEX + ")/" + VALUE_REGEX;
 		public static final int LEN = 1024;
-		private static final Pattern PATTERN = Pattern.compile("(" + COLUMN_REGEX + ")/(" + VALUE_REGEX + ")");
+		private static final Pattern PATTERN = Pattern.compile("(" + COLUMN_REGEX + "|" + RESPONSE_COLUMN_REGEX + ")/(" + VALUE_REGEX + ")");
 
 		/**
-		 * Parses "plugins->{plugin}[->{field}...][:num|:len]/{value}".
+		 * Parses "plugins->{plugin}[->{field}...][:num|:len]/{value}",
+		 * "metadata->plugins->{plugin}[:num]/{count}" or "metadata->remotePlugins->{plugin}[:num]/{count}".
 		 *
 		 * @return the parsed filter, or null if the filter is not a valid plugin value filter
 		 */
@@ -248,9 +258,15 @@ public class SortSpec {
 			if (!m.matches()) return null;
 			var property = m.group(1);
 			var value = m.group(2);
+			if (property.startsWith("metadata->")) {
+				if (!value.matches(NUM_REGEX)) return null;
+				if (property.endsWith(":num")) property = property.substring(0, property.length() - ":num".length());
+				var plugin = property.substring(property.indexOf("->", "metadata->".length()) + 2);
+				return new PluginValueFilter(plugin, property + ":num", new BigDecimal(value));
+			}
 			var plugin = property.substring("plugins->".length()).split("->", 2)[0].replaceFirst(":(?:num|len)$", "");
 			if (property.endsWith(":num")) {
-				if (!value.matches("-?[0-9]{1,30}([.][0-9]{1,30})?")) return null;
+				if (!value.matches(NUM_REGEX)) return null;
 				return new PluginValueFilter(plugin, property, new BigDecimal(value));
 			}
 			if (property.endsWith(":len")) {
@@ -259,6 +275,87 @@ public class SortSpec {
 			}
 			return new PluginValueFilter(plugin, property, value);
 		}
+
+		/**
+		 * Is this a filter on a response count ("metadata->plugins->..." or "metadata->remotePlugins->...")?
+		 */
+		public boolean responseCount() {
+			return property.startsWith("metadata->");
+		}
+	}
+
+	/**
+	 * A filter on a JSONB column of an Ext, User, Plugin or Template, e.g. "config->version:num/3".
+	 * The syntax and type rules are the same as {@link PluginValueFilter}: the filter is a sort column
+	 * followed by "/" and the value, which is always after the last "/".
+	 *
+	 * @param property the JSONB sort property, e.g. "config->pinned:len"
+	 * @param value the value to compare against: a String, or a BigDecimal for :num and :len
+	 */
+	public record ConfigValueFilter(String property, Object value) {
+		public static final String COLUMN_REGEX = "(?:config|defaults|schema|external)(?:->" + PluginValueFilter.FIELD_REGEX + ")+(?::num|:len)?";
+		public static final String REGEX = COLUMN_REGEX + "/" + PluginValueFilter.VALUE_REGEX;
+		public static final int LEN = PluginValueFilter.LEN;
+		private static final Pattern PATTERN = Pattern.compile("(" + COLUMN_REGEX + ")/(" + PluginValueFilter.VALUE_REGEX + ")");
+
+		/**
+		 * Parses "{root}->{field}[->{field}...][:num|:len]/{value}".
+		 *
+		 * @param roots the JSONB columns of the entity that may be filtered, e.g. "config"
+		 * @return the parsed filter, or null if the filter is not valid for these roots
+		 */
+		public static ConfigValueFilter parse(String filter, String... roots) {
+			if (filter == null) return null;
+			var m = PATTERN.matcher(filter);
+			if (!m.matches()) return null;
+			var property = m.group(1);
+			var value = m.group(2);
+			if (!isJsonbSortProperty(property, roots)) return null;
+			if (property.endsWith(":num")) {
+				if (!value.matches(PluginValueFilter.NUM_REGEX)) return null;
+				return new ConfigValueFilter(property, new BigDecimal(value));
+			}
+			if (property.endsWith(":len")) {
+				if (!value.matches("[0-9]{1,9}")) return null;
+				return new ConfigValueFilter(property, new BigDecimal(value));
+			}
+			return new ConfigValueFilter(property, value);
+		}
+
+		/**
+		 * The JSONB column, e.g. "config".
+		 */
+		public String root() {
+			return property.substring(0, property.indexOf("->"));
+		}
+	}
+
+	/**
+	 * Compares a JSONB value with a filter value, using the same expression as sorting without the COALESCE,
+	 * so missing values and values of the wrong type never match.
+	 *
+	 * @param field the value from {@link #createJsonbValue}
+	 * @param value a String, or a BigDecimal for numbers and lengths
+	 * @param before less than (true) or greater than (false)
+	 */
+	@SuppressWarnings("unchecked")
+	public static Predicate compareJsonbValue(CriteriaBuilder cb, JsonbValue field, Object value, boolean before) {
+		if (value instanceof String text) {
+			Expression<String> expr = field.expression();
+			return before ? cb.lessThan(expr, text) : cb.greaterThan(expr, text);
+		}
+		Expression<Double> number = field.numeric()
+			? field.expression()
+			: cb.function("cast_to_numeric", Double.class, field.expression());
+		var literal = cb.function("cast_to_numeric", Double.class, cb.literal(value));
+		return before ? cb.lessThan(number, literal) : cb.greaterThan(number, literal);
+	}
+
+	/**
+	 * Filters on a JSONB column of an Ext, User, Plugin or Template, using the same expression as sorting.
+	 */
+	public static <T> Specification<T> isConfigValue(ConfigValueFilter filter, boolean before) {
+		return (root, query, cb) -> compareJsonbValue(cb, createJsonbValue(root, cb, filter.property(), filter.root()), filter.value(), before);
 	}
 
 	/**

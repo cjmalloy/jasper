@@ -12,10 +12,15 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.junit.jupiter.EnabledIf;
 import org.springframework.transaction.annotation.Transactional;
 
+import jasper.domain.Ref;
+
+import java.sql.Timestamp;
+import java.time.Instant;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -562,5 +567,227 @@ public class IndexRepositoryIT {
 				and ( '@test'='' or r1_0.origin='@test' or r1_0.origin like ('@test'||'.%%') )
 			order by r1_0.modified desc limit 1""".formatted(field("r1_0.metadata", "modified"), field("r1_0.metadata", "regen"))))
 			.contains("ref_regen_index");
+	}
+
+	static final String SQLITE = "#{environment.acceptsProfiles(T(org.springframework.core.env.Profiles).of('sqlite'))}";
+
+	/**
+	 * Runs a filter through {@link RefFilter#spec} and explains the SQL Hibernate rendered for it.
+	 */
+	String explainFilter(Specification<Ref> spec, boolean sqlite, Object... params) {
+		var sql = SqlCapture.capture(() -> refRepository.findAll(spec))
+			.stream()
+			.filter(s -> s.contains(" from ref "))
+			.findFirst()
+			.orElseThrow();
+		if (!sqlite) em.createNativeQuery("SET LOCAL enable_seqscan = off").executeUpdate();
+		// Plain JDBC, Hibernate's native query parser treats the backslash in ESCAPE '\' as a string escape
+		return jdbc.queryForList((sqlite ? "EXPLAIN QUERY PLAN " : "EXPLAIN ") + sql, params).stream()
+			.map(row -> row.values().stream().reduce((a, b) -> b).orElseThrow().toString())
+			.collect(Collectors.joining("\n"));
+	}
+
+	@Test
+	void testBuildAndDropCreated() {
+		indexRepository.dropCreated();
+		indexRepository.buildCreated();
+		indexRepository.buildCreated();
+		indexRepository.dropCreated();
+	}
+
+	@Test
+	void testBuildAndDropMetadataModified() {
+		indexRepository.dropMetadataModified();
+		indexRepository.buildMetadataModified();
+		indexRepository.buildMetadataModified();
+		indexRepository.dropMetadataModified();
+	}
+
+	@Test
+	void testBuildAndDropUrlPrefix() {
+		indexRepository.dropUrlPrefix();
+		indexRepository.buildUrlPrefix();
+		indexRepository.buildUrlPrefix();
+		indexRepository.dropUrlPrefix();
+	}
+
+	@Test
+	@DisabledOnSqlite
+	@Transactional
+	void testCreatedIndexUsedPostgres() {
+		indexRepository.buildCreated();
+		for (var direction : Sort.Direction.values()) {
+			assertThat(explainSort("created", direction, false)).as("created %s", direction).contains("ref_created_index");
+		}
+		var now = Instant.parse("2026-01-01T00:00:00Z");
+		var param = Timestamp.from(now);
+		assertThat(explainFilter(RefFilter.builder().createdBefore(now).build().spec(), false, param)).contains("ref_created_index");
+		assertThat(explainFilter(RefFilter.builder().createdAfter(now).build().spec(), false, param)).contains("ref_created_index");
+	}
+
+	@Test
+	@EnabledIf(expression = SQLITE, loadContext = true)
+	@Transactional
+	void testCreatedIndexUsedSqlite() {
+		indexRepository.buildCreated();
+		for (var direction : Sort.Direction.values()) {
+			assertThat(explainSort("created", direction, true)).as("created %s", direction).contains("ref_created_index");
+		}
+		var now = Instant.parse("2026-01-01T00:00:00Z");
+		var param = Timestamp.from(now);
+		assertThat(explainFilter(RefFilter.builder().createdBefore(now).build().spec(), true, param)).contains("ref_created_index");
+		assertThat(explainFilter(RefFilter.builder().createdAfter(now).build().spec(), true, param)).contains("ref_created_index");
+	}
+
+	/**
+	 * Each metadata date filter must use the same index as the matching sort.
+	 */
+	void assertMetadataDateIndexesUsed(boolean sqlite) {
+		indexRepository.buildMetadataModified();
+		indexRepository.buildNewResponse();
+		indexRepository.buildNewReaction();
+		var now = Instant.parse("2026-01-01T00:00:00.5Z");
+		for (var direction : Sort.Direction.values()) {
+			assertThat(explainSort("metadata->modified", direction, sqlite)).as("metadata->modified %s", direction).contains("ref_metadata_modified_index");
+		}
+		assertThat(explainFilter(RefFilter.builder().responseBefore(now).build().spec(), sqlite)).contains("ref_metadata_modified_index");
+		assertThat(explainFilter(RefFilter.builder().responseAfter(now).build().spec(), sqlite)).contains("ref_metadata_modified_index");
+		assertThat(explainFilter(RefFilter.builder().newResponseBefore(now).build().spec(), sqlite)).contains("ref_new_response_index");
+		assertThat(explainFilter(RefFilter.builder().newResponseAfter(now).build().spec(), sqlite)).contains("ref_new_response_index");
+		assertThat(explainFilter(RefFilter.builder().newReactionBefore(now).build().spec(), sqlite)).contains("ref_new_reaction_index");
+		assertThat(explainFilter(RefFilter.builder().newReactionAfter(now).build().spec(), sqlite)).contains("ref_new_reaction_index");
+	}
+
+	@Test
+	@DisabledOnSqlite
+	@Transactional
+	void testMetadataDateIndexesUsedForFilterPostgres() {
+		assertMetadataDateIndexesUsed(false);
+	}
+
+	@Test
+	@EnabledIf(expression = SQLITE, loadContext = true)
+	@Transactional
+	void testMetadataDateIndexesUsedForFilterSqlite() {
+		assertMetadataDateIndexesUsed(true);
+	}
+
+	@Test
+	@DisabledOnSqlite
+	@Transactional
+	void testHotResponseIndexUsedForCountFilterPostgres() {
+		indexRepository.updateHotResponses(List.of("plugin/comment"));
+		indexRepository.updateHotRemoteResponses(List.of("plugin/user/read"));
+		assertThat(explainFilter(RefFilter.builder().pluginAfter(List.of("metadata->plugins->plugin/comment/10")).build().spec(), false))
+			.contains(IndexRepositoryImplPostgres.hotResponseIndexName("plugins", "plugin/comment"));
+		assertThat(explainFilter(RefFilter.builder().pluginBefore(List.of("metadata->plugins->plugin/comment:num/3")).build().spec(), false))
+			.contains(IndexRepositoryImplPostgres.hotResponseIndexName("plugins", "plugin/comment"));
+		assertThat(explainFilter(RefFilter.builder().pluginAfter(List.of("metadata->remotePlugins->plugin/user/read/10")).build().spec(), false))
+			.contains(IndexRepositoryImplPostgres.hotResponseIndexName("remotePlugins", "plugin/user/read"));
+	}
+
+	static final List<String> HOT_LENGTHS = List.of("tags", "sources", "alternateUrls", "origin",
+		"metadata->responses", "metadata->internalResponses", "metadata->expandedTags");
+
+	@Test
+	void testHotLength() {
+		assertThat(IndexRepository.hotLength("tags")).isEqualTo("tags");
+		assertThat(IndexRepository.hotLength("tags:len")).isEqualTo("tags");
+		assertThat(IndexRepository.hotLength("metadata->responses:len")).isEqualTo("metadata->responses");
+		assertThat(IndexRepository.hotLength("metadata->plugins")).isNull();
+		assertThat(IndexRepository.hotLength("title")).isNull();
+		assertThat(IndexRepository.hotLength("tags'); DROP TABLE ref; --")).isNull();
+		assertThat(IndexRepository.hotLength(null)).isNull();
+		assertThat(IndexRepositoryImplPostgres.hotLengthExpression("tags")).isEqualTo("COALESCE(jsonb_array_length(tags), 0)");
+		assertThat(IndexRepositoryImplPostgres.hotLengthExpression("alternateUrls")).isEqualTo("COALESCE(jsonb_array_length(alternate_urls), 0)");
+		assertThat(IndexRepositoryImplPostgres.hotLengthExpression("metadata->responses"))
+			.isEqualTo("COALESCE((CASE WHEN jsonb_typeof((metadata)->('responses')) = 'array' THEN jsonb_array_length((metadata)->('responses')) END), 0)");
+	}
+
+	@Test
+	void testUpdateHotLengths() {
+		indexRepository.updateHotLengths(List.of("tags", "origin:len", "metadata->responses", "invalid'length"));
+		indexRepository.updateHotLengths(List.of());
+		indexRepository.updateHotLengths(null);
+	}
+
+	List<String> hotLengthIndexes(boolean sqlite) {
+		if (sqlite) return jdbc.queryForList("SELECT name FROM sqlite_master WHERE type = 'index' AND tbl_name = 'ref' AND name LIKE 'ref\\_hotl\\_%' ESCAPE '\\' ORDER BY name", String.class);
+		return jdbc.queryForList("SELECT indexname FROM pg_indexes WHERE tablename = 'ref' AND indexname LIKE 'ref\\_hotl\\_%' ORDER BY indexname", String.class);
+	}
+
+	void assertBuildAndDropHotLengths(boolean sqlite) {
+		indexRepository.updateHotLengths(List.of("tags", "origin:len", "invalid"));
+		assertThat(hotLengthIndexes(sqlite)).containsExactlyInAnyOrder("ref_hotl_tags", "ref_hotl_origin");
+		indexRepository.updateHotLengths(List.of("tags:len", "metadata->responses"));
+		assertThat(hotLengthIndexes(sqlite)).containsExactlyInAnyOrder("ref_hotl_tags", "ref_hotl_responses");
+		indexRepository.updateHotLengths(List.of());
+		assertThat(hotLengthIndexes(sqlite)).isEmpty();
+	}
+
+	@Test
+	@DisabledOnSqlite
+	void testBuildAndDropHotLengthsPostgres() {
+		assertBuildAndDropHotLengths(false);
+	}
+
+	@Test
+	@EnabledIf(expression = SQLITE, loadContext = true)
+	void testBuildAndDropHotLengthsSqlite() {
+		assertBuildAndDropHotLengths(true);
+	}
+
+	void assertHotLengthIndexUsedForSort(boolean sqlite) {
+		indexRepository.updateHotLengths(HOT_LENGTHS);
+		for (var length : HOT_LENGTHS) {
+			var column = length.startsWith("metadata->") ? length : length + ":len";
+			for (var direction : Sort.Direction.values()) {
+				assertThat(explainSort(column, direction, sqlite))
+					.as("%s %s", column, direction)
+					.contains(IndexRepository.HOT_LENGTHS.get(length));
+			}
+		}
+	}
+
+	@Test
+	@DisabledOnSqlite
+	@Transactional
+	void testHotLengthIndexUsedForSortPostgres() {
+		assertHotLengthIndexUsedForSort(false);
+	}
+
+	@Test
+	@EnabledIf(expression = SQLITE, loadContext = true)
+	@Transactional
+	void testHotLengthIndexUsedForSortSqlite() {
+		assertHotLengthIndexUsedForSort(true);
+	}
+
+	@Test
+	@DisabledOnSqlite
+	@Transactional
+	void testUserResponseSemiJoinIndexesUsedPostgres() {
+		indexRepository.buildUrlPrefix();
+		// Realistic statistics, so the planner prefers the URL prefix over a full scan of the origin
+		jdbc.update("""
+			INSERT INTO ref (url, origin, modified, created, published, tags, sources)
+			SELECT 'https://example.com/' || g, CASE WHEN g % 2 = 0 THEN '' ELSE '@other' END, now() + g * interval '1 ms', now(), now(), '["public"]', '[]'
+			FROM generate_series(1, 5000) g""");
+		jdbc.update("""
+			INSERT INTO ref (url, origin, modified, created, published, tags, sources)
+			SELECT 'tag:/user/tester?url=https://example.com/' || g, '', now() - g * interval '1 ms', now(), now(), '["plugin/user/read"]', jsonb_build_array('https://example.com/' || g)
+			FROM generate_series(1, 50) g""");
+		jdbc.execute("ANALYZE ref");
+		var tagLike = "%\"plugin/user/read/%";
+		for (var filter : List.of(
+			RefFilter.builder().userResponse(List.of("plugin/user/read")).build(),
+			RefFilter.builder().noUserResponse(List.of("plugin/user/read")).build())) {
+			for (var origin : List.of("", "@other")) {
+				var params = origin.isEmpty() ? new Object[]{ tagLike } : new Object[]{ origin, origin + ".%", tagLike };
+				var plan = explainFilter(filter.spec("+user/tester", origin), false, params);
+				assertThat(plan).as(plan).contains("ref_url_prefix_index");
+				assertThat(plan).as(plan).contains("~>=~");
+			}
+		}
 	}
 }

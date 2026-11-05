@@ -14,6 +14,7 @@ import jasper.errors.FreshLoginException;
 import jasper.repository.RefRepository;
 import jasper.repository.filter.Query;
 import jasper.repository.filter.RefFilter;
+import jasper.repository.filter.TagFilter;
 import jasper.repository.spec.QualifiedTag;
 import jasper.repository.spec.SortSpec.PluginValueFilter;
 import jasper.repository.spec.SortSpec.TagValueFilter;
@@ -683,6 +684,32 @@ public class Auth {
 				if (isUser(tag)) return true;
 				return captures(getTagReadAccess(), QualifiedTag.selector(tag));
 			})
+			.toList();
+		if (filtered.size() == orders.size()) return pageable;
+		return PageRequest.of(
+			pageable.getPageNumber(),
+			pageable.getPageSize(),
+			Sort.by(filtered));
+	}
+
+	/**
+	 * User external data is only shown to mods and users who can write the user (see {@link #filterUser}),
+	 * so only mods may filter Users by it with configBefore / configAfter.
+	 */
+	public boolean canFilterUsers(TagFilter filter) {
+		if (!filter.hasConfigFilter()) return true;
+		return hasRole(MOD);
+	}
+
+	/**
+	 * Silently remove User sorts on external data unless mod, since it is hidden (see {@link #filterUser}).
+	 */
+	public Pageable userPageable(Pageable pageable) {
+		if (pageable == null || pageable.getSort().isUnsorted()) return pageable;
+		if (hasRole(MOD)) return pageable;
+		var orders = pageable.getSort().toList();
+		var filtered = orders.stream()
+			.filter(order -> !order.getProperty().startsWith("external->"))
 			.toList();
 		if (filtered.size() == orders.size()) return pageable;
 		return PageRequest.of(

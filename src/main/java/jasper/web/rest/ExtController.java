@@ -7,7 +7,9 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
 import jasper.aop.ClearIdle;
 import jasper.component.HttpCache;
 import jasper.domain.Ext;
@@ -29,6 +31,7 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.Instant;
+import java.util.List;
 
 import static jasper.domain.proj.Tag.QTAG_LEN;
 import static jasper.repository.filter.Query.QUERY_LEN;
@@ -93,6 +96,8 @@ public class ExtController {
 		@RequestParam(required = false) Boolean deleted,
 		@RequestParam(required = false) Instant modifiedAfter,
 		@RequestParam(required = false) Instant modifiedBefore,
+		@RequestParam(required = false) @Size(max = 100) List<@NotBlank @Length(max = TagFilter.CONFIG_VALUE_LEN) @Pattern(regexp = TagFilter.CONFIG_VALUE) String> configBefore,
+		@RequestParam(required = false) @Size(max = 100) List<@NotBlank @Length(max = TagFilter.CONFIG_VALUE_LEN) @Pattern(regexp = TagFilter.CONFIG_VALUE) String> configAfter,
 		@RequestParam(required = false) @Length(max = SEARCH_LEN) String search
 	) {
 		return httpCache.ifNotModifiedPage(extService.page(
@@ -103,7 +108,9 @@ public class ExtController {
 				.deleted(deleted)
 				.search(search)
 				.modifiedBefore(modifiedBefore)
-				.modifiedAfter(modifiedAfter).build(),
+				.modifiedAfter(modifiedAfter)
+				.configBefore(configBefore)
+				.configAfter(configAfter).build(),
 			pageable));
 	}
 
@@ -119,6 +126,8 @@ public class ExtController {
 		@RequestParam(required = false) Boolean deleted,
 		@RequestParam(required = false) Instant modifiedAfter,
 		@RequestParam(required = false) Instant modifiedBefore,
+		@RequestParam(required = false) @Size(max = 100) List<@NotBlank @Length(max = TagFilter.CONFIG_VALUE_LEN) @Pattern(regexp = TagFilter.CONFIG_VALUE) String> configBefore,
+		@RequestParam(required = false) @Size(max = 100) List<@NotBlank @Length(max = TagFilter.CONFIG_VALUE_LEN) @Pattern(regexp = TagFilter.CONFIG_VALUE) String> configAfter,
 		@RequestParam(required = false) @Length(max = SEARCH_LEN) String search
 	) {
 		return extService.count(
@@ -129,7 +138,9 @@ public class ExtController {
 				.deleted(deleted)
 				.search(search)
 				.modifiedBefore(modifiedBefore)
-				.modifiedAfter(modifiedAfter).build());
+				.modifiedAfter(modifiedAfter)
+				.configBefore(configBefore)
+				.configAfter(configAfter).build());
 	}
 
 	@ApiResponses({

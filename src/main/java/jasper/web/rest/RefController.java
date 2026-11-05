@@ -116,6 +116,10 @@ public class RefController {
 		@RequestParam(required = false) Instant createdAfter,
 		@RequestParam(required = false) Instant responseBefore,
 		@RequestParam(required = false) Instant responseAfter,
+		@RequestParam(required = false) Instant newResponseBefore,
+		@RequestParam(required = false) Instant newResponseAfter,
+		@RequestParam(required = false) Instant newReactionBefore,
+		@RequestParam(required = false) Instant newReactionAfter,
 		@RequestParam(required = false) @Size(max = 100) List<@NotBlank @Length(max = RefFilter.TAG_VALUE_LEN) @Pattern(regexp = RefFilter.TAG_VALUE) String> tagBefore,
 		@RequestParam(required = false) @Size(max = 100) List<@NotBlank @Length(max = RefFilter.TAG_VALUE_LEN) @Pattern(regexp = RefFilter.TAG_VALUE) String> tagAfter,
 		@RequestParam(required = false) @Size(max = 100) List<@NotBlank @Length(max = RefFilter.PLUGIN_VALUE_LEN) @Pattern(regexp = RefFilter.PLUGIN_VALUE) String> pluginBefore,
@@ -182,6 +186,10 @@ public class RefController {
 				.createdAfter(createdAfter)
 				.responseBefore(responseBefore)
 				.responseAfter(responseAfter)
+				.newResponseBefore(newResponseBefore)
+				.newResponseAfter(newResponseAfter)
+				.newReactionBefore(newReactionBefore)
+				.newReactionAfter(newReactionAfter)
 				.tagBefore(tagBefore)
 				.tagAfter(tagAfter)
 				.pluginBefore(pluginBefore)
@@ -213,6 +221,10 @@ public class RefController {
 		@RequestParam(required = false) Instant createdAfter,
 		@RequestParam(required = false) Instant responseBefore,
 		@RequestParam(required = false) Instant responseAfter,
+		@RequestParam(required = false) Instant newResponseBefore,
+		@RequestParam(required = false) Instant newResponseAfter,
+		@RequestParam(required = false) Instant newReactionBefore,
+		@RequestParam(required = false) Instant newReactionAfter,
 		@RequestParam(required = false) @Size(max = 100) List<@NotBlank @Length(max = RefFilter.TAG_VALUE_LEN) @Pattern(regexp = RefFilter.TAG_VALUE) String> tagBefore,
 		@RequestParam(required = false) @Size(max = 100) List<@NotBlank @Length(max = RefFilter.TAG_VALUE_LEN) @Pattern(regexp = RefFilter.TAG_VALUE) String> tagAfter,
 		@RequestParam(required = false) @Size(max = 100) List<@NotBlank @Length(max = RefFilter.PLUGIN_VALUE_LEN) @Pattern(regexp = RefFilter.PLUGIN_VALUE) String> pluginBefore,
@@ -252,6 +264,10 @@ public class RefController {
 				.createdAfter(createdAfter)
 				.responseBefore(responseBefore)
 				.responseAfter(responseAfter)
+				.newResponseBefore(newResponseBefore)
+				.newResponseAfter(newResponseAfter)
+				.newReactionBefore(newReactionBefore)
+				.newReactionAfter(newReactionAfter)
 				.tagBefore(tagBefore)
 				.tagAfter(tagAfter)
 				.pluginBefore(pluginBefore)

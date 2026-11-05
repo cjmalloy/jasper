@@ -17,13 +17,18 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 
+import static jasper.domain.Metadata.timestamp;
 import static jasper.domain.proj.Tag.isPublicTag;
+import static jasper.domain.proj.Tag.matchesTemplate;
 import static jasper.domain.proj.Tag.publicTag;
-import static jasper.domain.proj.Tag.userUrlPrefix;
+import static jasper.repository.spec.OriginSpec.isUnderOrigin;
 import static jasper.repository.spec.OriginSpec.none;
+import static jasper.repository.spec.SortSpec.compareJsonbValue;
 import static jasper.repository.spec.SortSpec.createJsonbSortExpression;
 import static jasper.repository.spec.SortSpec.createJsonbValue;
 import static jasper.repository.spec.SortSpec.isJsonbSortProperty;
+import static org.apache.commons.lang3.StringUtils.isBlank;
+import static org.springframework.data.jpa.domain.Specification.not;
 import static org.springframework.data.jpa.domain.Specification.unrestricted;
 
 public class RefSpec {
@@ -173,42 +178,51 @@ public class RefSpec {
 			cb.function("cast_to_numeric", Double.class, cb.literal(0)));
 	}
 
+	/**
+	 * Refs the user has not responded to with a user URL Ref tagged with the plugin.
+	 * See {@link #hasPluginResponses(String, String, String)}.
+	 */
 	public static Specification<Ref> hasNoPluginResponses(String user, String userOrigin, String plugin) {
-		return (root, query, cb) ->
-			cb.or(
-				cb.isNull(root.get(Ref_.metadata)),
-				cb.isNull(
-					cb.function("jsonb_object_field", Object.class,
-						root.get(Ref_.metadata),
-						cb.literal("userUrls"))),
-				cb.isNull(
-					cb.function("jsonb_object_field", Object.class,
-						cb.function("jsonb_object_field", Object.class,
-							root.get(Ref_.metadata),
-							cb.literal("userUrls")),
-						cb.literal(plugin))),
-				cb.isFalse(
-					cb.function("jsonb_exists", Boolean.class,
-						cb.function("jsonb_object_field", Object.class,
-							cb.function("jsonb_object_field", Object.class,
-								root.get(Ref_.metadata),
-								cb.literal("userUrls")),
-							cb.literal(plugin)),
-						cb.concat(userUrlPrefix(user, userOrigin), root.get(Ref_.url)))));
+		return not(hasPluginResponses(user, userOrigin, plugin));
 	}
 
+	/**
+	 * Refs the user has responded to with a user URL Ref ("tag:/user/{name}?url={url}", or the
+	 * "+user" and "_user" forms) in the user's origin, tagged with the plugin and citing the Ref as a source.
+	 * This is what metadata userUrls records, but instead of checking the userUrls of every Ref
+	 * (whose key depends on the Ref's own URL, so no index can help), this is a semi-join against the
+	 * user's own user URL Refs. On PostgreSQL the URL prefix index (urlPrefix), the tags GIN index and the
+	 * primary key serve it.
+	 * Like metadata userUrls, only "plugin/user" plugins are recorded, and only Refs under the user's origin.
+	 */
 	public static Specification<Ref> hasPluginResponses(String user, String userOrigin, String plugin) {
-		return (root, query, cb) ->
-			cb.and(
-				cb.isNotNull(root.get(Ref_.metadata)),
-				cb.isTrue(
-					cb.function("jsonb_exists", Boolean.class,
-						cb.function("jsonb_object_field", Object.class,
-							cb.function("jsonb_object_field", Object.class,
-								root.get(Ref_.metadata),
-								cb.literal("userUrls")),
-							cb.literal(plugin)),
-						cb.concat(userUrlPrefix(user, userOrigin), root.get(Ref_.url)))));
+		if (!matchesTemplate("plugin/user", plugin)) return none();
+		var origin = isBlank(userOrigin) || userOrigin.equals("@") ? "" : userOrigin;
+		var name = publicTag(user);
+		return Specification.<Ref>where(isUnderOrigin(origin)).and((root, query, cb) -> {
+			var sub = query.subquery(String.class);
+			var u = sub.from(Ref.class);
+			var url = cb.substring(u.get(Ref_.url), cb.sum(cb.locate(u.get(Ref_.url), cb.literal("?")), cb.literal(5)));
+			sub.select(url).where(
+				cb.or(
+					cb.like(u.get(Ref_.url), cb.literal(likePrefix("tag:/" + name + "?url=")), '\\'),
+					cb.like(u.get(Ref_.url), cb.literal(likePrefix("tag:/+" + name + "?url=")), '\\'),
+					cb.like(u.get(Ref_.url), cb.literal(likePrefix("tag:/_" + name + "?url=")), '\\')),
+				cb.equal(u.get(Ref_.origin), cb.literal(origin)),
+				tagExists(u, cb, plugin),
+				cb.isTrue(cb.function("jsonb_exists", Boolean.class, u.get(Ref_.sources), url)));
+			return root.get(Ref_.url).in(sub);
+		});
+	}
+
+	/**
+	 * A LIKE pattern matching strings starting with the prefix, escaped with a backslash.
+	 */
+	private static String likePrefix(String prefix) {
+		return prefix
+			.replace("\\", "\\\\")
+			.replace("%", "\\%")
+			.replace("_", "\\_") + "%";
 	}
 
 	private static Predicate tagExists(Root<Ref> root, CriteriaBuilder cb, String tag) {
@@ -313,22 +327,58 @@ public class RefSpec {
 						i);
 	}
 
+	/**
+	 * Metadata modified (the last time responses, internal responses or plugin counts changed) after this time.
+	 */
 	public static Specification<Ref> isResponseAfter(Instant i) {
 		if (i == null) return unrestricted();
-		return (root, query, cb) ->
-			cb.greaterThan(cb.function("jsonb_object_field_text", String.class,
-					root.get(Ref_.metadata),
-					cb.literal(Ref_.MODIFIED)),
-				cb.literal(i.toString()));
+		return isMetadataDate(Ref_.MODIFIED, i.toString(), false);
 	}
 
+	/**
+	 * Metadata modified (the last time responses, internal responses or plugin counts changed) before this time.
+	 */
 	public static Specification<Ref> isResponseBefore(Instant i) {
 		if (i == null) return unrestricted();
-		return (root, query, cb) ->
-			cb.lessThan(cb.function("jsonb_object_field_text", String.class,
-					root.get(Ref_.metadata),
-					cb.literal(Ref_.MODIFIED)),
-				cb.literal(i.toString()));
+		return isMetadataDate(Ref_.MODIFIED, i.toString(), true);
+	}
+
+	public static Specification<Ref> isNewResponseAfter(Instant i) {
+		if (i == null) return unrestricted();
+		return isMetadataDate("newResponse", timestamp(i), false);
+	}
+
+	public static Specification<Ref> isNewResponseBefore(Instant i) {
+		if (i == null) return unrestricted();
+		return isMetadataDate("newResponse", timestamp(i), true);
+	}
+
+	public static Specification<Ref> isNewReactionAfter(Instant i) {
+		if (i == null) return unrestricted();
+		return isMetadataDate("newReaction", timestamp(i), false);
+	}
+
+	public static Specification<Ref> isNewReactionBefore(Instant i) {
+		if (i == null) return unrestricted();
+		return isMetadataDate("newReaction", timestamp(i), true);
+	}
+
+	/**
+	 * Compares a metadata date as text, using the same expression as sorting by "metadata->{field}"
+	 * (including the COALESCE), so the metadataModified, newResponse and newReaction indexes apply.
+	 * Missing dates are '', so they never match: before also requires a value greater than ''.
+	 *
+	 * @param value the date in the same text format the metadata field is written in
+	 */
+	@SuppressWarnings("unchecked")
+	private static Specification<Ref> isMetadataDate(String field, String value, boolean before) {
+		return (root, query, cb) -> {
+			var date = (Expression<String>) createJsonbSortExpression(root, cb, "metadata->" + field, "metadata");
+			if (!before) return cb.greaterThan(date, cb.literal(value));
+			return cb.and(
+				cb.greaterThan(date, cb.literal("")),
+				cb.lessThan(date, cb.literal(value)));
+		};
 	}
 
 	public static Specification<Ref> isTagValueBefore(TagValueFilter filter) {
@@ -372,22 +422,18 @@ public class RefSpec {
 	/**
 	 * Compares a field of plugin data, using the same expression as plugin sorting.
 	 * Refs without a value for the field never match.
+	 * Response counts use the same expression as sorting by "metadata->plugins->{plugin}" and the
+	 * pluginResponse filters, including the COALESCE, so hot response indexes apply and missing counts are 0.
 	 */
 	@SuppressWarnings("unchecked")
 	private static Specification<Ref> isPluginValue(PluginValueFilter filter, boolean before) {
 		if (filter == null) return unrestricted();
-		return (root, query, cb) -> {
-			var field = createJsonbValue(root, cb, filter.property(), "plugins");
-			if (filter.value() instanceof String value) {
-				Expression<String> text = field.expression();
-				return before ? cb.lessThan(text, value) : cb.greaterThan(text, value);
-			}
-			Expression<Double> number = field.numeric()
-				? field.expression()
-				: cb.function("cast_to_numeric", Double.class, field.expression());
+		if (filter.responseCount()) return (root, query, cb) -> {
+			var count = (Expression<Double>) createJsonbSortExpression(root, cb, filter.property(), "metadata");
 			var value = cb.function("cast_to_numeric", Double.class, cb.literal(filter.value()));
-			return before ? cb.lessThan(number, value) : cb.greaterThan(number, value);
+			return before ? cb.lessThan(count, value) : cb.greaterThan(count, value);
 		};
+		return (root, query, cb) -> compareJsonbValue(cb, createJsonbValue(root, cb, filter.property(), "plugins"), filter.value(), before);
 	}
 
 	/**

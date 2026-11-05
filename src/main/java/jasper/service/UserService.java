@@ -35,6 +35,7 @@ import java.time.Instant;
 
 import static jasper.domain.proj.Tag.localTag;
 import static jasper.domain.proj.Tag.tagOrigin;
+import static jasper.repository.spec.UserSpec.JSONB_FIELDS;
 import static jasper.repository.spec.UserSpec.sort;
 import static jasper.security.AuthoritiesConstants.ADMIN;
 import static jasper.security.AuthoritiesConstants.BANNED;
@@ -112,7 +113,7 @@ public class UserService {
 	}
 
 	@Transactional(readOnly = true)
-	@PreAuthorize("@auth.minRole()")
+	@PreAuthorize("@auth.minRole() and @auth.canFilterUsers(#filter)")
 	@Cacheable(value = "user-dto-page-cache", key = "#filter.cacheKey(#pageable)", condition = "@auth.hasRole('MOD')")
 	@Timed(value = "jasper.service", extraTags = {"service", "user"}, histogram = true)
 	public Page<UserDto> page(TagFilter filter, Pageable pageable) {
@@ -120,8 +121,8 @@ public class UserService {
 			.findAll(
 				sort(
 					auth.<User>tagReadSpec()
-						.and(filter.spec()),
-					pageable),
+						.and(filter.spec(JSONB_FIELDS)),
+					auth.userPageable(pageable)),
 				of(pageable.getPageNumber(), pageable.getPageSize()))
 			.map(mapper::domainToDto)
 			.map(auth::filterUser);
