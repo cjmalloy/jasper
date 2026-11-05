@@ -17,11 +17,6 @@ import static jasper.repository.spec.SortSpec.isJsonbSortProperty;
 public class TemplateSpec {
 
 	/**
-	 * The JSONB columns Templates can be sorted and filtered (configBefore / configAfter) by.
-	 */
-	public static final String[] JSONB_FIELDS = { "config", "defaults", "schema" };
-
-	/**
 	 * Creates a Specification with sorting applied based on the PageRequest's sort orders.
 	 * JSONB field sort columns are rewritten as JPA Specification orderBy clauses.
 	 * Supports config->, defaults->, schema->, origin:len, and tag:len sorting.
@@ -45,8 +40,8 @@ public class TemplateSpec {
 				var property = order.getProperty();
 				var ascending = order.isAscending();
 				Expression<?> expr;
-				if (isJsonbSortProperty(property, JSONB_FIELDS)) {
-					var jsonbOrder = createJsonbOrder(root, cb, property, ascending, JSONB_FIELDS);
+				if (isJsonbSortProperty(property, "config", "defaults", "schema")) {
+					var jsonbOrder = createJsonbOrder(root, cb, property, ascending, "config", "defaults", "schema");
 					if (jsonbOrder != null) jpaOrders.add(jsonbOrder);
 					continue;
 				}

@@ -16,11 +16,6 @@ import static jasper.repository.spec.SortSpec.isJsonbSortProperty;
 
 public class UserSpec {
 
-	/**
-	 * The JSONB columns Users can be sorted and filtered (configBefore / configAfter) by.
-	 */
-	public static final String[] JSONB_FIELDS = { "external" };
-
 	public static Specification<User> hasAuthorizedKeys() {
 		return (root, query, cb) ->
 			cb.isNotNull(
@@ -50,8 +45,8 @@ public class UserSpec {
 				var property = order.getProperty();
 				var ascending = order.isAscending();
 				Expression<?> expr;
-				if (isJsonbSortProperty(property, JSONB_FIELDS)) {
-					var jsonbOrder = createJsonbOrder(root, cb, property, ascending, JSONB_FIELDS);
+				if (isJsonbSortProperty(property, "external")) {
+					var jsonbOrder = createJsonbOrder(root, cb, property, ascending, "external");
 					if (jsonbOrder != null) jpaOrders.add(jsonbOrder);
 					continue;
 				}
