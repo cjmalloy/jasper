@@ -49,6 +49,8 @@ public class RefFilter implements Query {
 	private String noResponses;
 	private List<String> pluginResponse;
 	private List<String> noPluginResponse;
+	private List<String> remotePluginResponse;
+	private List<String> noRemotePluginResponse;
 	private String user;
 	private String userOrigin;
 	private List<String> userResponse;
@@ -135,6 +137,16 @@ public class RefFilter implements Query {
 		if (noPluginResponse != null) {
 			for (var nr : noPluginResponse) {
 				result = result.and(hasNoPluginResponses(nr));
+			}
+		}
+		if (remotePluginResponse != null) {
+			for (var r : remotePluginResponse) {
+				result = result.and(hasRemotePluginResponses(r));
+			}
+		}
+		if (noRemotePluginResponse != null) {
+			for (var nr : noRemotePluginResponse) {
+				result = result.and(hasNoRemotePluginResponses(nr));
 			}
 		}
 		if (isNotBlank(user)) {

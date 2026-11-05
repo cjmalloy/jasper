@@ -1743,6 +1743,57 @@ public class RefServiceIT {
 		assertThat(result.getContent().get(1).getUrl()).isEqualTo("https://example.com/1");
 	}
 
+	Ref refWithResponseCounts(String url, Long local, Long remote) {
+		var ref = new Ref();
+		ref.setUrl(url);
+		ref.setTags(new ArrayList<>(List.of("+user/tester")));
+		var metadata = new jasper.domain.Metadata();
+		metadata.setPlugins(new java.util.HashMap<>());
+		metadata.setRemotePlugins(new java.util.HashMap<>());
+		if (local != null) metadata.getPlugins().put("plugin/comment", local);
+		if (remote != null) metadata.getRemotePlugins().put("plugin/comment", remote);
+		ref.setMetadata(metadata);
+		return refRepository.save(ref);
+	}
+
+	@Test
+	void testApplySortingSpec_WithResponseCountSortIsNumeric() {
+		refWithResponseCounts("https://example.com/1", 9L, 9L);
+		refWithResponseCounts("https://example.com/2", 10L, 100L);
+		refWithResponseCounts("https://example.com/3", null, 20L);
+
+		for (var column : List.of("metadata->plugins->plugin/comment", "metadata->remotePlugins->plugin/comment")) {
+			var spec = RefSpec.sort(
+				RefFilter.builder().build().spec(),
+				PageRequest.of(0, 10, Sort.by(Sort.Order.desc(column))));
+			var result = refRepository.findAll(spec, PageRequest.ofSize(10));
+			assertThat(result.getContent()).extracting(Ref::getUrl).as(column).containsExactly(
+				"https://example.com/2",
+				column.contains("remote") ? "https://example.com/3" : "https://example.com/1",
+				column.contains("remote") ? "https://example.com/1" : "https://example.com/3");
+		}
+	}
+
+	@Test
+	void testPluginResponseFilters() {
+		refWithResponseCounts("https://example.com/1", 2L, 3L);
+		refWithResponseCounts("https://example.com/2", null, 1L);
+		refWithResponseCounts("https://example.com/3", null, null);
+		var none = new Ref();
+		none.setUrl("https://example.com/4");
+		none.setTags(new ArrayList<>(List.of("+user/tester")));
+		refRepository.save(none);
+
+		assertThat(refRepository.findAll(RefFilter.builder().pluginResponse(List.of("plugin/comment")).build().spec()))
+			.extracting(Ref::getUrl).containsExactlyInAnyOrder("https://example.com/1");
+		assertThat(refRepository.findAll(RefFilter.builder().noPluginResponse(List.of("plugin/comment")).build().spec()))
+			.extracting(Ref::getUrl).containsExactlyInAnyOrder("https://example.com/2", "https://example.com/3", "https://example.com/4");
+		assertThat(refRepository.findAll(RefFilter.builder().remotePluginResponse(List.of("plugin/comment")).build().spec()))
+			.extracting(Ref::getUrl).containsExactlyInAnyOrder("https://example.com/1", "https://example.com/2");
+		assertThat(refRepository.findAll(RefFilter.builder().noRemotePluginResponse(List.of("plugin/comment")).build().spec()))
+			.extracting(Ref::getUrl).containsExactlyInAnyOrder("https://example.com/3", "https://example.com/4");
+	}
+
 	@Test
 	void testApplySortingSpec_WithPluginsSort() throws JsonProcessingException {
 		// Create refs with plugins data containing contentLength

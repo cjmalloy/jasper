@@ -416,6 +416,107 @@ public class IndexRepositoryIT {
 		}
 	}
 
+	List<String> hotResponseIndexes() {
+		return jdbc.queryForList("SELECT indexname FROM pg_indexes WHERE tablename = 'ref' AND (indexname LIKE 'ref\\_hotr\\_%' OR indexname LIKE 'ref\\_hotrr\\_%') ORDER BY indexname", String.class);
+	}
+
+	@Test
+	void testUpdateHotResponses() {
+		indexRepository.updateHotResponses(List.of("plugin/comment", "+plugin/log", "invalid'plugin", "notaplugin"));
+		indexRepository.updateHotRemoteResponses(List.of("plugin/comment", "invalid'plugin"));
+		indexRepository.updateHotResponses(List.of());
+		indexRepository.updateHotRemoteResponses(null);
+	}
+
+	@Test
+	void testHotResponseExpression() {
+		assertThat(IndexRepositoryImplPostgres.hotResponseExpression("plugins", "plugin/comment"))
+			.isEqualTo("COALESCE(" + safeNumeric("((metadata)->('plugins'))->('plugin/comment')") + ", 0.0)");
+		assertThat(IndexRepositoryImplPostgres.hotResponseExpression("remotePlugins", "plugin/comment"))
+			.isEqualTo("COALESCE(" + safeNumeric("((metadata)->('remotePlugins'))->('plugin/comment')") + ", 0.0)");
+		assertThat(IndexRepositoryImplPostgres.hotResponseIndexName("plugins", "plugin/comment"))
+			.startsWith("ref_hotr_plugin_comment_");
+		assertThat(IndexRepositoryImplPostgres.hotResponseIndexName("remotePlugins", "plugin/comment"))
+			.startsWith("ref_hotrr_plugin_comment_");
+		assertThat(IndexRepositoryImplPostgres.hotResponseIndexName("plugins", "plugin/" + "a".repeat(200)).length()).isLessThanOrEqualTo(63);
+		assertThat(IndexRepositoryImplPostgres.hotResponseIndexName("remotePlugins", "plugin/" + "a".repeat(200)).length()).isLessThanOrEqualTo(63);
+	}
+
+	@Test
+	@DisabledOnSqlite
+	void testBuildAndDropHotResponses() {
+		var comment = IndexRepositoryImplPostgres.hotResponseIndexName("plugins", "plugin/comment");
+		var log = IndexRepositoryImplPostgres.hotResponseIndexName("plugins", "+plugin/log");
+		var remoteComment = IndexRepositoryImplPostgres.hotResponseIndexName("remotePlugins", "plugin/comment");
+
+		indexRepository.updateHotTags(List.of("plugin/progress:num"));
+		indexRepository.updateHotPlugins(List.of("plugin/test->size:num"));
+		indexRepository.updateHotResponses(List.of("plugin/comment", "+plugin/log", "invalid'plugin"));
+		indexRepository.updateHotRemoteResponses(List.of("plugin/comment"));
+		assertThat(hotResponseIndexes()).containsExactlyInAnyOrder(comment, log, remoteComment);
+
+		indexRepository.updateHotResponses(List.of("+plugin/log"));
+		assertThat(hotResponseIndexes()).containsExactlyInAnyOrder(log, remoteComment);
+
+		indexRepository.updateHotRemoteResponses(List.of());
+		assertThat(hotResponseIndexes()).containsExactlyInAnyOrder(log);
+
+		indexRepository.updateHotResponses(List.of());
+		assertThat(hotResponseIndexes()).isEmpty();
+		assertThat(hotTagIndexes()).hasSize(1);
+		assertThat(hotPluginIndexes()).hasSize(2);
+		indexRepository.updateHotTags(List.of());
+		indexRepository.updateHotPlugins(List.of());
+	}
+
+	@Test
+	@DisabledOnSqlite
+	@Transactional
+	void testHotResponseIndexUsedForSortPostgres() {
+		indexRepository.updateHotResponses(List.of("plugin/comment"));
+		indexRepository.updateHotRemoteResponses(List.of("plugin/comment"));
+		for (var direction : Sort.Direction.values()) {
+			assertThat(explainPluginSortPostgres("metadata->plugins->plugin/comment", direction))
+				.as("plugins %s", direction)
+				.contains(IndexRepositoryImplPostgres.hotResponseIndexName("plugins", "plugin/comment"));
+			assertThat(explainPluginSortPostgres("metadata->remotePlugins->plugin/comment", direction))
+				.as("remotePlugins %s", direction)
+				.contains(IndexRepositoryImplPostgres.hotResponseIndexName("remotePlugins", "plugin/comment"));
+		}
+	}
+
+	/**
+	 * Runs a filter through {@link RefFilter#spec} and explains the SQL Hibernate rendered for it,
+	 * so the test fails if Hibernate or the dialect stops rendering the indexed expression.
+	 */
+	String explainFilterPostgres(RefFilter filter) {
+		var sql = SqlCapture.capture(() -> refRepository.findAll(filter.spec()))
+			.stream()
+			.filter(s -> s.contains(" from ref "))
+			.findFirst()
+			.orElseThrow();
+		em.createNativeQuery("SET LOCAL enable_seqscan = off").executeUpdate();
+		return ((List<?>) em.createNativeQuery("EXPLAIN " + sql).getResultList()).stream()
+			.map(Object::toString)
+			.collect(Collectors.joining("\n"));
+	}
+
+	@Test
+	@DisabledOnSqlite
+	@Transactional
+	void testHotResponseIndexUsedForFilterPostgres() {
+		indexRepository.updateHotResponses(List.of("plugin/comment"));
+		indexRepository.updateHotRemoteResponses(List.of("plugin/comment"));
+		assertThat(explainFilterPostgres(RefFilter.builder().pluginResponse(List.of("plugin/comment")).build()))
+			.contains(IndexRepositoryImplPostgres.hotResponseIndexName("plugins", "plugin/comment"));
+		assertThat(explainFilterPostgres(RefFilter.builder().noPluginResponse(List.of("plugin/comment")).build()))
+			.contains(IndexRepositoryImplPostgres.hotResponseIndexName("plugins", "plugin/comment"));
+		assertThat(explainFilterPostgres(RefFilter.builder().remotePluginResponse(List.of("plugin/comment")).build()))
+			.contains(IndexRepositoryImplPostgres.hotResponseIndexName("remotePlugins", "plugin/comment"));
+		assertThat(explainFilterPostgres(RefFilter.builder().noRemotePluginResponse(List.of("plugin/comment")).build()))
+			.contains(IndexRepositoryImplPostgres.hotResponseIndexName("remotePlugins", "plugin/comment"));
+	}
+
 	String explainSqlite(String sql) {
 		return ((List<?>) em.createNativeQuery("EXPLAIN QUERY PLAN " + sql).getResultList()).stream()
 			.map(row -> row instanceof Object[] cols ? cols[cols.length - 1].toString() : row.toString())

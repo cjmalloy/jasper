@@ -665,6 +665,8 @@ public class Auth {
 					afterPrefix = property.substring("plugins->".length());
 				} else if (property.startsWith("metadata->plugins->")) {
 					afterPrefix = property.substring("metadata->plugins->".length());
+				} else if (property.startsWith("metadata->remotePlugins->")) {
+					afterPrefix = property.substring("metadata->remotePlugins->".length());
 				} else if (property.startsWith("tags->")) {
 					afterPrefix = property.substring("tags->".length());
 				} else {

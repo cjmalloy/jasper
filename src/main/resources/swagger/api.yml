@@ -357,6 +357,24 @@ paths:
             maxItems: 100
             items:
               $ref: '#/components/schemas/tag-plugin'
+        - name: remotePluginResponse
+          in: query
+          description: Only match Refs with a response from any origin tagged with each of these plugins
+          required: false
+          schema:
+            type: array
+            maxItems: 100
+            items:
+              $ref: '#/components/schemas/tag-plugin'
+        - name: noRemotePluginResponse
+          in: query
+          description: Exclude Refs with a response from any origin tagged with any of these plugins
+          required: false
+          schema:
+            type: array
+            maxItems: 100
+            items:
+              $ref: '#/components/schemas/tag-plugin'
         - name: userResponse
           in: query
           description: Only match Refs the current user has responded to with each of these plugins
@@ -572,6 +590,24 @@ paths:
         - name: noPluginResponse
           in: query
           description: Exclude Refs with a response tagged with any of these plugins
+          required: false
+          schema:
+            type: array
+            maxItems: 100
+            items:
+              $ref: '#/components/schemas/tag-plugin'
+        - name: remotePluginResponse
+          in: query
+          description: Only match Refs with a response from any origin tagged with each of these plugins
+          required: false
+          schema:
+            type: array
+            maxItems: 100
+            items:
+              $ref: '#/components/schemas/tag-plugin'
+        - name: noRemotePluginResponse
+          in: query
+          description: Exclude Refs with a response from any origin tagged with any of these plugins
           required: false
           schema:
             type: array
