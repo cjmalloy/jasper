@@ -146,16 +146,16 @@ public class IndexRepositoryImplPostgres implements IndexRepository {
 	}
 
 	@Override
-	public void dropUserUrls() {
-		em.createNativeQuery("DROP INDEX IF EXISTS ref_user_urls_index").executeUpdate();
+	public void dropUrlPrefix() {
+		em.createNativeQuery("DROP INDEX IF EXISTS ref_url_prefix_index").executeUpdate();
 	}
 
 	/**
-	 * Serves the containment check of the userResponse filter (user_response in the dialect).
+	 * The primary key uses the database collation, which cannot serve LIKE 'prefix%' unless the collation is C.
 	 */
 	@Override
-	public void buildUserUrls() {
-		em.createNativeQuery("CREATE INDEX IF NOT EXISTS ref_user_urls_index ON ref USING GIN ((metadata->'userUrls') jsonb_path_ops)").executeUpdate();
+	public void buildUrlPrefix() {
+		em.createNativeQuery("CREATE INDEX IF NOT EXISTS ref_url_prefix_index ON ref (url text_pattern_ops)").executeUpdate();
 	}
 
 	@Override

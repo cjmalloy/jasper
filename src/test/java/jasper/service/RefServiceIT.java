@@ -2234,20 +2234,33 @@ public class RefServiceIT {
 			]""");
 	}
 
-	Ref saveWithUser(String url, String user) {
+	Ref saveWithUserUrl(String url, String userUrl) {
 		var ref = new Ref();
 		ref.setUrl(url);
 		ref.setTags(new ArrayList<>(List.of("public")));
 		ref.setMetadata(Metadata.builder()
-			.userUrls(new HashMap<>(Map.of("+plugin/user/run", List.of(user))))
+			.userUrls(new HashMap<>(Map.of("+plugin/user/run", List.of(userUrl))))
 			.build());
+		saveUserUrl(url, userUrl);
 		return refRepository.save(ref);
+	}
+
+	/**
+	 * The user URL Ref the userUrls metadata points to, which the userResponse filters join against.
+	 */
+	void saveUserUrl(String url, String userUrl) {
+		var user = new Ref();
+		user.setUrl(userUrl.replaceFirst("@[^?]*\\?", "?"));
+		user.setOrigin(userUrl.contains("@") ? userUrl.replaceFirst("^[^@]*(@[^?]*)\\?.*$", "$1") : "");
+		user.setTags(new ArrayList<>(List.of("+plugin/user/run")));
+		user.setSources(new ArrayList<>(List.of(url)));
+		refRepository.save(user);
 	}
 
 	@Test
 	void testUserUrlsMatchDefaultOriginUser() {
-		saveWithUser(URL, "user/tester");
-		saveWithUser(URL + 2, "user/tester@other");
+		saveWithUserUrl(URL, "tag:/user/tester?url=" + URL);
+		saveWithUserUrl(URL + 2, "tag:/user/tester@other?url=" + URL + 2);
 
 		assertThat(refService.get(URL, "").getMetadata().getUserUrls())
 			.containsExactly("+plugin/user/run");
@@ -2257,8 +2270,8 @@ public class RefServiceIT {
 
 	@Test
 	void testUserResponseFilterMatchesDefaultOriginUser() {
-		saveWithUser(URL, "user/tester");
-		saveWithUser(URL + 2, "user/tester@other");
+		saveWithUserUrl(URL, "tag:/user/tester?url=" + URL);
+		saveWithUserUrl(URL + 2, "tag:/user/tester@other?url=" + URL + 2);
 
 		assertThat(refService.page(
 				RefFilter.builder().query("public").userResponse(List.of("+plugin/user/run")).build(),
@@ -2388,5 +2401,80 @@ public class RefServiceIT {
 			.containsExactly("https://example.com/2");
 		assertThat(filteredUrls(RefFilter.builder().createdBefore(c2).build()))
 			.containsExactly("https://example.com/1");
+	}
+
+	@Test
+	void testUserResponseFilterEscapesUrls() {
+		var urls = List.of("https://example.com/a_b", "https://example.com/a%b", "https://example.com/a'b?c=1&d=_");
+		for (var url : urls) refWithUrlTags(url, "public");
+		refWithUrlTags("https://example.com/aXb", "public");
+		refWithUrlTags("https://example.com/axb", "public");
+		for (var url : urls) saveUserUrl(url, "tag:/user/tester?url=" + url);
+
+		assertThat(refService.page(
+				RefFilter.builder().query("public").userResponse(List.of("+plugin/user/run")).build(),
+				PageRequest.of(0, 10, Sort.by("url"))).getContent())
+			.extracting(r -> r.getUrl())
+			.containsExactlyInAnyOrderElementsOf(urls);
+		assertThat(refService.page(
+				RefFilter.builder().query("public").noUserResponse(List.of("+plugin/user/run")).build(),
+				PageRequest.of(0, 10)).getContent())
+			.extracting(r -> r.getUrl())
+			.containsExactlyInAnyOrder("https://example.com/aXb", "https://example.com/axb");
+	}
+
+	@Test
+	void testUserResponseFilterMatchesProtectedAndPrivateUserUrls() {
+		refWithUrlTags(URL, "public");
+		refWithUrlTags(URL + 2, "public");
+		refWithUrlTags(URL + 3, "public");
+		saveUserUrl(URL, "tag:/+user/tester?url=" + URL);
+		saveUserUrl(URL + 2, "tag:/_user/tester?url=" + URL + 2);
+		saveUserUrl(URL + 3, "tag:/user/other?url=" + URL + 3);
+
+		assertThat(refService.page(
+				RefFilter.builder().query("public").userResponse(List.of("+plugin/user/run")).build(),
+				PageRequest.of(0, 10)).getContent())
+			.extracting(r -> r.getUrl())
+			.containsExactlyInAnyOrder(URL, URL + 2);
+	}
+
+	@Test
+	void testUserResponseFilterRequiresPluginAndSource() {
+		refWithUrlTags(URL, "public");
+		refWithUrlTags(URL + 2, "public");
+		var wrongPlugin = new Ref();
+		wrongPlugin.setUrl("tag:/user/tester?url=" + URL);
+		wrongPlugin.setTags(new ArrayList<>(List.of("plugin/user/other")));
+		wrongPlugin.setSources(new ArrayList<>(List.of(URL)));
+		refRepository.save(wrongPlugin);
+		var noSource = new Ref();
+		noSource.setUrl("tag:/user/tester?url=" + URL + 2);
+		noSource.setTags(new ArrayList<>(List.of("+plugin/user/run")));
+		refRepository.save(noSource);
+
+		assertThat(refService.page(
+				RefFilter.builder().query("public").userResponse(List.of("+plugin/user/run")).build(),
+				PageRequest.of(0, 10)).getContent())
+			.isEmpty();
+		assertThat(refService.page(
+				RefFilter.builder().query("public").userResponse(List.of("plugin/comment")).build(),
+				PageRequest.of(0, 10)).getContent())
+			.isEmpty();
+	}
+
+	@Test
+	@WithMockUser("+user/te_st")
+	void testUserResponseFilterEscapesUserName() {
+		refWithUrlTags(URL, "public");
+		refWithUrlTags(URL + 2, "public");
+		saveUserUrl(URL, "tag:/user/te_st?url=" + URL);
+		saveUserUrl(URL + 2, "tag:/user/teXst?url=" + URL + 2);
+
+		assertThat(refService.page(
+				RefFilter.builder().query("public").userResponse(List.of("+plugin/user/run")).build(),
+				PageRequest.of(0, 10)).getContent())
+			.extracting(r -> r.getUrl())
+			.containsExactly(URL);
 	}
 }

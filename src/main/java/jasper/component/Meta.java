@@ -18,13 +18,12 @@ import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Objects;
 
 import static jasper.domain.Metadata.timestamp;
 import static jasper.domain.proj.Tag.matchesTemplate;
-import static jasper.domain.proj.Tag.tagOrigin;
+import static jasper.domain.proj.Tag.qualifiedUserUrl;
 import static jasper.domain.proj.Tag.userUrl;
-import static jasper.domain.proj.Tag.userUrlUser;
+import static jasper.domain.proj.Tag.userUrlOrigin;
 import static jasper.repository.spec.OriginSpec.isOrigin;
 import static jasper.repository.spec.OriginSpec.isUnderOrigin;
 import static jasper.repository.spec.RefSpec.isNotObsolete;
@@ -77,9 +76,7 @@ public class Meta {
 					refRepository.findAllResponseIdsWithTag(ref.getUrl(), rootOrigin, tag)
 						.stream()
 						.filter(id -> id.getOrigin().equals(rootOrigin))
-						.map(id -> userUrlUser(id.getUrl(), id.getOrigin(), ref.getUrl()))
-						.filter(Objects::nonNull)
-						.distinct()
+						.map(id -> qualifiedUserUrl(id.getUrl(), id.getOrigin()))
 						.toList()))
 				.filter(p -> !p.responses.isEmpty())
 				.collect(toMap(UserUrlResponse::tag, UserUrlResponse::responses)))
@@ -373,13 +370,13 @@ public class Meta {
 				metadata.removePlugins(existing.getExpandedTags().stream()
 						.filter(tag -> matchesTemplate("plugin", tag))
 						.toList(),
-					rootUser(rootOrigin, existing.getUrl(), existing.getOrigin(), source.getUrl()),
+					rootUserUrl(rootOrigin, existing.getUrl(), existing.getOrigin()),
 					existing.getOrigin().equals(source.getOrigin()));
 			}
 			metadata.addPlugins(ref.getExpandedTags().stream()
 				.filter(tag -> matchesTemplate("plugin", tag))
 				.toList(),
-				rootUser(rootOrigin, ref.getUrl(), ref.getOrigin(), source.getUrl()),
+				rootUserUrl(rootOrigin, ref.getUrl(), ref.getOrigin()),
 				ref.getOrigin().equals(source.getOrigin()));
 			metadata.setNewReaction(timestamp);
 			if (newResponse) metadata.setNewResponse(timestamp);
@@ -428,7 +425,7 @@ logger.error("{} Error updating source metadata for ({}) {}", rootOrigin, ref.ge
 			metadata.removePlugins(existing.getExpandedTags().stream()
 					.filter(tag -> matchesTemplate("plugin", tag))
 					.toList(),
-				rootUser(rootOrigin, url, existing.getOrigin(), source.getUrl()),
+				rootUserUrl(rootOrigin, url, existing.getOrigin()),
 				existing.getOrigin().equals(source.getOrigin()));
 		}
 		source.setMetadata(metadata);
@@ -441,21 +438,21 @@ logger.error("{} Error updating source metadata for ({}) {}", rootOrigin, ref.ge
 		}
 	}
 
-	// Regen only rebuilds the users of the root origin, tenants in other origins keep theirs
+	// Regen only rebuilds the user URLs of the root origin, tenants in other origins keep theirs
 	private static void keepOtherOriginUserUrls(String rootOrigin, Metadata original, Metadata metadata) {
 		if (original == null || original.getUserUrls() == null) return;
-		original.getUserUrls().forEach((tag, users) -> {
+		original.getUserUrls().forEach((tag, urls) -> {
 			var list = new ArrayList<>(metadata.getUserUrls().getOrDefault(tag, List.of()));
-			users.stream()
-				.filter(user -> user != null && !tagOrigin(user).equals(rootOrigin) && !list.contains(user))
+			urls.stream()
+				.filter(url -> url != null && !userUrlOrigin(url).equals(rootOrigin) && !list.contains(url))
 				.forEach(list::add);
 			if (!list.isEmpty()) metadata.getUserUrls().put(tag, list);
 		});
 	}
 
-	private static String rootUser(String rootOrigin, String url, String origin, String source) {
+	private static String rootUserUrl(String rootOrigin, String url, String origin) {
 		if (!origin.equals(rootOrigin)) return null;
-		return userUrlUser(url, origin, source);
+		return qualifiedUserUrl(url, origin);
 	}
 
 	/**

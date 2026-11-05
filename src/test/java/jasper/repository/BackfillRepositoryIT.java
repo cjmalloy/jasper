@@ -278,8 +278,8 @@ public class BackfillRepositoryIT {
 		assertThat(loaded.getMetadata().getPlugins()).containsEntry("+plugin/user/run", 1L);
 		assertThat(loaded.getMetadata().getRemotePlugins()).containsEntry("+plugin/user/run", 2L);
 		assertThat(loaded.getMetadata().getUserUrls())
-			.containsEntry("+plugin/user/run", List.of("user/tester"))
-			.containsEntry("+plugin/user", List.of("user/tester"));
+			.containsEntry("+plugin/user/run", List.of("tag:/user/tester?url=http://example.com/parent"))
+			.containsEntry("+plugin/user", List.of("tag:/user/tester?url=http://example.com/parent"));
 	}
 
 	@Test
@@ -317,7 +317,9 @@ public class BackfillRepositoryIT {
 
 		var loaded = refRepository.findOneByUrlAndOrigin(parent.getUrl(), parent.getOrigin()).get();
 		assertThat(loaded.getMetadata().getUserUrls().get("+plugin/user/run"))
-			.containsExactly("user/tester@test");
+			.containsExactlyInAnyOrder(
+				"tag:/user/tester@test?url=http://example.com/parent",
+				"http://example.com/response@test");
 	}
 
 	@Test
@@ -340,7 +342,7 @@ public class BackfillRepositoryIT {
 
 		var loaded = refRepository.findOneByUrlAndOrigin(parent.getUrl(), parent.getOrigin()).get();
 		assertThat(loaded.getMetadata().getUserUrls().get("+plugin/user/run"))
-			.containsExactly("user/tester@a");
+			.containsExactly("tag:/user/tester@a?url=http://example.com/parent");
 	}
 
 	@Test
@@ -352,8 +354,8 @@ public class BackfillRepositoryIT {
 		parent.setMetadata(Metadata.builder()
 			.regen(true)
 			.userUrls(Map.of("+plugin/user/run", List.of(
-				"user/tester@a",
-				"user/deleted")))
+				"tag:/user/tester@a?url=http://example.com/parent",
+				"tag:/user/deleted?url=http://example.com/parent")))
 			.build());
 		refRepository.save(parent);
 
@@ -372,10 +374,10 @@ public class BackfillRepositoryIT {
 		var loaded = refRepository.findOneByUrlAndOrigin(parent.getUrl(), parent.getOrigin()).get();
 		assertThat(loaded.getMetadata().getUserUrls().get("+plugin/user/run"))
 			.containsExactlyInAnyOrder(
-				"user/tester",
-				"user/tester@a");
+				"tag:/user/tester?url=http://example.com/parent",
+				"tag:/user/tester@a?url=http://example.com/parent");
 		assertThat(loaded.getMetadata().getUserUrls().get("+plugin/user"))
-			.containsExactly("user/tester");
+			.containsExactly("tag:/user/tester?url=http://example.com/parent");
 	}
 
 	@Test
@@ -400,7 +402,7 @@ public class BackfillRepositoryIT {
 		var loaded = refRepository.findOneByUrlAndOrigin(parent.getUrl(), parent.getOrigin()).get();
 		assertThat(loaded.getMetadata().getPlugins()).containsEntry("+plugin/user/run", 1L);
 		assertThat(loaded.getMetadata().getRemotePlugins()).containsEntry("+plugin/user/run", 1L);
-		assertThat(loaded.getMetadata().getUserUrls()).containsEntry("+plugin/user/run", List.of("user/tester"));
+		assertThat(loaded.getMetadata().getUserUrls()).containsEntry("+plugin/user/run", List.of("tag:/user/tester?url=http://example.com/parent"));
 	}
 
 	@Test

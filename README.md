@@ -761,7 +761,7 @@ and each disabled index is dropped.
 | `created`           | Index on the created date, used by the default sort and `createdBefore` / `createdAfter`. | `true` |
 | `newResponse`       | Index on `metadata->newResponse`, used when sorting by it and by `responseBefore` / `responseAfter`. | `true` |
 | `newReaction`       | Index on `metadata->newReaction`, used when sorting by it and by `reactionBefore` / `reactionAfter`. | `true` |
-| `userUrls`          | Index used by `userResponse` (PostgreSQL only).                     | `true` |
+| `urlPrefix`         | Index used by `userResponse` / `noUserResponse` (PostgreSQL only). | `true` |
 | `ignored`           | Partial index on Refs marked `ignored` during replication, used by pull batches. | `true`        |
 | `cascade`           | Partial index on Refs waiting for a metadata cascade.                            | `true`        |
 | `regen`             | Partial index on Refs waiting for metadata regeneration (background backfill).   | `true`        |
@@ -975,13 +975,12 @@ Jasper generates the following metadata in Refs:
    Use these to ignore replicated responses (e.g. logs or run markers).
  * Remote plugin response counts: The total number of responses with each plugin, from all origins under the
    root origin. Use these to include replicated responses (e.g. comments).
- * List of user plugin responses: Users who responded with that plugin from their user URL
-   (`tag:/user/alice?url=...`). Users are qualified with the origin of the response (e.g. `user/alice@remote`),
-   so users only see their own.
+ * List of user plugin responses: User URLs of responses with that plugin. User URLs are qualified with the
+   origin of the response (e.g. `tag:/user/alice@remote?url=...`), so users only see their own.
    The current user is always matched in the origin they are logged in to, so the `userResponse` and
    `noUserResponse` filters (which take plugin tags) only match responses from that user in that origin.
-   Protected and private user URLs (`tag:/+user/alice` and `tag:/_user/alice`) are recorded as `user/alice`.
-   Regenerating metadata for an origin only rebuilds the users of that origin, users from other
+   Protected and private user URLs (`tag:/+user/alice` and `tag:/_user/alice`) are recorded as `tag:/user/alice`.
+   Regenerating metadata for an origin only rebuilds the user URLs of that origin, user URLs from other
    origins are kept.
  * Obsolete: flag set if another origin contains a higher ranked version of this Ref. Only one version of each
    Ref is not obsolete: the newest one, unless the `plugin/pinned` plugin is installed in the root origin. Then

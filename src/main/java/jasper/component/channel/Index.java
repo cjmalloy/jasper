@@ -109,12 +109,12 @@ public class Index {
 		} else {
 			indexRepository.dropCreated();
 		}
-		if (index.isUserUrls()) {
+		if (index.isUrlPrefix()) {
 			try {
-				indexRepository.buildUserUrls();
+				indexRepository.buildUrlPrefix();
 			} catch (Exception ignored) {}
 		} else {
-			indexRepository.dropUserUrls();
+			indexRepository.dropUrlPrefix();
 		}
 		if (index.isNewResponse()) {
 			try {

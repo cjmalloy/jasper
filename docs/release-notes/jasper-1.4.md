@@ -28,7 +28,7 @@ This release includes changes accumulated since v1.3.0. Features marked *Experim
 * `responseBefore` / `responseAfter` now compare `metadata->newResponse` (the latest new response) instead of `metadata->modified`, and use the `newResponse` index, e.g. `responseAfter=<now - 1 day>` for Refs active in the last day.
 * Removed the `metadata->modified` sort, use `metadata->newResponse` instead.
 * Added `created` to the `_config/index` template (enabled by default) to index the default `created` sort and the `createdBefore` / `createdAfter` filters.
-* The `userResponse` and `noUserResponse` filters are now indexed, so "unread" and "saved" lists no longer scan. `metadata->userUrls` now lists the users who responded (e.g. `user/alice@remote`) instead of their user URLs. Added `userUrls` to the `_config/index` template (enabled by default, PostgreSQL only).
+* The `userResponse` and `noUserResponse` filters now look up the current user's user URL Refs (by URL prefix) instead of scanning `metadata->userUrls`, so "unread" and "saved" lists are indexed. Added `urlPrefix` to the `_config/index` template (enabled by default, PostgreSQL only) for the prefix lookup. Results now follow the user URL Refs directly, so they no longer depend on metadata being up to date.
 * Added `configBefore` / `configAfter` filters to the Ext, User, Plugin and Template page endpoints (and the Ext count endpoint), e.g. `configAfter=config->pinned:len/0` for Exts, `configAfter=external->ids:len/1` for Users or `configAfter=config->version:num/3` for Plugins. These are not indexed.
 * Only mods can filter or sort Users by `external`, since it is hidden from other users. Non-mods get `403 Forbidden` for `configBefore` / `configAfter` on Users, and `external->` sorts are ignored.
 * Sorting by plugin data with `:num` or `:len` no longer fails on PostgreSQL when a value is not a number or not an array; those values sort as `0`.
@@ -37,7 +37,6 @@ This release includes changes accumulated since v1.3.0. Features marked *Experim
 ## Upgrading
 
 * Before starting v1.4.0 with PostgreSQL, clear the stored Liquibase checksum for the changed schema changeset: `UPDATE DATABASECHANGELOG SET MD5SUM = NULL;`. Liquibase will recalculate the checksum on startup and re-run the SQL function changeset, which adds a small `instr()` function and the `tag_value`, `tag_value_num` and `tag_value_dur` functions used for tag value sorting.
-* Existing `metadata->userUrls` values are converted to the new user list automatically on startup.
 * If you rely on deleted items being included in backups, set `tombstones: true` in your backup options.
 * The SCIM integration no longer depends on a third-party SDK. No configuration changes are needed.
 * Cloud storage needs credentials: GCS uses Application Default Credentials (e.g. GKE Workload Identity), and S3 uses the default AWS credential chain (e.g. EKS IRSA). Set `APPLICATION_STORAGE_S3_REGION` / `APPLICATION_STORAGE_S3_ENDPOINT` as needed, and `APPLICATION_STORAGE_TMP_DIR` for zip staging space.
