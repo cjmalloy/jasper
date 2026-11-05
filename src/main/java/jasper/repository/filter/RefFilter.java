@@ -39,18 +39,14 @@ public class RefFilter implements Query {
 	private Boolean ignored;
 	private String scheme;
 	private String query;
-	private String noDescendents;
 	private String search;
 	private String endsTitle;
 	private boolean rankedOrder;
 	private String sources;
-	private String noSources;
 	private String responses;
-	private String noResponses;
 	private List<String> pluginResponse;
 	private List<String> noPluginResponse;
 	private List<String> remotePluginResponse;
-	private List<String> noRemotePluginResponse;
 	private String user;
 	private String userOrigin;
 	private List<String> userResponse;
@@ -108,9 +104,6 @@ public class RefFilter implements Query {
 		if (isNotBlank(query)) {
 			result = result.and(new TagQuery(query).refSpec());
 		}
-		if (isNotBlank(noDescendents)) {
-			result = result.and(hasNoChildTag(noDescendents));
-		}
 		if (isNotBlank(search)) {
 			result = result.and(isUrl(search).or(fulltextEn(search, rankedOrder)));
 		}
@@ -121,15 +114,8 @@ public class RefFilter implements Query {
 			result = result.and(hasResponse(sources)
 				.or(hasInternalResponse(sources)));
 		}
-		if (isNotBlank(noSources)) {
-			result = result.and(not(hasResponse(noSources))
-				.and(not(hasInternalResponse(noSources))));
-		}
 		if (isNotBlank(responses)) {
 			result = result.and(hasSource(responses));
-		}
-		if (isNotBlank(noResponses)) {
-			result = result.and(not(hasSource(noResponses)));
 		}
 		if (pluginResponse != null) {
 			for (var r : pluginResponse) {
@@ -144,11 +130,6 @@ public class RefFilter implements Query {
 		if (remotePluginResponse != null) {
 			for (var r : remotePluginResponse) {
 				result = result.and(hasRemotePluginResponses(r));
-			}
-		}
-		if (noRemotePluginResponse != null) {
-			for (var nr : noRemotePluginResponse) {
-				result = result.and(hasNoRemotePluginResponses(nr));
 			}
 		}
 		if (isNotBlank(user)) {

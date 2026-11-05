@@ -2,6 +2,7 @@ package jasper.repository.spec;
 
 import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.Expression;
+import jakarta.persistence.criteria.Nulls;
 import jakarta.persistence.criteria.Order;
 import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Root;
@@ -24,7 +25,6 @@ import static jasper.domain.proj.Tag.userUrlPrefix;
 import static jasper.repository.spec.OriginSpec.none;
 import static jasper.repository.spec.SortSpec.compareJsonbValue;
 import static jasper.repository.spec.SortSpec.createJsonbOrder;
-import static jasper.repository.spec.SortSpec.createJsonbSortExpression;
 import static jasper.repository.spec.SortSpec.createJsonbValue;
 import static jasper.repository.spec.SortSpec.isJsonbSortProperty;
 import static org.springframework.data.jpa.domain.Specification.unrestricted;
@@ -143,36 +143,51 @@ public class RefSpec {
 				cb.literal(url)));
 	}
 
-	public static Specification<Ref> hasNoPluginResponses(String plugin) {
-		return hasNoResponseCount("plugins", plugin);
-	}
-
-	public static Specification<Ref> hasPluginResponses(String plugin) {
-		return hasResponseCount("plugins", plugin);
-	}
-
-	public static Specification<Ref> hasNoRemotePluginResponses(String plugin) {
-		return hasNoResponseCount("remotePlugins", plugin);
-	}
-
-	public static Specification<Ref> hasRemotePluginResponses(String plugin) {
-		return hasResponseCount("remotePlugins", plugin);
-	}
-
 	/**
-	 * Compares the response count using the same expression as sorting by "metadata->{field}->{plugin}",
-	 * so hot response indexes apply to both.
+	 * Same expression as sorting by "metadata->plugins->{plugin}", so hot response indexes apply.
 	 */
-	@SuppressWarnings("unchecked")
-	private static Specification<Ref> hasResponseCount(String field, String plugin) {
-		return (root, query, cb) -> cb.greaterThan(
-			(Expression<Double>) createJsonbSortExpression(root, cb, "metadata->" + field + "->" + plugin + ":num", "metadata"),
+	public static Specification<Ref> hasNoPluginResponses(String plugin) {
+		return (root, query, cb) -> cb.equal(
+			cb.coalesce(
+				cb.function("safe_numeric", Double.class,
+					cb.function("jsonb_object_field", Object.class,
+						cb.function("jsonb_object_field", Object.class,
+							root.get(Ref_.metadata),
+							cb.literal("plugins")),
+						cb.literal(plugin))),
+				cb.literal(0.0)),
 			cb.function("cast_to_numeric", Double.class, cb.literal(0)));
 	}
 
-	private static Specification<Ref> hasNoResponseCount(String field, String plugin) {
-		return (root, query, cb) -> cb.equal(
-			createJsonbSortExpression(root, cb, "metadata->" + field + "->" + plugin + ":num", "metadata"),
+	/**
+	 * Same expression as sorting by "metadata->plugins->{plugin}", so hot response indexes apply.
+	 */
+	public static Specification<Ref> hasPluginResponses(String plugin) {
+		return (root, query, cb) -> cb.greaterThan(
+			cb.coalesce(
+				cb.function("safe_numeric", Double.class,
+					cb.function("jsonb_object_field", Object.class,
+						cb.function("jsonb_object_field", Object.class,
+							root.get(Ref_.metadata),
+							cb.literal("plugins")),
+						cb.literal(plugin))),
+				cb.literal(0.0)),
+			cb.function("cast_to_numeric", Double.class, cb.literal(0)));
+	}
+
+	/**
+	 * Same expression as sorting by "metadata->remotePlugins->{plugin}", so hot remote response indexes apply.
+	 */
+	public static Specification<Ref> hasRemotePluginResponses(String plugin) {
+		return (root, query, cb) -> cb.greaterThan(
+			cb.coalesce(
+				cb.function("safe_numeric", Double.class,
+					cb.function("jsonb_object_field", Object.class,
+						cb.function("jsonb_object_field", Object.class,
+							root.get(Ref_.metadata),
+							cb.literal("remotePlugins")),
+						cb.literal(plugin))),
+				cb.literal(0.0)),
 			cb.function("cast_to_numeric", Double.class, cb.literal(0)));
 	}
 
@@ -233,14 +248,6 @@ public class RefSpec {
 
 	public static Specification<Ref> hasTag(String tag) {
 		return (root, query, cb) -> tagExists(root, cb, tag);
-	}
-
-	public static Specification<Ref> hasNoChildTag(String tag) {
-		return (root, query, cb) -> cb.isFalse(
-			cb.like(
-				cb.function("jsonb_text", String.class, root.get(Ref_.tags)),
-				"%\"" + tag.replace("_", "\\_") + "/%",
-				'\\'));
 	}
 
 	public static Specification<Ref> hasDownwardTag(String tag) {
@@ -318,36 +325,38 @@ public class RefSpec {
 
 	public static Specification<Ref> isResponseAfter(Instant i) {
 		if (i == null) return unrestricted();
-		return isMetadataDate("newResponse", timestamp(i), false);
+		return (root, query, cb) ->
+			cb.greaterThan(cb.function("jsonb_object_field_text", String.class,
+					root.get(Ref_.metadata),
+					cb.literal("newResponse")),
+				cb.literal(timestamp(i)));
 	}
 
 	public static Specification<Ref> isResponseBefore(Instant i) {
 		if (i == null) return unrestricted();
-		return isMetadataDate("newResponse", timestamp(i), true);
+		return (root, query, cb) ->
+			cb.lessThan(cb.function("jsonb_object_field_text", String.class,
+					root.get(Ref_.metadata),
+					cb.literal("newResponse")),
+				cb.literal(timestamp(i)));
 	}
 
 	public static Specification<Ref> isReactionAfter(Instant i) {
 		if (i == null) return unrestricted();
-		return isMetadataDate("newReaction", timestamp(i), false);
+		return (root, query, cb) ->
+			cb.greaterThan(cb.function("jsonb_object_field_text", String.class,
+					root.get(Ref_.metadata),
+					cb.literal("newReaction")),
+				cb.literal(timestamp(i)));
 	}
 
 	public static Specification<Ref> isReactionBefore(Instant i) {
 		if (i == null) return unrestricted();
-		return isMetadataDate("newReaction", timestamp(i), true);
-	}
-
-	/**
-	 * Compares a metadata date as text, using the same expression as sorting by "metadata->{field}",
-	 * so the newResponse and newReaction indexes apply. Missing dates never match.
-	 *
-	 * @param value the date in the same text format the metadata field is written in
-	 */
-	@SuppressWarnings("unchecked")
-	private static Specification<Ref> isMetadataDate(String field, String value, boolean before) {
-		return (root, query, cb) -> {
-			var date = (Expression<String>) createJsonbSortExpression(root, cb, "metadata->" + field, "metadata");
-			return before ? cb.lessThan(date, cb.literal(value)) : cb.greaterThan(date, cb.literal(value));
-		};
+		return (root, query, cb) ->
+			cb.lessThan(cb.function("jsonb_object_field_text", String.class,
+					root.get(Ref_.metadata),
+					cb.literal("newReaction")),
+				cb.literal(timestamp(i)));
 	}
 
 	public static Specification<Ref> isTagValueBefore(TagValueFilter filter) {
@@ -391,14 +400,21 @@ public class RefSpec {
 	/**
 	 * Compares a field of plugin data, using the same expression as plugin sorting, so hot plugin indexes apply.
 	 * Refs without a value for the field never match.
-	 * Response counts use the same expression as sorting by "metadata->plugins->{plugin}" and the
-	 * pluginResponse filters, so hot response indexes apply and missing counts are 0.
+	 * Response counts ("metadata->plugins->{plugin}" or "metadata->remotePlugins->{plugin}") use the same
+	 * expression as sorting by them and the pluginResponse filters, so hot response indexes apply
+	 * and missing counts are 0.
 	 */
-	@SuppressWarnings("unchecked")
 	private static Specification<Ref> isPluginValue(PluginValueFilter filter, boolean before) {
 		if (filter == null) return unrestricted();
-		if (filter.responseCount()) return (root, query, cb) -> {
-			var count = (Expression<Double>) createJsonbSortExpression(root, cb, filter.property(), "metadata");
+		if (filter.property().startsWith("metadata->")) return (root, query, cb) -> {
+			var count = cb.coalesce(
+				cb.function("safe_numeric", Double.class,
+					cb.function("jsonb_object_field", Object.class,
+						cb.function("jsonb_object_field", Object.class,
+							root.get(Ref_.metadata),
+							cb.literal(filter.property().startsWith("metadata->remotePlugins->") ? "remotePlugins" : "plugins")),
+						cb.literal(filter.plugin()))),
+				cb.literal(0.0));
 			var value = cb.function("cast_to_numeric", Double.class, cb.literal(filter.value()));
 			return before ? cb.lessThan(count, value) : cb.greaterThan(count, value);
 		};
@@ -444,8 +460,36 @@ public class RefSpec {
 					}
 				} else if (property.startsWith("tags->")) {
 					expr = SortSpec.createTagValueSortExpression(root, cb, property);
-				} else if (isJsonbSortProperty(property, "metadata", "plugins")) {
-					var jsonbOrder = createJsonbOrder(root, cb, property, ascending, "metadata", "plugins");
+				} else if (property.startsWith("metadata->")) {
+					// Generated metadata: dates are missing until the first response, counts are never missing (0)
+					var path = property.substring("metadata->".length()).replaceFirst(":(?:num|len)$", "").split("->");
+					if (path.length == 1 && (path[0].equals("newResponse") || path[0].equals("newReaction"))) {
+						var date = cb.function("jsonb_object_field_text", String.class,
+							root.get(Ref_.metadata),
+							cb.literal(path[0]));
+						jpaOrders.add(ascending ? cb.asc(date, Nulls.FIRST) : cb.desc(date, Nulls.LAST));
+						continue;
+					} else if (path.length == 1 && (path[0].equals("expandedTags") || path[0].equals("responses") || path[0].equals("internalResponses"))) {
+						expr = cb.coalesce(
+							cb.function("safe_jsonb_array_length", Integer.class,
+								cb.function("jsonb_object_field", Object.class,
+									root.get(Ref_.metadata),
+									cb.literal(path[0]))),
+							cb.literal(0));
+					} else if (path.length == 2 && (path[0].equals("plugins") || path[0].equals("remotePlugins"))) {
+						expr = cb.coalesce(
+							cb.function("safe_numeric", Double.class,
+								cb.function("jsonb_object_field", Object.class,
+									cb.function("jsonb_object_field", Object.class,
+										root.get(Ref_.metadata),
+										cb.literal(path[0])),
+									cb.literal(path[1]))),
+							cb.literal(0.0));
+					} else {
+						expr = null;
+					}
+				} else if (isJsonbSortProperty(property, "plugins")) {
+					var jsonbOrder = createJsonbOrder(root, cb, property, ascending, "plugins");
 					if (jsonbOrder != null) jpaOrders.add(jsonbOrder);
 					continue;
 				} else if (property.endsWith(":len")) {

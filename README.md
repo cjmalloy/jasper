@@ -182,7 +182,7 @@ can be repeated, and all filters must match. Values cannot contain `,` or `/`. I
 
 Other filters:
 * `pluginResponse` / `noPluginResponse` match Refs with (or without) responses tagged with a plugin from the same
-  origin, and `remotePluginResponse` / `noRemotePluginResponse` from all origins.
+  origin, and `remotePluginResponse` from all origins.
 * `userResponse` / `noUserResponse` take user plugin tags (`plugin/user/...`) and match Refs the current user has
   (or has not) responded to with that plugin, for example `userResponse=plugin/user/read`.
 * `responseBefore` / `responseAfter` compare `metadata->newResponse`, the time of the latest new response

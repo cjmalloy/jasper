@@ -1026,7 +1026,6 @@ public class AuthUnitTest {
 		assertThat(auth.canReadQuery(RefFilter.builder().pluginResponse(List.of("_plugin/secret")).build())).isTrue();
 		assertThat(auth.canReadQuery(RefFilter.builder().noPluginResponse(List.of("_plugin/secret")).build())).isTrue();
 		assertThat(auth.canReadQuery(RefFilter.builder().remotePluginResponse(List.of("_plugin/secret")).build())).isTrue();
-		assertThat(auth.canReadQuery(RefFilter.builder().noRemotePluginResponse(List.of("_plugin/secret")).build())).isTrue();
 	}
 
 	@Test
@@ -1039,7 +1038,6 @@ public class AuthUnitTest {
 		assertThat(auth.canReadQuery(RefFilter.builder().pluginResponse(List.of("_plugin/secret")).build())).isFalse();
 		assertThat(auth.canReadQuery(RefFilter.builder().noPluginResponse(List.of("_plugin/secret")).build())).isFalse();
 		assertThat(auth.canReadQuery(RefFilter.builder().remotePluginResponse(List.of("_plugin/secret")).build())).isFalse();
-		assertThat(auth.canReadQuery(RefFilter.builder().noRemotePluginResponse(List.of("_plugin/secret")).build())).isFalse();
 		assertThat(auth.canReadQuery(RefFilter.builder().query("custom").remotePluginResponse(List.of("plugin/comment", "_plugin/secret")).build())).isFalse();
 	}
 

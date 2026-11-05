@@ -517,8 +517,6 @@ public class IndexRepositoryIT {
 			.contains(IndexRepositoryImplPostgres.hotResponseIndexName("plugins", "plugin/comment"));
 		assertThat(explainFilterPostgres(RefFilter.builder().remotePluginResponse(List.of("plugin/comment")).build()))
 			.contains(IndexRepositoryImplPostgres.hotResponseIndexName("remotePlugins", "plugin/comment"));
-		assertThat(explainFilterPostgres(RefFilter.builder().noRemotePluginResponse(List.of("plugin/comment")).build()))
-			.contains(IndexRepositoryImplPostgres.hotResponseIndexName("remotePlugins", "plugin/comment"));
 	}
 
 	String explainSqlite(String sql) {

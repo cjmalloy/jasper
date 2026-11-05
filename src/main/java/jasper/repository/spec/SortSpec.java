@@ -8,10 +8,8 @@ import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Root;
 import jasper.domain.Plugin;
 import jasper.domain.proj.Tag;
-import org.springframework.data.jpa.domain.Specification;
 
 import java.math.BigDecimal;
-import java.util.Set;
 import java.util.regex.Pattern;
 
 import static jasper.config.SQLiteConfig.isoDurationSeconds;
@@ -27,81 +25,33 @@ public class SortSpec {
 	private static final Pattern ARRAY_INDEX_PATTERN = Pattern.compile("\\[(\\d+)]");
 
 	/**
-	 * Allowed metadata fields for sorting.
-	 * Only these fields can be accessed under metadata->.
-	 */
-	private static final Set<String> ALLOWED_METADATA_FIELDS = Set.of(
-		"newResponse", "newReaction", "expandedTags", "responses", "internalResponses", "plugins", "remotePlugins"
-	);
-
-	/**
-	 * Metadata fields that should automatically use :len suffix (array fields).
-	 */
-	private static final Set<String> METADATA_LEN_FIELDS = Set.of(
-		"expandedTags", "responses", "internalResponses"
-	);
-
-	/**
-	 * Metadata fields that should automatically use :num suffix (numeric fields).
-	 * Response counts by plugin, e.g. "metadata->plugins->plugin/comment".
-	 */
-	private static final Set<String> METADATA_NUM_FIELDS = Set.of(
-		"plugins", "remotePlugins"
-	);
-
-	/**
-	 * Creates a JSONB sort expression for the given property path.
-	 * Supports ":num" suffix for numeric sorting and ":len" suffix for array length sorting.
-	 * Metadata counts (response counts and response lists) default to 0, since a missing count is 0.
-	 * Other values are null when missing or of the wrong type, see {@link #createJsonbOrder}.
-	 *
-	 * For metadata fields, automatically applies the correct suffix and restricts access
-	 * to only allowed fields: newResponse, newReaction, expandedTags, responses, internalResponses, plugins, remotePlugins.
-	 *
-	 * @param root the query root
-	 * @param cb the criteria builder
-	 * @param property the sort property (e.g., "config->field->subfield:num")
-	 * @param prefixes list of allowed JSONB field prefixes (e.g., ["config", "defaults", "schema"])
-	 * @return the sort expression, or null if property doesn't match allowed prefixes
-	 */
-	public static Expression<?> createJsonbSortExpression(Root<?> root, CriteriaBuilder cb, String property, String... prefixes) {
-		var value = createJsonbValue(root, cb, property, prefixes);
-		if (value == null) return null;
-		return sortExpression(cb, value);
-	}
-
-	private static Expression<?> sortExpression(CriteriaBuilder cb, JsonbValue value) {
-		if (!value.count()) return value.expression();
-		if (value.length()) return cb.coalesce(value.expression(), cb.literal(0));
-		return cb.coalesce(value.expression(), cb.literal(0.0));
-	}
-
-	/**
-	 * Orders by a JSONB sort expression. Missing values sort first ascending and last descending,
-	 * so one "(expression) NULLS FIRST" index serves both directions, and filters on the same expression
-	 * skip missing values. This is the default null order on SQLite, so no NULLS clause is rendered there.
-	 * Metadata counts are never null, so they use the default order to match plain expression indexes.
+	 * Orders by a JSONB value. Missing values (or values of the wrong type for :num or :len) sort first
+	 * ascending and last descending, so one "(expression) NULLS FIRST" index serves both directions,
+	 * and filters on the same expression skip missing values.
+	 * This is the default null order on SQLite, so no NULLS clause is rendered there.
 	 *
 	 * @return the order, or null if property doesn't match allowed prefixes
 	 */
 	public static Order createJsonbOrder(Root<?> root, CriteriaBuilder cb, String property, boolean ascending, String... prefixes) {
 		var value = createJsonbValue(root, cb, property, prefixes);
 		if (value == null) return null;
-		var expr = sortExpression(cb, value);
-		if (value.count()) return ascending ? cb.asc(expr) : cb.desc(expr);
-		return ascending ? cb.asc(expr, Nulls.FIRST) : cb.desc(expr, Nulls.LAST);
+		return ascending ? cb.asc(value.expression(), Nulls.FIRST) : cb.desc(value.expression(), Nulls.LAST);
 	}
 
 	/**
-	 * A JSONB value without a default, so missing values are null.
+	 * A JSONB value, null when missing.
 	 *
 	 * @param expression the value, an Integer for length, a Double for numeric, otherwise a String
-	 * @param count a metadata count, where a missing value means 0
 	 */
-	public record JsonbValue(Expression expression, boolean numeric, boolean length, boolean count) {}
+	public record JsonbValue(Expression expression, boolean length) {}
 
 	/**
-	 * Same as {@link #createJsonbSortExpression} without the default for metadata counts, so missing values are null.
+	 * Creates the JSONB value for a sort property, e.g. "config->field->subfield:num".
+	 * Supports ":num" suffix for numeric values, ":len" suffix for array lengths and "[index]" for array elements.
+	 *
+	 * @param property the sort property
+	 * @param prefixes the JSONB columns that may be used, e.g. "config", "defaults", "schema"
+	 * @return the value, or null if property doesn't match allowed prefixes
 	 */
 	public static JsonbValue createJsonbValue(Root<?> root, CriteriaBuilder cb, String property, String... prefixes) {
 		var numericSort = property.endsWith(":num");
@@ -111,23 +61,6 @@ public class SortSpec {
 		if (parts.length < 2) return null;
 		var jsonbFieldName = parts[0];
 		if (stream(prefixes).noneMatch(jsonbFieldName::equals)) return null;
-
-		var count = false;
-		// Special handling for metadata prefix
-		if ("metadata".equals(jsonbFieldName)) {
-			var metadataField = parts[1];
-			// Only allow access to specific metadata fields
-			if (!ALLOWED_METADATA_FIELDS.contains(metadataField)) return null;
-			count = METADATA_LEN_FIELDS.contains(metadataField) || METADATA_NUM_FIELDS.contains(metadataField);
-			// Auto-apply correct suffix for known metadata fields (only if not already specified)
-			if (!numericSort && !lengthSort) {
-				if (METADATA_LEN_FIELDS.contains(metadataField)) {
-					lengthSort = true;
-				} else if (METADATA_NUM_FIELDS.contains(metadataField)) {
-					numericSort = true;
-				}
-			}
-		}
 
 		Expression<?> expr = root.get(jsonbFieldName);
 		for (int i = 1; i < parts.length; i++) {
@@ -148,7 +81,7 @@ public class SortSpec {
 				} else if (lengthSort) {
 					// Last element with length sort - get as JSONB and apply jsonb_array_length
 					expr = cb.function("jsonb_array_element", Object.class, expr, cb.literal(index));
-					return new JsonbValue(cb.function("safe_jsonb_array_length", Integer.class, expr), false, true, count);
+					return new JsonbValue(cb.function("safe_jsonb_array_length", Integer.class, expr), true);
 				} else if (numericSort) {
 					// Last element with numeric sort - get as JSONB to check for a JSON number
 					expr = cb.function("jsonb_array_element", Object.class, expr, cb.literal(index));
@@ -159,7 +92,7 @@ public class SortSpec {
 			} else if (i == parts.length - 1 && lengthSort) {
 				// Last field with length sort - get as JSONB and apply jsonb_array_length
 				expr = cb.function("jsonb_object_field", Object.class, expr, cb.literal(field));
-				return new JsonbValue(cb.function("safe_jsonb_array_length", Integer.class, expr), false, true, count);
+				return new JsonbValue(cb.function("safe_jsonb_array_length", Integer.class, expr), true);
 			} else if (i == parts.length - 1 && numericSort) {
 				// Last field with numeric sort - get as JSONB to check for a JSON number
 				expr = cb.function("jsonb_object_field", Object.class, expr, cb.literal(field));
@@ -171,8 +104,8 @@ public class SortSpec {
 				expr = cb.function("jsonb_object_field", Object.class, expr, cb.literal(field));
 			}
 		}
-		if (numericSort) return new JsonbValue(cb.function("safe_numeric", Double.class, expr), true, false, count);
-		return new JsonbValue(expr, false, false, count);
+		if (numericSort) return new JsonbValue(cb.function("safe_numeric", Double.class, expr), false);
+		return new JsonbValue(expr, false);
 	}
 
 	/**
@@ -301,13 +234,6 @@ public class SortSpec {
 			}
 			return new PluginValueFilter(plugin, property, value);
 		}
-
-		/**
-		 * Is this a filter on a response count ("metadata->plugins->..." or "metadata->remotePlugins->...")?
-		 */
-		public boolean responseCount() {
-			return property.startsWith("metadata->");
-		}
 	}
 
 	/**
@@ -378,13 +304,6 @@ public class SortSpec {
 		Expression<Double> number = field.expression();
 		var literal = cb.function("cast_to_numeric", Double.class, cb.literal(value));
 		return before ? cb.lessThan(number, literal) : cb.greaterThan(number, literal);
-	}
-
-	/**
-	 * Filters on a JSONB column of an Ext, User, Plugin or Template, using the same expression as sorting.
-	 */
-	public static <T> Specification<T> isConfigValue(ConfigValueFilter filter, boolean before) {
-		return (root, query, cb) -> compareJsonbValue(cb, createJsonbValue(root, cb, filter.property(), filter.root()), filter.value(), before);
 	}
 
 	/**

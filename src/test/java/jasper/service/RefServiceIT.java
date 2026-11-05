@@ -1790,8 +1790,6 @@ public class RefServiceIT {
 			.extracting(Ref::getUrl).containsExactlyInAnyOrder("https://example.com/2", "https://example.com/3", "https://example.com/4");
 		assertThat(refRepository.findAll(RefFilter.builder().remotePluginResponse(List.of("plugin/comment")).build().spec()))
 			.extracting(Ref::getUrl).containsExactlyInAnyOrder("https://example.com/1", "https://example.com/2");
-		assertThat(refRepository.findAll(RefFilter.builder().noRemotePluginResponse(List.of("plugin/comment")).build().spec()))
-			.extracting(Ref::getUrl).containsExactlyInAnyOrder("https://example.com/3", "https://example.com/4");
 	}
 
 	@Test
@@ -1799,8 +1797,7 @@ public class RefServiceIT {
 		for (var filter : List.of(
 			RefFilter.builder().pluginResponse(List.of("_plugin/secret")).build(),
 			RefFilter.builder().noPluginResponse(List.of("_plugin/secret")).build(),
-			RefFilter.builder().remotePluginResponse(List.of("_plugin/secret")).build(),
-			RefFilter.builder().noRemotePluginResponse(List.of("_plugin/secret")).build())) {
+			RefFilter.builder().remotePluginResponse(List.of("_plugin/secret")).build())) {
 			assertThatThrownBy(() -> refService.page(filter, PageRequest.of(0, 10)))
 				.isInstanceOf(AccessDeniedException.class);
 			assertThatThrownBy(() -> refService.count(filter))

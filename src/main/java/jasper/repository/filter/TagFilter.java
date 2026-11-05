@@ -18,7 +18,8 @@ import static jasper.repository.spec.OriginSpec.isOrigin;
 import static jasper.repository.spec.OriginSpec.none;
 import static jasper.repository.spec.ReplicationSpec.isModifiedAfter;
 import static jasper.repository.spec.ReplicationSpec.isModifiedBefore;
-import static jasper.repository.spec.SortSpec.isConfigValue;
+import static jasper.repository.spec.SortSpec.compareJsonbValue;
+import static jasper.repository.spec.SortSpec.createJsonbValue;
 import static jasper.repository.spec.TagSpec.isLevel;
 import static jasper.repository.spec.TagSpec.searchTagOrName;
 import static jasper.repository.spec.TagSpec.tagEndsWith;
@@ -77,12 +78,14 @@ public class TagFilter implements Query {
 		}
 		if (configBefore != null) {
 			for (var f : configBefore) {
-				result = result.and(isConfigValue(configValueFilter(f, configRoots), true));
+				var filter = configValueFilter(f, configRoots);
+				result = result.and((root, query, cb) -> compareJsonbValue(cb, createJsonbValue(root, cb, filter.property(), filter.root()), filter.value(), true));
 			}
 		}
 		if (configAfter != null) {
 			for (var f : configAfter) {
-				result = result.and(isConfigValue(configValueFilter(f, configRoots), false));
+				var filter = configValueFilter(f, configRoots);
+				result = result.and((root, query, cb) -> compareJsonbValue(cb, createJsonbValue(root, cb, filter.property(), filter.root()), filter.value(), false));
 			}
 		}
 		return result;

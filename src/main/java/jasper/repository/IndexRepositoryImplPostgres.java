@@ -151,8 +151,8 @@ public class IndexRepositoryImplPostgres implements IndexRepository {
 	}
 
 	/**
-	 * Same SQL that {@link jasper.repository.spec.SortSpec#createJsonbOrder} renders for a
-	 * metadata sort with the PostgreSQL dialect, so the planner can match the index to the sort and the
+	 * Same SQL that {@link jasper.repository.spec.RefSpec#sort} renders for a
+	 * metadata date sort with the PostgreSQL dialect, so the planner can match the index to the sort and the
 	 * responseBefore / responseAfter filters.
 	 */
 	@Override
@@ -318,7 +318,7 @@ public class IndexRepositoryImplPostgres implements IndexRepository {
 	}
 
 	/**
-	 * The same SQL that {@link jasper.repository.spec.SortSpec#createJsonbSortExpression} renders for a
+	 * The same SQL that {@link jasper.repository.spec.RefSpec#sort} renders for a
 	 * "metadata->plugins->{plugin}" or "metadata->remotePlugins->{plugin}" sort with the PostgreSQL dialect,
 	 * which is also used by the response filters, so the planner can match the index to both.
 	 * The plugin must match {@link Plugin#REGEX}, so it is safe to inline.

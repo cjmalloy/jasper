@@ -631,7 +631,7 @@ public class Auth {
 					.map(PluginValueFilter::parse)
 					.filter(Objects::nonNull)
 					.map(PluginValueFilter::plugin),
-				Stream.of(f.getPluginResponse(), f.getNoPluginResponse(), f.getRemotePluginResponse(), f.getNoRemotePluginResponse())
+				Stream.of(f.getPluginResponse(), f.getNoPluginResponse(), f.getRemotePluginResponse())
 					.filter(Objects::nonNull)
 					.flatMap(List::stream))
 				.flatMap(s -> s)
