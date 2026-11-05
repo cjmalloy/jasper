@@ -20,6 +20,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Mapper(componentModel = "spring")
 public abstract class ComponentDtoMapper {
@@ -65,17 +66,16 @@ public abstract class ComponentDtoMapper {
 
 	@AfterMapping
 	protected void publicMetadata(@MappingTarget MetadataUpdateDto metadata) {
-		if (metadata.getPlugins() == null) return;
-		var filteredPlugins = new HashMap<String, Integer>();
-		metadata.getPlugins().entrySet().iterator().forEachRemaining(e -> {
-			if (!e.getKey().startsWith("_")) {
-				filteredPlugins.put(e.getKey(), e.getValue());
-			}
+		metadata.setPlugins(publicPlugins(metadata.getPlugins()));
+		metadata.setRemotePlugins(publicPlugins(metadata.getRemotePlugins()));
+	}
+
+	private Map<String, Integer> publicPlugins(Map<String, Integer> plugins) {
+		if (plugins == null) return null;
+		var filtered = new HashMap<String, Integer>();
+		plugins.forEach((tag, count) -> {
+			if (!tag.startsWith("_")) filtered.put(tag, count);
 		});
-		if (filteredPlugins.isEmpty()) {
-			metadata.setPlugins(null);
-		} else {
-			metadata.setPlugins(filteredPlugins);
-		}
+		return filtered.isEmpty() ? null : filtered;
 	}
 }

@@ -32,6 +32,7 @@ import java.time.temporal.ChronoUnit;
 import static jasper.component.Meta.expandTags;
 import static jasper.util.DbConstraint.isPkViolation;
 import static jasper.util.DbConstraint.isUniqueModifiedOriginViolation;
+import static jasper.util.Transactions.afterCommit;
 
 @Component
 public class Ingest {
@@ -71,19 +72,27 @@ public class Ingest {
 		rng.update(rootOrigin, ref, null);
 		meta.ref(rootOrigin, ref);
 		ensureCreateUniqueModified(ref);
-		meta.sources(rootOrigin, ref, null);
+		meta.sources(rootOrigin, ref, null, true);
 		messages.updateRef(ref);
 	}
 
 	@Timed(value = "jasper.ref", histogram = true)
 	public void update(String rootOrigin, Ref ref) {
+		update(rootOrigin, ref, false);
+	}
+
+	/**
+	 * @param syncSources update all sources synchronously instead of deferring to the cascade
+	 */
+	@Timed(value = "jasper.ref", histogram = true)
+	public void update(String rootOrigin, Ref ref, boolean syncSources) {
 		var maybeExisting = refRepository.findOneByUrlAndOrigin(ref.getUrl(), ref.getOrigin());
 		if (maybeExisting.isEmpty()) throw new NotFoundException("Ref");
 		validate.ref(rootOrigin, ref);
 		rng.update(rootOrigin, ref, maybeExisting.get());
 		meta.update(rootOrigin, ref, maybeExisting.get());
 		ensureUpdateUniqueModified(ref);
-		meta.sources(rootOrigin, ref, maybeExisting.get());
+		meta.sources(rootOrigin, ref, maybeExisting.get(), syncSources);
 		messages.updateRef(ref);
 	}
 
@@ -101,12 +110,14 @@ public class Ingest {
 
 	@Timed(value = "jasper.ref", histogram = true)
 	public void silent(String rootOrigin, Ref ref) {
+		var ignored = ref.getMetadata() != null && ref.getMetadata().isIgnored();
 		var maybeExisting = refRepository.findOneByUrlAndOrigin(ref.getUrl(), ref.getOrigin());
 		if (maybeExisting.isEmpty()) {
 			meta.ref(rootOrigin, ref);
 		} else {
 			meta.update(rootOrigin, ref, maybeExisting.get());
 		}
+		ref.getMetadata().setIgnored(ignored);
 		ensureSilentUniqueModified(ref);
 		meta.sources(rootOrigin, ref, maybeExisting.orElse(null));
 		messages.updateSilentRef(ref);
@@ -114,6 +125,14 @@ public class Ingest {
 
 	@Timed(value = "jasper.ref", histogram = true)
 	public void push(String rootOrigin, Ref ref, boolean validation, boolean stripInvalidPlugins) {
+		push(rootOrigin, ref, validation, stripInvalidPlugins, false);
+	}
+
+	/**
+	 * @param ignored mark the Ref as ignored until the whole pulled batch is ingested
+	 */
+	@Timed(value = "jasper.ref", histogram = true)
+	public void push(String rootOrigin, Ref ref, boolean validation, boolean stripInvalidPlugins, boolean ignored) {
 		var generateMetadata = ref.getModified() == null || ref.getModified().isAfter(Instant.now().minus(5, ChronoUnit.MINUTES));
 		if (validation) validate.ref(rootOrigin, ref, stripInvalidPlugins);
 		Ref maybeExisting = null;
@@ -133,6 +152,7 @@ public class Ingest {
 				.expandedTags(expandTags(ref.getTags()))
 				.build());
 		}
+		ref.getMetadata().setIgnored(ignored);
 		pushUniqueModified(ref);
 		if (generateMetadata) meta.sources(rootOrigin, ref, maybeExisting);
 		messages.updateRef(ref);
@@ -143,9 +163,9 @@ public class Ingest {
 	public void delete(String rootOrigin, String url, String origin) {
 		var maybeExisting = refRepository.findOneByUrlAndOrigin(url, origin);
 		if (maybeExisting.isEmpty()) return;
-		messages.deleteRef(maybeExisting.get());
 		refRepository.deleteByUrlAndOrigin(url, origin);
 		meta.sources(rootOrigin, null, maybeExisting.get());
+		afterCommit(() -> messages.deleteRef(maybeExisting.get()));
 	}
 
 	void ensureCreateUniqueModified(Ref ref) {

@@ -8,6 +8,7 @@ import com.fasterxml.jackson.datatype.hibernate7.Hibernate7Module;
 import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.jsontypedef.jtd.Validator;
+import jasper.errors.ValidationErrors;
 import org.springframework.boot.jackson2.autoconfigure.Jackson2ObjectMapperBuilderCustomizer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -89,7 +90,8 @@ public class JacksonConfiguration {
 	public Validator validator() {
 		var validator = new Validator();
 		validator.setMaxDepth(32);
-		validator.setMaxErrors(5);
+		// One more than returned so responses can report truncation
+		validator.setMaxErrors(ValidationErrors.MAX_ERRORS + 1);
 		return validator;
 	}
 }

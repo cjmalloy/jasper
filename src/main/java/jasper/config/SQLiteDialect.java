@@ -65,7 +65,7 @@ public class SQLiteDialect extends org.hibernate.community.dialect.SQLiteDialect
 		// Use quoted key to handle keys with special characters (e.g., plugin/user/...)
 		functionRegistry.registerPattern(
 			"jsonb_object_field",
-			"json_extract(?1, '$.\"' || REPLACE(?2, '\"', '\"\"') || '\"')",
+			"((?1) -> ('$.\"' || REPLACE(?2, '\"', '\"\"') || '\"'))",
 			jsonb
 		);
 		// jsonb_object_field_text: get a JSON field as text (equivalent to PostgreSQL's ->> operator)
@@ -96,14 +96,33 @@ public class SQLiteDialect extends org.hibernate.community.dialect.SQLiteDialect
 		functionRegistry.registerPattern("cast_to_numeric", "CAST((?1) AS REAL)", doubleType);
 		// jsonb_array_length
 		functionRegistry.registerPattern("jsonb_array_length", "json_array_length(?1)", integer);
-		// jsonb_array_element_text: get element at index from a JSON array
-		functionRegistry.registerPattern("jsonb_array_element_text", "json_extract(?1, '$[' || ?2 || ']')", string);
+		// safe_numeric / safe_jsonb_array_length: NULL for values of the wrong type instead of an error, same as PostgreSQL
+		functionRegistry.registerPattern("safe_numeric", "(CASE WHEN json_type(?1) IN ('integer', 'real') THEN CAST((?1) AS REAL) END)", doubleType);
+		functionRegistry.registerPattern("safe_jsonb_array_length", "(CASE WHEN json_valid(?1) THEN (CASE WHEN json_type(?1) = 'array' THEN json_array_length(?1) END) END)", integer);
+		// jsonb_array_element: get element at index from a JSON array as JSON
+		functionRegistry.registerPattern("jsonb_array_element", "((?1) -> ('$[' || ?2 || ']'))", jsonb);
+		// jsonb_array_element_text: get element at index from a JSON array as text (equivalent to PostgreSQL's jsonb_array_element_text)
+		// Same normalization as jsonb_object_field_text: "true"/"false" for booleans and numbers as TEXT
+		functionRegistry.registerPattern(
+			"jsonb_array_element_text",
+			"(CASE " +
+				"WHEN json_type(?1, '$[' || ?2 || ']') IN ('true', 'false') " +
+					"THEN json_type(?1, '$[' || ?2 || ']') " +
+				"ELSE CAST(json_extract(?1, '$[' || ?2 || ']') AS TEXT) " +
+			"END)",
+			string
+		);
 		// string_to_array: in SQLite just pass through the comma-separated string (used with jsonb_exists_any)
 		functionRegistry.registerPattern("string_to_array", "(?1 || SUBSTR('', 1, 0 * LENGTH(?2)))", string);
 		// origin_nesting: returns 0 for blank or '@', otherwise count of '.' + 1
 		functionRegistry.registerPattern("origin_nesting", "CASE WHEN ?1 = '' OR ?1 = '@' THEN 0 ELSE (LENGTH(?1) - LENGTH(REPLACE(?1, '.', '')) + 1) END", integer);
 		// tag_levels: returns 0 for blank tag, otherwise count of '/' + 1
 		functionRegistry.registerPattern("tag_levels", "CASE WHEN ?1 = '' THEN 0 ELSE (LENGTH(?1) - LENGTH(REPLACE(?1, '/', '')) + 1) END", integer);
+		// tag_value: first sub-tag after "{tag}/" of the first tag with a value
+		functionRegistry.registerPattern("tag_value", "COALESCE((SELECT CASE WHEN instr(tv.r, '/') > 0 THEN substr(tv.r, 1, instr(tv.r, '/') - 1) ELSE tv.r END FROM (SELECT substr(j.value, length(?2) + 2) AS r FROM json_each(?1) AS j WHERE substr(j.value, 1, length(?2) + 1) = ?2 || '/' ORDER BY j.key LIMIT 1) AS tv), '')", string);
+		functionRegistry.registerPattern("tag_value_num", "COALESCE(CAST((SELECT CASE WHEN instr(tv.r, '/') > 0 THEN substr(tv.r, 1, instr(tv.r, '/') - 1) ELSE tv.r END FROM (SELECT substr(j.value, length(?2) + 2) AS r FROM json_each(?1) AS j WHERE substr(j.value, 1, length(?2) + 1) = ?2 || '/' ORDER BY j.key LIMIT 1) AS tv) AS REAL), 0)", doubleType);
+		// tag_value_dur: ISO-8601 duration in seconds, iso_duration_seconds is registered in SQLiteConfig
+		functionRegistry.registerPattern("tag_value_dur", "COALESCE(iso_duration_seconds((SELECT CASE WHEN instr(tv.r, '/') > 0 THEN substr(tv.r, 1, instr(tv.r, '/') - 1) ELSE tv.r END FROM (SELECT substr(j.value, length(?2) + 2) AS r FROM json_each(?1) AS j WHERE substr(j.value, 1, length(?2) + 1) = ?2 || '/' ORDER BY j.key LIMIT 1) AS tv)), 0)", doubleType);
 		// Vote sorting functions using SQLite's json_extract with quoted keys for paths containing '/'
 		functionRegistry.registerPattern("vote_top", "COALESCE(CAST(json_extract(?1, '$.plugins.\"plugin/user/vote/up\"') AS INTEGER), 0) + COALESCE(CAST(json_extract(?1, '$.plugins.\"plugin/user/vote/down\"') AS INTEGER), 0)", integer);
 		functionRegistry.registerPattern("vote_score", "COALESCE(CAST(json_extract(?1, '$.plugins.\"plugin/user/vote/up\"') AS INTEGER), 0) - COALESCE(CAST(json_extract(?1, '$.plugins.\"plugin/user/vote/down\"') AS INTEGER), 0)", doubleType);

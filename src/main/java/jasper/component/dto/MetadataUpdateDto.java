@@ -18,5 +18,6 @@ public class MetadataUpdateDto implements Serializable {
 	private int responses;
 	private int internalResponses;
 	private Map<String, Integer> plugins;
+	private Map<String, Integer> remotePlugins;
 	private boolean obsolete;
 }

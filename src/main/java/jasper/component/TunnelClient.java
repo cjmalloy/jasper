@@ -3,6 +3,7 @@ package jasper.component;
 import jasper.domain.proj.HasTags;
 import jasper.errors.InvalidTunnelException;
 import jasper.errors.RetryableTunnelException;
+import jasper.errors.TunnelCooldownException;
 import jasper.repository.UserRepository;
 import org.apache.sshd.client.SshClient;
 import org.apache.sshd.client.auth.keyboard.UserInteraction;
@@ -21,11 +22,16 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import java.io.ByteArrayInputStream;
+import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.security.GeneralSecurityException;
+import java.security.KeyPair;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 
@@ -39,6 +45,11 @@ import static jasper.util.Logging.getMessage;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.commons.lang3.exception.ExceptionUtils.getThrowableList;
 import static org.apache.sshd.common.NamedResource.ofName;
+import static org.apache.sshd.common.SshConstants.SSH2_DISCONNECT_HOST_KEY_NOT_VERIFIABLE;
+import static org.apache.sshd.common.SshConstants.SSH2_DISCONNECT_ILLEGAL_USER_NAME;
+import static org.apache.sshd.common.SshConstants.SSH2_DISCONNECT_KEY_EXCHANGE_FAILED;
+import static org.apache.sshd.common.SshConstants.SSH2_DISCONNECT_NO_MORE_AUTH_METHODS_AVAILABLE;
+import static org.apache.sshd.common.SshConstants.SSH2_DISCONNECT_PROTOCOL_VERSION_NOT_SUPPORTED;
 import static org.apache.sshd.common.util.security.SecurityUtils.loadKeyPairIdentities;
 
 @Component
@@ -56,6 +67,8 @@ public class TunnelClient {
 
 	record TunnelInfo(int tunnelPort, int connections, SshClient client) {}
 	Map<String, TunnelInfo> tunnels = new ConcurrentHashMap<>();
+	static final Duration RETRY_COOLDOWN = Duration.ofSeconds(10);
+	Map<String, Instant> cooldowns = new ConcurrentHashMap<>();
 
 	@Scheduled(fixedDelay = 30, initialDelay = 10, timeUnit = TimeUnit.MINUTES)
 	public void log() {
@@ -66,6 +79,8 @@ public class TunnelClient {
 
 	@Scheduled(fixedDelay = 1, timeUnit = TimeUnit.MINUTES)
 	public void healthCheck() {
+		var now = Instant.now();
+		cooldowns.values().removeIf(until -> !until.isAfter(now));
 		for (var remote : tunnels.keySet()) {
 			tunnels.compute(remote, (k, v) -> {
 				if (v == null) {
@@ -120,12 +135,19 @@ public class TunnelClient {
 				var tunnelPort = pooledConnection(remote.getOrigin(), host, username, port, serverKeyVerifier(remote), user.get().getKey());
 				try {
 					request.go(new URI("http://localhost:" + tunnelPort));
-				} catch (Exception e) {
+				} catch (URISyntaxException e) {
 					killTunnel(host, username, port);
 					throw new InvalidTunnelException("Error creating tunnel tracker", e);
+				} catch (RuntimeException e) {
+					// Let the caller classify its own request errors, the same as without a tunnel
+					killTunnel(host, username, port);
+					throw e;
 				}
 				releaseTunnel(tunnelPort, host, username, port);
 			}
+		} catch (TunnelCooldownException e) {
+			logger.debug("{} Skipping SSH tunnel for {} during cooldown: {}",
+				remote.getOrigin(), remote.getTitle(), remote.getUrl());
 		} catch (RetryableTunnelException e) {
 			logger.info("{} Error creating SSH tunnel for {}: {}",
 				remote.getOrigin(), remote.getTitle(), remote.getUrl());
@@ -170,6 +192,10 @@ public class TunnelClient {
 				killTunnel(host, username, port);
 				throw new InvalidTunnelException("Error creating tunnel tracker", e);
 			}
+		} catch (TunnelCooldownException e) {
+			logger.debug("{} Skipping SSH tunnel for {} during cooldown: {}",
+				remote.getOrigin(), remote.getTitle(), remote.getUrl());
+			throw e;
 		} catch (RetryableTunnelException e) {
 			logger.info("{} Error creating SSH tunnel for {}: {}",
 				remote.getOrigin(), remote.getTitle(), remote.getUrl());
@@ -243,6 +269,19 @@ public class TunnelClient {
 				if (v != null) {
 					if  (v.client.isOpen()) return new TunnelInfo(v.tunnelPort, v.connections + 1, v.client);
 				}
+				var cooldown = cooldowns.get(remote);
+				if (cooldown != null && cooldown.isAfter(Instant.now())) {
+					throw new RuntimeException(new TunnelCooldownException("SSH tunnel to " + remote + " is cooling down until " + cooldown));
+				}
+				Iterable<KeyPair> identities;
+				try {
+					identities = loadKeyPairIdentities(null, ofName(username), new ByteArrayInputStream(key), null);
+				} catch (IOException | GeneralSecurityException e) {
+					throw new InvalidTunnelException("Error loading tunnel private key", e);
+				}
+				if (identities == null || !identities.iterator().hasNext()) {
+					throw new InvalidTunnelException("Tunnel private key could not be parsed");
+				}
 				var client = SshClient.setUpDefaultClient();
 				try {
 					final int[] httpPort = {38022};
@@ -260,8 +299,7 @@ public class TunnelClient {
 					client.setServerKeyVerifier(serverKeyVerifier);
 					client.start();
 					var session = client.connect(username, host, port).verify(30, TimeUnit.SECONDS).getSession();
-					loadKeyPairIdentities(null, ofName(username), new ByteArrayInputStream(key), null)
-						.forEach(session::addPublicKeyIdentity);
+					identities.forEach(session::addPublicKeyIdentity);
 					session.auth().verify(30, TimeUnit.SECONDS);
 					var tracker = session.createLocalPortForwardingTracker(0, new SshdSocketAddress("localhost", httpPort[0]));
 					var tunnelPort = tracker.getBoundAddress().getPort();
@@ -272,19 +310,43 @@ public class TunnelClient {
 							killTunnel(host, username, port);
 						}
 					});
+					cooldowns.remove(remote);
 					return new TunnelInfo(tunnelPort, 1, client);
 				} catch (Exception e) {
 					client.stop();
-					throw new RuntimeException(e);
+					logger.debug("{} Error creating tunnel SSH client", origin, e);
+					if (isFatal(e)) throw new InvalidTunnelException("Error creating tunnel SSH client", e);
+					cooldowns.put(remote, Instant.now().plus(RETRY_COOLDOWN));
+					throw new RuntimeException(new RetryableTunnelException("Error creating tunnel SSH client", e));
 				}
 			}).tunnelPort;
 		} catch (RuntimeException e) {
-			logger.debug("{} Error creating tunnel SSH client", origin, e);
-			if (e.getCause() instanceof SshException &&
-				getThrowableList(e).stream().noneMatch(cause ->
-					cause.getMessage() != null && cause.getMessage().contains("Broken pipe"))) throw e;
-			throw new RetryableTunnelException("Error creating tunnel SSH client", e);
+			if (e.getCause() instanceof RetryableTunnelException r) throw r;
+			throw e;
 		}
+	}
+
+	/**
+	 * SSH disconnect reasons that will fail the same way on every attempt until
+	 * the tunnel configuration, key or remote server is changed.
+	 */
+	private static final Set<Integer> FATAL_DISCONNECT_CODES = Set.of(
+		SSH2_DISCONNECT_KEY_EXCHANGE_FAILED,
+		SSH2_DISCONNECT_HOST_KEY_NOT_VERIFIABLE,
+		SSH2_DISCONNECT_PROTOCOL_VERSION_NOT_SUPPORTED,
+		SSH2_DISCONNECT_NO_MORE_AUTH_METHODS_AVAILABLE,
+		SSH2_DISCONNECT_ILLEGAL_USER_NAME);
+
+	/**
+	 * Network and transport failures (connection refused, timeouts, unknown
+	 * host, reset, broken pipe, session closed, ...) all surface from sshd as
+	 * {@link IOException}s and are retryable. Only rejected host keys,
+	 * failed authentication, failed algorithm negotiation and unexpected
+	 * non-IO errors are fatal.
+	 */
+	static boolean isFatal(Throwable e) {
+		if (getThrowableList(e).stream().anyMatch(cause -> cause instanceof SshException s && FATAL_DISCONNECT_CODES.contains(s.getDisconnectCode()))) return true;
+		return !(e instanceof IOException);
 	}
 
 	private void releaseTunnel(Integer tunnelPort, String host, String username, int port) {

@@ -6,6 +6,7 @@ docs/
 .idea/
 storage/
 gatling/
+e2e/
 repl/
 .DS_Store
 
@@ -14,6 +15,8 @@ _includes/
 docs/
 *.md
 LICENSE
+# Read by ErrorMappingTest in the test stage
+!docs/errors.md
 
 # Git and config files not needed for build
 .git/

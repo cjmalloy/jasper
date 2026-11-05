@@ -13,6 +13,7 @@ import jasper.domain.Ref;
 import jasper.domain.User;
 import jasper.errors.AlreadyExistsException;
 import jasper.errors.InvalidPatchException;
+import jasper.errors.InvalidQueryException;
 import jasper.errors.ModifiedException;
 import jasper.repository.PluginRepository;
 import jasper.repository.RefRepository;
@@ -32,7 +33,9 @@ import org.springframework.security.test.context.support.WithMockUser;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -1740,6 +1743,73 @@ public class RefServiceIT {
 		assertThat(result.getContent().get(1).getUrl()).isEqualTo("https://example.com/1");
 	}
 
+	Ref refWithResponseCounts(String url, Long local, Long remote) {
+		var ref = new Ref();
+		ref.setUrl(url);
+		ref.setTags(new ArrayList<>(List.of("+user/tester")));
+		var metadata = new jasper.domain.Metadata();
+		metadata.setPlugins(new java.util.HashMap<>());
+		metadata.setRemotePlugins(new java.util.HashMap<>());
+		if (local != null) metadata.getPlugins().put("plugin/comment", local);
+		if (remote != null) metadata.getRemotePlugins().put("plugin/comment", remote);
+		ref.setMetadata(metadata);
+		return refRepository.save(ref);
+	}
+
+	@Test
+	void testApplySortingSpec_WithResponseCountSortIsNumeric() {
+		refWithResponseCounts("https://example.com/1", 9L, 9L);
+		refWithResponseCounts("https://example.com/2", 10L, 100L);
+		refWithResponseCounts("https://example.com/3", null, 20L);
+
+		for (var column : List.of("metadata->plugins->plugin/comment", "metadata->remotePlugins->plugin/comment")) {
+			var spec = RefSpec.sort(
+				RefFilter.builder().build().spec(),
+				PageRequest.of(0, 10, Sort.by(Sort.Order.desc(column))));
+			var result = refRepository.findAll(spec, PageRequest.ofSize(10));
+			assertThat(result.getContent()).extracting(Ref::getUrl).as(column).containsExactly(
+				"https://example.com/2",
+				column.contains("remote") ? "https://example.com/3" : "https://example.com/1",
+				column.contains("remote") ? "https://example.com/1" : "https://example.com/3");
+		}
+	}
+
+	@Test
+	void testPluginResponseFilters() {
+		refWithResponseCounts("https://example.com/1", 2L, 3L);
+		refWithResponseCounts("https://example.com/2", null, 1L);
+		refWithResponseCounts("https://example.com/3", null, null);
+		var none = new Ref();
+		none.setUrl("https://example.com/4");
+		none.setTags(new ArrayList<>(List.of("+user/tester")));
+		refRepository.save(none);
+
+		assertThat(refRepository.findAll(RefFilter.builder().pluginResponse(List.of("plugin/comment")).build().spec()))
+			.extracting(Ref::getUrl).containsExactlyInAnyOrder("https://example.com/1");
+		assertThat(refRepository.findAll(RefFilter.builder().noPluginResponse(List.of("plugin/comment")).build().spec()))
+			.extracting(Ref::getUrl).containsExactlyInAnyOrder("https://example.com/2", "https://example.com/3", "https://example.com/4");
+		assertThat(refRepository.findAll(RefFilter.builder().remotePluginResponse(List.of("plugin/comment")).build().spec()))
+			.extracting(Ref::getUrl).containsExactlyInAnyOrder("https://example.com/1", "https://example.com/2");
+		assertThat(refRepository.findAll(RefFilter.builder().noRemotePluginResponse(List.of("plugin/comment")).build().spec()))
+			.extracting(Ref::getUrl).containsExactlyInAnyOrder("https://example.com/3", "https://example.com/4");
+	}
+
+	@Test
+	void testPrivatePluginResponseFiltersDenied() {
+		for (var filter : List.of(
+			RefFilter.builder().pluginResponse(List.of("_plugin/secret")).build(),
+			RefFilter.builder().noPluginResponse(List.of("_plugin/secret")).build(),
+			RefFilter.builder().remotePluginResponse(List.of("_plugin/secret")).build(),
+			RefFilter.builder().noRemotePluginResponse(List.of("_plugin/secret")).build())) {
+			assertThatThrownBy(() -> refService.page(filter, PageRequest.of(0, 10)))
+				.isInstanceOf(AccessDeniedException.class);
+			assertThatThrownBy(() -> refService.count(filter))
+				.isInstanceOf(AccessDeniedException.class);
+		}
+		assertThat(refService.count(RefFilter.builder().remotePluginResponse(List.of("plugin/comment")).build()))
+			.isZero();
+	}
+
 	@Test
 	void testApplySortingSpec_WithPluginsSort() throws JsonProcessingException {
 		// Create refs with plugins data containing contentLength
@@ -1768,6 +1838,301 @@ public class RefServiceIT {
 		// Verify descending numeric order (200 before 100)
 		assertThat(result.getContent().get(0).getUrl()).isEqualTo("https://example.com/2");
 		assertThat(result.getContent().get(1).getUrl()).isEqualTo("https://example.com/1");
+	}
+
+	Ref refWithUrlTags(String url, String... tags) {
+		var ref = new Ref();
+		ref.setUrl(url);
+		ref.setTags(new ArrayList<>(List.of(tags)));
+		return refRepository.save(ref);
+	}
+
+	List<String> sortedUrls(Sort.Order order) {
+		var spec = RefSpec.sort(
+			RefFilter.builder().build().spec(),
+			PageRequest.of(0, 10, Sort.by(order, Sort.Order.asc("url"))));
+		return refRepository.findAll(spec, PageRequest.ofSize(10)).getContent().stream().map(Ref::getUrl).toList();
+	}
+
+	@Test
+	void testApplySortingSpec_WithTagValueSort() {
+		refWithUrlTags("https://example.com/1", "+user/tester", "plugin/duration/pt5m");
+		refWithUrlTags("https://example.com/2", "plugin/duration", "plugin/duration/pt1m/extra", "plugin/duration/pt9m");
+		refWithUrlTags("https://example.com/3", "+user/tester");
+		refWithUrlTags("https://example.com/4", "plugin/durationx/pt0m", "plugin/duration/pt3m");
+
+		assertThat(sortedUrls(Sort.Order.asc("tags->plugin/duration")))
+			.containsExactly("https://example.com/3", "https://example.com/2", "https://example.com/4", "https://example.com/1");
+		assertThat(sortedUrls(Sort.Order.desc("tags->plugin/duration")))
+			.containsExactly("https://example.com/1", "https://example.com/4", "https://example.com/2", "https://example.com/3");
+	}
+
+	@Test
+	void testApplySortingSpec_WithTagValueNumericSort() {
+		refWithUrlTags("https://example.com/1", "plugin/progress/37/100");
+		refWithUrlTags("https://example.com/2", "plugin/progress", "plugin/progress/100/100", "plugin/progress/5/100");
+		refWithUrlTags("https://example.com/3", "+user/tester");
+		refWithUrlTags("https://example.com/4", "plugin/progress/9/10");
+		refWithUrlTags("https://example.com/5", "plugin/progress/abc");
+
+		assertThat(sortedUrls(Sort.Order.desc("tags->plugin/progress:num")))
+			.containsExactly("https://example.com/2", "https://example.com/1", "https://example.com/4", "https://example.com/3", "https://example.com/5");
+	}
+
+	@Test
+	void testApplySortingSpec_WithTagValueDurationSort() {
+		refWithUrlTags("https://example.com/1", "plugin/duration/pt10m25s");
+		refWithUrlTags("https://example.com/2", "plugin/duration", "plugin/duration/pt1h/extra");
+		refWithUrlTags("https://example.com/3", "+user/tester");
+		refWithUrlTags("https://example.com/4", "plugin/duration/pt90m");
+		refWithUrlTags("https://example.com/5", "plugin/duration/p1dt1.5s");
+		refWithUrlTags("https://example.com/6", "plugin/duration/pt1x");
+		refWithUrlTags("https://example.com/7", "plugin/duration/pt9m");
+
+		assertThat(sortedUrls(Sort.Order.desc("tags->plugin/duration:dur")))
+			.containsExactly("https://example.com/5", "https://example.com/4", "https://example.com/2", "https://example.com/1", "https://example.com/7", "https://example.com/3", "https://example.com/6");
+	}
+
+	@Test
+	void testApplySortingSpec_WithInvalidTagValueSort() {
+		refWithUrlTags("https://example.com/1", "plugin/progress/37/100");
+		refWithUrlTags("https://example.com/2", "plugin/progress/5/100");
+
+		assertThat(sortedUrls(Sort.Order.desc("tags->plugin/progress'; drop table ref; --")))
+			.containsExactly("https://example.com/1", "https://example.com/2");
+	}
+
+	List<String> filteredUrls(RefFilter filter) {
+		var spec = RefSpec.sort(filter.spec(), PageRequest.of(0, 10, Sort.by(Sort.Order.asc("url"))));
+		return refRepository.findAll(spec, PageRequest.ofSize(10)).getContent().stream().map(Ref::getUrl).toList();
+	}
+
+	@Test
+	void testTagValueFilter() {
+		refWithUrlTags("https://example.com/1", "plugin/title/apple");
+		refWithUrlTags("https://example.com/2", "plugin/title", "plugin/title/kiwi/extra");
+		refWithUrlTags("https://example.com/3", "+user/tester");
+		refWithUrlTags("https://example.com/4", "plugin/title/zebra");
+
+		assertThat(filteredUrls(RefFilter.builder().tagBefore(List.of("tags->plugin/title/kiwi")).build()))
+			.containsExactly("https://example.com/1");
+		assertThat(filteredUrls(RefFilter.builder().tagAfter(List.of("tags->plugin/title/apple")).build()))
+			.containsExactly("https://example.com/2", "https://example.com/4");
+		assertThat(filteredUrls(RefFilter.builder().tagAfter(List.of("tags->plugin/title/apple")).tagBefore(List.of("tags->plugin/title/zebra")).build()))
+			.containsExactly("https://example.com/2");
+	}
+
+	@Test
+	void testTagValueNumericFilter() {
+		refWithUrlTags("https://example.com/1", "plugin/progress/37/100");
+		refWithUrlTags("https://example.com/2", "plugin/progress", "plugin/progress/100/100");
+		refWithUrlTags("https://example.com/3", "+user/tester");
+		refWithUrlTags("https://example.com/4", "plugin/progress/9/10");
+		refWithUrlTags("https://example.com/5", "plugin/progress/2.5");
+
+		assertThat(filteredUrls(RefFilter.builder().tagBefore(List.of("tags->plugin/progress:num/37")).build()))
+			.containsExactly("https://example.com/4", "https://example.com/5");
+		assertThat(filteredUrls(RefFilter.builder().tagAfter(List.of("tags->plugin/progress:num/9")).build()))
+			.containsExactly("https://example.com/1", "https://example.com/2");
+		assertThat(filteredUrls(RefFilter.builder().tagAfter(List.of("tags->plugin/progress:num/2.5")).tagBefore(List.of("tags->plugin/progress:num/100")).build()))
+			.containsExactly("https://example.com/1", "https://example.com/4");
+	}
+
+	@Test
+	void testTagValueDurationFilter() {
+		refWithUrlTags("https://example.com/1", "plugin/duration/pt10m25s");
+		refWithUrlTags("https://example.com/2", "plugin/duration/pt1h/extra");
+		refWithUrlTags("https://example.com/3", "+user/tester");
+		refWithUrlTags("https://example.com/4", "plugin/duration/pt90m");
+		refWithUrlTags("https://example.com/5", "plugin/duration/p1dt1.5s");
+
+		assertThat(filteredUrls(RefFilter.builder().tagBefore(List.of("tags->plugin/duration:dur/pt1h")).build()))
+			.containsExactly("https://example.com/1");
+		assertThat(filteredUrls(RefFilter.builder().tagAfter(List.of("tags->plugin/duration:dur/pt60m")).build()))
+			.containsExactly("https://example.com/4", "https://example.com/5");
+	}
+
+	@Test
+	void testInvalidTagValueFilter() {
+		assertThatThrownBy(() -> RefFilter.builder().tagBefore(List.of("tags->plugin/progress:num/abc")).build().spec())
+			.isInstanceOf(InvalidQueryException.class);
+		assertThatThrownBy(() -> RefFilter.builder().tagAfter(List.of("tags->plugin/duration:dur/pt1x")).build().spec())
+			.isInstanceOf(InvalidQueryException.class);
+		assertThatThrownBy(() -> RefFilter.builder().tagAfter(List.of("plugin")).build().spec())
+			.isInstanceOf(InvalidQueryException.class);
+		assertThatThrownBy(() -> RefFilter.builder().tagAfter(List.of("plugin/progress/50:num")).build().spec())
+			.isInstanceOf(InvalidQueryException.class);
+	}
+
+	Ref refWithUrlPlugins(String url, String plugins) throws JsonProcessingException {
+		var ref = new Ref();
+		ref.setUrl(url);
+		ref.setTags(new ArrayList<>(List.of("+user/tester")));
+		if (plugins != null) ref.setPlugins((ObjectNode) new ObjectMapper().readTree(plugins));
+		return refRepository.save(ref);
+	}
+
+	@Test
+	void testPluginValueFilter() throws JsonProcessingException {
+		refWithUrlPlugins("https://example.com/1", "{\"plugin/test\": {\"style\": {\"color\": \"blue\"}}}");
+		refWithUrlPlugins("https://example.com/2", "{\"plugin/test\": {\"style\": {\"color\": \"green\"}}}");
+		refWithUrlPlugins("https://example.com/3", null);
+		refWithUrlPlugins("https://example.com/4", "{\"plugin/test\": {\"style\": {}}}");
+		refWithUrlPlugins("https://example.com/5", "{\"plugin/test\": {\"style\": {\"color\": \"red\"}}}");
+
+		assertThat(filteredUrls(RefFilter.builder().pluginBefore(List.of("plugins->plugin/test->style->color/green")).build()))
+			.containsExactly("https://example.com/1");
+		assertThat(filteredUrls(RefFilter.builder().pluginAfter(List.of("plugins->plugin/test->style->color/blue")).build()))
+			.containsExactly("https://example.com/2", "https://example.com/5");
+		assertThat(filteredUrls(RefFilter.builder()
+				.pluginAfter(List.of("plugins->plugin/test->style->color/blue"))
+				.pluginBefore(List.of("plugins->plugin/test->style->color/red")).build()))
+			.containsExactly("https://example.com/2");
+	}
+
+	@Test
+	void testPluginValueFilterTextPrefix() throws JsonProcessingException {
+		refWithUrlPlugins("https://example.com/1", "{\"plugin/test\": {\"name\": \"apple\"}}");
+		refWithUrlPlugins("https://example.com/2", "{\"plugin/test\": {\"name\": \"banana\"}}");
+		refWithUrlPlugins("https://example.com/3", "{\"plugin/test\": {\"name\": \"cherry\"}}");
+
+		assertThat(filteredUrls(RefFilter.builder().pluginAfter(List.of("plugins->plugin/test->name/b")).build()))
+			.containsExactly("https://example.com/2", "https://example.com/3");
+		assertThat(filteredUrls(RefFilter.builder().pluginBefore(List.of("plugins->plugin/test->name/b")).build()))
+			.containsExactly("https://example.com/1");
+	}
+
+	@Test
+	void testPluginValueNumericFilter() throws JsonProcessingException {
+		refWithUrlPlugins("https://example.com/1", "{\"_plugin/cache\": {\"contentLength\": 100}}");
+		refWithUrlPlugins("https://example.com/2", "{\"_plugin/cache\": {\"contentLength\": 20}}");
+		refWithUrlPlugins("https://example.com/3", null);
+		refWithUrlPlugins("https://example.com/4", "{\"_plugin/cache\": {\"contentLength\": 2.5}}");
+		refWithUrlPlugins("https://example.com/5", "{\"_plugin/cache\": {\"contentLength\": -3}}");
+
+		assertThat(filteredUrls(RefFilter.builder().pluginBefore(List.of("plugins->_plugin/cache->contentLength:num/20")).build()))
+			.containsExactly("https://example.com/4", "https://example.com/5");
+		assertThat(filteredUrls(RefFilter.builder().pluginAfter(List.of("plugins->_plugin/cache->contentLength:num/3")).build()))
+			.containsExactly("https://example.com/1", "https://example.com/2");
+		assertThat(filteredUrls(RefFilter.builder().pluginAfter(List.of("plugins->_plugin/cache->contentLength:num/-3.5")).build()))
+			.containsExactly("https://example.com/1", "https://example.com/2", "https://example.com/4", "https://example.com/5");
+	}
+
+	@Test
+	void testPluginValueNumericFilterLimits() throws JsonProcessingException {
+		refWithUrlPlugins("https://example.com/1", "{\"plugin/test\": {\"size\": 1e31, \"items\": [1e31]}}");
+		refWithUrlPlugins("https://example.com/2", "{\"plugin/test\": {\"size\": 1e-31, \"items\": [1e-31]}}");
+		refWithUrlPlugins("https://example.com/3", "{\"plugin/test\": {\"size\": -1e31, \"items\": [-1e31]}}");
+
+		assertThat(filteredUrls(RefFilter.builder().pluginAfter(List.of("plugins->plugin/test->size:num/999999999999999999999999999999")).build()))
+			.containsExactly("https://example.com/1");
+		assertThat(filteredUrls(RefFilter.builder().pluginAfter(List.of("plugins->plugin/test->size:num/0")).build()))
+			.containsExactly("https://example.com/1", "https://example.com/2");
+		assertThat(filteredUrls(RefFilter.builder().pluginBefore(List.of("plugins->plugin/test->size:num/0.000000000000000000000000000001")).build()))
+			.containsExactly("https://example.com/2", "https://example.com/3");
+		assertThat(filteredUrls(RefFilter.builder().pluginBefore(List.of("plugins->plugin/test->items[0]:num/-999999999999999999999999999999")).build()))
+			.containsExactly("https://example.com/3");
+	}
+
+	@Test
+	void testPluginValueLengthFilter() throws JsonProcessingException {
+		refWithUrlPlugins("https://example.com/1", "{\"plugin/test\": {\"ids\": [\"a\"]}}");
+		refWithUrlPlugins("https://example.com/2", "{\"plugin/test\": {\"ids\": [\"a\", \"b\", \"c\"]}}");
+		refWithUrlPlugins("https://example.com/3", null);
+		refWithUrlPlugins("https://example.com/4", "{\"plugin/test\": {\"ids\": []}}");
+
+		assertThat(filteredUrls(RefFilter.builder().pluginAfter(List.of("plugins->plugin/test->ids:len/0")).build()))
+			.containsExactly("https://example.com/1", "https://example.com/2");
+		assertThat(filteredUrls(RefFilter.builder().pluginBefore(List.of("plugins->plugin/test->ids:len/3")).build()))
+			.containsExactly("https://example.com/1", "https://example.com/4");
+	}
+
+	@Test
+	void testPluginValuePrimitiveFilter() throws JsonProcessingException {
+		refWithUrlPlugins("https://example.com/1", "{\"plugin/score\": 100, \"plugin/name\": \"kiwi\"}");
+		refWithUrlPlugins("https://example.com/2", "{\"plugin/score\": 20, \"plugin/name\": \"apple\"}");
+		refWithUrlPlugins("https://example.com/3", null);
+		refWithUrlPlugins("https://example.com/4", "{\"plugin/score\": -3.5}");
+
+		assertThat(filteredUrls(RefFilter.builder().pluginBefore(List.of("plugins->plugin/score:num/20")).build()))
+			.containsExactly("https://example.com/4");
+		assertThat(filteredUrls(RefFilter.builder().pluginAfter(List.of("plugins->plugin/score:num/-4")).build()))
+			.containsExactly("https://example.com/1", "https://example.com/2", "https://example.com/4");
+		assertThat(filteredUrls(RefFilter.builder().pluginAfter(List.of("plugins->plugin/name/banana")).build()))
+			.containsExactly("https://example.com/1");
+	}
+
+	@Test
+	void testPluginValueIndexedFilter() throws JsonProcessingException {
+		refWithUrlPlugins("https://example.com/1", "{\"plugin/test\": {\"items\": [{\"score\": 3, \"color\": \"blue\"}], \"groups\": [[1, 2, 3]]}}");
+		refWithUrlPlugins("https://example.com/2", "{\"plugin/test\": {\"items\": [{\"score\": 10, \"color\": \"red\"}], \"groups\": [[1]]}}");
+		refWithUrlPlugins("https://example.com/3", null);
+		refWithUrlPlugins("https://example.com/4", "{\"plugin/test\": {\"items\": [\"blue\"]}}");
+
+		assertThat(filteredUrls(RefFilter.builder().pluginBefore(List.of("plugins->plugin/test->items[0]->score:num/5")).build()))
+			.containsExactly("https://example.com/1");
+		assertThat(filteredUrls(RefFilter.builder().pluginAfter(List.of("plugins->plugin/test->items[0]->color/green")).build()))
+			.containsExactly("https://example.com/2");
+		assertThat(filteredUrls(RefFilter.builder().pluginAfter(List.of("plugins->plugin/test->groups[0]:len/2")).build()))
+			.containsExactly("https://example.com/1");
+		assertThat(filteredUrls(RefFilter.builder().pluginBefore(List.of("plugins->plugin/test->groups[0]:len/2")).build()))
+			.containsExactly("https://example.com/2");
+	}
+
+	@Test
+	void testPluginValueIndexedTerminalFilter() throws JsonProcessingException {
+		refWithUrlPlugins("https://example.com/1", "{\"plugin/test\": {\"items\": [true]}}");
+		refWithUrlPlugins("https://example.com/2", "{\"plugin/test\": {\"items\": [5]}}");
+		refWithUrlPlugins("https://example.com/3", "{\"plugin/test\": {\"items\": [\"b\"]}}");
+
+		assertThat(filteredUrls(RefFilter.builder().pluginAfter(List.of("plugins->plugin/test->items[0]:num/0")).build()))
+			.containsExactly("https://example.com/2");
+		assertThat(filteredUrls(RefFilter.builder().pluginAfter(List.of("plugins->plugin/test->items[0]/3")).build()))
+			.containsExactly("https://example.com/1", "https://example.com/2", "https://example.com/3");
+		assertThat(filteredUrls(RefFilter.builder().pluginAfter(List.of("plugins->plugin/test->items[0]/s")).build()))
+			.containsExactly("https://example.com/1");
+	}
+
+	@Test
+	void testPluginValueFilterWrongType() throws JsonProcessingException {
+		refWithUrlPlugins("https://example.com/1", "{\"plugin/test\": {\"size\": \"big\", \"items\": \"none\", \"groups\": [null]}}");
+		refWithUrlPlugins("https://example.com/2", "{\"plugin/test\": {\"size\": 5, \"items\": [1, 2], \"groups\": [[1]]}}");
+		refWithUrlPlugins("https://example.com/3", "{\"plugin/test\": {\"size\": null, \"items\": null, \"groups\": [{\"a\": 1}]}}");
+		refWithUrlPlugins("https://example.com/4", "{\"plugin/test\": {\"size\": \"1.2.3\"}}");
+		refWithUrlPlugins("https://example.com/5", "{\"plugin/test\": {\"size\": \"2e\"}}");
+		refWithUrlPlugins("https://example.com/6", "{\"plugin/test\": {\"size\": \"-2.5e1\"}}");
+		refWithUrlPlugins("https://example.com/7", "{\"plugin/test\": {\"size\": true}}");
+		refWithUrlPlugins("https://example.com/8", "{\"plugin/test\": {\"items\": \"[1,2]\", \"groups\": \"[[1]]\", \"nested\": \"{\\\"score\\\": 1}\"}}");
+		refWithUrlPlugins("https://example.com/9", "{\"plugin/test\": {\"nested\": {\"score\": 1}}}");
+
+		assertThat(filteredUrls(RefFilter.builder().pluginBefore(List.of("plugins->plugin/test->size:num/10")).build()))
+			.containsExactly("https://example.com/2");
+		assertThat(filteredUrls(RefFilter.builder().pluginAfter(List.of("plugins->plugin/test->size:num/0")).build()))
+			.containsExactly("https://example.com/2");
+		assertThat(filteredUrls(RefFilter.builder().pluginBefore(List.of("plugins->plugin/test->items:len/3")).build()))
+			.containsExactly("https://example.com/2");
+		assertThat(filteredUrls(RefFilter.builder().pluginBefore(List.of("plugins->plugin/test->groups[0]:len/3")).build()))
+			.containsExactly("https://example.com/2");
+		assertThat(filteredUrls(RefFilter.builder().pluginBefore(List.of("plugins->plugin/test->nested->score:num/5")).build()))
+			.containsExactly("https://example.com/9");
+		assertThat(filteredUrls(RefFilter.builder().pluginBefore(List.of("plugins->plugin/test->size->x/z")).build()))
+			.isEmpty();
+	}
+
+	@Test
+	void testInvalidPluginValueFilter() {
+		assertThatThrownBy(() -> RefFilter.builder().pluginBefore(List.of("plugins->plugin/test->size:num/abc")).build().spec())
+			.isInstanceOf(InvalidQueryException.class);
+		assertThatThrownBy(() -> RefFilter.builder().pluginAfter(List.of("plugins->plugin/test->ids:len/-1")).build().spec())
+			.isInstanceOf(InvalidQueryException.class);
+		assertThatThrownBy(() -> RefFilter.builder().pluginAfter(List.of("custom->size/1")).build().spec())
+			.isInstanceOf(InvalidQueryException.class);
+		assertThatThrownBy(() -> RefFilter.builder().pluginAfter(List.of("plugin/test->size")).build().spec())
+			.isInstanceOf(InvalidQueryException.class);
+		assertThatThrownBy(() -> RefFilter.builder().pluginAfter(List.of("plugins->plugin/test->it's/1")).build().spec())
+			.isInstanceOf(InvalidQueryException.class);
+		assertThatThrownBy(() -> RefFilter.builder().pluginAfter(List.of("plugin/test->size:num=1")).build().spec())
+			.isInstanceOf(InvalidQueryException.class);
 	}
 
 	Ref refWithSchemaPlugin(String defaults) throws JsonProcessingException {
@@ -1836,5 +2201,43 @@ public class RefServiceIT {
 				{"op": "add", "path": "/plugins/plugin~1test", "value": null},
 				{"op": "add", "path": "/plugins/plugin~1test/style", "value": {}}
 			]""");
+	}
+
+	Ref saveWithUserUrl(String url, String userUrl) {
+		var ref = new Ref();
+		ref.setUrl(url);
+		ref.setTags(new ArrayList<>(List.of("public")));
+		ref.setMetadata(Metadata.builder()
+			.userUrls(new HashMap<>(Map.of("+plugin/user/run", List.of(userUrl))))
+			.build());
+		return refRepository.save(ref);
+	}
+
+	@Test
+	void testUserUrlsMatchDefaultOriginUser() {
+		saveWithUserUrl(URL, "tag:/user/tester?url=" + URL);
+		saveWithUserUrl(URL + 2, "tag:/user/tester@other?url=" + URL + 2);
+
+		assertThat(refService.get(URL, "").getMetadata().getUserUrls())
+			.containsExactly("+plugin/user/run");
+		assertThat(refService.get(URL + 2, "").getMetadata().getUserUrls())
+			.isNullOrEmpty();
+	}
+
+	@Test
+	void testUserResponseFilterMatchesDefaultOriginUser() {
+		saveWithUserUrl(URL, "tag:/user/tester?url=" + URL);
+		saveWithUserUrl(URL + 2, "tag:/user/tester@other?url=" + URL + 2);
+
+		assertThat(refService.page(
+				RefFilter.builder().userResponse(List.of("+plugin/user/run")).build(),
+				PageRequest.of(0, 10)).getContent())
+			.extracting(r -> r.getUrl())
+			.containsExactly(URL);
+		assertThat(refService.page(
+				RefFilter.builder().noUserResponse(List.of("+plugin/user/run")).build(),
+				PageRequest.of(0, 10)).getContent())
+			.extracting(r -> r.getUrl())
+			.containsExactly(URL + 2);
 	}
 }

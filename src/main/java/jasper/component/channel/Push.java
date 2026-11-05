@@ -62,10 +62,11 @@ public class Push {
 
 	@EventListener(ApplicationReadyEvent.class)
 	public void init() {
-		for (var origin : configs.root().scriptOrigins("+plugin/origin/push")) {
-			// TODO: redo on template change
-			watch.addWatch(origin, "+plugin/origin/push", this::watch);
-		}
+		configs.rootUpdate(root -> {
+			for (var origin : root.scriptOrigins("+plugin/origin/push")) {
+				watch.addWatch(origin, "+plugin/origin/push", this::watch);
+			}
+		});
 	}
 
 	private void watch(HasTags update) {
@@ -110,7 +111,7 @@ public class Push {
 							logger.info("{} Finished pushing origin ({}) on change {}: {}", remote.getOrigin(), formatOrigin(origin), remote.getTitle(), remote.getUrl());
 						} catch (Exception e) {
 							logger.error("{} Error pushing origin ({}) on change {}: {}", remote.getOrigin(), formatOrigin(origin), remote.getTitle(), remote.getUrl());
-							tagger.attachError(remote.getUrl(), origin, "Error pushing", getMessage(e));
+							tagger.attachError(remote.getOrigin(), remote, "Error pushing", getMessage(e));
 						}
 					} else {
 						deleted.add(target);

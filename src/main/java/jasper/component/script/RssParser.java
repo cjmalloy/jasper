@@ -125,15 +125,17 @@ public class RssParser {
 	private void scrape(Ref feed, String scriptTag) throws IOException, FeedException {
 		var config = getFeed(feed, scriptTag);
 
-		try (var client = httpClientFactory.getClient()) {
+		try (var progress = tagger.progress(feed.getUrl(), feed.getOrigin());
+			var client = httpClientFactory.getClient()) {
 			var request = new HttpGet(feed.getUrl());
 			if (!hostCheck.validHost(request.getURI())) {
 				logger.info("{} Invalid host {}", feed.getOrigin(), request.getURI().getHost());
 				return;
 			}
 
-			if (!config.isDisableEtag() && config.getEtag() != null) {
-				request.setHeader(HttpHeaders.IF_NONE_MATCH, config.getEtag());
+			var cachedEtag = config.isDisableEtag() ? null : tagger.getInternalResponse(scriptTag, feed.getOrigin(), feed.getUrl());
+			if (cachedEtag != null) {
+				request.setHeader(HttpHeaders.IF_NONE_MATCH, cachedEtag);
 			}
 			Instant lastScrape = null;
 			var cron = getCron(feed);
@@ -157,14 +159,9 @@ public class RssParser {
 				try (var stream = response.getEntity().getContent()) {
 					if (!config.isDisableEtag()) {
 						var etag = response.getFirstHeader(HttpHeaders.ETAG);
-						if (etag != null && (config.getEtag() == null || !config.getEtag().equals(etag.getValue()))) {
-							config.setEtag(etag.getValue());
-							feed.setPlugin(scriptTag, config);
-							ingest.update(feed.getOrigin(), feed);
-						} else if (etag == null && config.getEtag() != null) {
-							config.setEtag(null);
-							feed.setPlugin(scriptTag, config);
-							ingest.update(feed.getOrigin(), feed);
+						var etagValue = etag == null ? null : etag.getValue();
+						if (!Objects.equals(cachedEtag, etagValue)) {
+							tagger.internalResponse(scriptTag, feed.getOrigin(), feed.getUrl(), etagValue);
 						}
 					}
 					var syndFeed = new SyndFeedInput().build(new XmlReader(stream));
@@ -176,7 +173,10 @@ public class RssParser {
 							ingest.update(feed.getOrigin(), feed);
 						}
 					}
-					for (var entry : syndFeed.getEntries().reversed()) {
+					var entries = syndFeed.getEntries().reversed();
+					var done = 0;
+					for (var entry : entries) {
+						progress.update(done++, entries.size());
 						try {
 							var link = entryLink(feed, config, entry);
 							if (refRepository.existsByUrlAndOrigin(link, feed.getOrigin())) {
@@ -247,6 +247,13 @@ public class RssParser {
 				throw new NotFoundException(entry.getTitle());
 			}
 		}
+		var isShort = isShort(link);
+		if (isShort && config.isScrapeVideo() && !config.isScrapeShorts()) {
+			throw new NotFoundException(entry.getTitle());
+		}
+		if (!isShort && config.isScrapeShorts() && !config.isScrapeVideo()) {
+			throw new NotFoundException(entry.getTitle());
+		}
 		var ref = new Ref();
 		if (config.isScrapeWebpage()) {
 			ref.addTag("_plugin/delta/scrape/ref");
@@ -308,7 +315,7 @@ public class RssParser {
 				cacheLater(ref.getPlugin("plugin/audio", Audio.class).getUrl(), feed.getOrigin());
 			}
 		}
-		if (config.isScrapeVideo()) {
+		if (isShort ? config.isScrapeShorts() : config.isScrapeVideo()) {
 			parseVideo(entry, ref);
 			if (ref.hasPlugin("plugin/video")) {
 				cacheLater(ref.getPlugin("plugin/video", Video.class).getUrl(), feed.getOrigin());
@@ -317,6 +324,19 @@ public class RssParser {
 			}
 		}
 		return ref;
+	}
+
+	private boolean isShort(String link) {
+		try {
+			var url = new URI(link);
+			var host = url.getHost();
+			return host != null &&
+				(host.equals("youtube.com") || host.endsWith(".youtube.com")) &&
+				url.getPath() != null &&
+				url.getPath().startsWith("/shorts/");
+		} catch (Exception e) {
+			return false;
+		}
 	}
 
 	private SyndContent getPreferredType(List<SyndContent> contents) {
@@ -422,6 +442,7 @@ public class RssParser {
 		if (isBlank(url)) return;
 		var ref = refRepository.findOneByUrlAndOrigin(url, origin).orElse(null);
 		if (ref != null && (ref.hasTag("_plugin/cache") || ref.hasTag("_plugin/delta/cache"))) return;
+		tagger.debug(ref, "RSS feed queuing existing Ref for cache");
 		tagger.internalTag(url, origin, "_plugin/delta/cache");
 	}
 }

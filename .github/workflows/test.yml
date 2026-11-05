@@ -97,7 +97,7 @@ jobs:
           cp target/reports/surefire.html reports/index.html 2>/dev/null || true
       # Common reporting steps
       - name: Publish Unit Test Results
-        uses: dorny/test-reporter@v3.0.0
+        uses: dorny/test-reporter@v3.2.0
         if: always()
         continue-on-error: true
         with:
@@ -463,3 +463,10 @@ jobs:
                 }
               }
             }
+      # Pages workflow_run runs triggered by Copilot need their own approval, so publish reports explicitly
+      - name: Publish reports to Pages
+        if: github.actor == 'Copilot'
+        # language=bash
+        run: gh workflow run pages.yml --repo "$GITHUB_REPOSITORY" --ref "${{ github.event.repository.default_branch }}"
+        env:
+          GH_TOKEN: ${{ github.token }}

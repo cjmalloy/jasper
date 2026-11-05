@@ -15,6 +15,8 @@ spring:
       auto-commit: false
       # SQLite only supports a single writer, so limit pool to 1 connection
       maximum-pool-size: 1
+      # Every request waits for the single connection, so keep Hikari's default timeout
+      connection-timeout: 30000
       minimum-idle: 1
       leak-detection-threshold: 3000
       data-source-properties:

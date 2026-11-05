@@ -131,6 +131,7 @@ public class ReplicateController {
 				RefFilter.builder()
 					.origin(origin)
 					.query(query)
+					.ignored(false)
 					.modifiedAfter(modifiedAfter)
 					.build(),
 				PageRequest.of(0, size, by(Ref_.MODIFIED)))
@@ -151,6 +152,7 @@ public class ReplicateController {
 	@ApiResponses({
 		@ApiResponse(responseCode = "204"),
 	})
+	@ResponseStatus(HttpStatus.NO_CONTENT)
 	@PostMapping("ref")
 	void refPush(
 		@RequestParam(defaultValue = "") @Length(max = ORIGIN_LEN) @Pattern(regexp = HasOrigin.REGEX) String origin,
@@ -204,6 +206,7 @@ public class ReplicateController {
 	@ApiResponses({
 		@ApiResponse(responseCode = "204"),
 	})
+	@ResponseStatus(HttpStatus.NO_CONTENT)
 	@PostMapping("ext")
 	void extPush(
 		@RequestParam(defaultValue = "") @Length(max = ORIGIN_LEN) @Pattern(regexp = HasOrigin.REGEX) String origin,
@@ -257,6 +260,7 @@ public class ReplicateController {
 	@ApiResponses({
 		@ApiResponse(responseCode = "204"),
 	})
+	@ResponseStatus(HttpStatus.NO_CONTENT)
 	@PostMapping("user")
 	void userPush(
 		@RequestParam(defaultValue = "") @Length(max = ORIGIN_LEN) @Pattern(regexp = HasOrigin.REGEX) String origin,
@@ -310,6 +314,7 @@ public class ReplicateController {
 	@ApiResponses({
 		@ApiResponse(responseCode = "204"),
 	})
+	@ResponseStatus(HttpStatus.NO_CONTENT)
 	@PostMapping("plugin")
 	void pluginPush(
 		@RequestParam(defaultValue = "") @Length(max = ORIGIN_LEN) @Pattern(regexp = HasOrigin.REGEX) String origin,
@@ -363,6 +368,7 @@ public class ReplicateController {
 	@ApiResponses({
 		@ApiResponse(responseCode = "204"),
 	})
+	@ResponseStatus(HttpStatus.NO_CONTENT)
 	@PostMapping("template")
 	void templatePush(
 		@RequestParam(defaultValue = "") @Length(max = ORIGIN_LEN) @Pattern(regexp = HasOrigin.REGEX) String origin,

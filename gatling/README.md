@@ -1,142 +1,180 @@
 # Jasper Load Testing
 
-This module contains comprehensive load testing for the Jasper application using Gatling.
+Gatling load tests for the Jasper server. The module is separate from the main application so Gatling's
+Netty version does not conflict with Spring Boot.
 
-## Overview
+The simulations replay the requests [jasper-ui](https://github.com/cjmalloy/jasper-ui) sends while people browse,
+against a seeded knowledge base, as JWT authenticated users. They are meant for two jobs:
 
-The load testing has been separated into its own module to isolate Gatling dependencies from the main application. This resolves Netty version conflicts that occur when upgrading Gatling.
+1. **Regression checks in CI**: run a fixed, unsaturated workload and compare each request against the latest master run.
+2. **Checking a real server**: run the same workload, or a read-only version of it, against a production machine without
+   leaving data behind.
 
-## Test Scenarios
+## Simulations
 
-This module now includes four comprehensive test scenarios:
+| Simulation   | Purpose                                                                                     | Default load                                         | Assertions                     | CI                          |
+|--------------|---------------------------------------------------------------------------------------------|------------------------------------------------------|--------------------------------|-----------------------------|
+| `SmokeTest`  | Functional check: one user per role sends every request type once                         | 3 users, 1 moderator, 1 admin                        | no failed requests             | fails the build             |
+| `Regression` | Realistic browsing at a fixed rate that does not saturate the server                        | 1 session/s for 30s ramp + 180s, sessions of 5–15 views | < 1% failed, p95 < 2s         | fails the build, diffed against master |
+| `ReadOnly`   | Production profile: the Regression mix without writes, proxy or scrape requests             | 0.2 sessions/s for 60s ramp + 300s                    | < 1% failed, p95 < 2s, stops at 2% | not run                    |
+| `Capacity`   | Step load with short think times; reports the last step completed before 5% errors          | +4 sessions/s every 25s, 10 steps (+1 on SQLite in CI) | stops at 5% errors, no assertions | informational              |
+| `Inferno`    | Robustness: two bursts well beyond capacity, then recovery probes 30s later                 | 3,000 then 1,000 sessions in 10s (PostgreSQL only in CI) | recovery probes < 5% failed    | informational              |
+| `RateLimit`  | Multi-origin Inferno with per-origin rate and concurrency limits (`_config/security`): bursts shrink by a gradient across `@loadtest` and seeded tenants `@loadtest.t1`… | 6 origins, bursts 3,000 down to 3 sessions, 50 req/s and 4 in flight per origin, server cap 40 in flight (PostgreSQL only in CI) | quiet origins < 5% failed, p95 < 5s | informational              |
+| `Seed`       | Fills the load test origin with a generated knowledge base. Skipped when already seeded     | 5,000 Refs                                           | no failed requests             | before every run           |
+| `Cleanup`    | Deletes the load test origin                                                               | 1 request                                            | no failed requests             | not run                    |
 
-### 1. SimpleJasperSimulation
-Basic smoke test that verifies core functionality:
-- Basic CRUD operations on references
-- Extension and plugin management
-- User and system health checks
-- Quick validation of all major components
+Only the expected success status of each request counts as OK. Rate limiting (429) and overload (503) are failures,
+so a server that rejects requests quickly can never look faster than one that serves them.
 
-### 2. ComprehensiveJasperSimulation  
-Realistic knowledge management workflows:
-- Knowledge workers creating and organizing content
-- Content browsers searching and consuming information
-- Administrators managing system configuration
-- Heavy readers with intensive content consumption
-- Power users with mixed operations including content enrichment
+### Workload
 
-### 3. UserJourneySimulation
-Real-world user journey patterns:
-- **Research Sessions**: Users researching topics, saving references, taking notes
-- **Daily Reviews**: Users checking recent updates and organizing content  
-- **Content Curation**: Users creating and managing templates and plugins
-- **Collaborative Work**: Multiple users working on shared content
-- Includes realistic data feeders for topics and sources
+Each virtual user is a session of a person using jasper-ui:
 
-### 4. StressTestSimulation
-System limits and edge case testing:
-- High-volume concurrent operations
-- Large payloads and complex queries
-- Error conditions and recovery scenarios
-- Replication and backup operations
-- System administration under load
-- **Retry Logic**: All requests automatically retry up to 3 times on 429 (Too Many Requests) and 503 (Service Unavailable) errors
+- **Login**: a JWT for `+user/userN`, `+user/modN` or `+user/adminN` with `ROLE_USER`, `ROLE_MOD` or `ROLE_ADMIN`.
+  A few users are far more active than the rest (Zipf distribution). Regression sessions are 90% users, 8% moderators and 2% admins.
+- **App load**: whoami, plugins, templates, and Exts for the user's subscriptions. 30% of sessions hold a STOMP websocket
+  subscription to `/topic/cursor/@loadtest`, like the UI's live updates.
+- **Page views** with 3–20s of think time between them:
 
-### 5. InfernoSimulation
-Extreme load testing to push system to absolute limits:
-- 15 second warmup trickle to let the system initialize
-- One cycle of massive load (50,000 users ramped in 10 seconds, then 5 users/sec for 50 seconds)
-- One cycle of massive load (5,000 users ramped in 10 seconds, then 5 users/sec for 50 seconds)
-- 2 minute 15 second total duration
-- Tests extreme concurrent operations and system recovery
-- **Very Low Success Threshold**: Only >15% success rate required (85% failure tolerance)
+  | Action                                                                                                    | Share |
+  |-----------------------------------------------------------------------------------------------------------|-------|
+  | Home feed (subscriptions, or `@*`), `obsolete=false`, hidden Refs filtered                                | 22%   |
+  | Tag feed, sorted by `published` like the UI                                                               | 20–24% |
+  | Open a Ref: the Ref, its comments (`responses=` + `plugin/comment`), sometimes responses or the graph      | 22%   |
+  | Search                                                                                                    | 8%    |
+  | Next page of a tag feed                                                                                   | 8%    |
+  | A user's feed                                                                                             | 5%    |
+  | Vote (`/api/v1/tags/response`)                                                                            | 4%    |
+  | Comment                                                                                                   | 3%    |
+  | Submit a link: scrape it, check it doesn't exist (`count`), post it                                       | 2%    |
+  | Toggle a tag (`/api/v1/tags`) or edit (json-patch) a Ref the user submitted                               | 2%    |
+  | Moderators rename one of a fixed set of topics; admins edit the one load test template                    | 4% of their views |
 
-## Running Load Tests
+  Every page loads the Exts for the tags it shows in one batched query, and images on the page through the proxy.
 
-To run all scenarios:
+Reads are about 95% of requests.
+
+### Dataset
+
+`SeedSimulation` pushes a deterministic dataset into the `@loadtest` origin through the replication API, so it goes
+through the same ingest and metadata generation as normal writes:
+
+- 40 hierarchical topics with Exts, chosen with a Zipf distribution (a few hot tags, a long tail).
+- 70% links with 1–3 topics, a few sources and every 20th one an image; 30% comments clustered into threads on popular Refs.
+- Publish dates skewed to the last few weeks, authors skewed to a few prolific users.
+- The `plugin/comment` plugin and a `kb` template.
+
+## Running
+
+### Docker (what CI does)
 
 ```bash
 cd gatling
-mvn gatling:test
+GATLING_TEST=SmokeTest docker compose --profile lt up --build --exit-code-from gatling
+GATLING_TEST=Regression docker compose -f docker-compose.sqlite.yaml --profile lt up --build --exit-code-from gatling
+docker compose down   # removes the seeded database
 ```
 
-To run from the root directory:
+The stack is the server (`prod,jwt,storage,scripts,proxy` profiles, signed with the jasper-ui debug JWT secret),
+PostgreSQL, and an `upstream` nginx container serving `upstream/` that links, images and scrapes point at,
+so no request leaves the machine. The container runs `run.sh`: it seeds, runs the simulation, copies the report to
+`report/` with a `<Simulation>.status` file holding the exit code, and exits with Gatling's exit code.
+
+### Gatling on the host
+
+Faster for iterating: run the server stack in Docker and Gatling on the host JVM (Java 25).
 
 ```bash
-mvn -f gatling/pom.xml gatling:test
+cd gatling
+docker compose up -d --build --wait web upstream
+export LT_UPSTREAM=http://upstream
+../mvnw -B gatling:test -Dgatling.simulationClass=simulations.jasper.SeedSimulation
+../mvnw -B gatling:test -Dgatling.simulationClass=simulations.jasper.RegressionSimulation -DLT_DURATION=60
+docker compose down
 ```
 
-To run a specific simulation:
-
-```bash
-mvn gatling:test -Dgatling.simulationClass=simulations.jasper.SimpleJasperSimulation
-```
-
-To run the Inferno extreme load test:
-
-```bash
-mvn gatling:test -Dgatling.simulationClass=simulations.jasper.InfernoSimulation
-```
-
-## Docker
-
-The load tests can also be run via Docker using the `gatling` stage:
-
-```bash
-docker build --target gatling -t jasper-gatling .
-docker run jasper-gatling
-```
-
-Or run a specific test with environment variable:
-
-```bash
-docker build --target test -t jasper-gatling .
-docker run -e GATLING_TEST=Inferno jasper-gatling
-```
-
-Or using the docker-compose file:
-
-```bash
-docker compose --profile lt -f gatling/docker-compose.yaml up --build --exit-code-from gatling
-```
+`../mvnw gatling:test` without a simulation class runs `SmokeTest`, `Regression` and `ReadOnly`.
 
 ## Configuration
 
-- **Gatling Version**: 3.14.5
-- **Target URL**: http://localhost:8081 (configurable in simulation files)
-- **Simulations**: Located in `src/test/java/simulations/jasper/`
+Every setting is read from a system property (`-DLT_RATE=2`) or an environment variable (`LT_RATE=2`).
 
-## Performance Expectations
+| Variable                  | Default                          | Description                                                                                         |
+|---------------------------|----------------------------------|-----------------------------------------------------------------------------------------------------|
+| `LT_BASE_URL`             | `http://localhost:8081`          | Server under test. The websocket URL and CSRF cookie domain are derived from it.                    |
+| `LT_ORIGIN`               | `@loadtest` (`default` for ReadOnly) | Origin sent in the `Local-Origin` header. Simulations that write refuse the default origin.     |
+| `LT_JWT_SECRET`           | jasper-ui debug secret           | Base64 HS256 secret to sign a token per virtual user. `none` sends no token (anonymous).            |
+| `LT_TOKEN`                |                                  | Pre-issued bearer token for every virtual user, instead of signing.                                 |
+| `LT_USER_TOKEN`, `LT_MOD_TOKEN`, `LT_ADMIN_TOKEN` |          | Pre-issued bearer token per role. Overrides `LT_TOKEN`.                                             |
+| `LT_RATE`                 | 1 (ReadOnly 0.2)                 | Sessions started per second.                                                                        |
+| `LT_DURATION`             | 180 (ReadOnly 300)               | Seconds at full rate, after the ramp.                                                               |
+| `LT_THINK`                | 1 (Capacity 0.1)                 | Multiplier for think times.                                                                         |
+| `LT_MAX_ERROR_PERCENT`    | 10 (ReadOnly 2, Capacity 5)      | Stop the run when more of the last 200 requests fail. ReadOnly fails the run, Capacity ends it normally. |
+| `LT_USERS`                | 200                              | Distinct user names per role.                                                                       |
+| `LT_WS_SHARE`             | 0.3                              | Share of sessions with a websocket subscription.                                                    |
+| `LT_UPSTREAM`             | (none)                           | Static file server the server under test can reach. Without it proxy and scrape requests are skipped.|
+| `LT_TOPICS`               | 40 built in topics               | Comma separated topics for feeds, subscriptions and seeding.                                        |
+| `LT_SEED_REFS`            | 5000                             | Number of Refs `Seed` creates.                                                                      |
+| `LT_CAPACITY_STEP`, `LT_CAPACITY_LEVELS`, `LT_CAPACITY_LEVEL_SECONDS` | 4, 10, 20 | Capacity step size (sessions/s), number of steps and seconds per step. The sessions/s of the last completed step is written to `Capacity.capacity.json` and shown in the CI summary. |
+| `LT_INFERNO_BURST`        | 3000                             | Sessions in Inferno's first burst (the second is a third). Much larger bursts exhaust the load generator's connections before the server. |
+| `LT_RATE_LIMIT`           | 50                               | Requests per second `RateLimit` allows each origin (set on the load test origin, inherited by the tenants). The template is deleted at the end. |
+| `LT_RATE_LIMIT_CONCURRENT` | 4                               | Requests in flight `RateLimit` allows each origin (`maxConcurrentRequests` in the same template, `0` for unlimited). Over the cap gets 429. If quiet origins fail, lower this rather than `LT_RATE_LIMIT`. |
+| `LT_RATE_LIMIT_ORIGINS`, `LT_RATE_LIMIT_GRADIENT`, `LT_TENANT_REFS` | 6, 4, 500 | `RateLimit` origins (the load test origin plus tenants), how much smaller each origin's bursts are than the previous one, and Refs seeded per tenant. Origins whose bursts need at most half the limit (about 3 requests per session over 10s), and always the quietest, are asserted. |
+| `LT_WEB_CPUS`, `LT_DB_CPUS`, `LT_GATLING_CPUS` | 2, 1, 1          | CPU limits for the containers in the compose stacks (Docker only), so the load generator and the server do not starve each other. |
+| `LT_MAX_CONCURRENT`       | 100                              | Server `maxConcurrentRequests` in the compose stacks (Docker only). Lower values reject overload sooner with 503 instead of queueing for one of the 10 database connections. CI uses 40 for `RateLimit`. |
+| `GATLING_TEST`            | `SmokeTest`                      | Simulation `run.sh` runs (Docker only).                                                             |
+| `LT_SKIP_SEED`            | `false`                          | Skip seeding in `run.sh`.                                                                           |
 
-Each simulation includes assertions and performance expectations:
+## Against a production server
 
-- **SimpleJasperSimulation**: Quick smoke test (45 seconds), >85% success rate
-- **ComprehensiveJasperSimulation**: Comprehensive test (3 minutes), >80% success rate
-- **UserJourneySimulation**: Realistic workflows (5 minutes), >75% success rate  
-- **StressTestSimulation**: System limits test (4 minutes), >70% success rate
-- **InfernoSimulation**: Extreme load test (2 minutes 15 seconds), >15% success rate
+Start with `ReadOnly`, at a low rate, during a quiet period:
 
-## Adding New Tests
+```bash
+../mvnw -B gatling:test -Dgatling.simulationClass=simulations.jasper.ReadOnlySimulation \
+  -DLT_BASE_URL=https://jasper.example.com -DLT_TOKEN=<viewer token> -DLT_RATE=0.1
+```
 
-Create new simulation classes in `src/test/java/simulations/jasper/` that extend `Simulation` from Gatling.
+`ReadOnly` only sends GET requests and the websocket subscription: no writes, no proxy, scrape or backup calls.
+It reads the default origin unless `LT_ORIGIN` is set, and stops the whole run as soon as more than 2% of the
+recent requests fail.
 
-## Real-World Scenarios Included
+To run the full mix, keep every write inside a dedicated sub-origin and delete it afterwards:
 
-The enhanced test suite includes:
-- Knowledge workers adding references with metadata
-- Search and filtering operations with complex queries
-- Plugin and template management workflows
-- Graph relationship queries
-- Content enrichment via proxy and scraping
-- User management and authentication flows
-- Backup and replication operations
-- Error handling and edge cases
-- Concurrent operations and race conditions
+1. The server must give the sub-origin web access, for example `JASPER_OVERRIDE_SERVER_WEB_ORIGINS` including `@loadtest`.
+2. Use tokens the server accepts: `LT_USER_TOKEN`, `LT_MOD_TOKEN` and `LT_ADMIN_TOKEN`, or `LT_JWT_SECRET` if you control the signing secret.
+3. Seed, run, then clean up:
 
-## Dependencies
+```bash
+export LT_BASE_URL=https://jasper.example.com LT_ORIGIN=@loadtest LT_RATE=0.2 LT_MAX_ERROR_PERCENT=2
+../mvnw -B gatling:test -Dgatling.simulationClass=simulations.jasper.SeedSimulation
+../mvnw -B gatling:test -Dgatling.simulationClass=simulations.jasper.RegressionSimulation
+../mvnw -B gatling:test -Dgatling.simulationClass=simulations.jasper.CleanupSimulation
+```
 
-This module uses its own dependencies isolated from the main application:
-- Gatling Highcharts 3.14.5
-- Netty 4.2.6.Final (via Gatling)
+`Cleanup` sends `DELETE /api/v1/origin?origin=@loadtest` with the admin token (moderator or higher is required), which removes everything the load test wrote.
+Never point `Capacity`, `Inferno` or `RateLimit` at a production server.
 
-This isolation prevents dependency conflicts with the main Spring Boot application.
+## CI
+
+`.github/workflows/gatling.yml` runs `SmokeTest`, `Regression`, `Capacity`, `Inferno` and `RateLimit` against PostgreSQL
+(G1, Parallel and ZGC) and SQLite (G1, without `Inferno` and `RateLimit`, which take too long there):
+
+- `SmokeTest` and `Regression` fail the job when their assertions fail. `Capacity`, `Inferno` and `RateLimit` are `continue-on-error`
+  and excluded from the aggregate. The OK (rps) column counts only successful requests: Gatling's throughput
+  includes failures. `Inferno` and `RateLimit` also report successful rps over their busiest 10s, since
+  most of those runs is a low trickle between bursts.
+- `report-stats.py extract` reads every report into `stats.json`. On master it is uploaded as the
+  `gatling-baseline-<database>-<gc>` artifact.
+- On pull requests the latest master baseline is downloaded, and `report-stats.py markdown` writes the step summary
+  and PR comment: status per simulation, and p50, p95, p99 and error rate per request with the change from master.
+  Requests sent at least 30 times are flagged when a percentile is more than 25% and 5ms slower, or the error rate
+  is more than 0.5 points higher.
+
+Runners are shared machines, so compare runs relative to master rather than reading the absolute numbers.
+
+## Adding a simulation
+
+1. Create `src/test/java/simulations/jasper/<Name>Simulation.java`. Build sessions from the chains in `Workload`
+   and settings from `LoadConfig` so it stays configurable.
+2. Add a `Run <Name>` step to `.github/workflows/gatling.yml`, a card in `gen-index.sh`, and the name to
+   `ORDER` (and `GATING` or `INFORMATIONAL`) in `report-stats.py`.

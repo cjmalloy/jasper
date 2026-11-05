@@ -31,6 +31,7 @@ import static jasper.component.Replicator.deletorTag;
 import static jasper.component.Replicator.isDeletorTag;
 import static jasper.util.DbConstraint.isPkViolation;
 import static jasper.util.DbConstraint.isUniqueModifiedOriginViolation;
+import static jasper.util.Transactions.afterCommit;
 
 
 @Component
@@ -59,6 +60,11 @@ public class IngestUser {
 	public void create(User user) {
 		if (isDeletorTag(user.getTag())) {
 			if (userRepository.existsByQualifiedTag(deletedTag(user.getQualifiedTag()))) throw new AlreadyExistsException();
+			var existing = userRepository.findOneByQualifiedTag(user.getQualifiedTag());
+			if (existing.isPresent()) {
+				user.setModified(existing.get().getModified());
+				return;
+			}
 		} else {
 			delete(deletorTag(user.getQualifiedTag()));
 		}
@@ -97,7 +103,7 @@ public class IngestUser {
 	@Timed(value = "jasper.user", histogram = true)
 	public void delete(String qualifiedTag) {
 		userRepository.deleteByQualifiedTag(qualifiedTag);
-		messages.deleteUser(qualifiedTag);
+		afterCommit(() -> messages.deleteUser(qualifiedTag));
 	}
 
 	void ensureCreateUniqueModified(User user) {

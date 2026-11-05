@@ -4,9 +4,11 @@ import jakarta.servlet.ServletContext;
 import jakarta.servlet.ServletException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.boot.security.autoconfigure.web.servlet.SecurityFilterProperties;
 import org.springframework.boot.web.server.WebServerFactory;
 import org.springframework.boot.web.server.WebServerFactoryCustomizer;
 import org.springframework.boot.web.server.servlet.ConfigurableServletWebServerFactory;
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.boot.web.servlet.ServletContextInitializer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -98,5 +100,15 @@ public class WebConfigurer implements ServletContextInitializer, WebServerFactor
             source.registerCorsConfiguration("/swagger-ui/**", config);
         }
         return new CorsFilter(source);
+    }
+
+    /**
+     * CORS runs before rate limiting and Spring Security, so browsers can read 429 and 503 responses.
+     */
+    @Bean
+    public FilterRegistrationBean<CorsFilter> corsFilterRegistration(CorsFilter corsFilter) {
+        var registration = new FilterRegistrationBean<>(corsFilter);
+        registration.setOrder(SecurityFilterProperties.DEFAULT_FILTER_ORDER - 2);
+        return registration;
     }
 }

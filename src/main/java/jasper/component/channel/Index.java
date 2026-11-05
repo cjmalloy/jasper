@@ -102,6 +102,61 @@ public class Index {
 		} else {
 			indexRepository.dropModified();
 		}
+		if (index.isNewResponse()) {
+			try {
+				indexRepository.buildNewResponse();
+			} catch (Exception ignored) {}
+		} else {
+			indexRepository.dropNewResponse();
+		}
+		if (index.isNewReaction()) {
+			try {
+				indexRepository.buildNewReaction();
+			} catch (Exception ignored) {}
+		} else {
+			indexRepository.dropNewReaction();
+		}
+		if (index.isIgnored()) {
+			try {
+				indexRepository.buildIgnored();
+			} catch (Exception ignored) {}
+		} else {
+			indexRepository.dropIgnored();
+		}
+		if (index.isCascade()) {
+			try {
+				indexRepository.buildCascade();
+			} catch (Exception ignored) {}
+		} else {
+			indexRepository.dropCascade();
+		}
+		if (index.isRegen()) {
+			try {
+				indexRepository.buildRegen();
+			} catch (Exception ignored) {}
+		} else {
+			indexRepository.dropRegen();
+		}
+		try {
+			indexRepository.updateHotTags(index.getHotTags());
+		} catch (Exception e) {
+			logger.error("Error updating hot tag indices", e);
+		}
+		try {
+			indexRepository.updateHotPlugins(index.getHotPlugins());
+		} catch (Exception e) {
+			logger.error("Error updating hot plugin indices", e);
+		}
+		try {
+			indexRepository.updateHotResponses(index.getHotResponses());
+		} catch (Exception e) {
+			logger.error("Error updating hot response indices", e);
+		}
+		try {
+			indexRepository.updateHotRemoteResponses(index.getHotRemoteResponses());
+		} catch (Exception e) {
+			logger.error("Error updating hot remote response indices", e);
+		}
 	}
 
 }

@@ -88,6 +88,9 @@ public class Backup {
 	@Autowired
 	Optional<Storage> storage;
 
+	@Autowired
+	ConfigCache configs;
+
 	public record BackupStream(InputStream inputStream, long size) {}
 
 	@Async
@@ -244,8 +247,18 @@ public class Backup {
 			}
 		} catch (IOException e) {
 			throw new RuntimeException(e);
+		} finally {
+			clearCaches(origin, options);
 		}
 		logger.info("{} Finished Restore in {}", origin, Duration.between(start, Instant.now()));
+	}
+
+	private void clearCaches(String origin, BackupOptionsDto options) {
+		if (options == null || options.isRef()) configs.clearConfigCache();
+		if (options == null || options.isUser()) configs.clearUserCache(origin);
+		if (options == null || options.isPlugin()) configs.clearPluginCache(origin);
+		if (options == null || options.isTemplate()) configs.clearTemplateCache(origin);
+		logger.info("{} Cleared caches after restore", origin);
 	}
 
 	<T extends Cursor> void restoreRepo(JpaRepository<T, ?> repo, String origin, Iterator<InputStream> files, Class<T> type) {

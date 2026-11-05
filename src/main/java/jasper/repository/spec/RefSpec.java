@@ -7,6 +7,8 @@ import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Root;
 import jasper.domain.Ref;
 import jasper.domain.Ref_;
+import jasper.repository.spec.SortSpec.PluginValueFilter;
+import jasper.repository.spec.SortSpec.TagValueFilter;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
@@ -17,8 +19,10 @@ import java.util.List;
 
 import static jasper.domain.proj.Tag.isPublicTag;
 import static jasper.domain.proj.Tag.publicTag;
+import static jasper.domain.proj.Tag.userUrlPrefix;
 import static jasper.repository.spec.OriginSpec.none;
 import static jasper.repository.spec.SortSpec.createJsonbSortExpression;
+import static jasper.repository.spec.SortSpec.createJsonbValue;
 import static jasper.repository.spec.SortSpec.isJsonbSortProperty;
 import static org.springframework.data.jpa.domain.Specification.unrestricted;
 
@@ -61,6 +65,19 @@ public class RefSpec {
 				cb.notEqual(cb.function("jsonb_object_field_text", String.class,
 					root.get(Ref_.metadata),
 					cb.literal("obsolete")),
+					cb.literal("true")));
+	}
+
+	public static Specification<Ref> isNotIgnored() {
+		return (root, query, cb) ->
+			cb.or(
+				cb.isNull(root.get(Ref_.metadata)),
+				cb.isNull(cb.function("jsonb_object_field_text", String.class,
+					root.get(Ref_.metadata),
+					cb.literal("ignored"))),
+				cb.notEqual(cb.function("jsonb_object_field_text", String.class,
+					root.get(Ref_.metadata),
+					cb.literal("ignored")),
 					cb.literal("true")));
 	}
 
@@ -124,33 +141,39 @@ public class RefSpec {
 	}
 
 	public static Specification<Ref> hasNoPluginResponses(String plugin) {
-		return (root, query, cb) ->
-			cb.or(
-				cb.isNull(root.get(Ref_.metadata)),
-				cb.isNull(
-					cb.function("jsonb_object_field", Object.class,
-						root.get(Ref_.metadata),
-						cb.literal("plugins"))),
-				cb.isFalse(
-					cb.function("jsonb_exists", Boolean.class,
-						cb.function("jsonb_object_field", Object.class,
-							root.get(Ref_.metadata),
-							cb.literal("plugins")),
-						cb.literal(plugin))));
+		return hasNoResponseCount("plugins", plugin);
 	}
 
 	public static Specification<Ref> hasPluginResponses(String plugin) {
-		return (root, query, cb) ->
-			cb.and(
-				cb.isNotNull(root.get(Ref_.metadata)),
-				cb.function("jsonb_exists", Boolean.class,
-					cb.function("jsonb_object_field", Object.class,
-						root.get(Ref_.metadata),
-						cb.literal("plugins")),
-					cb.literal(plugin)));
+		return hasResponseCount("plugins", plugin);
 	}
 
-	public static Specification<Ref> hasNoPluginResponses(String user, String plugin) {
+	public static Specification<Ref> hasNoRemotePluginResponses(String plugin) {
+		return hasNoResponseCount("remotePlugins", plugin);
+	}
+
+	public static Specification<Ref> hasRemotePluginResponses(String plugin) {
+		return hasResponseCount("remotePlugins", plugin);
+	}
+
+	/**
+	 * Compares the response count using the same expression as sorting by "metadata->{field}->{plugin}",
+	 * so hot response indexes apply to both.
+	 */
+	@SuppressWarnings("unchecked")
+	private static Specification<Ref> hasResponseCount(String field, String plugin) {
+		return (root, query, cb) -> cb.greaterThan(
+			(Expression<Double>) createJsonbSortExpression(root, cb, "metadata->" + field + "->" + plugin + ":num", "metadata"),
+			cb.function("cast_to_numeric", Double.class, cb.literal(0)));
+	}
+
+	private static Specification<Ref> hasNoResponseCount(String field, String plugin) {
+		return (root, query, cb) -> cb.equal(
+			createJsonbSortExpression(root, cb, "metadata->" + field + "->" + plugin + ":num", "metadata"),
+			cb.function("cast_to_numeric", Double.class, cb.literal(0)));
+	}
+
+	public static Specification<Ref> hasNoPluginResponses(String user, String userOrigin, String plugin) {
 		return (root, query, cb) ->
 			cb.or(
 				cb.isNull(root.get(Ref_.metadata)),
@@ -171,10 +194,10 @@ public class RefSpec {
 								root.get(Ref_.metadata),
 								cb.literal("userUrls")),
 							cb.literal(plugin)),
-						cb.concat("tag:/" + publicTag(user) + "?url=", root.get(Ref_.url)))));
+						cb.concat(userUrlPrefix(user, userOrigin), root.get(Ref_.url)))));
 	}
 
-	public static Specification<Ref> hasPluginResponses(String user, String plugin) {
+	public static Specification<Ref> hasPluginResponses(String user, String userOrigin, String plugin) {
 		return (root, query, cb) ->
 			cb.and(
 				cb.isNotNull(root.get(Ref_.metadata)),
@@ -185,7 +208,7 @@ public class RefSpec {
 								root.get(Ref_.metadata),
 								cb.literal("userUrls")),
 							cb.literal(plugin)),
-						cb.concat("tag:/" + publicTag(user) + "?url=", root.get(Ref_.url)))));
+						cb.concat(userUrlPrefix(user, userOrigin), root.get(Ref_.url)))));
 	}
 
 	private static Predicate tagExists(Root<Ref> root, CriteriaBuilder cb, String tag) {
@@ -197,7 +220,12 @@ public class RefSpec {
 			cb.and(
 				cb.isNull(expanded),
 				cb.isNotNull(root.get(Ref_.tags)),
-				cb.isTrue(cb.function("jsonb_exists", Boolean.class, root.get(Ref_.tags), cb.literal(tag)))));
+				cb.or(
+					cb.isTrue(cb.function("jsonb_exists", Boolean.class, root.get(Ref_.tags), cb.literal(tag))),
+					cb.like(
+						cb.function("jsonb_text", String.class, root.get(Ref_.tags)),
+						"%\"" + tag.replace("_", "\\_") + "/%",
+						'\\'))));
 	}
 
 	public static Specification<Ref> hasTag(String tag) {
@@ -303,6 +331,65 @@ public class RefSpec {
 				cb.literal(i.toString()));
 	}
 
+	public static Specification<Ref> isTagValueBefore(TagValueFilter filter) {
+		return isTagValue(filter, true);
+	}
+
+	public static Specification<Ref> isTagValueAfter(TagValueFilter filter) {
+		return isTagValue(filter, false);
+	}
+
+	/**
+	 * Compares the value of a tag in the tags array, using the same expression as tag value sorting
+	 * so hot tag indexes apply. Refs without a value for the tag never match.
+	 */
+	private static Specification<Ref> isTagValue(TagValueFilter filter, boolean before) {
+		if (filter == null) return unrestricted();
+		return (root, query, cb) -> {
+			var tag = cb.literal(filter.sort().tag());
+			var text = cb.function("tag_value", String.class, root.get(Ref_.tags), tag);
+			if (filter.value() instanceof String value) {
+				return cb.and(
+					cb.notEqual(text, ""),
+					before ? cb.lessThan(text, value) : cb.greaterThan(text, value));
+			}
+			var number = cb.function(filter.sort().function(), Double.class, root.get(Ref_.tags), tag);
+			var value = cb.function("cast_to_numeric", Double.class, cb.literal(filter.value()));
+			return cb.and(
+				cb.notEqual(text, ""),
+				before ? cb.lessThan(number, value) : cb.greaterThan(number, value));
+		};
+	}
+
+	public static Specification<Ref> isPluginValueBefore(PluginValueFilter filter) {
+		return isPluginValue(filter, true);
+	}
+
+	public static Specification<Ref> isPluginValueAfter(PluginValueFilter filter) {
+		return isPluginValue(filter, false);
+	}
+
+	/**
+	 * Compares a field of plugin data, using the same expression as plugin sorting.
+	 * Refs without a value for the field never match.
+	 */
+	@SuppressWarnings("unchecked")
+	private static Specification<Ref> isPluginValue(PluginValueFilter filter, boolean before) {
+		if (filter == null) return unrestricted();
+		return (root, query, cb) -> {
+			var field = createJsonbValue(root, cb, filter.property(), "plugins");
+			if (filter.value() instanceof String value) {
+				Expression<String> text = field.expression();
+				return before ? cb.lessThan(text, value) : cb.greaterThan(text, value);
+			}
+			Expression<Double> number = field.numeric()
+				? field.expression()
+				: cb.function("cast_to_numeric", Double.class, field.expression());
+			var value = cb.function("cast_to_numeric", Double.class, cb.literal(filter.value()));
+			return before ? cb.lessThan(number, value) : cb.greaterThan(number, value);
+		};
+	}
+
 	/**
 	 * Creates a Specification with sorting applied based on the PageRequest's sort orders.
 	 * JSONB field sort columns are rewritten as JPA Specification orderBy clauses.
@@ -340,6 +427,8 @@ public class RefSpec {
 					} else {
 						expr = null;
 					}
+				} else if (property.startsWith("tags->")) {
+					expr = SortSpec.createTagValueSortExpression(root, cb, property);
 				} else if (isJsonbSortProperty(property, "metadata", "plugins")) {
 					expr = createJsonbSortExpression(root, cb, property, "metadata", "plugins");
 				} else if (property.endsWith(":len")) {

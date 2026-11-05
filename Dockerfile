@@ -1,4 +1,4 @@
-FROM oven/bun:1.4.2-slim AS bun
+FROM oven/bun:1.4.4-slim AS bun
 
 FROM maven:3.9.16-amazoncorretto-25-debian AS builder
 WORKDIR /app
@@ -13,6 +13,7 @@ RUN java -Djarmode=tools -jar target/*.jar extract --layers --launcher --destina
 
 FROM builder AS test
 COPY docker/entrypoint.sh .
+COPY docs ./docs
 ENV BUN_RUNTIME_TRANSPILER_CACHE_PATH=0
 ENV BUN_INSTALL_BIN=/usr/local/bin
 COPY --from=bun /usr/local/bin/bun /usr/local/bin/
@@ -43,10 +44,15 @@ CMD mvn -gs settings.xml test jacoco:report surefire-report:report; \
 		mkdir -p /reports/coverage && \
 		if [ -d target/site/jacoco ]; then cp -r target/site/jacoco/* /reports/coverage/; fi
 
-FROM azul/zulu-openjdk-debian:25.0.4.1-25.36-jre AS deploy
+FROM azul/zulu-openjdk-debian:25.0.5-25.38-jre AS deploy
 RUN apt-get update && apt-get upgrade -y \
     && apt-get install curl -y \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
+# Distrust roots of the compromised eMudhra intermediates (https://emudhra.we-have-a-problem.com/)
+RUN for alias in "comodoaaaca [jdk]" "emsigneccrootcag3 [jdk]" "emsigneccrootca-g3"; do \
+      keytool -delete -cacerts -storepass changeit -alias "$alias" 2>/dev/null || true; \
+    done \
+    && ! keytool -list -v -cacerts -storepass changeit | grep -qE '86:A1:EC:BA:08:9C:4A:8D|D7:A7:A0:FB:5D:7E:27:31'
 ENV BUN_RUNTIME_TRANSPILER_CACHE_PATH=0
 ENV BUN_INSTALL_BIN=/usr/local/bin
 COPY --from=bun /usr/local/bin/bun /usr/local/bin/

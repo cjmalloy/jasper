@@ -16,7 +16,6 @@ public class Feed implements Serializable {
 	private List<String> matchText;
 	private List<String> addTags;
 	private boolean disableEtag;
-	private String etag;
 	private boolean stripQuery;
 	private boolean stripHash;
 	private boolean scrapeWebpage;
@@ -26,6 +25,7 @@ public class Feed implements Serializable {
 	private boolean scrapeThumbnail;
 	private boolean scrapeAudio;
 	private boolean scrapeVideo;
+	private boolean scrapeShorts;
 	private Thumbnail defaultThumbnail;
 
 	private static final Feed DEFAULTS = new Feed();

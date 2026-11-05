@@ -1,7 +1,9 @@
 package jasper.repository.filter;
 
 import jasper.domain.Ref;
-import jasper.repository.spec.QualifiedTag;
+import jasper.errors.InvalidQueryException;
+import jasper.repository.spec.SortSpec.PluginValueFilter;
+import jasper.repository.spec.SortSpec.TagValueFilter;
 import lombok.Builder;
 import lombok.Getter;
 import org.slf4j.Logger;
@@ -24,12 +26,17 @@ import static org.springframework.data.jpa.domain.Specification.not;
 @Getter
 public class RefFilter implements Query {
 	public static final String QUERY = Query.REGEX;
+	public static final String TAG_VALUE = TagValueFilter.REGEX;
+	public static final int TAG_VALUE_LEN = TagValueFilter.LEN;
+	public static final String PLUGIN_VALUE = PluginValueFilter.REGEX;
+	public static final int PLUGIN_VALUE_LEN = PluginValueFilter.LEN;
 	private static final Logger logger = LoggerFactory.getLogger(RefFilter.class);
 
 	private String origin;
 	private Integer nesting;
 	private String url;
 	private Boolean obsolete;
+	private Boolean ignored;
 	private String scheme;
 	private String query;
 	private String noDescendents;
@@ -42,7 +49,10 @@ public class RefFilter implements Query {
 	private String noResponses;
 	private List<String> pluginResponse;
 	private List<String> noPluginResponse;
+	private List<String> remotePluginResponse;
+	private List<String> noRemotePluginResponse;
 	private String user;
+	private String userOrigin;
 	private List<String> userResponse;
 	private List<String> noUserResponse;
 	private Instant modifiedBefore;
@@ -53,9 +63,14 @@ public class RefFilter implements Query {
 	private Instant createdAfter;
 	private Instant responseBefore;
 	private Instant responseAfter;
+	private List<String> tagBefore;
+	private List<String> tagAfter;
+	private List<String> pluginBefore;
+	private List<String> pluginAfter;
 
-	public Specification<Ref> spec(QualifiedTag user) {
-		if (user != null) this.user = user.tag;
+	public Specification<Ref> spec(String user, String userOrigin) {
+		this.user = user;
+		this.userOrigin = userOrigin;
 		return spec();
 	}
 
@@ -70,6 +85,13 @@ public class RefFilter implements Query {
 				result = result.and(isNotObsolete());
 			} else {
 				result = result.and(not(isNotObsolete()));
+			}
+		}
+		if (ignored != null) {
+			if (!ignored) {
+				result = result.and(isNotIgnored());
+			} else {
+				result = result.and(not(isNotIgnored()));
 			}
 		}
 		if (nesting != null) {
@@ -117,15 +139,25 @@ public class RefFilter implements Query {
 				result = result.and(hasNoPluginResponses(nr));
 			}
 		}
+		if (remotePluginResponse != null) {
+			for (var r : remotePluginResponse) {
+				result = result.and(hasRemotePluginResponses(r));
+			}
+		}
+		if (noRemotePluginResponse != null) {
+			for (var nr : noRemotePluginResponse) {
+				result = result.and(hasNoRemotePluginResponses(nr));
+			}
+		}
 		if (isNotBlank(user)) {
 			if (userResponse != null) {
 				for (var r : userResponse) {
-					result = result.and(hasPluginResponses(user, r));
+					result = result.and(hasPluginResponses(user, userOrigin, r));
 				}
 			}
 			if (noUserResponse != null) {
 				for (var nr : noUserResponse) {
-					result = result.and(hasNoPluginResponses(user, nr));
+					result = result.and(hasNoPluginResponses(user, userOrigin, nr));
 				}
 			}
 		}
@@ -153,6 +185,38 @@ public class RefFilter implements Query {
 		if (responseAfter != null) {
 			result = result.and(isResponseAfter(responseAfter));
 		}
+		if (tagBefore != null) {
+			for (var f : tagBefore) {
+				result = result.and(isTagValueBefore(tagValueFilter(f)));
+			}
+		}
+		if (tagAfter != null) {
+			for (var f : tagAfter) {
+				result = result.and(isTagValueAfter(tagValueFilter(f)));
+			}
+		}
+		if (pluginBefore != null) {
+			for (var f : pluginBefore) {
+				result = result.and(isPluginValueBefore(pluginValueFilter(f)));
+			}
+		}
+		if (pluginAfter != null) {
+			for (var f : pluginAfter) {
+				result = result.and(isPluginValueAfter(pluginValueFilter(f)));
+			}
+		}
+		return result;
+	}
+
+	private static TagValueFilter tagValueFilter(String filter) {
+		var result = TagValueFilter.parse(filter);
+		if (result == null) throw new InvalidQueryException(filter, "expected tags->{tag}/{value}, tags->{tag}:num/{number} or tags->{tag}:dur/{duration}");
+		return result;
+	}
+
+	private static PluginValueFilter pluginValueFilter(String filter) {
+		var result = PluginValueFilter.parse(filter);
+		if (result == null) throw new InvalidQueryException(filter, "expected plugins->{plugin}[->{field}...]/{value}, plugins->{plugin}[->{field}...]:num/{number} or plugins->{plugin}[->{field}...]:len/{length}");
 		return result;
 	}
 }

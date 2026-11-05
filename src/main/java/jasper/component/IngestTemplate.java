@@ -31,6 +31,7 @@ import static jasper.component.Replicator.deletorTag;
 import static jasper.component.Replicator.isDeletorTag;
 import static jasper.util.DbConstraint.isPkViolation;
 import static jasper.util.DbConstraint.isUniqueModifiedOriginViolation;
+import static jasper.util.Transactions.afterCommit;
 
 @Component
 public class IngestTemplate {
@@ -61,6 +62,11 @@ public class IngestTemplate {
 	public void create(Template template) {
 		if (isDeletorTag(template.getTag())) {
 			if (templateRepository.existsByQualifiedTag(deletedTag(template.getQualifiedTag()))) throw new AlreadyExistsException();
+			var existing = templateRepository.findOneByQualifiedTag(template.getQualifiedTag());
+			if (existing.isPresent()) {
+				template.setModified(existing.get().getModified());
+				return;
+			}
 		} else {
 			delete(deletorTag(template.getQualifiedTag()));
 		}
@@ -102,7 +108,7 @@ public class IngestTemplate {
 	@Timed(value = "jasper.template", histogram = true)
 	public void delete(String qualifiedTag) {
 		templateRepository.deleteByQualifiedTag(qualifiedTag);
-		messages.deleteTemplate(qualifiedTag);
+		afterCommit(() -> messages.deleteTemplate(qualifiedTag));
 	}
 
 	void ensureCreateUniqueModified(Template template) {

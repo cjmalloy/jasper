@@ -12,6 +12,7 @@ import lombok.Setter;
 import lombok.With;
 
 import java.io.Serializable;
+import java.time.Duration;
 import java.util.Base64;
 import java.util.List;
 import java.util.Map;
@@ -23,6 +24,7 @@ import static jasper.repository.spec.QualifiedTag.selector;
 import static jasper.repository.spec.QualifiedTag.tagOriginList;
 import static jasper.repository.spec.QualifiedTag.tagOriginSelector;
 import static java.lang.Math.min;
+import static java.time.Duration.ofNanos;
 import static java.util.Comparator.comparingInt;
 import static java.util.stream.Collectors.toMap;
 import static org.apache.commons.collections4.CollectionUtils.isNotEmpty;
@@ -97,7 +99,8 @@ public interface Config {
 		@Builder.Default
 		private int maxPullEntityBatch = 5000;
 		/**
-		 * Whitelist selectors to run scripts on. No origin wildcards.
+		 * Whitelist selectors to run scripts on.
+		 * Supports "@*" and "@origin.*" wildcards, matching one nesting level.
 		 */
 		@Builder.Default
 		private List<String> scriptSelectors = List.of("");
@@ -161,10 +164,15 @@ public interface Config {
 		@Builder.Default
 		private int maxConcurrentReplication = 3;
 		/**
-		 * Maximum HTTP requests per origin every 500 nanoseconds. Default 50.
+		 * Global maximum HTTP requests (across all origins) every maxRequestsPeriod. Default 500.
 		 */
 		@Builder.Default
-		private int maxRequests = 50;
+		private int maxRequests = 500;
+		/**
+		 * Refresh period for the global maxRequests rate limit. Default 500 nanoseconds (effectively unlimited).
+		 */
+		@Builder.Default
+		private Duration maxRequestsPeriod = ofNanos(500);
 		/**
 		 * Global maximum concurrent HTTP requests (across all origins). Default 500.
 		 */
@@ -209,6 +217,7 @@ public interface Config {
 			if (isNotEmpty(server.getHostWhitelist())) wrapped = wrapped.withHostWhitelist(server.getHostWhitelist());
 			if (isNotEmpty(server.getHostBlacklist())) wrapped = wrapped.withHostBlacklist(server.getHostBlacklist());
 			if (server.getMaxRequests() != null) wrapped = wrapped.withMaxRequests(server.getMaxRequests());
+			if (server.getMaxRequestsPeriod() != null) wrapped = wrapped.withMaxRequestsPeriod(server.getMaxRequestsPeriod());
 			if (server.getMaxConcurrentRequests() != null) wrapped = wrapped.withMaxConcurrentRequests(server.getMaxConcurrentRequests());
 			if (server.getMaxConcurrentScripts() != null) wrapped = wrapped.withMaxConcurrentScripts(server.getMaxConcurrentScripts());
 			if (server.getMaxConcurrentReplication() != null) wrapped = wrapped.withMaxConcurrentReplication(server.getMaxConcurrentReplication());
@@ -384,9 +393,18 @@ public interface Config {
 		 */
 		private List<String> defaultTagWriteAccess;
 		/**
-		 * Maximum HTTP requests per origin every 500 nanoseconds. Default 50.
+		 * Maximum HTTP requests per origin every maxRequestsPeriod. Default 50.
 		 */
 		private int maxRequests = 50;
+		/**
+		 * Refresh period for the per origin maxRequests rate limit. Default 500 nanoseconds (effectively unlimited).
+		 */
+		private Duration maxRequestsPeriod = ofNanos(500);
+		/**
+		 * Maximum concurrent HTTP requests per origin. Requests over the limit get 429.
+		 * Default 0 (unlimited, only the server maxConcurrentRequests applies).
+		 */
+		private int maxConcurrentRequests = 0;
 		/**
 		 * Maximum concurrent script executions per origin. Default 5.
 		 */
@@ -446,6 +464,8 @@ public interface Config {
 			if (isNotBlank(security.getTokenEndpoint())) wrapped = wrapped.withTokenEndpoint(security.getTokenEndpoint());
 			if (isNotBlank(security.getScimEndpoint())) wrapped = wrapped.withScimEndpoint(security.getScimEndpoint());
 			if (security.getMaxRequests() != null) wrapped = wrapped.withMaxRequests(security.getMaxRequests());
+			if (security.getMaxRequestsPeriod() != null) wrapped = wrapped.withMaxRequestsPeriod(security.getMaxRequestsPeriod());
+			if (security.getMaxConcurrentRequests() != null) wrapped = wrapped.withMaxConcurrentRequests(security.getMaxConcurrentRequests());
 			if (security.getMaxConcurrentScripts() != null) wrapped = wrapped.withMaxConcurrentScripts(security.getMaxConcurrentScripts());
 			return wrapped;
 		}

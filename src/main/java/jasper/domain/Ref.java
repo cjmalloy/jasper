@@ -103,7 +103,7 @@ public class Ref implements HasTags {
 		if (metadata.getPlugins() == null) return false;
 		return metadata.getPlugins().keySet().stream()
 			.filter(t -> matchesTag(tag, t))
-			.anyMatch(t -> metadata.getPlugins().get(t) > 0);
+			.anyMatch(t -> metadata.getPlugins().get(t) != null && metadata.getPlugins().get(t) > 0);
 	}
 
 	public void setOrigin(String value) {
@@ -242,15 +242,6 @@ public class Ref implements HasTags {
 		if (plugins == null) return null;
 		if (!plugins.has(tag)) return null;
         return om().convertValue(plugins.get(tag), toValueType);
-	}
-
-	@JsonIgnore
-	public long getPluginResponses(String tag) {
-		if (metadata == null) return 0;
-		if (metadata.getPlugins() == null) return 0;
-		if (!metadata.getPlugins().containsKey(tag)) return 0;
-		if (metadata.getPlugins().get(tag) == null) return 0;
-		return metadata.getPlugins().get(tag);
 	}
 
 	@JsonIgnore
