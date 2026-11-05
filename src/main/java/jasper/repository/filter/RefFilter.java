@@ -61,18 +61,10 @@ public class RefFilter implements Query {
 	private Instant publishedAfter;
 	private Instant createdBefore;
 	private Instant createdAfter;
-	/**
-	 * Alias of {@link #newResponseBefore}.
-	 */
 	private Instant responseBefore;
-	/**
-	 * Alias of {@link #newResponseAfter}.
-	 */
 	private Instant responseAfter;
-	private Instant newResponseBefore;
-	private Instant newResponseAfter;
-	private Instant newReactionBefore;
-	private Instant newReactionAfter;
+	private Instant reactionBefore;
+	private Instant reactionAfter;
 	private List<String> tagBefore;
 	private List<String> tagAfter;
 	private List<String> pluginBefore;
@@ -190,22 +182,16 @@ public class RefFilter implements Query {
 			result = result.and(isCreatedAfter(createdAfter));
 		}
 		if (responseBefore != null) {
-			result = result.and(isNewResponseBefore(responseBefore));
+			result = result.and(isResponseBefore(responseBefore));
 		}
 		if (responseAfter != null) {
-			result = result.and(isNewResponseAfter(responseAfter));
+			result = result.and(isResponseAfter(responseAfter));
 		}
-		if (newResponseBefore != null) {
-			result = result.and(isNewResponseBefore(newResponseBefore));
+		if (reactionBefore != null) {
+			result = result.and(isReactionBefore(reactionBefore));
 		}
-		if (newResponseAfter != null) {
-			result = result.and(isNewResponseAfter(newResponseAfter));
-		}
-		if (newReactionBefore != null) {
-			result = result.and(isNewReactionBefore(newReactionBefore));
-		}
-		if (newReactionAfter != null) {
-			result = result.and(isNewReactionAfter(newReactionAfter));
+		if (reactionAfter != null) {
+			result = result.and(isReactionAfter(reactionAfter));
 		}
 		if (tagBefore != null) {
 			for (var f : tagBefore) {

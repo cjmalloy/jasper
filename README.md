@@ -185,10 +185,9 @@ Other filters:
   origin, and `remotePluginResponse` / `noRemotePluginResponse` from all origins.
 * `userResponse` / `noUserResponse` take user plugin tags (`plugin/user/...`) and match Refs the current user has
   (or has not) responded to with that plugin, for example `userResponse=plugin/user/read`.
-* `newResponseBefore` / `newResponseAfter` compare `metadata->newResponse`, the time of the latest new response
-  (ignoring user URLs). For example, `newResponseAfter=<now - 1 day>` matches Refs active in the last day.
-  `responseBefore` / `responseAfter` are older aliases; prefer `newResponseBefore` / `newResponseAfter`.
-* `newReactionBefore` / `newReactionAfter` compare `metadata->newReaction`, the time of the latest response
+* `responseBefore` / `responseAfter` compare `metadata->newResponse`, the time of the latest new response
+  (ignoring user URLs). For example, `responseAfter=<now - 1 day>` matches Refs active in the last day.
+* `reactionBefore` / `reactionAfter` compare `metadata->newReaction`, the time of the latest response
   created or updated, including user URLs.
 * `modifiedBefore` / `modifiedAfter`, `publishedBefore` / `publishedAfter` and `createdBefore` / `createdAfter`.
 
@@ -760,8 +759,8 @@ and each disabled index is dropped.
 | `published`         | Index on the published date.                                                     | `true`        |
 | `modified`          | Index on the modified date.                                                      | `true`        |
 | `created`           | Index on the created date, used by the default sort and `createdBefore` / `createdAfter`. | `true` |
-| `newResponse`       | Index on `metadata->newResponse`, used when sorting by it and by `newResponseBefore` / `newResponseAfter`. | `true` |
-| `newReaction`       | Index on `metadata->newReaction`, used when sorting by it and by `newReactionBefore` / `newReactionAfter`. | `true` |
+| `newResponse`       | Index on `metadata->newResponse`, used when sorting by it and by `responseBefore` / `responseAfter`. | `true` |
+| `newReaction`       | Index on `metadata->newReaction`, used when sorting by it and by `reactionBefore` / `reactionAfter`. | `true` |
 | `urlPrefix`         | Index used by `userResponse` / `noUserResponse` (PostgreSQL only). | `true` |
 | `ignored`           | Partial index on Refs marked `ignored` during replication, used by pull batches. | `true`        |
 | `cascade`           | Partial index on Refs waiting for a metadata cascade.                            | `true`        |

@@ -348,22 +348,22 @@ public class RefSpec {
 						i);
 	}
 
-	public static Specification<Ref> isNewResponseAfter(Instant i) {
+	public static Specification<Ref> isResponseAfter(Instant i) {
 		if (i == null) return unrestricted();
 		return isMetadataDate("newResponse", timestamp(i), false);
 	}
 
-	public static Specification<Ref> isNewResponseBefore(Instant i) {
+	public static Specification<Ref> isResponseBefore(Instant i) {
 		if (i == null) return unrestricted();
 		return isMetadataDate("newResponse", timestamp(i), true);
 	}
 
-	public static Specification<Ref> isNewReactionAfter(Instant i) {
+	public static Specification<Ref> isReactionAfter(Instant i) {
 		if (i == null) return unrestricted();
 		return isMetadataDate("newReaction", timestamp(i), false);
 	}
 
-	public static Specification<Ref> isNewReactionBefore(Instant i) {
+	public static Specification<Ref> isReactionBefore(Instant i) {
 		if (i == null) return unrestricted();
 		return isMetadataDate("newReaction", timestamp(i), true);
 	}

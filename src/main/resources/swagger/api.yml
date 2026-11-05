@@ -287,40 +287,26 @@ paths:
             format: date-time
         - name: responseBefore
           in: query
-          description: 'Alias of newResponseBefore.'
+          description: 'Only match Refs whose latest response (metadata->newResponse) is strictly before this time. Refs without responses never match. Indexed by the newResponse _config/index flag.'
           required: false
           schema:
             type: string
             format: date-time
         - name: responseAfter
           in: query
-          description: 'Alias of newResponseAfter.'
+          description: 'Only match Refs whose latest response (metadata->newResponse) is strictly after this time, e.g. now minus one day for Refs active in the last day. Refs without responses never match. Indexed by the newResponse _config/index flag.'
           required: false
           schema:
             type: string
             format: date-time
-        - name: newResponseBefore
-          in: query
-          description: 'Only match Refs whose latest response (metadata->newResponse) is strictly before this time. Refs without responses never match. Indexed by the newResponse _config/index flag.'
-          required: false
-          schema:
-            type: string
-            format: date-time
-        - name: newResponseAfter
-          in: query
-          description: 'Only match Refs whose latest response (metadata->newResponse) is strictly after this time, e.g. now minus one day for Refs active in the last day. Indexed by the newResponse _config/index flag.'
-          required: false
-          schema:
-            type: string
-            format: date-time
-        - name: newReactionBefore
+        - name: reactionBefore
           in: query
           description: 'Only match Refs whose latest reaction (metadata->newReaction) is strictly before this time. Refs without reactions never match. Indexed by the newReaction _config/index flag.'
           required: false
           schema:
             type: string
             format: date-time
-        - name: newReactionAfter
+        - name: reactionAfter
           in: query
           description: 'Only match Refs whose latest reaction (metadata->newReaction) is strictly after this time. Indexed by the newReaction _config/index flag.'
           required: false
@@ -554,40 +540,26 @@ paths:
             format: date-time
         - name: responseBefore
           in: query
-          description: 'Alias of newResponseBefore.'
+          description: 'Only match Refs whose latest response (metadata->newResponse) is strictly before this time. Refs without responses never match. Indexed by the newResponse _config/index flag.'
           required: false
           schema:
             type: string
             format: date-time
         - name: responseAfter
           in: query
-          description: 'Alias of newResponseAfter.'
+          description: 'Only match Refs whose latest response (metadata->newResponse) is strictly after this time, e.g. now minus one day for Refs active in the last day. Refs without responses never match. Indexed by the newResponse _config/index flag.'
           required: false
           schema:
             type: string
             format: date-time
-        - name: newResponseBefore
-          in: query
-          description: 'Only match Refs whose latest response (metadata->newResponse) is strictly before this time. Refs without responses never match. Indexed by the newResponse _config/index flag.'
-          required: false
-          schema:
-            type: string
-            format: date-time
-        - name: newResponseAfter
-          in: query
-          description: 'Only match Refs whose latest response (metadata->newResponse) is strictly after this time, e.g. now minus one day for Refs active in the last day. Indexed by the newResponse _config/index flag.'
-          required: false
-          schema:
-            type: string
-            format: date-time
-        - name: newReactionBefore
+        - name: reactionBefore
           in: query
           description: 'Only match Refs whose latest reaction (metadata->newReaction) is strictly before this time. Refs without reactions never match. Indexed by the newReaction _config/index flag.'
           required: false
           schema:
             type: string
             format: date-time
-        - name: newReactionAfter
+        - name: reactionAfter
           in: query
           description: 'Only match Refs whose latest reaction (metadata->newReaction) is strictly after this time. Indexed by the newReaction _config/index flag.'
           required: false

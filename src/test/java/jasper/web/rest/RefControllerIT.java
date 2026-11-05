@@ -305,10 +305,10 @@ class RefControllerIT {
 				.perform(get(path)
 					.param("pluginAfter", "metadata->remotePlugins->plugin/user/read/10")
 					.param("pluginBefore", "metadata->plugins->plugin/comment:num/3")
-					.param("newResponseAfter", "2026-01-01T00:00:00.5Z")
-					.param("newResponseBefore", "2026-01-02T00:00:00Z")
-					.param("newReactionAfter", "2026-01-01T00:00:00Z")
-					.param("newReactionBefore", "2026-01-02T00:00:00Z"))
+					.param("responseAfter", "2026-01-01T00:00:00.5Z")
+					.param("responseBefore", "2026-01-02T00:00:00Z")
+					.param("reactionAfter", "2026-01-01T00:00:00Z")
+					.param("reactionBefore", "2026-01-02T00:00:00Z"))
 				.andExpect(status().isOk());
 		}
 	}

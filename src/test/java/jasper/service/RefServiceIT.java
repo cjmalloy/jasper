@@ -2364,22 +2364,22 @@ public class RefServiceIT {
 		refWithMetadata("https://example.com/3", Metadata.builder().newResponse(Metadata.timestamp(t3)).newReaction(Metadata.timestamp(t1)).build());
 		refWithMetadata("https://example.com/4", Metadata.builder().build());
 
-		assertThat(filteredUrls(RefFilter.builder().newResponseAfter(t2).build()))
+		assertThat(filteredUrls(RefFilter.builder().responseAfter(t2).build()))
 			.containsExactly("https://example.com/3");
-		assertThat(filteredUrls(RefFilter.builder().newResponseAfter(Instant.parse("2026-01-01T00:00:00.1Z")).build()))
+		assertThat(filteredUrls(RefFilter.builder().responseAfter(Instant.parse("2026-01-01T00:00:00.1Z")).build()))
 			.containsExactly("https://example.com/1", "https://example.com/2", "https://example.com/3");
-		assertThat(filteredUrls(RefFilter.builder().newResponseBefore(t2).build()))
+		assertThat(filteredUrls(RefFilter.builder().responseBefore(t2).build()))
 			.containsExactly("https://example.com/1");
-		assertThat(filteredUrls(RefFilter.builder().newResponseBefore(Instant.parse("2026-01-01T00:00:00.9Z")).build()))
+		assertThat(filteredUrls(RefFilter.builder().responseBefore(Instant.parse("2026-01-01T00:00:00.9Z")).build()))
 			.containsExactly("https://example.com/1", "https://example.com/2");
-		assertThat(filteredUrls(RefFilter.builder().newReactionAfter(t2).build()))
+		assertThat(filteredUrls(RefFilter.builder().reactionAfter(t2).build()))
 			.containsExactly("https://example.com/1");
-		assertThat(filteredUrls(RefFilter.builder().newReactionBefore(t2).build()))
+		assertThat(filteredUrls(RefFilter.builder().reactionBefore(t2).build()))
 			.containsExactly("https://example.com/3");
 	}
 
 	@Test
-	void testResponseBeforeAfterAliasNewResponse() {
+	void testResponseBeforeAfterIgnoresMetadataModified() {
 		refWithMetadata("https://example.com/1", Metadata.builder().modified("2026-01-03T00:00:00Z").newResponse(Metadata.timestamp(Instant.parse("2026-01-01T00:00:00Z"))).build());
 		refWithMetadata("https://example.com/2", Metadata.builder().modified("2026-01-01T00:00:00Z").newResponse(Metadata.timestamp(Instant.parse("2026-01-02T00:00:00Z"))).build());
 		refWithMetadata("https://example.com/3", Metadata.builder().modified("2026-01-02T00:00:00Z").newResponse(Metadata.timestamp(Instant.parse("2026-01-03T00:00:00Z"))).build());

@@ -166,7 +166,7 @@ public class IndexRepositoryImplPostgres implements IndexRepository {
 	/**
 	 * Same SQL that {@link jasper.repository.spec.SortSpec#createJsonbOrder} renders for a
 	 * metadata sort with the PostgreSQL dialect, so the planner can match the index to the sort and the
-	 * newResponseBefore / newResponseAfter filters.
+	 * responseBefore / responseAfter filters.
 	 */
 	@Override
 	public void buildNewResponse() {

@@ -639,10 +639,8 @@ public class IndexRepositoryIT {
 		var now = Instant.parse("2026-01-01T00:00:00.5Z");
 		assertThat(explainFilter(RefFilter.builder().responseBefore(now).build().spec(), sqlite)).contains("ref_new_response_index");
 		assertThat(explainFilter(RefFilter.builder().responseAfter(now).build().spec(), sqlite)).contains("ref_new_response_index");
-		assertThat(explainFilter(RefFilter.builder().newResponseBefore(now).build().spec(), sqlite)).contains("ref_new_response_index");
-		assertThat(explainFilter(RefFilter.builder().newResponseAfter(now).build().spec(), sqlite)).contains("ref_new_response_index");
-		assertThat(explainFilter(RefFilter.builder().newReactionBefore(now).build().spec(), sqlite)).contains("ref_new_reaction_index");
-		assertThat(explainFilter(RefFilter.builder().newReactionAfter(now).build().spec(), sqlite)).contains("ref_new_reaction_index");
+		assertThat(explainFilter(RefFilter.builder().reactionBefore(now).build().spec(), sqlite)).contains("ref_new_reaction_index");
+		assertThat(explainFilter(RefFilter.builder().reactionAfter(now).build().spec(), sqlite)).contains("ref_new_reaction_index");
 	}
 
 	@Test
