@@ -32,11 +32,32 @@ public class Index implements Serializable {
 	private boolean published = true;
 	@Builder.Default
 	private boolean modified = true;
+	@Builder.Default
+	private boolean newResponse = true;
+	@Builder.Default
+	private boolean newReaction = true;
 	/**
 	 * Tag value sorts to index, e.g. "plugin/progress:num" or "tags->plugin/duration:dur".
 	 */
 	@Builder.Default
 	private List<String> hotTags = new ArrayList<>();
+	/**
+	 * Plugin sort columns to index, e.g. "plugin/test->size:num" or "plugins->plugin/test->name".
+	 */
+	@Builder.Default
+	private List<String> hotPlugins = new ArrayList<>();
+	/**
+	 * Plugins to index local response counts for, e.g. "plugin/comment" for
+	 * sorting by "metadata->plugins->plugin/comment" and the pluginResponse filter.
+	 */
+	@Builder.Default
+	private List<String> hotResponses = new ArrayList<>();
+	/**
+	 * Plugins to index response counts from all origins for, e.g. "plugin/comment" for
+	 * sorting by "metadata->remotePlugins->plugin/comment" and the remotePluginResponse filter.
+	 */
+	@Builder.Default
+	private List<String> hotRemoteResponses = new ArrayList<>();
 	@Builder.Default
 	private boolean ignored = true;
 	@Builder.Default

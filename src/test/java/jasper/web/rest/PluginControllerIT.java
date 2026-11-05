@@ -2,6 +2,7 @@ package jasper.web.rest;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jasper.IntegrationTest;
+import jasper.config.Props;
 import jasper.domain.Plugin;
 import jasper.repository.PluginRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -12,7 +13,11 @@ import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
+
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.within;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -34,6 +39,9 @@ class PluginControllerIT {
 
 	@Autowired
 	private ObjectMapper objectMapper;
+
+	@Autowired
+	private Props props;
 
 	@BeforeEach
 	void setup() {
@@ -125,5 +133,36 @@ class PluginControllerIT {
 				.param("tag", "plugin/test"))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.defaults").value("scalar-value"));
+	}
+
+	@Test
+	void testMergePluginReturnsCursor() throws Exception {
+		var plugin = new Plugin();
+		plugin.setTag("plugin/test");
+		plugin = pluginRepository.save(plugin);
+		// The default user is used for requests, so set the admin user by header
+		props.setAllowUserTagHeader(true);
+		props.setAllowUserRoleHeader(true);
+		try {
+			var cursor = mockMvc
+				.perform(patch("/api/v1/plugin")
+					.contentType("application/merge-patch+json")
+					.content("{\"name\": \"Test\"}")
+					.param("tag", "plugin/test")
+					.param("cursor", plugin.getModified().toString())
+					.header("User-Tag", "+user/tester")
+					.header("User-Role", "ROLE_ADMIN")
+					.with(csrf().asHeader()))
+				.andExpect(status().isOk())
+				.andReturn().getResponse().getContentAsString();
+
+			var updated = pluginRepository.findOneByQualifiedTag("plugin/test");
+			assertThat(updated).isPresent();
+			assertThat(updated.get().getName()).isEqualTo("Test");
+			assertThat(objectMapper.readValue(cursor, Instant.class)).isCloseTo(updated.get().getModified(), within(1, ChronoUnit.MICROS));
+		} finally {
+			props.setAllowUserTagHeader(false);
+			props.setAllowUserRoleHeader(false);
+		}
 	}
 }

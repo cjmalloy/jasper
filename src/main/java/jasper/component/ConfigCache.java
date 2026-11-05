@@ -403,10 +403,10 @@ public class ConfigCache {
 	public void handleTemplateUpdate(Message<TemplateDto> message) {
 		var template = message.getPayload();
 		if (isBlank(template.getTag())) return;
-		if (isNotBlank(template.getOrigin())) return;
+		if (!origin(props.getLocalOrigin()).equals(origin(template.getOrigin()))) return;
 		// Delete notices are tagged with the deletor tag
 		var tag = isDeletorTag(template.getTag()) ? deletedTag(template.getTag()) : template.getTag();
-		if (concat("_config/server", props.getWorkerOrigin()).equals(tag + template.getOrigin())) {
+		if (concat("_config/server", props.getWorkerOrigin()).equals(tag)) {
 			logger.debug("Server config template updated, updating listeners");
 			rootListeners.forEach(listener -> listener.accept(self.root()));
 		}

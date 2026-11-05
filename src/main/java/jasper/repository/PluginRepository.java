@@ -63,6 +63,6 @@ public interface PluginRepository extends JpaRepository<Plugin, TagId>, Qualifie
 	 */
 	default Optional<Plugin> findByTagAndOrigin(String tag, String origin) {
 		return findFirstByTagAndOriginOrderByModifiedDesc(tag, origin)
-			.filter(p -> p.getConfig() == null || !p.getConfig().path("disabled").booleanValue());
+			.filter(p -> p.getConfig() == null || !"true".equals(p.getConfig().path("disabled").asText()));
 	}
 }

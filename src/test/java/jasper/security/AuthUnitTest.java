@@ -8,6 +8,7 @@ import jasper.config.SecurityConfiguration;
 import jasper.domain.Ref;
 import jasper.domain.User;
 import jasper.repository.RefRepository;
+import jasper.repository.filter.RefFilter;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -935,6 +936,112 @@ public class AuthUnitTest {
 	}
 
 	@Test
+	void testCanReadQuery_TagValuePublic() {
+		var user = getUser("+user/test");
+		var auth = getAuth(user, VIEWER);
+
+		assertThat(auth.canReadQuery(RefFilter.builder().tagAfter(List.of("tags->custom/progress:num/50")).build()))
+			.isTrue();
+	}
+
+	@Test
+	void testCanReadQuery_TagValuePrivate() {
+		var user = getUser("+user/test");
+		user.getTagReadAccess().add("_custom");
+		var auth = getAuth(user, VIEWER);
+
+		assertThat(auth.canReadQuery(RefFilter.builder().tagBefore(List.of("tags->_custom/progress:num/50")).build()))
+			.isTrue();
+	}
+
+	@Test
+	void testCanReadQuery_TagValueUserTag() {
+		var user = getUser("_user/test");
+		var auth = getAuth(user, VIEWER);
+
+		assertThat(auth.canReadQuery(RefFilter.builder().tagAfter(List.of("tags->_user/test:num/50")).build()))
+			.isTrue();
+	}
+
+	@Test
+	void testCanReadQuery_TagValueAfterPrivateFailed() {
+		var user = getUser("+user/test");
+		var auth = getAuth(user, USER);
+
+		assertThat(auth.canReadQuery(RefFilter.builder().tagAfter(List.of("tags->_custom/progress:num/50")).build()))
+			.isFalse();
+	}
+
+	@Test
+	void testCanReadQuery_TagValueBeforePrivateFailed() {
+		var user = getUser("+user/test");
+		var auth = getAuth(user, USER);
+
+		assertThat(auth.canReadQuery(RefFilter.builder().query("custom").tagBefore(List.of("tags->_custom/progress/50")).build()))
+			.isFalse();
+	}
+
+	@Test
+	void testCanReadQuery_PluginValuePublic() {
+		var user = getUser("+user/test");
+		var auth = getAuth(user, VIEWER);
+
+		assertThat(auth.canReadQuery(RefFilter.builder().pluginAfter(List.of("plugins->plugin/test->size:num/50")).build()))
+			.isTrue();
+	}
+
+	@Test
+	void testCanReadQuery_PluginValuePrivate() {
+		var user = getUser("+user/test");
+		user.getTagReadAccess().add("_plugin/secret");
+		var auth = getAuth(user, VIEWER);
+
+		assertThat(auth.canReadQuery(RefFilter.builder().pluginBefore(List.of("plugins->_plugin/secret->size:num/50")).build()))
+			.isTrue();
+	}
+
+	@Test
+	void testCanReadQuery_PluginValuePrivateFailed() {
+		var user = getUser("+user/test");
+		var auth = getAuth(user, USER);
+
+		assertThat(auth.canReadQuery(RefFilter.builder().pluginAfter(List.of("plugins->_plugin/secret->size:num/50")).build()))
+			.isFalse();
+		assertThat(auth.canReadQuery(RefFilter.builder().query("custom").pluginBefore(List.of("plugins->_plugin/secret->name/a")).build()))
+			.isFalse();
+		assertThat(auth.canReadQuery(RefFilter.builder().pluginAfter(List.of("plugins->_plugin/secret:num/50")).build()))
+			.isFalse();
+		assertThat(auth.canReadQuery(RefFilter.builder().pluginAfter(List.of("plugins->_plugin/secret/a")).build()))
+			.isFalse();
+	}
+
+	@Test
+	void testCanReadQuery_PluginResponsePrivate() {
+		var user = getUser("+user/test");
+		user.getTagReadAccess().add("_plugin/secret");
+		var auth = getAuth(user, VIEWER);
+
+		assertThat(auth.canReadQuery(RefFilter.builder().pluginResponse(List.of("_plugin/secret")).build())).isTrue();
+		assertThat(auth.canReadQuery(RefFilter.builder().noPluginResponse(List.of("_plugin/secret")).build())).isTrue();
+		assertThat(auth.canReadQuery(RefFilter.builder().remotePluginResponse(List.of("_plugin/secret")).build())).isTrue();
+		assertThat(auth.canReadQuery(RefFilter.builder().noRemotePluginResponse(List.of("_plugin/secret")).build())).isTrue();
+	}
+
+	@Test
+	void testCanReadQuery_PluginResponsePrivateFailed() {
+		var user = getUser("+user/test");
+		var auth = getAuth(user, USER);
+
+		assertThat(auth.canReadQuery(RefFilter.builder().pluginResponse(List.of("plugin/comment")).build())).isTrue();
+		assertThat(auth.canReadQuery(RefFilter.builder().remotePluginResponse(List.of("plugin/comment")).build())).isTrue();
+		assertThat(auth.canReadQuery(RefFilter.builder().pluginResponse(List.of("_plugin/secret")).build())).isFalse();
+		assertThat(auth.canReadQuery(RefFilter.builder().noPluginResponse(List.of("_plugin/secret")).build())).isFalse();
+		assertThat(auth.canReadQuery(RefFilter.builder().remotePluginResponse(List.of("_plugin/secret")).build())).isFalse();
+		assertThat(auth.canReadQuery(RefFilter.builder().noRemotePluginResponse(List.of("_plugin/secret")).build())).isFalse();
+		assertThat(auth.canReadQuery(RefFilter.builder().query("custom").remotePluginResponse(List.of("plugin/comment", "_plugin/secret")).build())).isFalse();
+	}
+
+	@Test
 	void testFilterSort_PrivatePluginWithAccess() {
 		var user = getUser("+user/test");
 		user.getTagReadAccess().add("_custom");
@@ -983,6 +1090,31 @@ public class AuthUnitTest {
 
 		var pageable = PageRequest.of(0, 20, Sort.by("metadata->plugins->_custom->field"));
 		assertThat(auth.pageable(pageable).getSort().isUnsorted())
+			.isTrue();
+	}
+
+	@Test
+	void testFilterSort_MetadataRemotePrivatePluginWithAccess() {
+		var user = getUser("+user/test");
+		user.getTagReadAccess().add("_plugin/secret");
+		var auth = getAuth(user, VIEWER);
+
+		assertThat(auth.pageable(PageRequest.of(0, 20, Sort.by("metadata->remotePlugins->_plugin/secret"))).getSort().isSorted())
+			.isTrue();
+		assertThat(auth.pageable(PageRequest.of(0, 20, Sort.by("metadata->remotePlugins->_plugin/secret:num"))).getSort().isSorted())
+			.isTrue();
+	}
+
+	@Test
+	void testFilterSort_MetadataRemotePrivatePluginWithoutAccess() {
+		var user = getUser("+user/test");
+		var auth = getAuth(user, USER);
+
+		assertThat(auth.pageable(PageRequest.of(0, 20, Sort.by("metadata->remotePlugins->_plugin/secret"))).getSort().isUnsorted())
+			.isTrue();
+		assertThat(auth.pageable(PageRequest.of(0, 20, Sort.by("metadata->remotePlugins->_plugin/secret:num"))).getSort().isUnsorted())
+			.isTrue();
+		assertThat(auth.pageable(PageRequest.of(0, 20, Sort.by("metadata->remotePlugins->plugin/comment:num"))).getSort().isSorted())
 			.isTrue();
 	}
 

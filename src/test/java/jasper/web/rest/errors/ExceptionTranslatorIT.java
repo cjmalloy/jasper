@@ -37,6 +37,7 @@ import org.springframework.dao.ConcurrencyFailureException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.http.HttpStatus;
+import jakarta.validation.ConstraintViolationException;
 import org.springframework.http.MediaType;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
@@ -149,6 +150,7 @@ class ExceptionTranslatorIT {
 		// Covered by the request tests below
 		tested.addAll(Stream.of(
 			MethodArgumentNotValidException.class,
+			ConstraintViolationException.class,
 			HttpMessageNotReadableException.class,
 			MissingServletRequestParameterException.class,
 			MissingServletRequestPartException.class,
@@ -251,6 +253,16 @@ class ExceptionTranslatorIT {
 			.andExpect(jsonPath("$.message").value(ERR_MISSING_PARAMETER))
 			.andExpect(jsonPath("$.type").value(REQUEST_ERROR_TYPE.toString()))
 			.andExpect(jsonPath("$.detail").value("Required request parameter 'param' for method parameter type String is not present"));
+	}
+
+	@Test
+	void testConstraintViolation() throws Exception {
+		mockMvc
+			.perform(get(BASE + "constraint-violation").param("tags", "a", "B"))
+			.andExpect(status().isBadRequest())
+			.andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON))
+			.andExpect(jsonPath("$.message").value(ERR_VALIDATION))
+			.andExpect(jsonPath("$.type").value(CONSTRAINT_VIOLATION_TYPE.toString()));
 	}
 
 	@Test

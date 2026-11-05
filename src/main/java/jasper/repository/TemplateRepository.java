@@ -60,7 +60,7 @@ public interface TemplateRepository extends JpaRepository<Template, TagId>, Qual
 		FROM Template AS t
 		WHERE t.origin = :origin
 			AND t.schema IS NOT NULL
-			AND COALESCE(CAST(jsonb_object_field(t.config, 'disabled') as boolean), false) = false
+			AND COALESCE(jsonb_object_field_text(t.config, 'disabled'), '') != 'true'
 			AND NOT EXISTS (SELECT 1 FROM Template n WHERE n.tag = t.tag AND n.origin = t.origin AND n.modified > t.modified)
 			AND (t.tag = ''
 				OR t.tag = :tag
@@ -75,7 +75,7 @@ public interface TemplateRepository extends JpaRepository<Template, TagId>, Qual
 		FROM Template AS t
 		WHERE t.origin = :origin
 			AND t.defaults IS NOT NULL
-			AND COALESCE(CAST(jsonb_object_field(t.config, 'disabled') as boolean), false) = false
+			AND COALESCE(jsonb_object_field_text(t.config, 'disabled'), '') != 'true'
 			AND NOT EXISTS (SELECT 1 FROM Template n WHERE n.tag = t.tag AND n.origin = t.origin AND n.modified > t.modified)
 			AND (t.tag = ''
 				OR t.tag = :tag
@@ -93,6 +93,6 @@ public interface TemplateRepository extends JpaRepository<Template, TagId>, Qual
 	 */
 	default Optional<Template> findByTemplateAndOrigin(String template, String origin) {
 		return findFirstByTagAndOriginOrderByModifiedDesc(template, origin)
-			.filter(t -> t.getConfig() == null || !t.getConfig().path("disabled").booleanValue());
+			.filter(t -> t.getConfig() == null || !"true".equals(t.getConfig().path("disabled").asText()));
 	}
 }

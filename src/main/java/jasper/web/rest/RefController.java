@@ -100,6 +100,7 @@ public class RefController {
 		@PageableDefault @ParameterObject Pageable pageable,
 		@RequestParam(required = false) @Length(max = QUERY_LEN) @Pattern(regexp = RefFilter.QUERY) String query,
 		@RequestParam(required = false) @Length(max = TAG_LEN) @Pattern(regexp = jasper.domain.proj.Tag.REGEX) String noDescendents,
+		@RequestParam(required = false) Integer nesting,
 		@RequestParam(required = false) @Length(max = URL_LEN) @Pattern(regexp = Ref.REGEX) String url,
 		@RequestParam(required = false) Boolean obsolete,
 		@RequestParam(required = false) @Length(max = URL_LEN) @Pattern(regexp = Ref.SCHEME_REGEX) String scheme,
@@ -115,8 +116,14 @@ public class RefController {
 		@RequestParam(required = false) Instant createdAfter,
 		@RequestParam(required = false) Instant responseBefore,
 		@RequestParam(required = false) Instant responseAfter,
+		@RequestParam(required = false) @Size(max = 100) List<@NotBlank @Length(max = RefFilter.TAG_VALUE_LEN) @Pattern(regexp = RefFilter.TAG_VALUE) String> tagBefore,
+		@RequestParam(required = false) @Size(max = 100) List<@NotBlank @Length(max = RefFilter.TAG_VALUE_LEN) @Pattern(regexp = RefFilter.TAG_VALUE) String> tagAfter,
+		@RequestParam(required = false) @Size(max = 100) List<@NotBlank @Length(max = RefFilter.PLUGIN_VALUE_LEN) @Pattern(regexp = RefFilter.PLUGIN_VALUE) String> pluginBefore,
+		@RequestParam(required = false) @Size(max = 100) List<@NotBlank @Length(max = RefFilter.PLUGIN_VALUE_LEN) @Pattern(regexp = RefFilter.PLUGIN_VALUE) String> pluginAfter,
 		@RequestParam(required = false) @Size(max = 100) List<@NotBlank @Length(max = TAG_LEN) @Pattern(regexp = Plugin.REGEX) String> pluginResponse,
 		@RequestParam(required = false) @Size(max = 100) List<@NotBlank @Length(max = TAG_LEN) @Pattern(regexp = Plugin.REGEX) String> noPluginResponse,
+		@RequestParam(required = false) @Size(max = 100) List<@NotBlank @Length(max = TAG_LEN) @Pattern(regexp = Plugin.REGEX) String> remotePluginResponse,
+		@RequestParam(required = false) @Size(max = 100) List<@NotBlank @Length(max = TAG_LEN) @Pattern(regexp = Plugin.REGEX) String> noRemotePluginResponse,
 		@RequestParam(required = false) @Size(max = 100) List<@NotBlank @Length(max = TAG_LEN) @Pattern(regexp = Plugin.REGEX) String> userResponse,
 		@RequestParam(required = false) @Size(max = 100) List<@NotBlank @Length(max = TAG_LEN) @Pattern(regexp = Plugin.REGEX) String> noUserResponse,
 		@RequestParam(required = false) @Length(max = SEARCH_LEN) String search
@@ -154,6 +161,7 @@ public class RefController {
 				.scheme(scheme)
 				.query(query)
 				.noDescendents(noDescendents)
+				.nesting(nesting)
 				.search(search)
 				.rankedOrder(rankedSort)
 				.sources(sources)
@@ -162,6 +170,8 @@ public class RefController {
 				.noResponses(noResponses)
 				.pluginResponse(pluginResponse)
 				.noPluginResponse(noPluginResponse)
+				.remotePluginResponse(remotePluginResponse)
+				.noRemotePluginResponse(noRemotePluginResponse)
 				.userResponse(userResponse)
 				.noUserResponse(noUserResponse)
 				.modifiedBefore(modifiedBefore)
@@ -171,7 +181,11 @@ public class RefController {
 				.createdBefore(createdBefore)
 				.createdAfter(createdAfter)
 				.responseBefore(responseBefore)
-				.responseAfter(responseAfter).build(),
+				.responseAfter(responseAfter)
+				.tagBefore(tagBefore)
+				.tagAfter(tagAfter)
+				.pluginBefore(pluginBefore)
+				.pluginAfter(pluginAfter).build(),
 			pageable));
 	}
 
@@ -199,8 +213,14 @@ public class RefController {
 		@RequestParam(required = false) Instant createdAfter,
 		@RequestParam(required = false) Instant responseBefore,
 		@RequestParam(required = false) Instant responseAfter,
+		@RequestParam(required = false) @Size(max = 100) List<@NotBlank @Length(max = RefFilter.TAG_VALUE_LEN) @Pattern(regexp = RefFilter.TAG_VALUE) String> tagBefore,
+		@RequestParam(required = false) @Size(max = 100) List<@NotBlank @Length(max = RefFilter.TAG_VALUE_LEN) @Pattern(regexp = RefFilter.TAG_VALUE) String> tagAfter,
+		@RequestParam(required = false) @Size(max = 100) List<@NotBlank @Length(max = RefFilter.PLUGIN_VALUE_LEN) @Pattern(regexp = RefFilter.PLUGIN_VALUE) String> pluginBefore,
+		@RequestParam(required = false) @Size(max = 100) List<@NotBlank @Length(max = RefFilter.PLUGIN_VALUE_LEN) @Pattern(regexp = RefFilter.PLUGIN_VALUE) String> pluginAfter,
 		@RequestParam(required = false) @Size(max = 100) List<@NotBlank @Length(max = TAG_LEN) @Pattern(regexp = Plugin.REGEX) String> pluginResponse,
 		@RequestParam(required = false) @Size(max = 100) List<@NotBlank @Length(max = TAG_LEN) @Pattern(regexp = Plugin.REGEX) String> noPluginResponse,
+		@RequestParam(required = false) @Size(max = 100) List<@NotBlank @Length(max = TAG_LEN) @Pattern(regexp = Plugin.REGEX) String> remotePluginResponse,
+		@RequestParam(required = false) @Size(max = 100) List<@NotBlank @Length(max = TAG_LEN) @Pattern(regexp = Plugin.REGEX) String> noRemotePluginResponse,
 		@RequestParam(required = false) @Size(max = 100) List<@NotBlank @Length(max = TAG_LEN) @Pattern(regexp = Plugin.REGEX) String> userResponse,
 		@RequestParam(required = false) @Size(max = 100) List<@NotBlank @Length(max = TAG_LEN) @Pattern(regexp = Plugin.REGEX) String> noUserResponse,
 		@RequestParam(required = false) @Length(max = SEARCH_LEN) String search
@@ -220,6 +240,8 @@ public class RefController {
 				.noResponses(noResponses)
 				.pluginResponse(pluginResponse)
 				.noPluginResponse(noPluginResponse)
+				.remotePluginResponse(remotePluginResponse)
+				.noRemotePluginResponse(noRemotePluginResponse)
 				.userResponse(userResponse)
 				.noUserResponse(noUserResponse)
 				.modifiedBefore(modifiedBefore)
@@ -229,11 +251,15 @@ public class RefController {
 				.createdBefore(createdBefore)
 				.createdAfter(createdAfter)
 				.responseBefore(responseBefore)
-				.responseAfter(responseAfter).build());
+				.responseAfter(responseAfter)
+				.tagBefore(tagBefore)
+				.tagAfter(tagAfter)
+				.pluginBefore(pluginBefore)
+				.pluginAfter(pluginAfter).build());
 	}
 
 	@ApiResponses({
-		@ApiResponse(responseCode = "204"),
+		@ApiResponse(responseCode = "200"),
 		@ApiResponse(responseCode = "403", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
 		@ApiResponse(responseCode = "404", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
 		@ApiResponse(responseCode = "409", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
@@ -246,7 +272,7 @@ public class RefController {
 	}
 
 	@ApiResponses({
-		@ApiResponse(responseCode = "204"),
+		@ApiResponse(responseCode = "200"),
 		@ApiResponse(responseCode = "400", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
 		@ApiResponse(responseCode = "403", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
 		@ApiResponse(responseCode = "409", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
@@ -262,7 +288,7 @@ public class RefController {
 	}
 
 	@ApiResponses({
-		@ApiResponse(responseCode = "204"),
+		@ApiResponse(responseCode = "200"),
 		@ApiResponse(responseCode = "400", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
 		@ApiResponse(responseCode = "403", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),
 		@ApiResponse(responseCode = "409", content = @Content(schema = @Schema(ref = "https://opensource.zalando.com/problem/schema.yaml#/Problem"))),

@@ -20,6 +20,7 @@ import static org.hibernate.query.sqm.produce.function.StandardArgumentsValidato
 import static org.hibernate.query.sqm.produce.function.StandardFunctionReturnTypeResolvers.invariant;
 
 public class PostgreSQLDialect extends org.hibernate.dialect.PostgreSQLDialect {
+
 	@Override
 	public void initializeFunctionRegistry(FunctionContributions functionContributions) {
 		super.initializeFunctionRegistry(functionContributions);
@@ -73,6 +74,9 @@ public class PostgreSQLDialect extends org.hibernate.dialect.PostgreSQLDialect {
 		functionRegistry.registerPattern("cast_to_int", "(?1)::integer", integer);
 		functionRegistry.registerPattern("cast_to_numeric", "(?1)::numeric", doubleType);
 		functionRegistry.registerPattern("jsonb_array_length", "jsonb_array_length(?1)", integer);
+		functionRegistry.registerPattern("safe_numeric", "(CASE WHEN jsonb_typeof(?1) = 'number' THEN (?1)::numeric END)", doubleType);
+		functionRegistry.registerPattern("safe_jsonb_array_length", "(CASE WHEN jsonb_typeof(?1) = 'array' THEN jsonb_array_length(?1) END)", integer);
+		functionRegistry.registerPattern("jsonb_array_element", "jsonb_array_element(?1, ?2)", jsonb);
 		functionRegistry.registerPattern("jsonb_array_element_text", "jsonb_array_element_text(?1, ?2)", string);
 		// origin_nesting: returns 0 for blank or '@', otherwise count of '.' + 1
 		functionRegistry.registerPattern("origin_nesting", "CASE WHEN ?1 = '' OR ?1 = '@' THEN 0 ELSE (LENGTH(?1) - LENGTH(REPLACE(?1, '.', '')) + 1) END", integer);
