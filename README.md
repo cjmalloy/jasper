@@ -6,7 +6,7 @@ Knowledge Management Server
 [![Gatling](https://github.com/cjmalloy/jasper/actions/workflows/gatling.yml/badge.svg)](https://cjmalloy.github.io/jasper/reports/latest-gatling/)
 [![E2E](https://github.com/cjmalloy/jasper/actions/workflows/e2e.yml/badge.svg)](https://cjmalloy.github.io/jasper/reports/latest-e2e/)
 [![Dependabot](https://img.shields.io/endpoint?url=https://cjmalloy.github.io/jasper/reports/dependabot-badge.json)](https://github.com/cjmalloy/jasper/security/dependabot)
-[![OpenAPI](https://img.shields.io/badge/OpenAPI-1.4.3-brightgreen)](https://editor.swagger.io/?url=https://raw.githubusercontent.com/cjmalloy/jasper/refs/heads/master/src/main/resources/swagger/api.yml)
+[![OpenAPI](https://img.shields.io/badge/OpenAPI-1.5.0-brightgreen)](https://editor.swagger.io/?url=https://raw.githubusercontent.com/cjmalloy/jasper/refs/heads/master/src/main/resources/swagger/api.yml)
 [![Artifact Hub](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/jasper)](https://artifacthub.io/packages/helm/jasper/jasper)
 
 ## Quickstart
@@ -1256,6 +1256,7 @@ When delegating rng to a trusted server, users push their updates to that server
 When playing on mutually replicating servers, each server is trusted to generate their own rng.
 
 ## Release Notes
+* [v1.5](./docs/release-notes/jasper-1.5.md)
 * [v1.4](./docs/release-notes/jasper-1.4.md)
 * [v1.3](./docs/release-notes/jasper-1.3.md)
 * [v1.2](./docs/release-notes/jasper-1.2.md)

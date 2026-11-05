@@ -64,6 +64,87 @@ updates:
     timezone: America/Halifax
   cooldown:
     default-days: 0
+# Old release lines only get grouped version updates, one PR per ecosystem
+- package-ecosystem: docker
+  target-branch: v1.4
+  directory: /
+  schedule:
+    interval: daily
+    timezone: America/Halifax
+  cooldown:
+    default-days: 0
+  allow:
+    - dependency-name: "*"
+  ignore:
+    # Docker ignores use Bundler/RubyGems requirements. Tags like
+    # 3-amazoncorretto-25-debian parse as prereleases between 3.a and 3.0,
+    # while 3.x.x tags remain allowed.
+    - dependency-name: "maven"
+      versions: [">= 3.a, < 3.0"]
+  groups:
+    v1.4:
+      patterns:
+        - "*"
+- package-ecosystem: maven
+  target-branch: v1.4
+  directory: /
+  schedule:
+    interval: daily
+    timezone: America/Halifax
+  cooldown:
+    default-days: 0
+  groups:
+    v1.4:
+      patterns:
+        - "*"
+- package-ecosystem: maven
+  target-branch: v1.4
+  directory: /gatling
+  schedule:
+    interval: daily
+    timezone: America/Halifax
+  cooldown:
+    default-days: 0
+  groups:
+    v1.4:
+      patterns:
+        - "*"
+- package-ecosystem: npm
+  target-branch: v1.4
+  directory: /e2e
+  schedule:
+    interval: daily
+    timezone: America/Halifax
+  cooldown:
+    default-days: 0
+  groups:
+    v1.4:
+      patterns:
+        - "*"
+- package-ecosystem: docker
+  target-branch: v1.4
+  directory: /e2e
+  schedule:
+    interval: daily
+    timezone: America/Halifax
+  cooldown:
+    default-days: 0
+  groups:
+    v1.4:
+      patterns:
+        - "*"
+- package-ecosystem: github-actions
+  target-branch: v1.4
+  directory: /
+  schedule:
+    interval: daily
+    timezone: America/Halifax
+  cooldown:
+    default-days: 0
+  groups:
+    v1.4:
+      patterns:
+        - "*"
 - package-ecosystem: docker
   target-branch: v1.3
   directory: /
@@ -80,6 +161,10 @@ updates:
     # while 3.x.x tags remain allowed.
     - dependency-name: "maven"
       versions: [">= 3.a, < 3.0"]
+  groups:
+    v1.3:
+      patterns:
+        - "*"
 - package-ecosystem: maven
   target-branch: v1.3
   directory: /
@@ -88,6 +173,10 @@ updates:
     timezone: America/Halifax
   cooldown:
     default-days: 0
+  groups:
+    v1.3:
+      patterns:
+        - "*"
 - package-ecosystem: github-actions
   target-branch: v1.3
   directory: /
@@ -96,3 +185,7 @@ updates:
     timezone: America/Halifax
   cooldown:
     default-days: 0
+  groups:
+    v1.3:
+      patterns:
+        - "*"
