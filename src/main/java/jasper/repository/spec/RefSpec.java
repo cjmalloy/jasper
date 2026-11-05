@@ -267,12 +267,11 @@ public class RefSpec {
 			};
 		}
 		if (property.startsWith("tags->")) {
-			// Missing tag values are '' or 0, so filters also check the text value
+			// Missing or invalid tag values are NULL
 			var sort = TagValueSort.parse(property);
 			if (sort == null) return null;
-			var text = cb.function("tag_value", String.class, root.get(Ref_.tags), cb.literal(sort.tag()));
-			if ("tag_value".equals(sort.function())) return new Column(text, false, cb.notEqual(text, ""));
-			return new Column(cb.function(sort.function(), Double.class, root.get(Ref_.tags), cb.literal(sort.tag())), false, cb.notEqual(text, ""));
+			if ("tag_value".equals(sort.function())) return new Column(cb.function("tag_value", String.class, root.get(Ref_.tags), cb.literal(sort.tag())), true);
+			return new Column(cb.function(sort.function(), Double.class, root.get(Ref_.tags), cb.literal(sort.tag())), true);
 		}
 		if (property.startsWith("metadata->")) {
 			// Generated metadata: dates are missing until the first response, counts are never missing (0)

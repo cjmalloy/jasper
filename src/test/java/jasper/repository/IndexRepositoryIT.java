@@ -246,7 +246,7 @@ public class IndexRepositoryIT {
 		indexRepository.updateHotTags(List.of("plugin/progress:num"));
 		assertThat(explainPostgres("""
 			select r1_0.url from ref r1_0
-			where tag_value(r1_0.tags, 'plugin/progress')<>'' and tag_value_num(r1_0.tags, 'plugin/progress')<(37)::numeric"""))
+			where tag_value_num(r1_0.tags, 'plugin/progress')<(37)::numeric"""))
 			.contains(IndexRepositoryImplPostgres.hotTagIndexName(TagValueSort.parse("plugin/progress:num")));
 	}
 

@@ -1942,9 +1942,15 @@ public class RefServiceIT {
 		refWithUrlTags("https://example.com/3", "+user/tester");
 		refWithUrlTags("https://example.com/4", "plugin/progress/9/10");
 		refWithUrlTags("https://example.com/5", "plugin/progress/2.5");
+		refWithUrlTags("https://example.com/6", "plugin/progress/x");
+		refWithUrlTags("https://example.com/7", "plugin/progress/37abc");
 
 		assertThat(filteredUrls(RefFilter.builder().filterBefore(List.of("tags->plugin/progress:num/37")).build()))
 			.containsExactly("https://example.com/4", "https://example.com/5");
+		assertThat(filteredUrls(RefFilter.builder().filterEquals(List.of("tags->plugin/progress:num/0")).build()))
+			.isEmpty();
+		assertThat(filteredUrls(RefFilter.builder().filterEquals(List.of("tags->plugin/progress:num/37")).build()))
+			.containsExactly("https://example.com/1");
 		assertThat(filteredUrls(RefFilter.builder().filterAfter(List.of("tags->plugin/progress:num/9")).build()))
 			.containsExactly("https://example.com/1", "https://example.com/2");
 		assertThat(filteredUrls(RefFilter.builder().filterAfter(List.of("tags->plugin/progress:num/2.5")).filterBefore(List.of("tags->plugin/progress:num/100")).build()))
@@ -1958,9 +1964,12 @@ public class RefServiceIT {
 		refWithUrlTags("https://example.com/3", "+user/tester");
 		refWithUrlTags("https://example.com/4", "plugin/duration/pt90m");
 		refWithUrlTags("https://example.com/5", "plugin/duration/p1dt1.5s");
+		refWithUrlTags("https://example.com/6", "plugin/duration/pt1x");
 
 		assertThat(filteredUrls(RefFilter.builder().filterBefore(List.of("tags->plugin/duration:dur/pt1h")).build()))
 			.containsExactly("https://example.com/1");
+		assertThat(filteredUrls(RefFilter.builder().filterEquals(List.of("tags->plugin/duration:dur/pt0s")).build()))
+			.isEmpty();
 		assertThat(filteredUrls(RefFilter.builder().filterAfter(List.of("tags->plugin/duration:dur/pt60m")).build()))
 			.containsExactly("https://example.com/4", "https://example.com/5");
 	}

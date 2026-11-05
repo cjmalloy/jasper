@@ -140,7 +140,7 @@ database schema changes.
 The `:num` and `:len` suffixes are automatically applied to metadata fields, so you can use
 `metadata->responses` instead of `metadata->responses:len`.
 
-Refs missing the sorted value (or with a value of the wrong type for `:num` or `:len`) sort first ascending
+Refs missing the sorted value (or with a value of the wrong type for `:num`, `:len` or `:dur`) sort first ascending
 and last descending. Response counts (`metadata->responses`, `metadata->plugins->…`, etc.) are never missing:
 a Ref without responses counts as `0`. Sort by `metadata->newResponse` (latest new response, ignoring user URLs)
 or `metadata->newReaction` (latest response created or updated, including user URLs) to find recent activity.
@@ -151,8 +151,7 @@ sorts on `hello` for the tag `plugin/title/hello`, and `tags->plugin/progress:nu
 sorts numerically on `37` for the tag `plugin/progress/37/100` (ignoring `100` and any further sub-tags).
 Append `:dur` to sort ISO-8601 durations (case-insensitive) by length, so
 `tags->plugin/duration:dur` sorts `plugin/duration/pt90m` after `plugin/duration/pt1h`.
-A bare `plugin/progress` tag is skipped. Refs without a matching tag, or with a value
-that cannot be parsed, sort as `''` or `0`.
+A bare `plugin/progress` tag is skipped, and a value that cannot be parsed counts as missing.
 
 To index a tag value sort on PostgreSQL, add it to `hotTags` in the `_config/index` template config,
 for example `{"hotTags": ["plugin/progress:num", "plugin/duration:dur"]}`. Hot tag indexes that are

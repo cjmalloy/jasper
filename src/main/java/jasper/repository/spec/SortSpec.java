@@ -43,12 +43,8 @@ public class SortSpec {
 	 * @param nullable missing values are null, so they sort first ascending and last descending,
 	 *                 so one "(expression) NULLS FIRST" index serves both directions.
 	 *                 This is the default null order on SQLite, so no NULLS clause is rendered there.
-	 * @param present only rows with a value, or null if every row has a value
 	 */
-	public record Column(Expression<?> expression, boolean nullable, Predicate present) {
-		public Column(Expression<?> expression, boolean nullable) {
-			this(expression, nullable, null);
-		}
+	public record Column(Expression<?> expression, boolean nullable) {
 
 		public Order order(CriteriaBuilder cb, boolean ascending) {
 			if (nullable) return ascending ? cb.asc(expression, Nulls.FIRST) : cb.desc(expression, Nulls.LAST);
@@ -60,24 +56,23 @@ public class SortSpec {
 		 */
 		@SuppressWarnings("unchecked")
 		public Predicate filter(CriteriaBuilder cb, Filter filter) {
-			Predicate result;
 			if (filter.value() instanceof Instant date) {
 				Expression<Instant> expr = (Expression<Instant>) expression;
-				result = switch (filter.op()) {
+				return switch (filter.op()) {
 					case BEFORE -> cb.lessThan(expr, date);
 					case AFTER -> cb.greaterThan(expr, date);
 					case EQUALS -> cb.equal(expr, date);
 				};
 			} else if (filter.value() instanceof String text) {
 				Expression<String> expr = (Expression<String>) expression;
-				result = switch (filter.op()) {
+				return switch (filter.op()) {
 					case BEFORE -> cb.lessThan(expr, text);
 					case AFTER -> cb.greaterThan(expr, text);
 					case EQUALS -> cb.equal(expr, text);
 				};
 			} else if (filter.value() instanceof Integer length) {
 				Expression<Integer> expr = (Expression<Integer>) expression;
-				result = switch (filter.op()) {
+				return switch (filter.op()) {
 					case BEFORE -> cb.lessThan(expr, cb.literal(length));
 					case AFTER -> cb.greaterThan(expr, cb.literal(length));
 					case EQUALS -> cb.equal(expr, cb.literal(length));
@@ -85,13 +80,12 @@ public class SortSpec {
 			} else {
 				Expression<Double> expr = (Expression<Double>) expression;
 				var number = cb.function("cast_to_numeric", Double.class, cb.literal(filter.value()));
-				result = switch (filter.op()) {
+				return switch (filter.op()) {
 					case BEFORE -> cb.lessThan(expr, number);
 					case AFTER -> cb.greaterThan(expr, number);
 					case EQUALS -> cb.equal(expr, number);
 				};
 			}
-			return present == null ? result : cb.and(present, result);
 		}
 	}
 
