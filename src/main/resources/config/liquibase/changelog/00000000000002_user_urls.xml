@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.6.xsd">
+
+	<!--
+		Metadata userUrls used to list the user URLs that responded to a Ref ("tag:/user/alice@origin?url={url}").
+		They now list the users ("user/alice@origin"), so the userResponse filter compares a constant and can be indexed.
+		User URLs for other Refs and other responses are dropped, since they never matched.
+	-->
+	<changeSet author="chris" id="00000000000004" dbms="postgresql">
+		<sql>
+			UPDATE ref r SET metadata = jsonb_set(r.metadata, '{userUrls}', COALESCE((
+				SELECT jsonb_object_agg(u.tag, u.users) FROM (
+					SELECT kt.tag, jsonb_agg(DISTINCT n.name) AS users
+					FROM jsonb_each(r.metadata->'userUrls') AS kt(tag, urls)
+						CROSS JOIN LATERAL jsonb_array_elements_text(CASE WHEN jsonb_typeof(kt.urls) = 'array' THEN kt.urls ELSE '[]' END) AS ku(url)
+						CROSS JOIN LATERAL (SELECT CASE
+							WHEN ku.url ~ '^user([/@]|$)' THEN ku.url
+							WHEN ku.url ~ '^tag:/user([/@][^?]*)?\?' AND substr(ku.url, strpos(ku.url, '?')) = concat('?url=', r.url) THEN substring(split_part(ku.url, '?', 1) FROM 6)
+						END AS name) AS n
+					WHERE n.name IS NOT NULL
+					GROUP BY kt.tag
+				) u), '{}'))
+			WHERE jsonb_typeof(r.metadata->'userUrls') = 'object';
+		</sql>
+	</changeSet>
+
+	<changeSet author="chris" id="00000000000005" dbms="sqlite">
+		<sql>
+			UPDATE ref SET metadata = json_set(metadata, '$.userUrls', (
+				SELECT json_group_object(g.tag, json(g.users)) FROM (
+					SELECT u.tag, json_group_array(DISTINCT u.name) AS users FROM (
+						SELECT kt.key AS tag, CASE
+							WHEN ku.value GLOB 'user' OR ku.value GLOB 'user[/@]*' THEN ku.value
+							WHEN ku.value GLOB 'tag:/user[/@?]*' AND substr(ku.value, instr(ku.value, '?')) = '?url=' || ref.url THEN substr(ku.value, 6, instr(ku.value, '?') - 6)
+						END AS name
+						FROM json_each(ref.metadata, '$.userUrls') kt, json_each(kt.value) ku
+					) u
+					WHERE u.name IS NOT NULL
+					GROUP BY u.tag
+				) g))
+			WHERE json_type(metadata, '$.userUrls') = 'object';
+		</sql>
+	</changeSet>
+</databaseChangeLog>

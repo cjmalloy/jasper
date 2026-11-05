@@ -2,57 +2,56 @@ package jasper.domain.proj;
 
 import org.junit.jupiter.api.Test;
 
-import static jasper.domain.proj.Tag.qualifiedUserUrl;
-import static jasper.domain.proj.Tag.userUrlOrigin;
-import static jasper.domain.proj.Tag.userUrlPrefix;
+import static jasper.domain.proj.Tag.qualifiedUser;
+import static jasper.domain.proj.Tag.userUrlUser;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 public class TagTest {
 
 	@Test
-	void testUserUrlPrefixDefaultOrigin() {
-		assertThat(userUrlPrefix("+user/tester", "")).isEqualTo("tag:/user/tester?url=");
-		assertThat(userUrlPrefix("+user/tester", null)).isEqualTo("tag:/user/tester?url=");
-		assertThat(userUrlPrefix("+user/tester", "@")).isEqualTo("tag:/user/tester?url=");
+	void testQualifiedUserDefaultOrigin() {
+		assertThat(qualifiedUser("+user/tester", "")).isEqualTo("user/tester");
+		assertThat(qualifiedUser("+user/tester", null)).isEqualTo("user/tester");
+		assertThat(qualifiedUser("+user/tester", "@")).isEqualTo("user/tester");
 	}
 
 	@Test
-	void testUserUrlPrefixOrigin() {
-		assertThat(userUrlPrefix("_user/tester", "@a.b")).isEqualTo("tag:/user/tester@a.b?url=");
+	void testQualifiedUserOrigin() {
+		assertThat(qualifiedUser("_user/tester", "@a.b")).isEqualTo("user/tester@a.b");
 	}
 
 	@Test
-	void testUserUrlPrefixRejectsSelectors() {
-		assertThatThrownBy(() -> userUrlPrefix("+user/tester", "@*"))
+	void testQualifiedUserRejectsSelectors() {
+		assertThatThrownBy(() -> qualifiedUser("+user/tester", "@*"))
 			.isInstanceOf(IllegalArgumentException.class);
-		assertThatThrownBy(() -> userUrlPrefix("+user/tester", "@foo.*"))
-			.isInstanceOf(IllegalArgumentException.class);
-	}
-
-	@Test
-	void testQualifiedUserUrl() {
-		assertThat(qualifiedUserUrl("tag:/user/tester?url=x", "")).isEqualTo("tag:/user/tester?url=x");
-		assertThat(qualifiedUserUrl("tag:/user/tester?url=x", "@")).isEqualTo("tag:/user/tester?url=x");
-		assertThat(qualifiedUserUrl("tag:/user/tester?url=x", "@a")).isEqualTo("tag:/user/tester@a?url=x");
-		assertThat(qualifiedUserUrl("tag:/user/tester", "@a")).isEqualTo("tag:/user/tester@a");
-		assertThatThrownBy(() -> qualifiedUserUrl("tag:/user/tester", "@*"))
+		assertThatThrownBy(() -> qualifiedUser("+user/tester", "@foo.*"))
 			.isInstanceOf(IllegalArgumentException.class);
 	}
 
 	@Test
-	void testUserUrlOrigin() {
-		assertThat(userUrlOrigin("tag:/user/tester?url=x@y")).isEqualTo("");
-		assertThat(userUrlOrigin("tag:/user/tester@a?url=x@y")).isEqualTo("@a");
-		assertThat(userUrlOrigin("tag:/user/tester@a.b")).isEqualTo("@a.b");
-		assertThat(userUrlOrigin("tag:/user/tester")).isEqualTo("");
+	void testUserUrlUser() {
+		assertThat(userUrlUser("tag:/user/tester?url=x", "", "x")).isEqualTo("user/tester");
+		assertThat(userUrlUser("tag:/user/tester?url=x", "@", "x")).isEqualTo("user/tester");
+		assertThat(userUrlUser("tag:/user/tester?url=x", "@a", "x")).isEqualTo("user/tester@a");
+		assertThatThrownBy(() -> userUrlUser("tag:/user/tester?url=x", "@*", "x"))
+			.isInstanceOf(IllegalArgumentException.class);
 	}
 
 	@Test
-	void testQualifiedUserUrlNormalizesUserTag() {
-		assertThat(qualifiedUserUrl("tag:/+user/tester?url=x", "@a")).isEqualTo("tag:/user/tester@a?url=x");
-		assertThat(qualifiedUserUrl("tag:/_user/tester?url=x", "")).isEqualTo("tag:/user/tester?url=x");
-		assertThat(qualifiedUserUrl("tag:/+user?url=x", "")).isEqualTo("tag:/user?url=x");
-		assertThat(qualifiedUserUrl("tag:/+username?url=x", "")).isEqualTo("tag:/+username?url=x");
+	void testUserUrlUserOnlyForTheRef() {
+		assertThat(userUrlUser("tag:/user/tester?url=y", "", "x")).isNull();
+		assertThat(userUrlUser("tag:/user/tester?url=x?url=x", "", "x")).isNull();
+		assertThat(userUrlUser("tag:/user/tester", "", "x")).isNull();
+		assertThat(userUrlUser("tag:/news?url=x", "", "x")).isNull();
+		assertThat(userUrlUser("https://example.com", "", "x")).isNull();
+	}
+
+	@Test
+	void testUserUrlUserNormalizesUserTag() {
+		assertThat(userUrlUser("tag:/+user/tester?url=x", "@a", "x")).isEqualTo("user/tester@a");
+		assertThat(userUrlUser("tag:/_user/tester?url=x", "", "x")).isEqualTo("user/tester");
+		assertThat(userUrlUser("tag:/+user?url=x", "", "x")).isEqualTo("user");
+		assertThat(userUrlUser("tag:/+username?url=x", "", "x")).isNull();
 	}
 }

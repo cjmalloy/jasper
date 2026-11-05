@@ -63,29 +63,14 @@ public class PostgreSQLDialect extends org.hibernate.dialect.PostgreSQLDialect {
 				appender.appendSql(")");
 			}
 		});
-		// url_prefix(url, like pattern, glob pattern): the LIKE pattern is escaped with a backslash and can use a text_pattern_ops index
-		functionRegistry.register("url_prefix", new AbstractSqmSelfRenderingFunctionDescriptor(
-			"url_prefix",
-			FunctionKind.NORMAL,
-			exactly(3),
-			invariant(bool),
-			null
-		) {
-			@Override
-			public void render(SqlAppender appender, List<? extends SqlAstNode> args, ReturnableType<?> type, SqlAstTranslator<?> translator) {
-				appender.appendSql("(");
-				translator.render(args.get(0), SqlAstNodeRenderingMode.DEFAULT);
-				appender.appendSql(" LIKE ");
-				translator.render(args.get(1), SqlAstNodeRenderingMode.DEFAULT);
-				appender.appendSql(" ESCAPE '\\')");
-			}
-		});
 		functionRegistry.registerPattern("jsonb_object_field", "(?1)->(?2)", jsonb);
 		functionRegistry.registerPattern("jsonb_object_field_text", "(?1)->>(?2)", string);
 		functionRegistry.registerPattern("jsonb_set", "jsonb_set(?1, ?2, ?3, ?4)", jsonb);
 		functionRegistry.registerPattern("jsonb_strip_nulls", "jsonb_strip_nulls(?1)", jsonb);
 		functionRegistry.registerPattern("jsonb_text", "(?1)::text", string);
 		functionRegistry.registerPattern("jsonb_expanded_tags", "(?1)->'expandedTags'", jsonb);
+		// user_response(metadata, plugin, user): containment so the userUrls jsonb_path_ops GIN index applies
+		functionRegistry.registerPattern("user_response", "((?1)->'userUrls' @> jsonb_build_object(CAST(?2 AS text), jsonb_build_array(CAST(?3 AS text))))", bool);
 		functionRegistry.registerPattern("cast_to_jsonb", "?1::jsonb", jsonb);
 		functionRegistry.registerPattern("jsonb_concat", "jsonb_concat(?1, ?2)", jsonb);
 		functionRegistry.registerPattern("cast_to_int", "(?1)::integer", integer);

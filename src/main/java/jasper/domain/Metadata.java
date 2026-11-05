@@ -48,6 +48,10 @@ public class Metadata implements Serializable {
 	private List<String> internalResponses;
 	private Map<String, Long> plugins;
 	private Map<String, Long> remotePlugins;
+	/**
+	 * Users ("user/alice", qualified with their origin) that responded with a user URL
+	 * ("tag:/user/alice?url={url}"), by plugin. Only "plugin/user" plugins are recorded.
+	 */
 	private Map<String, List<String>> userUrls;
 	@JsonInclude(NON_DEFAULT)
 	private boolean obsolete = false;
@@ -91,35 +95,35 @@ public class Metadata implements Serializable {
 		}
 	}
 
-	public void addPlugins(List<String> add, String userUrl, boolean local) {
+	public void addPlugins(List<String> add, String user, boolean local) {
 		initPlugins();
 		for (var plugin : add) {
 			if (local) plugins.merge(plugin, 1L, Long::sum);
 			remotePlugins.merge(plugin, 1L, Long::sum);
-			if (userUrl != null && matchesTemplate("plugin/user", plugin)) {
+			if (user != null && matchesTemplate("plugin/user", plugin)) {
 				var list = userUrls.computeIfAbsent(plugin, k -> new ArrayList<>());
-				if (!list.contains(userUrl)) list.add(userUrl);
+				if (!list.contains(user)) list.add(user);
 			}
 		}
 		modified = Instant.now().toString();
 	}
 
-	public void removePlugins(List<String> remove, String userUrl, boolean local) {
+	public void removePlugins(List<String> remove, String user, boolean local) {
 		initPlugins();
 		var changed = false;
 		for (var plugin : remove) {
 			if (local && decrement(plugins, plugin)) changed = true;
 			if (decrement(remotePlugins, plugin)) changed = true;
-			if (userUrl != null && matchesTemplate("plugin/user", plugin)) {
+			if (user != null && matchesTemplate("plugin/user", plugin)) {
 				for (var entry : userUrls.entrySet()) {
 					var list = entry.getValue();
-					if (list.contains(userUrl)) {
+					if (list.contains(user)) {
 						changed = true;
 						try {
-							list.remove(userUrl);
+							list.remove(user);
 						} catch (UnsupportedOperationException e) {
 							userUrls.put(entry.getKey(), list = new ArrayList<>(list));
-							list.remove(userUrl);
+							list.remove(user);
 						}
 					}
 				}

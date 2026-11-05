@@ -22,7 +22,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static jasper.domain.proj.Tag.userUrlPrefix;
+import static jasper.domain.proj.Tag.qualifiedUser;
 
 /**
  * Filtering mapper. Removes fields hidden to the user.
@@ -101,10 +101,9 @@ public abstract class DtoMapper {
 	protected void userUrlsMetadata(Metadata source, @MappingTarget MetadataDto target) {
 		if (source.getUserUrls() == null) return;
 		if (auth.getUserTag() == null) return;
-		var prefix = userUrlPrefix(auth.getUserTag().tag, auth.getOrigin());
+		var user = qualifiedUser(auth.getUserTag().tag, auth.getOrigin());
 		target.setUserUrls(source.getUserUrls().entrySet().stream()
-			// TODO: how is null getting in here
-			.filter(e -> e.getValue().stream().anyMatch(url -> url != null && url.startsWith(prefix)))
+			.filter(e -> e.getValue().contains(user))
 			.map(Map.Entry::getKey)
 			.toList()
 		);

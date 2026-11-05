@@ -46,26 +46,20 @@ public interface Tag extends Cursor {
 		return "tag:/" + tag + "?url=" + url;
 	}
 
-	// User tags are only unique within an origin
-	static String userUrlPrefix(String user, String origin) {
-		return "tag:/" + publicTag(user) + concreteOrigin(origin) + "?url=";
+	// User tags are only unique within an origin, and "+user/x" and "_user/x" are the same user as "user/x"
+	static String qualifiedUser(String user, String origin) {
+		return publicTag(user) + concreteOrigin(origin);
 	}
 
-	// "tag:/+user/x" and "tag:/_user/x" are stored as "tag:/user/x" so userUrlPrefix matches them
-	static String qualifiedUserUrl(String url, String origin) {
-		url = url.replaceFirst("^tag:/[_+](user([/?]|$))", "tag:/$1");
-		origin = concreteOrigin(origin);
-		if (origin.isEmpty()) return url;
-		if (!url.contains("?")) return url + origin;
-		return url.substring(0, url.indexOf("?")) + origin + url.substring(url.indexOf("?"));
+	// The user that responded to the Ref with the user URL "tag:/{user}?url={url}", or null if it is not one
+	static String userUrlUser(String userUrl, String origin, String url) {
+		if (!userUrl(userUrl) || !userUrl.contains("?")) return null;
+		var query = userUrl.indexOf("?");
+		if (!userUrl.substring(query).equals("?url=" + url)) return null;
+		return qualifiedUser(userUrl.substring("tag:/".length(), query), origin);
 	}
 
-	static String userUrlOrigin(String qualifiedUserUrl) {
-		if (!qualifiedUserUrl.contains("?")) return tagOrigin(qualifiedUserUrl);
-		return tagOrigin(qualifiedUserUrl.substring(0, qualifiedUserUrl.indexOf("?")));
-	}
-
-	// Selectors such as "@*" would never match a stored user URL
+	// Selectors such as "@*" would never match a stored user
 	private static String concreteOrigin(String origin) {
 		if (isBlank(origin) || origin.equals("@")) return "";
 		if (!origin.matches(HasOrigin.REGEX)) throw new IllegalArgumentException("Not a concrete origin: " + origin);

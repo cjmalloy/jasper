@@ -1469,36 +1469,24 @@ public class RefServiceMTIT {
 			.isFalse();
 	}
 
-	Ref saveWithUserUrl(String url, String userUrl) {
-		return saveWithUserUrl(url, "@other", userUrl);
+	Ref saveWithUser(String url, String user) {
+		return saveWithUser(url, "@other", user);
 	}
 
-	Ref saveWithUserUrl(String url, String origin, String userUrl) {
+	Ref saveWithUser(String url, String origin, String user) {
 		var ref = getRef(origin);
 		ref.setUrl(url);
 		ref.setTags(new ArrayList<>(List.of("public")));
 		ref.setMetadata(Metadata.builder()
-			.userUrls(new HashMap<>(Map.of("+plugin/user/run", List.of(userUrl))))
+			.userUrls(new HashMap<>(Map.of("+plugin/user/run", List.of(user))))
 			.build());
-		saveUserUrl(url, userUrl);
 		return refRepository.save(ref);
-	}
-
-	/**
-	 * The user URL Ref the userUrls metadata points to, which the userResponse filters join against.
-	 */
-	void saveUserUrl(String url, String userUrl) {
-		var user = getRef(userUrl.contains("@") ? userUrl.replaceFirst("^[^@]*(@[^?]*)\\?.*$", "$1") : "");
-		user.setUrl(userUrl.replaceFirst("@[^?]*\\?", "?"));
-		user.setTags(new ArrayList<>(List.of("+plugin/user/run")));
-		user.setSources(new ArrayList<>(List.of(url)));
-		refRepository.save(user);
 	}
 
 	@Test
 	void testUserUrlsOnlyShowsUserFromSameOrigin() {
-		saveWithUserUrl(URL, "tag:/user/tester@other?url=" + URL);
-		saveWithUserUrl(URL + 2, "tag:/user/tester?url=" + URL + 2);
+		saveWithUser(URL, "user/tester@other");
+		saveWithUser(URL + 2, "user/tester");
 
 		assertThat(refService.get(URL, "@other").getMetadata().getUserUrls())
 			.containsExactly("+plugin/user/run");
@@ -1508,8 +1496,8 @@ public class RefServiceMTIT {
 
 	@Test
 	void testUserResponseFilterOnlyMatchesUserFromSameOrigin() {
-		saveWithUserUrl(URL, "tag:/user/tester@other?url=" + URL);
-		saveWithUserUrl(URL + 2, "tag:/user/tester?url=" + URL + 2);
+		saveWithUser(URL, "user/tester@other");
+		saveWithUser(URL + 2, "user/tester");
 
 		var page = refService.page(
 			RefFilter.builder().query("public").userResponse(List.of("+plugin/user/run")).build(),
@@ -1528,8 +1516,8 @@ public class RefServiceMTIT {
 
 	@Test
 	void testUserResponseToSubOriginRef() {
-		saveWithUserUrl(URL, "@other.sub", "tag:/user/tester@other?url=" + URL);
-		saveWithUserUrl(URL + 2, "@other.sub", "tag:/user/tester@other.sub?url=" + URL + 2);
+		saveWithUser(URL, "@other.sub", "user/tester@other");
+		saveWithUser(URL + 2, "@other.sub", "user/tester@other.sub");
 
 		assertThat(refService.get(URL, "@other.sub").getMetadata().getUserUrls())
 			.containsExactly("+plugin/user/run");

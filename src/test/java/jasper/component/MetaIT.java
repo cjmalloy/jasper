@@ -1006,7 +1006,7 @@ public class MetaIT {
 
 		var parent = refRepository.findOneByUrlAndOrigin(URL, "").orElseThrow();
 		assertThat(parent.getMetadata().getUserUrls())
-			.containsEntry("+plugin/user/run", List.of("tag:/user/tester?url=" + URL));
+			.containsEntry("+plugin/user/run", List.of("user/tester"));
 		assertThat(parent.hasPluginResponse("+plugin/user/run")).isTrue();
 		assertThat(parent.getMetadata().getRemotePlugins()).containsEntry("+plugin/user/run", 1L);
 	}
@@ -1042,7 +1042,7 @@ public class MetaIT {
 
 		var parent = refRepository.findOneByUrlAndOrigin(URL, "@remote.sub").orElseThrow();
 		assertThat(parent.getMetadata().getUserUrls())
-			.containsEntry("+plugin/user/run", List.of("tag:/user/tester@remote?url=" + URL));
+			.containsEntry("+plugin/user/run", List.of("user/tester@remote"));
 		assertThat(parent.getMetadata().getPlugins()).isNullOrEmpty();
 		assertThat(parent.getMetadata().getRemotePlugins()).containsEntry("+plugin/user/run", 1L);
 	}
@@ -1056,7 +1056,7 @@ public class MetaIT {
 		meta.ref("@remote", source);
 
 		assertThat(source.getMetadata().getUserUrls().get("+plugin/user/run"))
-			.containsExactly("tag:/user/tester@remote?url=" + URL);
+			.containsExactly("user/tester@remote");
 		assertThat(source.getMetadata().getPlugins()).containsEntry("+plugin/user/run", 1L);
 		assertThat(source.getMetadata().getRemotePlugins()).containsEntry("+plugin/user/run", 2L);
 	}
@@ -1070,7 +1070,7 @@ public class MetaIT {
 		meta.ref("", source);
 
 		assertThat(source.getMetadata().getUserUrls().get("+plugin/user/run"))
-			.containsExactly("tag:/user/tester?url=" + URL);
+			.containsExactly("user/tester");
 		assertThat(source.hasPluginResponse("+plugin/user/run")).isTrue();
 		assertThat(source.getMetadata().getPlugins()).containsEntry("+plugin/user/run", 1L);
 		assertThat(source.getMetadata().getRemotePlugins()).containsEntry("+plugin/user/run", 2L);
@@ -1087,7 +1087,7 @@ public class MetaIT {
 		meta.ref("", source);
 
 		assertThat(source.getMetadata().getUserUrls().get("+plugin/user/run"))
-			.containsExactly("tag:/user/tester?url=" + URL);
+			.containsExactly("user/tester");
 		assertThat(source.hasPluginResponse("+plugin/user/run")).isTrue();
 		assertThat(source.getMetadata().getPlugins()).containsEntry("+plugin/user/run", 1L);
 		assertThat(source.getMetadata().getRemotePlugins()).containsEntry("+plugin/user/run", 2L);
@@ -1103,7 +1103,7 @@ public class MetaIT {
 		meta.regen("@a", source);
 
 		assertThat(source.getMetadata().getUserUrls().get("+plugin/user/run"))
-			.containsExactly("tag:/user/tester@a?url=" + URL);
+			.containsExactly("user/tester@a");
 	}
 
 	@Test
@@ -1111,8 +1111,8 @@ public class MetaIT {
 		var source = saveSourceInOrigin(URL, "@a");
 		source.setMetadata(Metadata.builder()
 			.userUrls(new HashMap<>(Map.of("+plugin/user/run", List.of(
-				"tag:/user/tester@a?url=" + URL,
-				"tag:/user/deleted?url=" + URL))))
+				"user/tester@a",
+				"user/deleted"))))
 			.build());
 		refRepository.save(userUrl("", "internal", "+user/tester", "+plugin/user/run"));
 
@@ -1120,15 +1120,15 @@ public class MetaIT {
 
 		assertThat(source.getMetadata().getUserUrls().get("+plugin/user/run"))
 			.containsExactlyInAnyOrder(
-				"tag:/user/tester?url=" + URL,
-				"tag:/user/tester@a?url=" + URL);
+				"user/tester",
+				"user/tester@a");
 	}
 
 	@Test
 	void testCascadeSourceKeepsUserUrlsFromOtherOrigins() {
 		var source = saveSourceInOrigin(URL, "@a");
 		source.setMetadata(Metadata.builder()
-			.userUrls(new HashMap<>(Map.of("+plugin/user/run", List.of("tag:/user/tester?url=" + URL))))
+			.userUrls(new HashMap<>(Map.of("+plugin/user/run", List.of("user/tester"))))
 			.build());
 		var ref = userUrl("@a", "internal", "+user/tester", "+plugin/user/run");
 		refRepository.save(ref);
@@ -1138,8 +1138,8 @@ public class MetaIT {
 
 		assertThat(source.getMetadata().getUserUrls().get("+plugin/user/run"))
 			.containsExactlyInAnyOrder(
-				"tag:/user/tester?url=" + URL,
-				"tag:/user/tester@a?url=" + URL);
+				"user/tester",
+				"user/tester@a");
 	}
 
 	@Test
