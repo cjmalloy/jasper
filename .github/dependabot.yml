@@ -64,7 +64,7 @@ updates:
     timezone: America/Halifax
   cooldown:
     default-days: 0
-# Old release lines only get grouped version updates, one PR per ecosystem
+# Old release lines only get grouped docker and maven updates, one PR per ecosystem
 - package-ecosystem: docker
   target-branch: v1.4
   directory: /
@@ -97,54 +97,6 @@ updates:
     v1.4:
       patterns:
         - "*"
-- package-ecosystem: maven
-  target-branch: v1.4
-  directory: /gatling
-  schedule:
-    interval: daily
-    timezone: America/Halifax
-  cooldown:
-    default-days: 0
-  groups:
-    v1.4:
-      patterns:
-        - "*"
-- package-ecosystem: npm
-  target-branch: v1.4
-  directory: /e2e
-  schedule:
-    interval: daily
-    timezone: America/Halifax
-  cooldown:
-    default-days: 0
-  groups:
-    v1.4:
-      patterns:
-        - "*"
-- package-ecosystem: docker
-  target-branch: v1.4
-  directory: /e2e
-  schedule:
-    interval: daily
-    timezone: America/Halifax
-  cooldown:
-    default-days: 0
-  groups:
-    v1.4:
-      patterns:
-        - "*"
-- package-ecosystem: github-actions
-  target-branch: v1.4
-  directory: /
-  schedule:
-    interval: daily
-    timezone: America/Halifax
-  cooldown:
-    default-days: 0
-  groups:
-    v1.4:
-      patterns:
-        - "*"
 - package-ecosystem: docker
   target-branch: v1.3
   directory: /
@@ -166,18 +118,6 @@ updates:
       patterns:
         - "*"
 - package-ecosystem: maven
-  target-branch: v1.3
-  directory: /
-  schedule:
-    interval: daily
-    timezone: America/Halifax
-  cooldown:
-    default-days: 0
-  groups:
-    v1.3:
-      patterns:
-        - "*"
-- package-ecosystem: github-actions
   target-branch: v1.3
   directory: /
   schedule:
