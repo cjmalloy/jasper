@@ -595,14 +595,6 @@ public class IndexRepositoryIT {
 	}
 
 	@Test
-	void testBuildAndDropMetadataModified() {
-		indexRepository.dropMetadataModified();
-		indexRepository.buildMetadataModified();
-		indexRepository.buildMetadataModified();
-		indexRepository.dropMetadataModified();
-	}
-
-	@Test
 	void testBuildAndDropUrlPrefix() {
 		indexRepository.dropUrlPrefix();
 		indexRepository.buildUrlPrefix();
@@ -642,15 +634,11 @@ public class IndexRepositoryIT {
 	 * Each metadata date filter must use the same index as the matching sort.
 	 */
 	void assertMetadataDateIndexesUsed(boolean sqlite) {
-		indexRepository.buildMetadataModified();
 		indexRepository.buildNewResponse();
 		indexRepository.buildNewReaction();
 		var now = Instant.parse("2026-01-01T00:00:00.5Z");
-		for (var direction : Sort.Direction.values()) {
-			assertThat(explainSort("metadata->modified", direction, sqlite)).as("metadata->modified %s", direction).contains("ref_metadata_modified_index");
-		}
-		assertThat(explainFilter(RefFilter.builder().responseBefore(now).build().spec(), sqlite)).contains("ref_metadata_modified_index");
-		assertThat(explainFilter(RefFilter.builder().responseAfter(now).build().spec(), sqlite)).contains("ref_metadata_modified_index");
+		assertThat(explainFilter(RefFilter.builder().responseBefore(now).build().spec(), sqlite)).contains("ref_new_response_index");
+		assertThat(explainFilter(RefFilter.builder().responseAfter(now).build().spec(), sqlite)).contains("ref_new_response_index");
 		assertThat(explainFilter(RefFilter.builder().newResponseBefore(now).build().spec(), sqlite)).contains("ref_new_response_index");
 		assertThat(explainFilter(RefFilter.builder().newResponseAfter(now).build().spec(), sqlite)).contains("ref_new_response_index");
 		assertThat(explainFilter(RefFilter.builder().newReactionBefore(now).build().spec(), sqlite)).contains("ref_new_reaction_index");
@@ -683,83 +671,6 @@ public class IndexRepositoryIT {
 			.contains(IndexRepositoryImplPostgres.hotResponseIndexName("plugins", "plugin/comment"));
 		assertThat(explainFilter(RefFilter.builder().pluginAfter(List.of("metadata->remotePlugins->plugin/user/read/10")).build().spec(), false))
 			.contains(IndexRepositoryImplPostgres.hotResponseIndexName("remotePlugins", "plugin/user/read"));
-	}
-
-	static final List<String> HOT_LENGTHS = List.of("tags", "sources", "alternateUrls", "origin",
-		"metadata->responses", "metadata->internalResponses", "metadata->expandedTags");
-
-	@Test
-	void testHotLength() {
-		assertThat(IndexRepository.hotLength("tags")).isEqualTo("tags");
-		assertThat(IndexRepository.hotLength("tags:len")).isEqualTo("tags");
-		assertThat(IndexRepository.hotLength("metadata->responses:len")).isEqualTo("metadata->responses");
-		assertThat(IndexRepository.hotLength("metadata->plugins")).isNull();
-		assertThat(IndexRepository.hotLength("title")).isNull();
-		assertThat(IndexRepository.hotLength("tags'); DROP TABLE ref; --")).isNull();
-		assertThat(IndexRepository.hotLength(null)).isNull();
-		assertThat(IndexRepositoryImplPostgres.hotLengthExpression("tags")).isEqualTo("COALESCE(jsonb_array_length(tags), 0)");
-		assertThat(IndexRepositoryImplPostgres.hotLengthExpression("alternateUrls")).isEqualTo("COALESCE(jsonb_array_length(alternate_urls), 0)");
-		assertThat(IndexRepositoryImplPostgres.hotLengthExpression("metadata->responses"))
-			.isEqualTo("COALESCE((CASE WHEN jsonb_typeof((metadata)->('responses')) = 'array' THEN jsonb_array_length((metadata)->('responses')) END), 0)");
-	}
-
-	@Test
-	void testUpdateHotLengths() {
-		indexRepository.updateHotLengths(List.of("tags", "origin:len", "metadata->responses", "invalid'length"));
-		indexRepository.updateHotLengths(List.of());
-		indexRepository.updateHotLengths(null);
-	}
-
-	List<String> hotLengthIndexes(boolean sqlite) {
-		if (sqlite) return jdbc.queryForList("SELECT name FROM sqlite_master WHERE type = 'index' AND tbl_name = 'ref' AND name LIKE 'ref\\_hotl\\_%' ESCAPE '\\' ORDER BY name", String.class);
-		return jdbc.queryForList("SELECT indexname FROM pg_indexes WHERE tablename = 'ref' AND indexname LIKE 'ref\\_hotl\\_%' ORDER BY indexname", String.class);
-	}
-
-	void assertBuildAndDropHotLengths(boolean sqlite) {
-		indexRepository.updateHotLengths(List.of("tags", "origin:len", "invalid"));
-		assertThat(hotLengthIndexes(sqlite)).containsExactlyInAnyOrder("ref_hotl_tags", "ref_hotl_origin");
-		indexRepository.updateHotLengths(List.of("tags:len", "metadata->responses"));
-		assertThat(hotLengthIndexes(sqlite)).containsExactlyInAnyOrder("ref_hotl_tags", "ref_hotl_responses");
-		indexRepository.updateHotLengths(List.of());
-		assertThat(hotLengthIndexes(sqlite)).isEmpty();
-	}
-
-	@Test
-	@DisabledOnSqlite
-	void testBuildAndDropHotLengthsPostgres() {
-		assertBuildAndDropHotLengths(false);
-	}
-
-	@Test
-	@EnabledIf(expression = SQLITE, loadContext = true)
-	void testBuildAndDropHotLengthsSqlite() {
-		assertBuildAndDropHotLengths(true);
-	}
-
-	void assertHotLengthIndexUsedForSort(boolean sqlite) {
-		indexRepository.updateHotLengths(HOT_LENGTHS);
-		for (var length : HOT_LENGTHS) {
-			var column = length.startsWith("metadata->") ? length : length + ":len";
-			for (var direction : Sort.Direction.values()) {
-				assertThat(explainSort(column, direction, sqlite))
-					.as("%s %s", column, direction)
-					.contains(IndexRepository.HOT_LENGTHS.get(length));
-			}
-		}
-	}
-
-	@Test
-	@DisabledOnSqlite
-	@Transactional
-	void testHotLengthIndexUsedForSortPostgres() {
-		assertHotLengthIndexUsedForSort(false);
-	}
-
-	@Test
-	@EnabledIf(expression = SQLITE, loadContext = true)
-	@Transactional
-	void testHotLengthIndexUsedForSortSqlite() {
-		assertHotLengthIndexUsedForSort(true);
 	}
 
 	@Test

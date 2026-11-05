@@ -348,22 +348,6 @@ public class RefSpec {
 						i);
 	}
 
-	/**
-	 * Metadata modified (the last time responses, internal responses or plugin counts changed) after this time.
-	 */
-	public static Specification<Ref> isResponseAfter(Instant i) {
-		if (i == null) return unrestricted();
-		return isMetadataDate(Ref_.MODIFIED, i.toString(), false);
-	}
-
-	/**
-	 * Metadata modified (the last time responses, internal responses or plugin counts changed) before this time.
-	 */
-	public static Specification<Ref> isResponseBefore(Instant i) {
-		if (i == null) return unrestricted();
-		return isMetadataDate(Ref_.MODIFIED, i.toString(), true);
-	}
-
 	public static Specification<Ref> isNewResponseAfter(Instant i) {
 		if (i == null) return unrestricted();
 		return isMetadataDate("newResponse", timestamp(i), false);
@@ -386,7 +370,7 @@ public class RefSpec {
 
 	/**
 	 * Compares a metadata date as text, using the same expression as sorting by "metadata->{field}",
-	 * so the metadataModified, newResponse and newReaction indexes apply. Missing dates never match.
+	 * so the newResponse and newReaction indexes apply. Missing dates never match.
 	 *
 	 * @param value the date in the same text format the metadata field is written in
 	 */

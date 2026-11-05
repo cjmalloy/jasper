@@ -31,7 +31,7 @@ public class SortSpec {
 	 * Only these fields can be accessed under metadata->.
 	 */
 	private static final Set<String> ALLOWED_METADATA_FIELDS = Set.of(
-		"modified", "newResponse", "newReaction", "expandedTags", "responses", "internalResponses", "plugins", "remotePlugins"
+		"newResponse", "newReaction", "expandedTags", "responses", "internalResponses", "plugins", "remotePlugins"
 	);
 
 	/**
@@ -56,7 +56,7 @@ public class SortSpec {
 	 * Other values are null when missing or of the wrong type, see {@link #createJsonbOrder}.
 	 *
 	 * For metadata fields, automatically applies the correct suffix and restricts access
-	 * to only allowed fields: modified, newResponse, newReaction, expandedTags, responses, internalResponses, plugins, remotePlugins.
+	 * to only allowed fields: newResponse, newReaction, expandedTags, responses, internalResponses, plugins, remotePlugins.
 	 *
 	 * @param root the query root
 	 * @param cb the criteria builder

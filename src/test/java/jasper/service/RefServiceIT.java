@@ -2379,10 +2379,10 @@ public class RefServiceIT {
 	}
 
 	@Test
-	void testResponseBeforeAfterFilterMetadataModified() {
-		refWithMetadata("https://example.com/1", Metadata.builder().modified("2026-01-01T00:00:00Z").build());
-		refWithMetadata("https://example.com/2", Metadata.builder().modified("2026-01-02T00:00:00Z").build());
-		refWithMetadata("https://example.com/3", Metadata.builder().modified("2026-01-03T00:00:00Z").build());
+	void testResponseBeforeAfterAliasNewResponse() {
+		refWithMetadata("https://example.com/1", Metadata.builder().modified("2026-01-03T00:00:00Z").newResponse(Metadata.timestamp(Instant.parse("2026-01-01T00:00:00Z"))).build());
+		refWithMetadata("https://example.com/2", Metadata.builder().modified("2026-01-01T00:00:00Z").newResponse(Metadata.timestamp(Instant.parse("2026-01-02T00:00:00Z"))).build());
+		refWithMetadata("https://example.com/3", Metadata.builder().modified("2026-01-02T00:00:00Z").newResponse(Metadata.timestamp(Instant.parse("2026-01-03T00:00:00Z"))).build());
 
 		assertThat(filteredUrls(RefFilter.builder().responseAfter(Instant.parse("2026-01-01T12:00:00Z")).build()))
 			.containsExactly("https://example.com/2", "https://example.com/3");

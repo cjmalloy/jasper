@@ -109,13 +109,6 @@ public class Index {
 		} else {
 			indexRepository.dropCreated();
 		}
-		if (index.isMetadataModified()) {
-			try {
-				indexRepository.buildMetadataModified();
-			} catch (Exception ignored) {}
-		} else {
-			indexRepository.dropMetadataModified();
-		}
 		if (index.isUrlPrefix()) {
 			try {
 				indexRepository.buildUrlPrefix();
@@ -167,11 +160,6 @@ public class Index {
 			indexRepository.updateHotPlugins(index.getHotPlugins());
 		} catch (Exception e) {
 			logger.error("Error updating hot plugin indices", e);
-		}
-		try {
-			indexRepository.updateHotLengths(index.getHotLengths());
-		} catch (Exception e) {
-			logger.error("Error updating hot length indices", e);
 		}
 		try {
 			indexRepository.updateHotResponses(index.getHotResponses());

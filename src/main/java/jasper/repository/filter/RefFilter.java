@@ -61,7 +61,13 @@ public class RefFilter implements Query {
 	private Instant publishedAfter;
 	private Instant createdBefore;
 	private Instant createdAfter;
+	/**
+	 * Alias of {@link #newResponseBefore}.
+	 */
 	private Instant responseBefore;
+	/**
+	 * Alias of {@link #newResponseAfter}.
+	 */
 	private Instant responseAfter;
 	private Instant newResponseBefore;
 	private Instant newResponseAfter;
@@ -184,10 +190,10 @@ public class RefFilter implements Query {
 			result = result.and(isCreatedAfter(createdAfter));
 		}
 		if (responseBefore != null) {
-			result = result.and(isResponseBefore(responseBefore));
+			result = result.and(isNewResponseBefore(responseBefore));
 		}
 		if (responseAfter != null) {
-			result = result.and(isResponseAfter(responseAfter));
+			result = result.and(isNewResponseAfter(responseAfter));
 		}
 		if (newResponseBefore != null) {
 			result = result.and(isNewResponseBefore(newResponseBefore));

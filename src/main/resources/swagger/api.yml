@@ -287,14 +287,14 @@ paths:
             format: date-time
         - name: responseBefore
           in: query
-          description: 'Only match Refs whose metadata was last modified strictly before this time (metadata->modified, set whenever responses, plugins or user URLs are recomputed). Refs without metadata never match. Indexed by the metadataModified _config/index flag. For the latest response, use newResponseBefore.'
+          description: 'Alias of newResponseBefore.'
           required: false
           schema:
             type: string
             format: date-time
         - name: responseAfter
           in: query
-          description: 'Only match Refs whose metadata was last modified strictly after this time (metadata->modified, set whenever responses, plugins or user URLs are recomputed). Indexed by the metadataModified _config/index flag. For the latest response, use newResponseAfter.'
+          description: 'Alias of newResponseAfter.'
           required: false
           schema:
             type: string
@@ -554,14 +554,14 @@ paths:
             format: date-time
         - name: responseBefore
           in: query
-          description: 'Only match Refs whose metadata was last modified strictly before this time (metadata->modified, set whenever responses, plugins or user URLs are recomputed). Refs without metadata never match. Indexed by the metadataModified _config/index flag. For the latest response, use newResponseBefore.'
+          description: 'Alias of newResponseBefore.'
           required: false
           schema:
             type: string
             format: date-time
         - name: responseAfter
           in: query
-          description: 'Only match Refs whose metadata was last modified strictly after this time (metadata->modified, set whenever responses, plugins or user URLs are recomputed). Indexed by the metadataModified _config/index flag. For the latest response, use newResponseAfter.'
+          description: 'Alias of newResponseAfter.'
           required: false
           schema:
             type: string

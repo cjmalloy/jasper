@@ -17,7 +17,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.regex.Pattern;
 
-import static jasper.repository.IndexRepository.HOT_LENGTHS;
 import static org.apache.commons.lang3.StringUtils.truncate;
 import static org.springframework.util.DigestUtils.md5DigestAsHex;
 
@@ -130,21 +129,6 @@ public class IndexRepositoryImplPostgres implements IndexRepository {
 		em.createNativeQuery("CREATE INDEX IF NOT EXISTS ref_created_index ON ref (created)").executeUpdate();
 	}
 
-	@Override
-	public void dropMetadataModified() {
-		em.createNativeQuery("DROP INDEX IF EXISTS ref_metadata_modified_index").executeUpdate();
-	}
-
-	/**
-	 * Same SQL that {@link jasper.repository.spec.SortSpec#createJsonbOrder} renders for a
-	 * "metadata->modified" sort with the PostgreSQL dialect, which is also used by the responseBefore and
-	 * responseAfter filters, so the planner can match the index to both.
-	 */
-	@Override
-	public void buildMetadataModified() {
-		buildNullsFirst("ref_metadata_modified_index", "(metadata)->>('modified')");
-	}
-
 	/**
 	 * Builds an expression index matching JSONB sorts, which order missing values first ascending
 	 * and last descending, so the index serves both directions and filters on the same expression.
@@ -227,51 +211,6 @@ public class IndexRepositoryImplPostgres implements IndexRepository {
 	@Override
 	public void buildRegen() {
 		em.createNativeQuery("CREATE INDEX IF NOT EXISTS ref_regen_index ON ref (modified) WHERE metadata IS NULL OR (metadata->>'modified') IS NULL OR (metadata->>'regen') = 'true'").executeUpdate();
-	}
-
-	@Override
-	public void updateHotLengths(List<String> hotLengths) {
-		var wanted = new HashMap<String, String>();
-		if (hotLengths != null) {
-			for (var hotLength : hotLengths) {
-				var key = IndexRepository.hotLength(hotLength);
-				if (key == null) {
-					logger.warn("Invalid hot length index: {}", hotLength);
-					continue;
-				}
-				wanted.put(HOT_LENGTHS.get(key), hotLengthExpression(key));
-			}
-		}
-		@SuppressWarnings("unchecked")
-		List<String> existing = em.createNativeQuery("""
-				SELECT indexname FROM pg_indexes
-				WHERE schemaname = current_schema() AND tablename = 'ref' AND indexname LIKE 'ref\\_hotl\\_%'""")
-			.getResultList();
-		for (var name : existing) {
-			if (wanted.containsKey(name)) continue;
-			logger.info("Dropping hot length index {}", name);
-			em.createNativeQuery("DROP INDEX IF EXISTS " + name).executeUpdate();
-		}
-		for (var e : wanted.entrySet()) {
-			if (existing.contains(e.getKey())) continue;
-			logger.info("Building hot length index {} on {}", e.getKey(), e.getValue());
-			em.createNativeQuery("CREATE INDEX IF NOT EXISTS " + e.getKey() + " ON ref ((" + e.getValue() + "))").executeUpdate();
-		}
-	}
-
-	/**
-	 * The same SQL that {@link jasper.repository.spec.RefSpec#sort} renders for a length sort with the
-	 * PostgreSQL dialect, so the planner can match the index to the sort.
-	 * The key must be validated with {@link IndexRepository#hotLength}, so it is safe to inline.
-	 */
-	static String hotLengthExpression(String key) {
-		if ("origin".equals(key)) return "CASE WHEN origin = '' OR origin = '@' THEN 0 ELSE (LENGTH(origin) - LENGTH(REPLACE(origin, '.', '')) + 1) END";
-		if (key.startsWith("metadata->")) {
-			var value = "(metadata)->('" + key.substring("metadata->".length()) + "')";
-			return "COALESCE((CASE WHEN jsonb_typeof(" + value + ") = 'array' THEN jsonb_array_length(" + value + ") END), 0)";
-		}
-		var column = "alternateUrls".equals(key) ? "alternate_urls" : key;
-		return "COALESCE(jsonb_array_length(" + column + "), 0)";
 	}
 
 	@Override
