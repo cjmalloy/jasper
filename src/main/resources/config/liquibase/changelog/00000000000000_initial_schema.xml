@@ -188,4 +188,17 @@
 		</sql>
 	</changeSet>
 
+	<changeSet author="chris" id="00000000000003" dbms="postgresql">
+		<comment>Hot tag indexes keep the old tag_value results after the functions changed to return NULL, drop them so _config/index rebuilds them</comment>
+		<sql splitStatements="false">
+			DO $$
+			DECLARE i text;
+			BEGIN
+				FOR i IN SELECT indexname FROM pg_indexes WHERE schemaname = current_schema() AND tablename = 'ref' AND indexname LIKE 'ref\_hot\_%' LOOP
+					EXECUTE 'DROP INDEX ' || quote_ident(i);
+				END LOOP;
+			END $$;
+		</sql>
+	</changeSet>
+
 </databaseChangeLog>

@@ -158,15 +158,14 @@ for example `{"hotTags": ["plugin/progress:num", "plugin/duration:dur"]}`. Hot t
 removed from the list are dropped. Hot tags are ignored on SQLite.
 
 ### Filtering
-Anything you can sort by, you can filter by. Each filter is a sort column (including any `:num`, `:len` or `:dur`
-suffix) followed by `/` and a value:
+Each filter is a sort column (including any `:num`, `:len` or `:dur` suffix) followed by `/` and a value:
 * `filterBefore` keeps values strictly less than the value
 * `filterAfter` keeps values strictly greater than the value
 * `filterEquals` keeps values equal to the value
 
 Every filter parameter can be repeated, and all filters must match. Missing values never match, but response counts
-are never missing: a Ref without responses counts as `0`. Values cannot contain `/`, `->` or `,`. Invalid filters are
-rejected with `400 Bad Request`.
+are never missing: a Ref without responses counts as `0`. Values cannot contain `/`, `->` or `,`. Plain text columns
+like `url`, `title` or `tag` can be sorted but not filtered. Invalid filters are rejected with `400 Bad Request`.
 
 The column decides how the value is read:
 * Dates (`modified`, `published`, `created`, `metadata->newResponse` and `metadata->newReaction`) take an ISO-8601

@@ -1082,14 +1082,14 @@ public class AuthUnitTest {
 
 	@Test
 	void testUserPageable() {
-		var pageable = PageRequest.of(0, 20, Sort.by("external->ids[0]", "tag"));
+		var pageable = PageRequest.of(0, 20, Sort.by("external->ids[0]", "external", "tag"));
 
 		assertThat(getAuth(getUser("+user/test"), USER).userPageable(pageable).getSort().toList())
 			.extracting(Sort.Order::getProperty)
 			.containsExactly("tag");
 		assertThat(getAuth(getUser("+user/test"), MOD).userPageable(pageable).getSort().toList())
 			.extracting(Sort.Order::getProperty)
-			.containsExactly("external->ids[0]", "tag");
+			.containsExactly("external->ids[0]", "external", "tag");
 	}
 
 	@Test

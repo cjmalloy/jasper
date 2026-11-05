@@ -692,7 +692,7 @@ public class Auth {
 		if (hasRole(MOD)) return pageable;
 		var orders = pageable.getSort().toList();
 		var filtered = orders.stream()
-			.filter(order -> !order.getProperty().startsWith("external->"))
+			.filter(order -> !order.getProperty().equals("external") && !order.getProperty().startsWith("external->"))
 			.toList();
 		if (filtered.size() == orders.size()) return pageable;
 		return PageRequest.of(
