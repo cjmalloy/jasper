@@ -70,7 +70,7 @@ public class ProxyController {
 	private static final String CONTENT_SECURITY_POLICY = "Content-Security-Policy";
 
 	@ApiResponses({
-		@ApiResponse(responseCode = "200"),
+		@ApiResponse(responseCode = "204"),
 	})
 	@GetMapping({"prefetch", "prefetch/{filename:.+}"})
 	ResponseEntity<String> preFetch(

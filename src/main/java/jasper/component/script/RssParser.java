@@ -133,8 +133,9 @@ public class RssParser {
 				return;
 			}
 
-			if (!config.isDisableEtag() && config.getEtag() != null) {
-				request.setHeader(HttpHeaders.IF_NONE_MATCH, config.getEtag());
+			var cachedEtag = config.isDisableEtag() ? null : tagger.getInternalResponse(scriptTag, feed.getOrigin(), feed.getUrl());
+			if (cachedEtag != null) {
+				request.setHeader(HttpHeaders.IF_NONE_MATCH, cachedEtag);
 			}
 			Instant lastScrape = null;
 			var cron = getCron(feed);
@@ -158,14 +159,9 @@ public class RssParser {
 				try (var stream = response.getEntity().getContent()) {
 					if (!config.isDisableEtag()) {
 						var etag = response.getFirstHeader(HttpHeaders.ETAG);
-						if (etag != null && (config.getEtag() == null || !config.getEtag().equals(etag.getValue()))) {
-							config.setEtag(etag.getValue());
-							feed.setPlugin(scriptTag, config);
-							ingest.update(feed.getOrigin(), feed);
-						} else if (etag == null && config.getEtag() != null) {
-							config.setEtag(null);
-							feed.setPlugin(scriptTag, config);
-							ingest.update(feed.getOrigin(), feed);
+						var etagValue = etag == null ? null : etag.getValue();
+						if (!Objects.equals(cachedEtag, etagValue)) {
+							tagger.internalResponse(scriptTag, feed.getOrigin(), feed.getUrl(), etagValue);
 						}
 					}
 					var syndFeed = new SyndFeedInput().build(new XmlReader(stream));

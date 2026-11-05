@@ -60,7 +60,7 @@ public interface TemplateRepository extends JpaRepository<Template, TagId>, Qual
 		FROM Template AS t
 		WHERE t.origin = :origin
 			AND t.schema IS NOT NULL
-			AND COALESCE(CAST(jsonb_object_field(t.config, 'disabled') as boolean), false) = false
+			AND COALESCE(jsonb_object_field_text(t.config, 'disabled'), '') != 'true'
 			AND (t.tag = ''
 				OR t.tag = :tag
 				OR (:tag LIKE '+%' AND concat('+', t.tag) = :tag)
@@ -74,7 +74,7 @@ public interface TemplateRepository extends JpaRepository<Template, TagId>, Qual
 		FROM Template AS t
 		WHERE t.origin = :origin
 			AND t.defaults IS NOT NULL
-			AND COALESCE(CAST(jsonb_object_field(t.config, 'disabled') as boolean), false) = false
+			AND COALESCE(jsonb_object_field_text(t.config, 'disabled'), '') != 'true'
 			AND (t.tag = ''
 				OR t.tag = :tag
 				OR (:tag LIKE '+%' AND concat('+', t.tag) = :tag)
@@ -87,7 +87,7 @@ public interface TemplateRepository extends JpaRepository<Template, TagId>, Qual
 	@Query("""
 		FROM Template AS t
 		WHERE t.origin = :origin
-			AND COALESCE(CAST(jsonb_object_field(t.config, 'disabled') as boolean), false) = false
+			AND COALESCE(jsonb_object_field_text(t.config, 'disabled'), '') != 'true'
 			AND t.tag = :template""")
 	Optional<Template> findByTemplateAndOrigin(String template, String origin);
 }

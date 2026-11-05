@@ -68,6 +68,7 @@ The request was well formed but violates a constraint.
 | Code                 | Status | Exception                         | Meaning                                                      | Client action                                    |
 |----------------------|--------|-----------------------------------|--------------------------------------------------------------|--------------------------------------------------|
 | `error.validation`   | 400    | `MethodArgumentNotValidException` | Bean validation failed, see `fieldErrors`.                   | Fix each field listed in `fieldErrors`.          |
+| `error.validation`   | 400    | `ConstraintViolationException`    | A query or path parameter is invalid, see `detail`.          | Fix the parameter, see the OpenAPI spec.         |
 | `error.invalidPatch` | 400    | `InvalidPatchException`           | A JSON Patch or Merge Patch could not be applied.            | Fix the patch document.                          |
 | `error.invalidPush`  | 400    | `InvalidPushException`            | A replication push contains invalid data.                    | Fix the pushed entities and push again.          |
 

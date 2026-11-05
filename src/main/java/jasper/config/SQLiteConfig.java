@@ -98,7 +98,7 @@ public class SQLiteConfig implements BeanPostProcessor {
 		}, Function.FLAG_DETERMINISTIC);
 	}
 
-	static Double isoDurationSeconds(String value) {
+	public static Double isoDurationSeconds(String value) {
 		if (value == null) return null;
 		var m = ISO_DURATION.matcher(value.toUpperCase());
 		if (!m.matches()) return null;

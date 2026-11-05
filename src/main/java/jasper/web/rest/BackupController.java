@@ -55,7 +55,7 @@ public class BackupController {
 	BackupService backupService;
 
 	@ApiResponses({
-		@ApiResponse(responseCode = "201"),
+		@ApiResponse(responseCode = "200"),
 	})
 	@PostMapping
 	String createBackup(

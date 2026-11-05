@@ -41,6 +41,11 @@ public interface Tag extends Cursor {
 		return "tag:/" + publicTag(user) + "?url=" + url;
 	}
 
+	// Tag URL for internal state about a Ref, so the Ref itself is not modified
+	static String responseUrlForTag(String url, String tag) {
+		return "tag:/" + tag + "?url=" + url;
+	}
+
 	// User tags are only unique within an origin
 	static String userUrlPrefix(String user, String origin) {
 		return "tag:/" + publicTag(user) + concreteOrigin(origin) + "?url=";

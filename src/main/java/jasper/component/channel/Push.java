@@ -62,10 +62,11 @@ public class Push {
 
 	@EventListener(ApplicationReadyEvent.class)
 	public void init() {
-		for (var origin : configs.root().scriptOrigins("+plugin/origin/push")) {
-			// TODO: redo on template change
-			watch.addWatch(origin, "+plugin/origin/push", this::watch);
-		}
+		configs.rootUpdate(root -> {
+			for (var origin : root.scriptOrigins("+plugin/origin/push")) {
+				watch.addWatch(origin, "+plugin/origin/push", this::watch);
+			}
+		});
 	}
 
 	private void watch(HasTags update) {

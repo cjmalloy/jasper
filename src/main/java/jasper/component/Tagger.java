@@ -18,10 +18,12 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 
 import static jasper.domain.Ref.from;
 import static jasper.domain.proj.Tag.capturesDownwards;
+import static jasper.domain.proj.Tag.responseUrlForTag;
 import static jasper.domain.proj.Tag.urlForTag;
 import static java.lang.Math.max;
 import static java.lang.Math.min;
@@ -390,6 +392,52 @@ public class Tagger {
 			ingest.create(origin, ref);
 			return ref;
 		});
+	}
+
+	/**
+	 * Internal state about a Ref, stored in the comment of an internal response
+	 * with the exact tag URL instead of mutating the Ref, similar to user URLs.
+	 * The internal tag hides the response from users.
+	 */
+	public String getInternalResponse(String tag, String origin, String url) {
+		return refRepository.findOneByUrlAndOrigin(responseUrlForTag(url, tag), origin)
+			.map(Ref::getComment)
+			.orElse(null);
+	}
+
+	/**
+	 * Store internal state about a Ref in an internal response, see
+	 * {@link #getInternalResponse(String, String, String)}.
+	 * Writes to replicated origins are silent, see {@link #silentPlugin(String, String, String, String, Object, String...)}.
+	 * @return false if the state could not be stored due to a concurrent write
+	 */
+	@Timed(value = "jasper.tagger", histogram = true)
+	public boolean internalResponse(String tag, String origin, String url, String comment) {
+		var responseUrl = responseUrlForTag(url, tag);
+		var maybeRef = refRepository.findOneByUrlAndOrigin(responseUrl, origin);
+		if (maybeRef.isPresent() && Objects.equals(maybeRef.get().getComment(), comment)) return true;
+		var ref = maybeRef.orElseGet(() -> from(responseUrl, origin, "internal"));
+		ref.setSources(new ArrayList<>(List.of(url)));
+		ref.setComment(comment);
+		if (configs.getRemote(origin) != null) {
+			if (maybeRef.isEmpty()) {
+				ref.setModified(now());
+				ref.setMetadata(Metadata.builder().ignored(true).build());
+			}
+			ingest.silent(origin, ref);
+			return true;
+		}
+		try {
+			if (maybeRef.isEmpty()) {
+				ingest.create(origin, ref);
+			} else {
+				ingest.update(origin, ref);
+			}
+			return true;
+		} catch (AlreadyExistsException | ModifiedException e) {
+			logger.debug("{} Concurrent write to internal response {}", origin, responseUrl);
+			return false;
+		}
 	}
 
 	@Async
