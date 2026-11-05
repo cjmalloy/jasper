@@ -118,6 +118,30 @@ public class IndexRepositoryImplPostgres implements IndexRepository {
 	}
 
 	@Override
+	public void dropNewResponse() {
+		em.createNativeQuery("DROP INDEX IF EXISTS ref_new_response_index").executeUpdate();
+	}
+
+	/**
+	 * Same SQL that {@link jasper.repository.spec.SortSpec#createJsonbSortExpression} renders for a
+	 * metadata sort with the PostgreSQL dialect, so the planner can match the index to the sort.
+	 */
+	@Override
+	public void buildNewResponse() {
+		em.createNativeQuery("CREATE INDEX IF NOT EXISTS ref_new_response_index ON ref ((COALESCE((metadata)->>('newResponse'), '')))").executeUpdate();
+	}
+
+	@Override
+	public void dropNewReaction() {
+		em.createNativeQuery("DROP INDEX IF EXISTS ref_new_reaction_index").executeUpdate();
+	}
+
+	@Override
+	public void buildNewReaction() {
+		em.createNativeQuery("CREATE INDEX IF NOT EXISTS ref_new_reaction_index ON ref ((COALESCE((metadata)->>('newReaction'), '')))").executeUpdate();
+	}
+
+	@Override
 	public void dropIgnored() {
 		em.createNativeQuery("DROP INDEX IF EXISTS ref_ignored_index").executeUpdate();
 	}

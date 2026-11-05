@@ -750,6 +750,8 @@ and each disabled index is dropped.
 | `fulltext`          | Full text search index.                                                          | `true`        |
 | `published`         | Index on the published date.                                                     | `true`        |
 | `modified`          | Index on the modified date.                                                      | `true`        |
+| `newResponse`       | Index on `metadata->newResponse`, used when sorting by it.                       | `true`        |
+| `newReaction`       | Index on `metadata->newReaction`, used when sorting by it.                       | `true`        |
 | `ignored`           | Partial index on Refs marked `ignored` during replication, used by pull batches. | `true`        |
 | `cascade`           | Partial index on Refs waiting for a metadata cascade.                            | `true`        |
 | `regen`             | Partial index on Refs waiting for metadata regeneration (background backfill).   | `true`        |

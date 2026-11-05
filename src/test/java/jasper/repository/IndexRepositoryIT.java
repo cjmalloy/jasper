@@ -107,6 +107,67 @@ public class IndexRepositoryIT {
 		indexRepository.buildRegen();
 	}
 
+	@Test
+	void testBuildAndDropNewResponse() {
+		indexRepository.dropNewResponse();
+		indexRepository.buildNewResponse();
+		indexRepository.buildNewResponse();
+		indexRepository.dropNewResponse();
+	}
+
+	@Test
+	void testBuildAndDropNewReaction() {
+		indexRepository.dropNewReaction();
+		indexRepository.buildNewReaction();
+		indexRepository.buildNewReaction();
+		indexRepository.dropNewReaction();
+	}
+
+	/**
+	 * Runs a sort through {@link RefSpec#sort} and explains the SQL Hibernate rendered for it,
+	 * so the test fails if Hibernate or the dialect stops rendering the indexed expression.
+	 */
+	String explainSort(String column, Sort.Direction direction, boolean sqlite) {
+		var sql = SqlCapture.capture(() -> refRepository.findAll(
+				RefSpec.sort(RefFilter.builder().build().spec(), PageRequest.of(0, 20, Sort.by(direction, column))),
+				PageRequest.ofSize(20)))
+			.stream()
+			.filter(s -> s.contains(" order by "))
+			.findFirst()
+			.orElseThrow();
+		if (!sqlite) em.createNativeQuery("SET LOCAL enable_seqscan = off").executeUpdate();
+		return ((List<?>) em.createNativeQuery((sqlite ? "EXPLAIN QUERY PLAN " : "EXPLAIN ") + sql)
+				.setParameter(1, sqlite ? 20 : 0)
+				.setParameter(2, sqlite ? 0 : 20)
+				.getResultList()).stream()
+			.map(row -> row instanceof Object[] cols ? cols[cols.length - 1].toString() : row.toString())
+			.collect(Collectors.joining("\n"));
+	}
+
+	@Test
+	@DisabledOnSqlite
+	@Transactional
+	void testNewResponseAndReactionIndexUsedForSortPostgres() {
+		indexRepository.buildNewResponse();
+		indexRepository.buildNewReaction();
+		for (var direction : Sort.Direction.values()) {
+			assertThat(explainSort("metadata->newResponse", direction, false)).as("newResponse %s", direction).contains("ref_new_response_index");
+			assertThat(explainSort("metadata->newReaction", direction, false)).as("newReaction %s", direction).contains("ref_new_reaction_index");
+		}
+	}
+
+	@Test
+	@EnabledIf(expression = "#{environment.acceptsProfiles(T(org.springframework.core.env.Profiles).of('sqlite'))}", loadContext = true)
+	@Transactional
+	void testNewResponseAndReactionIndexUsedForSortSqlite() {
+		indexRepository.buildNewResponse();
+		indexRepository.buildNewReaction();
+		for (var direction : Sort.Direction.values()) {
+			assertThat(explainSort("metadata->newResponse", direction, true)).as("newResponse %s", direction).contains("ref_new_response_index");
+			assertThat(explainSort("metadata->newReaction", direction, true)).as("newReaction %s", direction).contains("ref_new_reaction_index");
+		}
+	}
+
 	String explainPostgres(String sql) {
 		em.createNativeQuery("SET LOCAL enable_seqscan = off").executeUpdate();
 		return ((List<?>) em.createNativeQuery("EXPLAIN " + sql).getResultList()).stream()
