@@ -24,7 +24,7 @@
 		<testcontainers.version>2.0.5</testcontainers.version>
 		<mapstruct.version>1.6.3</mapstruct.version>
 		<sqlite-jdbc.version>3.54.1.0</sqlite-jdbc.version>
-		<hibernate-jpamodelgen.version>7.4.13.Final</hibernate-jpamodelgen.version>
+		<hibernate-jpamodelgen.version>7.4.14.Final</hibernate-jpamodelgen.version>
 		<hypersistence-utils-71.version>3.16.0</hypersistence-utils-71.version>
 		<jsontypedef.version>0.2.2</jsontypedef.version>
 		<json-patch.version>1.13</json-patch.version>
@@ -41,7 +41,7 @@
 		<commons-compress.version>1.28.0</commons-compress.version>
 		<google-cloud-storage.version>2.77.0</google-cloud-storage.version>
 		<google-cloud-nio.version>0.141.0</google-cloud-nio.version>
-		<awssdk.version>2.57.9</awssdk.version>
+		<awssdk.version>2.57.10</awssdk.version>
 		<jsoup.version>1.24.1</jsoup.version>
 		<xmlunit.version>2.14.0</xmlunit.version>
 	</properties>
