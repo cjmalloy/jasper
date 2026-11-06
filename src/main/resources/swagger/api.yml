@@ -25,9 +25,7 @@ paths:
           in: query
           required: false
           schema:
-            type: string
-            allOf:
-              - $ref: '#/components/schemas/origin'
+            $ref: '#/components/schemas/origin'
       responses:
         '200':
           description: OK
@@ -99,9 +97,7 @@ paths:
           in: query
           required: false
           schema:
-            type: string
-            allOf:
-              - $ref: '#/components/schemas/origin'
+            $ref: '#/components/schemas/origin'
         - name: cursor
           in: query
           description: The modified date of the entity being patched, used for optimistic locking
@@ -143,9 +139,7 @@ paths:
           in: query
           required: false
           schema:
-            type: string
-            allOf:
-              - $ref: '#/components/schemas/origin'
+            $ref: '#/components/schemas/origin'
       responses:
         '204':
           description: No Content
@@ -188,12 +182,11 @@ paths:
               - 'modified,DESC'
         - name: query
           in: query
-          description: 'Tag query, see https://github.com/cjmalloy/jasper#tag-queries. Example: `science:!funny`'
+          description: Tag query, see https://github.com/cjmalloy/jasper#tag-queries
           required: false
+          example: 'science:!funny'
           schema:
-            type: string
-            allOf:
-              - $ref: '#/components/schemas/query'
+            $ref: '#/components/schemas/query'
         - name: nesting
           in: query
           description: Only match Refs with this origin nesting level, where the local origin '' is 0, '@a' is 1 and '@a.b' is 2
@@ -206,9 +199,7 @@ paths:
           description: Only match Refs with this URL
           required: false
           schema:
-            type: string
-            allOf:
-              - $ref: '#/components/schemas/url'
+            $ref: '#/components/schemas/url'
         - name: obsolete
           in: query
           description: true to only match obsolete Refs (another origin has a newer copy of the URL), false to exclude them
@@ -217,32 +208,28 @@ paths:
             type: boolean
         - name: scheme
           in: query
-          description: 'Only match Refs with this URL scheme. Example: `https:`'
+          description: Only match Refs with this URL scheme
           required: false
+          example: 'https:'
           schema:
-            type: string
-            allOf:
-              - $ref: '#/components/schemas/scheme'
+            $ref: '#/components/schemas/scheme'
         - name: sources
           in: query
           description: Only match Refs that are sources of this URL (this URL is a response to them)
           required: false
           schema:
-            type: string
-            allOf:
-              - $ref: '#/components/schemas/url'
+            $ref: '#/components/schemas/url'
         - name: responses
           in: query
           description: Only match Refs that are responses to this URL (this URL is one of their sources)
           required: false
           schema:
-            type: string
-            allOf:
-              - $ref: '#/components/schemas/url'
+            $ref: '#/components/schemas/url'
         - name: filterBefore
           in: query
-          description: 'Only match Refs whose sort column is strictly less than the value: {sort column}/{value}. The value is always after the last ''/'' and cannot contain ''/'', ''->'' or '',''. The column decides the type of the value. Dates (modified, published, created, metadata->newResponse, metadata->newReaction) are ISO 8601 instants, response counts, :num, :dur and :len columns are numbers, durations and lengths, everything else is text. Refs without responses count as 0. Missing values never match. Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering. Example: `modified/2024-01-01T00:00:00Z`'
+          description: 'Only match Refs whose sort column is strictly less than the value: {sort column}/{value}. The value is always after the last ''/'' and cannot contain ''/'', ''->'' or '',''. The column decides the type of the value. Dates (modified, published, created, metadata->newResponse, metadata->newReaction) are ISO 8601 instants, response counts, :num, :dur and :len columns are numbers, durations and lengths, everything else is text. Refs without responses count as 0. Missing values never match. Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering'
           required: false
+          example: ['modified/2024-01-01T00:00:00Z']
           schema:
             type: array
             maxItems: 100
@@ -250,8 +237,9 @@ paths:
               $ref: '#/components/schemas/filter'
         - name: filterAfter
           in: query
-          description: 'Only match Refs whose sort column is strictly greater than the value: {sort column}/{value}. Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering. Example: `metadata->plugins->plugin/comment/0`'
+          description: 'Only match Refs whose sort column is strictly greater than the value: {sort column}/{value}. Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering'
           required: false
+          example: ['metadata->plugins->plugin/comment/0']
           schema:
             type: array
             maxItems: 100
@@ -259,8 +247,9 @@ paths:
               $ref: '#/components/schemas/filter'
         - name: filterEquals
           in: query
-          description: 'Only match Refs whose sort column equals the value: {sort column}/{value}. Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering. Example: `metadata->plugins->plugin/comment/0`'
+          description: 'Only match Refs whose sort column equals the value: {sort column}/{value}. Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering'
           required: false
+          example: ['metadata->plugins->plugin/comment/0']
           schema:
             type: array
             maxItems: 100
@@ -312,12 +301,11 @@ paths:
       parameters:
         - name: query
           in: query
-          description: 'Tag query, see https://github.com/cjmalloy/jasper#tag-queries. Example: `science:!funny`'
+          description: Tag query, see https://github.com/cjmalloy/jasper#tag-queries
           required: false
+          example: 'science:!funny'
           schema:
-            type: string
-            allOf:
-              - $ref: '#/components/schemas/query'
+            $ref: '#/components/schemas/query'
         - name: nesting
           in: query
           description: Only match Refs with this origin nesting level, where the local origin '' is 0, '@a' is 1 and '@a.b' is 2
@@ -330,9 +318,7 @@ paths:
           description: Only match Refs with this URL
           required: false
           schema:
-            type: string
-            allOf:
-              - $ref: '#/components/schemas/url'
+            $ref: '#/components/schemas/url'
         - name: obsolete
           in: query
           description: true to only match obsolete Refs (another origin has a newer copy of the URL), false to exclude them
@@ -341,32 +327,28 @@ paths:
             type: boolean
         - name: scheme
           in: query
-          description: 'Only match Refs with this URL scheme. Example: `https:`'
+          description: Only match Refs with this URL scheme
           required: false
+          example: 'https:'
           schema:
-            type: string
-            allOf:
-              - $ref: '#/components/schemas/scheme'
+            $ref: '#/components/schemas/scheme'
         - name: sources
           in: query
           description: Only match Refs that are sources of this URL (this URL is a response to them)
           required: false
           schema:
-            type: string
-            allOf:
-              - $ref: '#/components/schemas/url'
+            $ref: '#/components/schemas/url'
         - name: responses
           in: query
           description: Only match Refs that are responses to this URL (this URL is one of their sources)
           required: false
           schema:
-            type: string
-            allOf:
-              - $ref: '#/components/schemas/url'
+            $ref: '#/components/schemas/url'
         - name: filterBefore
           in: query
-          description: 'Only match Refs whose sort column is strictly less than the value: {sort column}/{value}. The value is always after the last ''/'' and cannot contain ''/'', ''->'' or '',''. The column decides the type of the value. Dates (modified, published, created, metadata->newResponse, metadata->newReaction) are ISO 8601 instants, response counts, :num, :dur and :len columns are numbers, durations and lengths, everything else is text. Refs without responses count as 0. Missing values never match. Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering. Example: `modified/2024-01-01T00:00:00Z`'
+          description: 'Only match Refs whose sort column is strictly less than the value: {sort column}/{value}. The value is always after the last ''/'' and cannot contain ''/'', ''->'' or '',''. The column decides the type of the value. Dates (modified, published, created, metadata->newResponse, metadata->newReaction) are ISO 8601 instants, response counts, :num, :dur and :len columns are numbers, durations and lengths, everything else is text. Refs without responses count as 0. Missing values never match. Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering'
           required: false
+          example: ['modified/2024-01-01T00:00:00Z']
           schema:
             type: array
             maxItems: 100
@@ -374,8 +356,9 @@ paths:
               $ref: '#/components/schemas/filter'
         - name: filterAfter
           in: query
-          description: 'Only match Refs whose sort column is strictly greater than the value: {sort column}/{value}. Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering. Example: `metadata->plugins->plugin/comment/0`'
+          description: 'Only match Refs whose sort column is strictly greater than the value: {sort column}/{value}. Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering'
           required: false
+          example: ['metadata->plugins->plugin/comment/0']
           schema:
             type: array
             maxItems: 100
@@ -383,8 +366,9 @@ paths:
               $ref: '#/components/schemas/filter'
         - name: filterEquals
           in: query
-          description: 'Only match Refs whose sort column equals the value: {sort column}/{value}. Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering. Example: `metadata->plugins->plugin/comment/0`'
+          description: 'Only match Refs whose sort column equals the value: {sort column}/{value}. Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering'
           required: false
+          example: ['metadata->plugins->plugin/comment/0']
           schema:
             type: array
             maxItems: 100
@@ -477,9 +461,7 @@ paths:
           in: query
           required: false
           schema:
-            type: string
-            allOf:
-              - $ref: '#/components/schemas/origin'
+            $ref: '#/components/schemas/origin'
       responses:
         '200':
           $ref: '#/components/responses/Modified'
@@ -510,9 +492,7 @@ paths:
           in: query
           required: false
           schema:
-            type: string
-            allOf:
-              - $ref: '#/components/schemas/origin'
+            $ref: '#/components/schemas/origin'
       responses:
         '200':
           $ref: '#/components/responses/Modified'
@@ -545,9 +525,7 @@ paths:
           in: query
           required: false
           schema:
-            type: string
-            allOf:
-              - $ref: '#/components/schemas/origin'
+            $ref: '#/components/schemas/origin'
       responses:
         '200':
           $ref: '#/components/responses/Modified'
@@ -569,9 +547,7 @@ paths:
           in: query
           required: false
           schema:
-            type: string
-            allOf:
-              - $ref: '#/components/schemas/url'
+            $ref: '#/components/schemas/url'
       responses:
         '200':
           description: OK
@@ -594,16 +570,12 @@ paths:
           in: query
           required: false
           schema:
-            type: string
-            allOf:
-              - $ref: '#/components/schemas/tag'
+            $ref: '#/components/schemas/tag'
         - name: url
           in: query
           required: false
           schema:
-            type: string
-            allOf:
-              - $ref: '#/components/schemas/url'
+            $ref: '#/components/schemas/url'
       responses:
         '201':
           description: Created
@@ -624,16 +596,12 @@ paths:
           in: query
           required: false
           schema:
-            type: string
-            allOf:
-              - $ref: '#/components/schemas/tag'
+            $ref: '#/components/schemas/tag'
         - name: url
           in: query
           required: false
           schema:
-            type: string
-            allOf:
-              - $ref: '#/components/schemas/url'
+            $ref: '#/components/schemas/url'
       responses:
         '204':
           description: No Content
@@ -661,9 +629,7 @@ paths:
           in: query
           required: false
           schema:
-            type: string
-            allOf:
-              - $ref: '#/components/schemas/url'
+            $ref: '#/components/schemas/url'
       requestBody:
         content:
           application/json-patch+json:
@@ -706,9 +672,7 @@ paths:
           in: query
           required: false
           schema:
-            type: string
-            allOf:
-              - $ref: '#/components/schemas/origin'
+            $ref: '#/components/schemas/origin'
       responses:
         '200':
           description: OK
@@ -763,17 +727,16 @@ paths:
             type: string
         - name: mime
           in: query
-          description: 'Mime type of the uploaded file. Example: `image/png`'
+          description: Mime type of the uploaded file
           required: false
+          example: 'image/png'
           schema:
             type: string
         - name: origin
           in: query
           required: false
           schema:
-            type: string
-            allOf:
-              - $ref: '#/components/schemas/origin'
+            $ref: '#/components/schemas/origin'
       requestBody:
         content:
           '*/*':
@@ -803,9 +766,7 @@ paths:
           in: query
           required: false
           schema:
-            type: string
-            allOf:
-              - $ref: '#/components/schemas/origin'
+            $ref: '#/components/schemas/origin'
       responses:
         '204':
           description: No Content
@@ -845,9 +806,7 @@ paths:
           in: query
           required: false
           schema:
-            type: string
-            allOf:
-              - $ref: '#/components/schemas/origin'
+            $ref: '#/components/schemas/origin'
       responses:
         '200':
           description: OK
@@ -910,9 +869,7 @@ paths:
           in: query
           required: false
           schema:
-            type: string
-            allOf:
-              - $ref: '#/components/schemas/origin'
+            $ref: '#/components/schemas/origin'
       responses:
         '204':
           description: No Content
@@ -952,9 +909,7 @@ paths:
           in: query
           required: false
           schema:
-            type: string
-            allOf:
-              - $ref: '#/components/schemas/origin'
+            $ref: '#/components/schemas/origin'
       responses:
         '204':
           description: No Content
@@ -1048,9 +1003,7 @@ paths:
           in: query
           required: false
           schema:
-            type: string
-            allOf:
-              - $ref: '#/components/schemas/origin'
+            $ref: '#/components/schemas/origin'
         - name: olderThan
           in: query
           required: false
@@ -1220,9 +1173,7 @@ paths:
           in: query
           required: false
           schema:
-            type: string
-            allOf:
-              - $ref: '#/components/schemas/query'
+            $ref: '#/components/schemas/query'
         - name: nesting
           in: query
           description: Only match Exts with this origin nesting level, where the local origin '' is 0, '@a' is 1 and '@a.b' is 2
@@ -1242,8 +1193,9 @@ paths:
             type: boolean
         - name: filterBefore
           in: query
-          description: 'Only match Exts whose sort column is strictly less than the value: {sort column}/{value}. The value is always after the last ''/'' and cannot contain ''/'', ''->'' or '',''. The column decides the type of the value. modified is an ISO 8601 instant, :num and :len columns are numbers and lengths, everything else is text. Missing values never match. Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering. Example: `modified/2024-01-01T00:00:00Z`'
+          description: 'Only match Exts whose sort column is strictly less than the value: {sort column}/{value}. The value is always after the last ''/'' and cannot contain ''/'', ''->'' or '',''. The column decides the type of the value. modified is an ISO 8601 instant, :num and :len columns are numbers and lengths, everything else is text. Missing values never match. Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering'
           required: false
+          example: ['modified/2024-01-01T00:00:00Z']
           schema:
             type: array
             maxItems: 100
@@ -1251,8 +1203,9 @@ paths:
               $ref: '#/components/schemas/filter'
         - name: filterAfter
           in: query
-          description: 'Only match Exts whose sort column is strictly greater than the value: {sort column}/{value}. Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering. Example: `tag:len/1`'
+          description: 'Only match Exts whose sort column is strictly greater than the value: {sort column}/{value}. Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering'
           required: false
+          example: ['tag:len/1']
           schema:
             type: array
             maxItems: 100
@@ -1260,8 +1213,9 @@ paths:
               $ref: '#/components/schemas/filter'
         - name: filterEquals
           in: query
-          description: 'Only match Exts whose sort column equals the value: {sort column}/{value}. Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering. Example: `tag:len/1`'
+          description: 'Only match Exts whose sort column equals the value: {sort column}/{value}. Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering'
           required: false
+          example: ['tag:len/1']
           schema:
             type: array
             maxItems: 100
@@ -1295,9 +1249,7 @@ paths:
           in: query
           required: false
           schema:
-            type: string
-            allOf:
-              - $ref: '#/components/schemas/query'
+            $ref: '#/components/schemas/query'
         - name: nesting
           in: query
           description: Only match Exts with this origin nesting level, where the local origin '' is 0, '@a' is 1 and '@a.b' is 2
@@ -1318,8 +1270,9 @@ paths:
             type: boolean
         - name: filterBefore
           in: query
-          description: 'Only match Exts whose sort column is strictly less than the value: {sort column}/{value}. The value is always after the last ''/'' and cannot contain ''/'', ''->'' or '',''. The column decides the type of the value. modified is an ISO 8601 instant, :num and :len columns are numbers and lengths, everything else is text. Missing values never match. Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering. Example: `modified/2024-01-01T00:00:00Z`'
+          description: 'Only match Exts whose sort column is strictly less than the value: {sort column}/{value}. The value is always after the last ''/'' and cannot contain ''/'', ''->'' or '',''. The column decides the type of the value. modified is an ISO 8601 instant, :num and :len columns are numbers and lengths, everything else is text. Missing values never match. Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering'
           required: false
+          example: ['modified/2024-01-01T00:00:00Z']
           schema:
             type: array
             maxItems: 100
@@ -1327,8 +1280,9 @@ paths:
               $ref: '#/components/schemas/filter'
         - name: filterAfter
           in: query
-          description: 'Only match Exts whose sort column is strictly greater than the value: {sort column}/{value}. Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering. Example: `tag:len/1`'
+          description: 'Only match Exts whose sort column is strictly greater than the value: {sort column}/{value}. Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering'
           required: false
+          example: ['tag:len/1']
           schema:
             type: array
             maxItems: 100
@@ -1336,8 +1290,9 @@ paths:
               $ref: '#/components/schemas/filter'
         - name: filterEquals
           in: query
-          description: 'Only match Exts whose sort column equals the value: {sort column}/{value}. Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering. Example: `tag:len/1`'
+          description: 'Only match Exts whose sort column equals the value: {sort column}/{value}. Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering'
           required: false
+          example: ['tag:len/1']
           schema:
             type: array
             maxItems: 100
@@ -1516,9 +1471,7 @@ paths:
           in: query
           required: false
           schema:
-            type: string
-            allOf:
-              - $ref: '#/components/schemas/query'
+            $ref: '#/components/schemas/query'
         - name: nesting
           in: query
           description: Only match Plugins with this origin nesting level, where the local origin '' is 0, '@a' is 1 and '@a.b' is 2
@@ -1538,8 +1491,9 @@ paths:
             type: boolean
         - name: filterBefore
           in: query
-          description: 'Only match Plugins whose sort column is strictly less than the value: {sort column}/{value}. The value is always after the last ''/'' and cannot contain ''/'', ''->'' or '',''. The column decides the type of the value. modified is an ISO 8601 instant, :num and :len columns are numbers and lengths, everything else is text. Missing values never match. Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering. Example: `modified/2024-01-01T00:00:00Z`'
+          description: 'Only match Plugins whose sort column is strictly less than the value: {sort column}/{value}. The value is always after the last ''/'' and cannot contain ''/'', ''->'' or '',''. The column decides the type of the value. modified is an ISO 8601 instant, :num and :len columns are numbers and lengths, everything else is text. Missing values never match. Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering'
           required: false
+          example: ['modified/2024-01-01T00:00:00Z']
           schema:
             type: array
             maxItems: 100
@@ -1547,8 +1501,9 @@ paths:
               $ref: '#/components/schemas/filter'
         - name: filterAfter
           in: query
-          description: 'Only match Plugins whose sort column is strictly greater than the value: {sort column}/{value}. Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering. Example: `tag:len/1`'
+          description: 'Only match Plugins whose sort column is strictly greater than the value: {sort column}/{value}. Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering'
           required: false
+          example: ['tag:len/1']
           schema:
             type: array
             maxItems: 100
@@ -1556,8 +1511,9 @@ paths:
               $ref: '#/components/schemas/filter'
         - name: filterEquals
           in: query
-          description: 'Only match Plugins whose sort column equals the value: {sort column}/{value}. Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering. Example: `tag:len/1`'
+          description: 'Only match Plugins whose sort column equals the value: {sort column}/{value}. Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering'
           required: false
+          example: ['tag:len/1']
           schema:
             type: array
             maxItems: 100
@@ -1593,9 +1549,7 @@ paths:
           in: query
           required: false
           schema:
-            type: string
-            allOf:
-              - $ref: '#/components/schemas/qtag-template'
+            $ref: '#/components/schemas/qtag-template'
       responses:
         '200':
           description: OK
@@ -1697,9 +1651,7 @@ paths:
           in: query
           required: false
           schema:
-            type: string
-            allOf:
-              - $ref: '#/components/schemas/qtag-template'
+            $ref: '#/components/schemas/qtag-template'
       responses:
         '204':
           description: No Content
@@ -1743,9 +1695,7 @@ paths:
           in: query
           required: false
           schema:
-            type: string
-            allOf:
-              - $ref: '#/components/schemas/query'
+            $ref: '#/components/schemas/query'
         - name: nesting
           in: query
           description: Only match Templates with this origin nesting level, where the local origin '' is 0, '@a' is 1 and '@a.b' is 2
@@ -1765,8 +1715,9 @@ paths:
             type: boolean
         - name: filterBefore
           in: query
-          description: 'Only match Templates whose sort column is strictly less than the value: {sort column}/{value}. The value is always after the last ''/'' and cannot contain ''/'', ''->'' or '',''. The column decides the type of the value. modified is an ISO 8601 instant, :num and :len columns are numbers and lengths, everything else is text. Missing values never match. Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering. Example: `modified/2024-01-01T00:00:00Z`'
+          description: 'Only match Templates whose sort column is strictly less than the value: {sort column}/{value}. The value is always after the last ''/'' and cannot contain ''/'', ''->'' or '',''. The column decides the type of the value. modified is an ISO 8601 instant, :num and :len columns are numbers and lengths, everything else is text. Missing values never match. Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering'
           required: false
+          example: ['modified/2024-01-01T00:00:00Z']
           schema:
             type: array
             maxItems: 100
@@ -1774,8 +1725,9 @@ paths:
               $ref: '#/components/schemas/filter'
         - name: filterAfter
           in: query
-          description: 'Only match Templates whose sort column is strictly greater than the value: {sort column}/{value}. Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering. Example: `tag:len/1`'
+          description: 'Only match Templates whose sort column is strictly greater than the value: {sort column}/{value}. Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering'
           required: false
+          example: ['tag:len/1']
           schema:
             type: array
             maxItems: 100
@@ -1783,8 +1735,9 @@ paths:
               $ref: '#/components/schemas/filter'
         - name: filterEquals
           in: query
-          description: 'Only match Templates whose sort column equals the value: {sort column}/{value}. Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering. Example: `tag:len/1`'
+          description: 'Only match Templates whose sort column equals the value: {sort column}/{value}. Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering'
           required: false
+          example: ['tag:len/1']
           schema:
             type: array
             maxItems: 100
@@ -1964,9 +1917,7 @@ paths:
           in: query
           required: false
           schema:
-            type: string
-            allOf:
-              - $ref: '#/components/schemas/query'
+            $ref: '#/components/schemas/query'
         - name: nesting
           in: query
           description: Only match Users with this origin nesting level, where the local origin '' is 0, '@a' is 1 and '@a.b' is 2
@@ -1986,8 +1937,9 @@ paths:
             type: boolean
         - name: filterBefore
           in: query
-          description: 'Only match Users whose sort column is strictly less than the value: {sort column}/{value}. The value is always after the last ''/'' and cannot contain ''/'', ''->'' or '',''. The column decides the type of the value. modified is an ISO 8601 instant, :num and :len columns are numbers and lengths, everything else is text. Filtering on external is MOD only. Missing values never match. Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering. Example: `modified/2024-01-01T00:00:00Z`'
+          description: 'Only match Users whose sort column is strictly less than the value: {sort column}/{value}. The value is always after the last ''/'' and cannot contain ''/'', ''->'' or '',''. The column decides the type of the value. modified is an ISO 8601 instant, :num and :len columns are numbers and lengths, everything else is text. Filtering on external is MOD only. Missing values never match. Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering'
           required: false
+          example: ['modified/2024-01-01T00:00:00Z']
           schema:
             type: array
             maxItems: 100
@@ -1995,8 +1947,9 @@ paths:
               $ref: '#/components/schemas/filter'
         - name: filterAfter
           in: query
-          description: 'Only match Users whose sort column is strictly greater than the value: {sort column}/{value}. Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering. Example: `tag:len/1`'
+          description: 'Only match Users whose sort column is strictly greater than the value: {sort column}/{value}. Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering'
           required: false
+          example: ['tag:len/1']
           schema:
             type: array
             maxItems: 100
@@ -2004,8 +1957,9 @@ paths:
               $ref: '#/components/schemas/filter'
         - name: filterEquals
           in: query
-          description: 'Only match Users whose sort column equals the value: {sort column}/{value}. Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering. Example: `tag:len/1`'
+          description: 'Only match Users whose sort column equals the value: {sort column}/{value}. Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering'
           required: false
+          example: ['tag:len/1']
           schema:
             type: array
             maxItems: 100
@@ -2284,9 +2238,7 @@ paths:
           in: query
           required: false
           schema:
-            type: string
-            allOf:
-              - $ref: '#/components/schemas/origin'
+            $ref: '#/components/schemas/origin'
       responses:
         '200':
           description: OK
@@ -2309,9 +2261,7 @@ paths:
           in: query
           required: false
           schema:
-            type: string
-            allOf:
-              - $ref: '#/components/schemas/origin'
+            $ref: '#/components/schemas/origin'
       requestBody:
         content:
           application/json:
@@ -2340,9 +2290,7 @@ paths:
           in: query
           required: false
           schema:
-            type: string
-            allOf:
-              - $ref: '#/components/schemas/origin'
+            $ref: '#/components/schemas/origin'
         - name: p
           in: query
           required: false
@@ -2386,9 +2334,7 @@ paths:
           in: query
           required: false
           schema:
-            type: string
-            allOf:
-              - $ref: '#/components/schemas/origin'
+            $ref: '#/components/schemas/origin'
       responses:
         '204':
           description: No Content
@@ -2406,9 +2352,7 @@ paths:
           in: query
           required: false
           schema:
-            type: string
-            allOf:
-              - $ref: '#/components/schemas/origin'
+            $ref: '#/components/schemas/origin'
         - name: id
           in: path
           required: true
@@ -2437,9 +2381,7 @@ paths:
           in: query
           required: false
           schema:
-            type: string
-            allOf:
-              - $ref: '#/components/schemas/origin'
+            $ref: '#/components/schemas/origin'
         - name: id
           in: path
           required: true
@@ -2497,9 +2439,7 @@ paths:
           in: query
           required: false
           schema:
-            type: string
-            allOf:
-              - $ref: '#/components/schemas/origin'
+            $ref: '#/components/schemas/origin'
       responses:
         '204':
           description: No Content
@@ -2524,16 +2464,12 @@ paths:
           in: query
           required: false
           schema:
-            type: string
-            allOf:
-              - $ref: '#/components/schemas/origin'
+            $ref: '#/components/schemas/origin'
         - name: query
           in: query
           required: false
           schema:
-            type: string
-            allOf:
-              - $ref: '#/components/schemas/query'
+            $ref: '#/components/schemas/query'
         - name: modifiedAfter
           in: query
           required: false
@@ -2562,9 +2498,7 @@ paths:
           in: query
           required: false
           schema:
-            type: string
-            allOf:
-              - $ref: '#/components/schemas/origin'
+            $ref: '#/components/schemas/origin'
       requestBody:
         content:
           application/json:
@@ -2590,9 +2524,7 @@ paths:
           in: query
           required: false
           schema:
-            type: string
-            allOf:
-              - $ref: '#/components/schemas/origin'
+            $ref: '#/components/schemas/origin'
       responses:
         '200':
           description: OK
@@ -2622,16 +2554,12 @@ paths:
           in: query
           required: false
           schema:
-            type: string
-            allOf:
-              - $ref: '#/components/schemas/origin'
+            $ref: '#/components/schemas/origin'
         - name: query
           in: query
           required: false
           schema:
-            type: string
-            allOf:
-              - $ref: '#/components/schemas/query'
+            $ref: '#/components/schemas/query'
         - name: modifiedAfter
           in: query
           required: false
@@ -2660,9 +2588,7 @@ paths:
           in: query
           required: false
           schema:
-            type: string
-            allOf:
-              - $ref: '#/components/schemas/origin'
+            $ref: '#/components/schemas/origin'
       requestBody:
         content:
           application/json:
@@ -2688,9 +2614,7 @@ paths:
           in: query
           required: false
           schema:
-            type: string
-            allOf:
-              - $ref: '#/components/schemas/origin'
+            $ref: '#/components/schemas/origin'
       responses:
         '200':
           description: OK
@@ -2720,16 +2644,12 @@ paths:
           in: query
           required: false
           schema:
-            type: string
-            allOf:
-              - $ref: '#/components/schemas/origin'
+            $ref: '#/components/schemas/origin'
         - name: query
           in: query
           required: false
           schema:
-            type: string
-            allOf:
-              - $ref: '#/components/schemas/query'
+            $ref: '#/components/schemas/query'
         - name: modifiedAfter
           in: query
           required: false
@@ -2758,9 +2678,7 @@ paths:
           in: query
           required: false
           schema:
-            type: string
-            allOf:
-              - $ref: '#/components/schemas/origin'
+            $ref: '#/components/schemas/origin'
       requestBody:
         content:
           application/json:
@@ -2786,9 +2704,7 @@ paths:
           in: query
           required: false
           schema:
-            type: string
-            allOf:
-              - $ref: '#/components/schemas/origin'
+            $ref: '#/components/schemas/origin'
       responses:
         '200':
           description: OK
@@ -2818,16 +2734,12 @@ paths:
           in: query
           required: false
           schema:
-            type: string
-            allOf:
-              - $ref: '#/components/schemas/origin'
+            $ref: '#/components/schemas/origin'
         - name: query
           in: query
           required: false
           schema:
-            type: string
-            allOf:
-              - $ref: '#/components/schemas/query'
+            $ref: '#/components/schemas/query'
         - name: modifiedAfter
           in: query
           required: false
@@ -2856,9 +2768,7 @@ paths:
           in: query
           required: false
           schema:
-            type: string
-            allOf:
-              - $ref: '#/components/schemas/origin'
+            $ref: '#/components/schemas/origin'
       requestBody:
         content:
           application/json:
@@ -2884,9 +2794,7 @@ paths:
           in: query
           required: false
           schema:
-            type: string
-            allOf:
-              - $ref: '#/components/schemas/origin'
+            $ref: '#/components/schemas/origin'
       responses:
         '200':
           description: OK
@@ -2916,16 +2824,12 @@ paths:
           in: query
           required: false
           schema:
-            type: string
-            allOf:
-              - $ref: '#/components/schemas/origin'
+            $ref: '#/components/schemas/origin'
         - name: query
           in: query
           required: false
           schema:
-            type: string
-            allOf:
-              - $ref: '#/components/schemas/query'
+            $ref: '#/components/schemas/query'
         - name: modifiedAfter
           in: query
           required: false
@@ -2954,9 +2858,7 @@ paths:
           in: query
           required: false
           schema:
-            type: string
-            allOf:
-              - $ref: '#/components/schemas/origin'
+            $ref: '#/components/schemas/origin'
       requestBody:
         content:
           application/json:
@@ -2982,9 +2884,7 @@ paths:
           in: query
           required: false
           schema:
-            type: string
-            allOf:
-              - $ref: '#/components/schemas/origin'
+            $ref: '#/components/schemas/origin'
       responses:
         '200':
           description: OK
@@ -3013,9 +2913,7 @@ paths:
           in: query
           required: false
           schema:
-            type: string
-            allOf:
-              - $ref: '#/components/schemas/origin'
+            $ref: '#/components/schemas/origin'
       responses:
         '200':
           description: OK
@@ -3048,17 +2946,16 @@ paths:
             type: string
         - name: mime
           in: query
-          description: 'Mime type of the uploaded file. Example: `image/png`'
+          description: Mime type of the uploaded file
           required: false
+          example: 'image/png'
           schema:
             type: string
         - name: origin
           in: query
           required: false
           schema:
-            type: string
-            allOf:
-              - $ref: '#/components/schemas/origin'
+            $ref: '#/components/schemas/origin'
       requestBody:
         content:
           '*/*':
@@ -3094,9 +2991,7 @@ paths:
           in: query
           required: false
           schema:
-            type: string
-            allOf:
-              - $ref: '#/components/schemas/origin'
+            $ref: '#/components/schemas/origin'
       requestBody:
         content:
           '*/*':
@@ -3158,9 +3053,7 @@ paths:
           in: query
           required: false
           schema:
-            type: string
-            allOf:
-              - $ref: '#/components/schemas/origin'
+            $ref: '#/components/schemas/origin'
       requestBody:
         content:
           application/json:

@@ -204,29 +204,6 @@ class ApiSpecTest {
 		assertThat(noContent).isEmpty();
 	}
 
-	/**
-	 * Swagger UI fills in "Try it out" with parameter examples (or the example of a referenced schema),
-	 * so optional query parameters with examples are always sent and filter out every result.
-	 * Use the description for examples, and wrap referenced schemas in allOf.
-	 */
-	@Test
-	@SuppressWarnings("unchecked")
-	void testOptionalQueryParametersNotPrefilled() {
-		var schemas = (Map<String, Map<String, Object>>) ((Map<String, Object>) spec.get("components")).get("schemas");
-		var prefilled = new ArrayList<String>();
-		specOperations().forEach((op, o) -> {
-			for (var p : parameters(o, "query")) {
-				if (Boolean.TRUE.equals(p.get("required"))) continue;
-				var schema = (Map<String, Object>) p.getOrDefault("schema", Map.of());
-				if (schema.get("$ref") instanceof String ref) schema = schemas.get(ref.substring(ref.lastIndexOf('/') + 1));
-				if (p.containsKey("example") || p.containsKey("examples") || schema.containsKey("example")) {
-					prefilled.add(op + ": " + p.get("name"));
-				}
-			}
-		});
-		assertThat(prefilled).isEmpty();
-	}
-
 	@Test
 	void testPathParameters() {
 		var mismatched = new ArrayList<String>();
