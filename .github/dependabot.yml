@@ -32,6 +32,9 @@ updates:
       patterns:
         - "*spring-boot*"
         - "*spring-cloud*"
+    google-cloud:
+      patterns:
+        - "com.google.cloud:*"
 - package-ecosystem: maven
   directory: /gatling
   schedule:
@@ -93,6 +96,9 @@ updates:
       patterns:
         - "*spring-boot*"
         - "*spring-cloud*"
+    google-cloud:
+      patterns:
+        - "com.google.cloud:*"
 - package-ecosystem: docker
   target-branch: v1.3
   directory: /
