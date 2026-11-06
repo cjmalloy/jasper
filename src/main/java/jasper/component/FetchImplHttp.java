@@ -17,6 +17,8 @@ import org.springframework.stereotype.Component;
 import java.io.FilterInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URI;
+import java.util.Locale;
 
 import static jasper.domain.proj.HasTags.hasMatchingTag;
 import static jasper.plugin.Pull.getPull;
@@ -39,6 +41,9 @@ public class FetchImplHttp implements Fetch {
 	@Autowired
 	Replicator replicator;
 
+	@Autowired
+	TorrentFetch torrentFetch;
+
 	@Bulkhead(name = "fetch")
 	public FileRequest doScrape(String url, String origin) throws IOException {
 		var remote = configs.getRemote(origin);
@@ -51,13 +56,16 @@ public class FetchImplHttp implements Fetch {
 			}
 			return replicator.fetch(url, remote);
 		}
+		if (url.startsWith("magnet:")) {
+			return torrentFetch.fetch(url);
+		}
 		if (url.startsWith("http:") || url.startsWith("https:")) {
 			return wrap(doWebScrape(url));
 		}
 		throw new ScrapeProtocolException(url.contains(":") ? url.substring(0, url.indexOf(":")) : "unknown");
 	}
 
-	private CloseableHttpResponse doWebScrape(String url) throws IOException {
+	private WebResponse doWebScrape(String url) throws IOException {
 		logger.debug("Starting request to {}", url);
 		HttpUriRequest request = new HttpGet(url);
 		if (!hostCheck.validHost(request.getURI())) {
@@ -71,8 +79,9 @@ public class FetchImplHttp implements Fetch {
 		if (res.getStatusLine().getStatusCode() == 301 || res.getStatusLine().getStatusCode() == 304) {
 			try {
 				var location = res.getFirstHeader("Location").getElements()[0].getValue();
-				logger.debug("Forwarding request to {} -> {}", url, location);
-				return doWebScrape(location);
+				var redirect = URI.create(url).resolve(location).toString();
+				logger.debug("Forwarding request to {} -> {}", url, redirect);
+				return doWebScrape(redirect);
 			} catch (Exception e) {
 				logger.error("Error forwarding request from {}", url, e);
 				return null;
@@ -81,16 +90,25 @@ public class FetchImplHttp implements Fetch {
 			}
 		}
 		logger.debug("Request completed {}", url);
-		return res;
+		return new WebResponse(url, res);
 	}
 
-	private FileRequest wrap(CloseableHttpResponse res) {
-		if (res == null) return null;
+	private FileRequest wrap(WebResponse webResponse) throws IOException {
+		if (webResponse == null) return null;
+		var res = webResponse.response();
+		var header = res.getFirstHeader(HttpHeaders.CONTENT_TYPE);
+		var mimeType = header == null ? null : header.getValue();
+		var path = URI.create(webResponse.url()).getPath();
+		if (mimeType != null && "application/x-bittorrent".equalsIgnoreCase(mimeType.split(";", 2)[0].trim())
+			|| path != null && path.toLowerCase(Locale.ROOT).endsWith(".torrent")) {
+			try (res) {
+				return torrentFetch.fetch(res.getEntity().getContent());
+			}
+		}
 		return new FileRequest() {
 			@Override
 			public String getMimeType() {
-				var header = res.getFirstHeader(HttpHeaders.CONTENT_TYPE);
-				return header == null ? null : header.getValue();
+				return mimeType;
 			}
 
 			@Override
@@ -115,4 +133,5 @@ public class FetchImplHttp implements Fetch {
 		};
 	}
 
+	private record WebResponse(String url, CloseableHttpResponse response) {}
 }
