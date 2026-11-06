@@ -620,6 +620,34 @@ public class IndexRepositoryIT {
 		assertThat(explainFilter(RefFilter.builder().filterAfter(List.of("created/" + now)).build().spec(), true, param)).contains("ref_created_index");
 	}
 
+	@Test
+	void testBuildAndDropTitle() {
+		indexRepository.dropTitle();
+		indexRepository.buildTitle();
+		indexRepository.buildTitle();
+		indexRepository.dropTitle();
+	}
+
+	@Test
+	@DisabledOnSqlite
+	@Transactional
+	void testTitleIndexUsedPostgres() {
+		indexRepository.buildTitle();
+		for (var direction : Sort.Direction.values()) {
+			assertThat(explainSort("title", direction, false)).as("title %s", direction).contains("ref_title_index");
+		}
+	}
+
+	@Test
+	@EnabledIf(expression = SQLITE, loadContext = true)
+	@Transactional
+	void testTitleIndexUsedSqlite() {
+		indexRepository.buildTitle();
+		for (var direction : Sort.Direction.values()) {
+			assertThat(explainSort("title", direction, true)).as("title %s", direction).contains("ref_title_index");
+		}
+	}
+
 	/**
 	 * Each metadata date filter must use the same index as the matching sort.
 	 */

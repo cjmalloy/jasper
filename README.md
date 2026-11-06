@@ -758,6 +758,7 @@ and each disabled index is dropped.
 | `published`          | Index on the published date.                                                                                                               | `true`        |
 | `modified`           | Index on the modified date.                                                                                                                | `true`        |
 | `created`            | Index on the created date, used when sorting and filtering by `created`.                                                                   | `true`        |
+| `title`              | Index on the title, used when sorting by `title`.                                                                                          | `true`        |
 | `newResponse`        | Index on `metadata->newResponse`, used when sorting and filtering by it.                                                                   | `true`        |
 | `newReaction`        | Index on `metadata->newReaction`, used when sorting and filtering by it.                                                                   | `true`        |
 | `ignored`            | Partial index on Refs marked `ignored` during replication, used by pull batches.                                                           | `true`        |
