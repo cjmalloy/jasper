@@ -28,7 +28,7 @@ import java.time.Instant;
 
 import static jasper.domain.proj.Tag.localTag;
 import static jasper.domain.proj.Tag.tagOrigin;
-import static jasper.repository.spec.PluginSpec.sort;
+import static jasper.repository.spec.SortSpec.sortTags;
 import static org.springframework.data.domain.PageRequest.of;
 
 @Service
@@ -86,10 +86,10 @@ public class PluginService {
 	public Page<PluginDto> page(TagFilter filter, Pageable pageable) {
 		return pluginRepository
 			.findAll(
-				sort(
+				sortTags(
 					auth.<Plugin>tagReadSpec()
-						.and(filter.spec()),
-					pageable),
+						.and(filter.spec("config", "defaults", "schema")),
+					pageable, "config", "defaults", "schema"),
 				of(pageable.getPageNumber(), pageable.getPageSize()))
 			.map(mapper::domainToDto);
 	}

@@ -8,7 +8,9 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
 import jasper.aop.ClearIdle;
 import jasper.component.HttpCache;
 import jasper.domain.User;
@@ -32,6 +34,7 @@ import org.springframework.web.bind.annotation.*;
 import java.io.IOException;
 import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
+import java.util.List;
 
 import static jasper.domain.proj.Tag.QTAG_LEN;
 import static jasper.repository.filter.Query.QUERY_LEN;
@@ -94,8 +97,9 @@ public class UserController {
 		@RequestParam(required = false) Integer nesting,
 		@RequestParam(required = false) Integer level,
 		@RequestParam(required = false) Boolean deleted,
-		@RequestParam(required = false) Instant modifiedBefore,
-		@RequestParam(required = false) Instant modifiedAfter,
+		@RequestParam(required = false) @Size(max = 100) List<@NotBlank @Length(max = TagFilter.FILTER_LEN) @Pattern(regexp = TagFilter.FILTER) String> filterBefore,
+		@RequestParam(required = false) @Size(max = 100) List<@NotBlank @Length(max = TagFilter.FILTER_LEN) @Pattern(regexp = TagFilter.FILTER) String> filterAfter,
+		@RequestParam(required = false) @Size(max = 100) List<@NotBlank @Length(max = TagFilter.FILTER_LEN) @Pattern(regexp = TagFilter.FILTER) String> filterEquals,
 		@RequestParam(required = false) @Length(max = SEARCH_LEN) String search
 	) {
 		return httpCache.ifNotModifiedPage(userService.page(
@@ -105,8 +109,9 @@ public class UserController {
 				.level(level)
 				.deleted(deleted)
 				.search(search)
-				.modifiedBefore(modifiedBefore)
-				.modifiedAfter(modifiedAfter)
+				.filterBefore(filterBefore)
+				.filterAfter(filterAfter)
+				.filterEquals(filterEquals)
 				.build(),
 			pageable));
 	}

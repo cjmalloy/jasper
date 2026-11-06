@@ -2,7 +2,7 @@ openapi: 3.0.3
 info:
   title: Jasper Protocol
   description: REST API for the Jasper Protocol
-  version: 1.4.3
+  version: 1.5.0
   license:
     name: MIT License
     url: 'https://github.com/cjmalloy/jasper/blob/master/LICENSE'
@@ -187,12 +187,6 @@ paths:
           example: 'science:!funny'
           schema:
             $ref: '#/components/schemas/query'
-        - name: noDescendents
-          in: query
-          description: Exclude Refs that have a descendant tag of this tag, e.g. noDescendents=plugin/thread excludes Refs tagged plugin/thread/x
-          required: false
-          schema:
-            $ref: '#/components/schemas/tag'
         - name: nesting
           in: query
           description: Only match Refs with this origin nesting level, where the local origin '' is 0, '@a' is 1 and '@a.b' is 2
@@ -225,156 +219,42 @@ paths:
           required: false
           schema:
             $ref: '#/components/schemas/url'
-        - name: noSources
-          in: query
-          description: Exclude Refs that are sources of this URL
-          required: false
-          schema:
-            $ref: '#/components/schemas/url'
         - name: responses
           in: query
           description: Only match Refs that are responses to this URL (this URL is one of their sources)
           required: false
           schema:
             $ref: '#/components/schemas/url'
-        - name: noResponses
+        - name: filterBefore
           in: query
-          description: Exclude Refs that are responses to this URL
+          description: 'Only match Refs whose sort column is strictly less than the value: {sort column}/{value}. The value is always after the last ''/'' and cannot contain ''/'', ''->'' or '',''. The column decides the type of the value. Dates (modified, published, created, metadata->newResponse, metadata->newReaction) are ISO 8601 instants, response counts, :num, :dur and :len columns are numbers, durations and lengths, everything else is text. Refs without responses count as 0. Missing values never match. Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering'
           required: false
-          schema:
-            $ref: '#/components/schemas/url'
-        - name: modifiedBefore
-          in: query
-          description: Only match Refs modified strictly before this time
-          required: false
-          schema:
-            type: string
-            format: date-time
-        - name: modifiedAfter
-          in: query
-          description: Only match Refs modified strictly after this time
-          required: false
-          schema:
-            type: string
-            format: date-time
-        - name: publishedBefore
-          in: query
-          description: Only match Refs published strictly before this time
-          required: false
-          schema:
-            type: string
-            format: date-time
-        - name: publishedAfter
-          in: query
-          description: Only match Refs published strictly after this time
-          required: false
-          schema:
-            type: string
-            format: date-time
-        - name: createdBefore
-          in: query
-          description: Only match Refs created strictly before this time
-          required: false
-          schema:
-            type: string
-            format: date-time
-        - name: createdAfter
-          in: query
-          description: Only match Refs created strictly after this time
-          required: false
-          schema:
-            type: string
-            format: date-time
-        - name: responseBefore
-          in: query
-          description: Only match Refs with a response strictly before this time
-          required: false
-          schema:
-            type: string
-            format: date-time
-        - name: responseAfter
-          in: query
-          description: Only match Refs with a response strictly after this time
-          required: false
-          schema:
-            type: string
-            format: date-time
-        - name: tagBefore
-          in: query
-          description: 'Only match Refs whose tag value is strictly less than the value: tags->{tag}[:num|:dur]/{value}. The value is always after the last ''/''. Refs without a value never match. Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering-by-value'
-          required: false
-          example: ['tags->plugin/progress:num/50']
+          example: ['modified/2024-01-01T00:00:00Z']
           schema:
             type: array
             maxItems: 100
             items:
-              $ref: '#/components/schemas/tagValueFilter'
-        - name: tagAfter
+              $ref: '#/components/schemas/filter'
+        - name: filterAfter
           in: query
-          description: 'Only match Refs whose tag value is strictly greater than the value: tags->{tag}[:num|:dur]/{value}. The value is always after the last ''/''. Refs without a value never match. Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering-by-value'
+          description: 'Only match Refs whose sort column is strictly greater than the value: {sort column}/{value}. Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering'
           required: false
-          example: ['tags->plugin/duration:dur/pt1h']
+          example: ['metadata->plugins->plugin/comment/0']
           schema:
             type: array
             maxItems: 100
             items:
-              $ref: '#/components/schemas/tagValueFilter'
-        - name: pluginBefore
+              $ref: '#/components/schemas/filter'
+        - name: filterEquals
           in: query
-          description: 'Only match Refs whose plugin value is strictly less than the value: plugins->{plugin}[->{field}...][:num|:len]/{value}. The value is always after the last ''/'' and cannot contain ''/'', ''->'' or '',''. Refs without the value never match. Strings compare using the database ordering (locale on PostgreSQL, bytes on SQLite). Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering-by-value'
+          description: 'Only match Refs whose sort column equals the value: {sort column}/{value}. Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering'
           required: false
-          example: ['plugins->plugin/test->ids:len/3']
+          example: ['metadata->plugins->plugin/comment/0']
           schema:
             type: array
             maxItems: 100
             items:
-              $ref: '#/components/schemas/pluginValueFilter'
-        - name: pluginAfter
-          in: query
-          description: 'Only match Refs whose plugin value is strictly greater than the value: plugins->{plugin}[->{field}...][:num|:len]/{value}. The value is always after the last ''/'' and cannot contain ''/'', ''->'' or '',''. Refs without the value never match. Strings compare using the database ordering (locale on PostgreSQL, bytes on SQLite). Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering-by-value'
-          required: false
-          example: ['plugins->_plugin/cache->contentLength:num/1000']
-          schema:
-            type: array
-            maxItems: 100
-            items:
-              $ref: '#/components/schemas/pluginValueFilter'
-        - name: pluginResponse
-          in: query
-          description: Only match Refs with a response tagged with each of these plugins
-          required: false
-          schema:
-            type: array
-            maxItems: 100
-            items:
-              $ref: '#/components/schemas/tag-plugin'
-        - name: noPluginResponse
-          in: query
-          description: Exclude Refs with a response tagged with any of these plugins
-          required: false
-          schema:
-            type: array
-            maxItems: 100
-            items:
-              $ref: '#/components/schemas/tag-plugin'
-        - name: remotePluginResponse
-          in: query
-          description: Only match Refs with a response from any origin tagged with each of these plugins
-          required: false
-          schema:
-            type: array
-            maxItems: 100
-            items:
-              $ref: '#/components/schemas/tag-plugin'
-        - name: noRemotePluginResponse
-          in: query
-          description: Exclude Refs with a response from any origin tagged with any of these plugins
-          required: false
-          schema:
-            type: array
-            maxItems: 100
-            items:
-              $ref: '#/components/schemas/tag-plugin'
+              $ref: '#/components/schemas/filter'
         - name: userResponse
           in: query
           description: Only match Refs the current user has responded to with each of these plugins
@@ -426,12 +306,6 @@ paths:
           example: 'science:!funny'
           schema:
             $ref: '#/components/schemas/query'
-        - name: noDescendents
-          in: query
-          description: Exclude Refs that have a descendant tag of this tag, e.g. noDescendents=plugin/thread excludes Refs tagged plugin/thread/x
-          required: false
-          schema:
-            $ref: '#/components/schemas/tag'
         - name: nesting
           in: query
           description: Only match Refs with this origin nesting level, where the local origin '' is 0, '@a' is 1 and '@a.b' is 2
@@ -464,156 +338,42 @@ paths:
           required: false
           schema:
             $ref: '#/components/schemas/url'
-        - name: noSources
-          in: query
-          description: Exclude Refs that are sources of this URL
-          required: false
-          schema:
-            $ref: '#/components/schemas/url'
         - name: responses
           in: query
           description: Only match Refs that are responses to this URL (this URL is one of their sources)
           required: false
           schema:
             $ref: '#/components/schemas/url'
-        - name: noResponses
+        - name: filterBefore
           in: query
-          description: Exclude Refs that are responses to this URL
+          description: 'Only match Refs whose sort column is strictly less than the value: {sort column}/{value}. The value is always after the last ''/'' and cannot contain ''/'', ''->'' or '',''. The column decides the type of the value. Dates (modified, published, created, metadata->newResponse, metadata->newReaction) are ISO 8601 instants, response counts, :num, :dur and :len columns are numbers, durations and lengths, everything else is text. Refs without responses count as 0. Missing values never match. Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering'
           required: false
-          schema:
-            $ref: '#/components/schemas/url'
-        - name: modifiedBefore
-          in: query
-          description: Only match Refs modified strictly before this time
-          required: false
-          schema:
-            type: string
-            format: date-time
-        - name: modifiedAfter
-          in: query
-          description: Only match Refs modified strictly after this time
-          required: false
-          schema:
-            type: string
-            format: date-time
-        - name: publishedBefore
-          in: query
-          description: Only match Refs published strictly before this time
-          required: false
-          schema:
-            type: string
-            format: date-time
-        - name: publishedAfter
-          in: query
-          description: Only match Refs published strictly after this time
-          required: false
-          schema:
-            type: string
-            format: date-time
-        - name: createdBefore
-          in: query
-          description: Only match Refs created strictly before this time
-          required: false
-          schema:
-            type: string
-            format: date-time
-        - name: createdAfter
-          in: query
-          description: Only match Refs created strictly after this time
-          required: false
-          schema:
-            type: string
-            format: date-time
-        - name: responseBefore
-          in: query
-          description: Only match Refs with a response strictly before this time
-          required: false
-          schema:
-            type: string
-            format: date-time
-        - name: responseAfter
-          in: query
-          description: Only match Refs with a response strictly after this time
-          required: false
-          schema:
-            type: string
-            format: date-time
-        - name: tagBefore
-          in: query
-          description: 'Only match Refs whose tag value is strictly less than the value: tags->{tag}[:num|:dur]/{value}. The value is always after the last ''/''. Refs without a value never match. Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering-by-value'
-          required: false
-          example: ['tags->plugin/progress:num/50']
+          example: ['modified/2024-01-01T00:00:00Z']
           schema:
             type: array
             maxItems: 100
             items:
-              $ref: '#/components/schemas/tagValueFilter'
-        - name: tagAfter
+              $ref: '#/components/schemas/filter'
+        - name: filterAfter
           in: query
-          description: 'Only match Refs whose tag value is strictly greater than the value: tags->{tag}[:num|:dur]/{value}. The value is always after the last ''/''. Refs without a value never match. Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering-by-value'
+          description: 'Only match Refs whose sort column is strictly greater than the value: {sort column}/{value}. Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering'
           required: false
-          example: ['tags->plugin/duration:dur/pt1h']
+          example: ['metadata->plugins->plugin/comment/0']
           schema:
             type: array
             maxItems: 100
             items:
-              $ref: '#/components/schemas/tagValueFilter'
-        - name: pluginBefore
+              $ref: '#/components/schemas/filter'
+        - name: filterEquals
           in: query
-          description: 'Only match Refs whose plugin value is strictly less than the value: plugins->{plugin}[->{field}...][:num|:len]/{value}. The value is always after the last ''/'' and cannot contain ''/'', ''->'' or '',''. Refs without the value never match. Strings compare using the database ordering (locale on PostgreSQL, bytes on SQLite). Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering-by-value'
+          description: 'Only match Refs whose sort column equals the value: {sort column}/{value}. Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering'
           required: false
-          example: ['plugins->plugin/test->ids:len/3']
+          example: ['metadata->plugins->plugin/comment/0']
           schema:
             type: array
             maxItems: 100
             items:
-              $ref: '#/components/schemas/pluginValueFilter'
-        - name: pluginAfter
-          in: query
-          description: 'Only match Refs whose plugin value is strictly greater than the value: plugins->{plugin}[->{field}...][:num|:len]/{value}. The value is always after the last ''/'' and cannot contain ''/'', ''->'' or '',''. Refs without the value never match. Strings compare using the database ordering (locale on PostgreSQL, bytes on SQLite). Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering-by-value'
-          required: false
-          example: ['plugins->_plugin/cache->contentLength:num/1000']
-          schema:
-            type: array
-            maxItems: 100
-            items:
-              $ref: '#/components/schemas/pluginValueFilter'
-        - name: pluginResponse
-          in: query
-          description: Only match Refs with a response tagged with each of these plugins
-          required: false
-          schema:
-            type: array
-            maxItems: 100
-            items:
-              $ref: '#/components/schemas/tag-plugin'
-        - name: noPluginResponse
-          in: query
-          description: Exclude Refs with a response tagged with any of these plugins
-          required: false
-          schema:
-            type: array
-            maxItems: 100
-            items:
-              $ref: '#/components/schemas/tag-plugin'
-        - name: remotePluginResponse
-          in: query
-          description: Only match Refs with a response from any origin tagged with each of these plugins
-          required: false
-          schema:
-            type: array
-            maxItems: 100
-            items:
-              $ref: '#/components/schemas/tag-plugin'
-        - name: noRemotePluginResponse
-          in: query
-          description: Exclude Refs with a response from any origin tagged with any of these plugins
-          required: false
-          schema:
-            type: array
-            maxItems: 100
-            items:
-              $ref: '#/components/schemas/tag-plugin'
+              $ref: '#/components/schemas/filter'
         - name: userResponse
           in: query
           description: Only match Refs the current user has responded to with each of these plugins
@@ -1416,7 +1176,7 @@ paths:
             $ref: '#/components/schemas/query'
         - name: nesting
           in: query
-          description: Only match entities with this origin nesting level, where the local origin '' is 0, '@a' is 1 and '@a.b' is 2
+          description: Only match Exts with this origin nesting level, where the local origin '' is 0, '@a' is 1 and '@a.b' is 2
           required: false
           schema:
             type: integer
@@ -1431,18 +1191,36 @@ paths:
           required: false
           schema:
             type: boolean
-        - name: modifiedBefore
+        - name: filterBefore
           in: query
+          description: 'Only match Exts whose sort column is strictly less than the value: {sort column}/{value}. The value is always after the last ''/'' and cannot contain ''/'', ''->'' or '',''. The column decides the type of the value. modified is an ISO 8601 instant, :num and :len columns are numbers and lengths, everything else is text. Missing values never match. Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering'
           required: false
+          example: ['modified/2024-01-01T00:00:00Z']
           schema:
-            type: string
-            format: date-time
-        - name: modifiedAfter
+            type: array
+            maxItems: 100
+            items:
+              $ref: '#/components/schemas/filter'
+        - name: filterAfter
           in: query
+          description: 'Only match Exts whose sort column is strictly greater than the value: {sort column}/{value}. Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering'
           required: false
+          example: ['tag:len/1']
           schema:
-            type: string
-            format: date-time
+            type: array
+            maxItems: 100
+            items:
+              $ref: '#/components/schemas/filter'
+        - name: filterEquals
+          in: query
+          description: 'Only match Exts whose sort column equals the value: {sort column}/{value}. Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering'
+          required: false
+          example: ['tag:len/1']
+          schema:
+            type: array
+            maxItems: 100
+            items:
+              $ref: '#/components/schemas/filter'
         - name: search
           in: query
           required: false
@@ -1474,7 +1252,7 @@ paths:
             $ref: '#/components/schemas/query'
         - name: nesting
           in: query
-          description: Only match entities with this origin nesting level, where the local origin '' is 0, '@a' is 1 and '@a.b' is 2
+          description: Only match Exts with this origin nesting level, where the local origin '' is 0, '@a' is 1 and '@a.b' is 2
           required: false
           schema:
             type: integer
@@ -1490,18 +1268,36 @@ paths:
           required: false
           schema:
             type: boolean
-        - name: modifiedBefore
+        - name: filterBefore
           in: query
+          description: 'Only match Exts whose sort column is strictly less than the value: {sort column}/{value}. The value is always after the last ''/'' and cannot contain ''/'', ''->'' or '',''. The column decides the type of the value. modified is an ISO 8601 instant, :num and :len columns are numbers and lengths, everything else is text. Missing values never match. Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering'
           required: false
+          example: ['modified/2024-01-01T00:00:00Z']
           schema:
-            type: string
-            format: date-time
-        - name: modifiedAfter
+            type: array
+            maxItems: 100
+            items:
+              $ref: '#/components/schemas/filter'
+        - name: filterAfter
           in: query
+          description: 'Only match Exts whose sort column is strictly greater than the value: {sort column}/{value}. Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering'
           required: false
+          example: ['tag:len/1']
           schema:
-            type: string
-            format: date-time
+            type: array
+            maxItems: 100
+            items:
+              $ref: '#/components/schemas/filter'
+        - name: filterEquals
+          in: query
+          description: 'Only match Exts whose sort column equals the value: {sort column}/{value}. Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering'
+          required: false
+          example: ['tag:len/1']
+          schema:
+            type: array
+            maxItems: 100
+            items:
+              $ref: '#/components/schemas/filter'
         - name: search
           in: query
           required: false
@@ -1678,7 +1474,7 @@ paths:
             $ref: '#/components/schemas/query'
         - name: nesting
           in: query
-          description: Only match entities with this origin nesting level, where the local origin '' is 0, '@a' is 1 and '@a.b' is 2
+          description: Only match Plugins with this origin nesting level, where the local origin '' is 0, '@a' is 1 and '@a.b' is 2
           required: false
           schema:
             type: integer
@@ -1693,18 +1489,36 @@ paths:
           required: false
           schema:
             type: boolean
-        - name: modifiedBefore
+        - name: filterBefore
           in: query
+          description: 'Only match Plugins whose sort column is strictly less than the value: {sort column}/{value}. The value is always after the last ''/'' and cannot contain ''/'', ''->'' or '',''. The column decides the type of the value. modified is an ISO 8601 instant, :num and :len columns are numbers and lengths, everything else is text. Missing values never match. Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering'
           required: false
+          example: ['modified/2024-01-01T00:00:00Z']
           schema:
-            type: string
-            format: date-time
-        - name: modifiedAfter
+            type: array
+            maxItems: 100
+            items:
+              $ref: '#/components/schemas/filter'
+        - name: filterAfter
           in: query
+          description: 'Only match Plugins whose sort column is strictly greater than the value: {sort column}/{value}. Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering'
           required: false
+          example: ['tag:len/1']
           schema:
-            type: string
-            format: date-time
+            type: array
+            maxItems: 100
+            items:
+              $ref: '#/components/schemas/filter'
+        - name: filterEquals
+          in: query
+          description: 'Only match Plugins whose sort column equals the value: {sort column}/{value}. Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering'
+          required: false
+          example: ['tag:len/1']
+          schema:
+            type: array
+            maxItems: 100
+            items:
+              $ref: '#/components/schemas/filter'
         - name: search
           in: query
           description: Full text search
@@ -1884,7 +1698,7 @@ paths:
             $ref: '#/components/schemas/query'
         - name: nesting
           in: query
-          description: Only match entities with this origin nesting level, where the local origin '' is 0, '@a' is 1 and '@a.b' is 2
+          description: Only match Templates with this origin nesting level, where the local origin '' is 0, '@a' is 1 and '@a.b' is 2
           required: false
           schema:
             type: integer
@@ -1899,18 +1713,36 @@ paths:
           required: false
           schema:
             type: boolean
-        - name: modifiedBefore
+        - name: filterBefore
           in: query
+          description: 'Only match Templates whose sort column is strictly less than the value: {sort column}/{value}. The value is always after the last ''/'' and cannot contain ''/'', ''->'' or '',''. The column decides the type of the value. modified is an ISO 8601 instant, :num and :len columns are numbers and lengths, everything else is text. Missing values never match. Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering'
           required: false
+          example: ['modified/2024-01-01T00:00:00Z']
           schema:
-            type: string
-            format: date-time
-        - name: modifiedAfter
+            type: array
+            maxItems: 100
+            items:
+              $ref: '#/components/schemas/filter'
+        - name: filterAfter
           in: query
+          description: 'Only match Templates whose sort column is strictly greater than the value: {sort column}/{value}. Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering'
           required: false
+          example: ['tag:len/1']
           schema:
-            type: string
-            format: date-time
+            type: array
+            maxItems: 100
+            items:
+              $ref: '#/components/schemas/filter'
+        - name: filterEquals
+          in: query
+          description: 'Only match Templates whose sort column equals the value: {sort column}/{value}. Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering'
+          required: false
+          example: ['tag:len/1']
+          schema:
+            type: array
+            maxItems: 100
+            items:
+              $ref: '#/components/schemas/filter'
         - name: search
           in: query
           required: false
@@ -2088,7 +1920,7 @@ paths:
             $ref: '#/components/schemas/query'
         - name: nesting
           in: query
-          description: Only match entities with this origin nesting level, where the local origin '' is 0, '@a' is 1 and '@a.b' is 2
+          description: Only match Users with this origin nesting level, where the local origin '' is 0, '@a' is 1 and '@a.b' is 2
           required: false
           schema:
             type: integer
@@ -2103,18 +1935,36 @@ paths:
           required: false
           schema:
             type: boolean
-        - name: modifiedBefore
+        - name: filterBefore
           in: query
+          description: 'Only match Users whose sort column is strictly less than the value: {sort column}/{value}. The value is always after the last ''/'' and cannot contain ''/'', ''->'' or '',''. The column decides the type of the value. modified is an ISO 8601 instant, :num and :len columns are numbers and lengths, everything else is text. Filtering on external is MOD only. Missing values never match. Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering'
           required: false
+          example: ['modified/2024-01-01T00:00:00Z']
           schema:
-            type: string
-            format: date-time
-        - name: modifiedAfter
+            type: array
+            maxItems: 100
+            items:
+              $ref: '#/components/schemas/filter'
+        - name: filterAfter
           in: query
+          description: 'Only match Users whose sort column is strictly greater than the value: {sort column}/{value}. Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering'
           required: false
+          example: ['tag:len/1']
           schema:
-            type: string
-            format: date-time
+            type: array
+            maxItems: 100
+            items:
+              $ref: '#/components/schemas/filter'
+        - name: filterEquals
+          in: query
+          description: 'Only match Users whose sort column equals the value: {sort column}/{value}. Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering'
+          required: false
+          example: ['tag:len/1']
+          schema:
+            type: array
+            maxItems: 100
+            items:
+              $ref: '#/components/schemas/filter'
         - name: search
           in: query
           required: false
@@ -3311,17 +3161,10 @@ components:
       description: Optionally Qualified User Tag
       example: '+user/charlie@origin'
       maxLength: 129
-    tagValueFilter:
+    filter:
       type: string
-      pattern: '^tags->[_+]?[a-z0-9]+(?:[./][a-z0-9]+)*(?::num|:dur)?/[a-z0-9]+(?:[.][a-z0-9]+)*$'
-      description: 'Tag value filter: tags->{tag}[:num|:dur]/{value}. The value is the child tag of {tag}, compared as text, as a number (:num, no negative numbers) or as an ISO 8601 duration (:dur, lowercase).'
-      example: 'tags->plugin/progress:num/50'
-      minLength: 1
-      maxLength: 139
-    pluginValueFilter:
-      type: string
-      pattern: '^plugins->[_+]?plugin(?:/[a-z0-9]+(?:[./][a-z0-9]+)*)?(?:->(?:[A-Za-z0-9_$-]+(?:\[[0-9]{1,9}\])?|\[[0-9]{1,9}\]))*(?::num|:len)?/(?:(?!->)[^/,])+$'
-      description: 'Plugin value filter: plugins->{plugin}[->{field}...][:num|:len]/{value}. Fields are optional, since plugin data may be a primitive, and may be array indices ([0]). The value is compared as text, as a number (:num) or by array length (:len).'
+      pattern: '^(?:modified|published|created|origin:len|tag:len|(?:tags|sources|alternateUrls):len|metadata->(?:newResponse|newReaction)|metadata->(?:expandedTags|responses|internalResponses)(?::len)?|metadata->(?:plugins|remotePlugins)->[_+]?plugin(?:/[a-z0-9]+(?:[./][a-z0-9]+)*)?(?::num)?|plugins->plugin/user/vote:(?:top|score|decay)|plugins->[_+]?plugin(?:/[a-z0-9]+(?:[./][a-z0-9]+)*)?(?:->(?:[A-Za-z0-9_$-]+(?:\[[0-9]{1,9}\])?|\[[0-9]{1,9}\]))*(?::num|:len)?|tags->[_+]?[a-z0-9]+(?:[./][a-z0-9]+)*(?::num|:dur)?|(?:config|defaults|schema|external)(?:->(?:[A-Za-z0-9_$-]+(?:\[[0-9]{1,9}\])?|\[[0-9]{1,9}\]))+(?::num|:len)?)/(?:(?!->)[^/,])+$'
+      description: 'Filter on a sort column: {sort column}/{value}. Refs: modified, published, created, metadata->newResponse, metadata->newReaction, metadata->expandedTags, metadata->responses, metadata->internalResponses, metadata->plugins->{plugin}, metadata->remotePlugins->{plugin}, plugins->plugin/user/vote:top|score|decay, plugins->{plugin}[->{field}...][:num|:len], tags->{tag}[:num|:dur], tags:len, sources:len, alternateUrls:len and origin:len. Exts, Users, Plugins and Templates: modified, origin:len, tag:len and {field}->{path}[:num|:len] (Ext: config, User: external (MOD only), Plugin and Template: config, defaults and schema). Dates are ISO 8601 instants, response counts and :num are numbers, :dur is an ISO 8601 duration (lowercase), :len is a length, everything else is text. The value is always after the last ''/'' and cannot contain ''/'', ''->'' or '',''.'
       example: 'plugins->plugin/test->size:num/1000'
       minLength: 1
       maxLength: 1024

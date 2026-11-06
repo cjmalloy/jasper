@@ -297,4 +297,39 @@ class RefControllerIT {
 				.param("query", "!(a|b):!(!c)"))
 			.andExpect(status().isOk());
 	}
+
+	@Test
+	void testPageAndCountWithResponseFilters() throws Exception {
+		for (var path : List.of("/api/v1/ref/page", "/api/v1/ref/count")) {
+			mockMvc
+				.perform(get(path)
+					.param("filterAfter", "metadata->remotePlugins->plugin/user/read/10")
+					.param("filterBefore", "metadata->plugins->plugin/comment:num/3")
+					.param("filterAfter", "metadata->newResponse/2026-01-01T00:00:00.5Z")
+					.param("filterBefore", "metadata->newResponse/2026-01-02T00:00:00Z")
+					.param("filterAfter", "metadata->newReaction/2026-01-01T00:00:00Z")
+					.param("filterEquals", "metadata->plugins->plugin/comment/0")
+					.param("filterAfter", "created/2026-01-01T00:00:00Z"))
+				.andExpect(status().isOk());
+		}
+	}
+
+	@Test
+	void testPageWithInvalidResponseCountFilterShouldFail() throws Exception {
+		for (var value : List.of("metadata->plugins->plugin/comment/abc", "metadata->plugins->plugin/comment:len/1", "metadata->newResponse/yesterday", "title/abc")) {
+			mockMvc
+				.perform(get("/api/v1/ref/page")
+					.param("filterAfter", value))
+				.andExpect(status().isBadRequest());
+		}
+	}
+
+	@Test
+	@WithMockUser(value = "+user/tester@a", roles = {"USER"})
+	void testPageWithPrivateResponseCountFilterShouldFail() throws Exception {
+		mockMvc
+			.perform(get("/api/v1/ref/page")
+				.param("filterEquals", "metadata->plugins->_plugin/secret/0"))
+			.andExpect(status().isForbidden());
+	}
 }

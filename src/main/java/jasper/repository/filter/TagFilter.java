@@ -1,6 +1,7 @@
 package jasper.repository.filter;
 
 import jasper.domain.proj.Tag;
+import jasper.repository.spec.SortSpec.Filter;
 import lombok.Builder;
 import lombok.Getter;
 import org.slf4j.Logger;
@@ -9,12 +10,13 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 
 import java.time.Instant;
+import java.util.List;
 
 import static jasper.repository.spec.OriginSpec.isNesting;
 import static jasper.repository.spec.OriginSpec.isOrigin;
 import static jasper.repository.spec.OriginSpec.none;
 import static jasper.repository.spec.ReplicationSpec.isModifiedAfter;
-import static jasper.repository.spec.ReplicationSpec.isModifiedBefore;
+import static jasper.repository.spec.SortSpec.filterTags;
 import static jasper.repository.spec.TagSpec.isLevel;
 import static jasper.repository.spec.TagSpec.searchTagOrName;
 import static jasper.repository.spec.TagSpec.tagEndsWith;
@@ -25,6 +27,8 @@ import static org.springframework.data.jpa.domain.Specification.not;
 @Getter
 public class TagFilter implements Query {
 	public static final String QUERY = Query.REGEX;
+	public static final String FILTER = Filter.REGEX;
+	public static final int FILTER_LEN = Filter.LEN;
 	private static final Logger logger = LoggerFactory.getLogger(TagFilter.class);
 
 	private String origin;
@@ -33,10 +37,15 @@ public class TagFilter implements Query {
 	private Integer level;
 	private Boolean deleted;
 	private String search;
-	private Instant modifiedBefore;
 	private Instant modifiedAfter;
+	private List<String> filterBefore;
+	private List<String> filterAfter;
+	private List<String> filterEquals;
 
-	public <T extends Tag> Specification<T> spec() {
+	/**
+	 * @param roots the JSONB columns of the entity, the same columns it can be sorted by, e.g. "config"
+	 */
+	public <T extends Tag> Specification<T> spec(String... roots) {
 		if ("!@*".equals(query)) return none();
 		var result = Specification.<T>unrestricted();
 		if (origin != null && !origin.equals("@*")) {
@@ -57,13 +66,20 @@ public class TagFilter implements Query {
 		if (isNotBlank(search)) {
 			result = result.and(searchTagOrName(search));
 		}
-		if (modifiedBefore != null) {
-			result = result.and(isModifiedBefore(modifiedBefore));
-		}
 		if (modifiedAfter != null) {
 			result = result.and(isModifiedAfter(modifiedAfter));
 		}
+		for (var f : filters()) {
+			result = result.and(filterTags(f, roots));
+		}
 		return result;
+	}
+
+	/**
+	 * The parsed filterBefore, filterAfter and filterEquals.
+	 */
+	public List<Filter> filters() {
+		return Filter.parse(filterBefore, filterAfter, filterEquals);
 	}
 
 	public String cacheKey(Pageable pageable) {
@@ -74,8 +90,10 @@ public class TagFilter implements Query {
 			origin + "_" +
 			query + "_" +
 			deleted + "_" +
-			modifiedBefore + "_" +
 			modifiedAfter + "_" +
+			filterBefore + "_" +
+			filterAfter + "_" +
+			filterEquals + "_" +
 			search;
 	}
 }

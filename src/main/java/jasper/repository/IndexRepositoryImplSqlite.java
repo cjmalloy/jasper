@@ -2,16 +2,21 @@ package jasper.repository;
 
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.HashMap;
 import java.util.List;
+
 
 @Repository
 @Profile("sqlite")
 @Transactional
 public class IndexRepositoryImplSqlite implements IndexRepository {
+	private static final Logger logger = LoggerFactory.getLogger(IndexRepositoryImplSqlite.class);
 
 	@PersistenceContext
 	private EntityManager em;
@@ -108,13 +113,23 @@ public class IndexRepositoryImplSqlite implements IndexRepository {
 	}
 
 	@Override
+	public void dropCreated() {
+		em.createNativeQuery("DROP INDEX IF EXISTS ref_created_index").executeUpdate();
+	}
+
+	@Override
+	public void buildCreated() {
+		em.createNativeQuery("CREATE INDEX IF NOT EXISTS ref_created_index ON ref (created)").executeUpdate();
+	}
+
+	@Override
 	public void dropNewResponse() {
 		em.createNativeQuery("DROP INDEX IF EXISTS ref_new_response_index").executeUpdate();
 	}
 
 	@Override
 	public void buildNewResponse() {
-		em.createNativeQuery("CREATE INDEX IF NOT EXISTS ref_new_response_index ON ref (COALESCE(" + field("newResponse") + ", ''))").executeUpdate();
+		buildMetadataDate("ref_new_response_index", "newResponse");
 	}
 
 	@Override
@@ -124,7 +139,7 @@ public class IndexRepositoryImplSqlite implements IndexRepository {
 
 	@Override
 	public void buildNewReaction() {
-		em.createNativeQuery("CREATE INDEX IF NOT EXISTS ref_new_reaction_index ON ref (COALESCE(" + field("newReaction") + ", ''))").executeUpdate();
+		buildMetadataDate("ref_new_reaction_index", "newReaction");
 	}
 
 	@Override
@@ -160,6 +175,18 @@ public class IndexRepositoryImplSqlite implements IndexRepository {
 	/**
 	 * Same SQL as jsonb_object_field_text(metadata, key) in SQLiteDialect, so partial indexes match the queries.
 	 */
+	/**
+	 * Builds an index on a metadata date, matching JSONB sorts and filters. SQLite sorts nulls first ascending,
+	 * so no NULLS clause is needed. Drops an index of the same name built before sorts stopped using COALESCE.
+	 */
+	private void buildMetadataDate(String name, String key) {
+		var stale = em.createNativeQuery("SELECT name FROM sqlite_master WHERE type = 'index' AND name = :name AND sql LIKE '%COALESCE%'")
+			.setParameter("name", name)
+			.getResultList();
+		if (!stale.isEmpty()) em.createNativeQuery("DROP INDEX IF EXISTS " + name).executeUpdate();
+		em.createNativeQuery("CREATE INDEX IF NOT EXISTS " + name + " ON ref (" + field(key) + ")").executeUpdate();
+	}
+
 	private static String field(String key) {
 		var path = "'$.\"' || REPLACE('" + key + "', '\"', '\"\"') || '\"'";
 		return "(CASE WHEN json_type(metadata, " + path + ") IN ('true', 'false') THEN json_type(metadata, " + path + ") ELSE CAST(json_extract(metadata, " + path + ") AS TEXT) END)";

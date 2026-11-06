@@ -2,7 +2,7 @@ name: GitHub Pages
 
 on:
   push:
-    branches: [ master, 'v1.3' ]
+    branches: [ master, 'v1.4', 'v1.3' ]
   workflow_run:
     workflows: ["Test", "Load Test", "E2E"]
     types:

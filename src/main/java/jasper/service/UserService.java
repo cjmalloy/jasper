@@ -35,7 +35,7 @@ import java.time.Instant;
 
 import static jasper.domain.proj.Tag.localTag;
 import static jasper.domain.proj.Tag.tagOrigin;
-import static jasper.repository.spec.UserSpec.sort;
+import static jasper.repository.spec.SortSpec.sortTags;
 import static jasper.security.AuthoritiesConstants.ADMIN;
 import static jasper.security.AuthoritiesConstants.BANNED;
 import static jasper.security.AuthoritiesConstants.EDITOR;
@@ -112,16 +112,16 @@ public class UserService {
 	}
 
 	@Transactional(readOnly = true)
-	@PreAuthorize("@auth.minRole()")
+	@PreAuthorize("@auth.minRole() and @auth.canFilterUsers(#filter)")
 	@Cacheable(value = "user-dto-page-cache", key = "#filter.cacheKey(#pageable)", condition = "@auth.hasRole('MOD')")
 	@Timed(value = "jasper.service", extraTags = {"service", "user"}, histogram = true)
 	public Page<UserDto> page(TagFilter filter, Pageable pageable) {
 		return userRepository
 			.findAll(
-				sort(
+				sortTags(
 					auth.<User>tagReadSpec()
-						.and(filter.spec()),
-					pageable),
+						.and(filter.spec("external")),
+					auth.userPageable(pageable), "external"),
 				of(pageable.getPageNumber(), pageable.getPageSize()))
 			.map(mapper::domainToDto)
 			.map(auth::filterUser);

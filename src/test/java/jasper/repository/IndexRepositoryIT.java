@@ -12,10 +12,16 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.junit.jupiter.EnabledIf;
 import org.springframework.transaction.annotation.Transactional;
 
+import jasper.domain.Metadata;
+import jasper.domain.Ref;
+
+import java.sql.Timestamp;
+import java.time.Instant;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -240,7 +246,7 @@ public class IndexRepositoryIT {
 		indexRepository.updateHotTags(List.of("plugin/progress:num"));
 		assertThat(explainPostgres("""
 			select r1_0.url from ref r1_0
-			where tag_value(r1_0.tags, 'plugin/progress')<>'' and tag_value_num(r1_0.tags, 'plugin/progress')<(37)::numeric"""))
+			where tag_value_num(r1_0.tags, 'plugin/progress')<(37)::numeric"""))
 			.contains(IndexRepositoryImplPostgres.hotTagIndexName(TagValueSort.parse("plugin/progress:num")));
 	}
 
@@ -276,30 +282,42 @@ public class IndexRepositoryIT {
 		assertThat(IndexRepositoryImplPostgres.hotPluginExpression("plugins->plugin/score:num"))
 			.isEqualTo(safeNumeric("(plugins)->('plugin/score')"));
 		assertThat(IndexRepositoryImplPostgres.hotPluginExpression("plugins->plugin/test->tags:len"))
-			.isEqualTo("(" + safeLength("((plugins)->('plugin/test'))->('tags')") + ")::numeric");
+			.isEqualTo(safeLength("((plugins)->('plugin/test'))->('tags')"));
 		assertThat(IndexRepositoryImplPostgres.hotPluginExpression("plugins->plugin/test->items[0]->score:num"))
 			.isEqualTo(safeNumeric("(jsonb_array_element(((plugins)->('plugin/test'))->('items'), 0))->('score')"));
 		assertThat(IndexRepositoryImplPostgres.hotPluginExpression("plugins->plugin/test->items[1]"))
 			.isEqualTo("jsonb_array_element_text(((plugins)->('plugin/test'))->('items'), 1)");
 		assertThat(IndexRepositoryImplPostgres.hotPluginExpression("plugins->plugin/test->items[1]:len"))
-			.isEqualTo("(" + safeLength("jsonb_array_element(((plugins)->('plugin/test'))->('items'), 1)") + ")::numeric");
+			.isEqualTo(safeLength("jsonb_array_element(((plugins)->('plugin/test'))->('items'), 1)"));
 		assertThat(IndexRepositoryImplPostgres.hotPluginIndexName("plugins->plugin/" + "a".repeat(200)).length()).isLessThanOrEqualTo(63);
 	}
 
 	@Test
-	void testHotPluginSortExpression() {
-		assertThat(IndexRepositoryImplPostgres.hotPluginSortExpression("plugins->plugin/test->name"))
-			.isEqualTo("COALESCE(((plugins)->('plugin/test'))->>('name'), '')");
-		assertThat(IndexRepositoryImplPostgres.hotPluginSortExpression("plugins->plugin/score:num"))
-			.isEqualTo("COALESCE(" + safeNumeric("(plugins)->('plugin/score')") + ", 0.0)");
-		assertThat(IndexRepositoryImplPostgres.hotPluginSortExpression("plugins->plugin/test->tags:len"))
-			.isEqualTo("COALESCE(" + safeLength("((plugins)->('plugin/test'))->('tags')") + ", 0)");
-		assertThat(IndexRepositoryImplPostgres.hotPluginSortExpression("plugins->plugin/test->items[1]"))
-			.isEqualTo("COALESCE(jsonb_array_element_text(((plugins)->('plugin/test'))->('items'), 1), '')");
-		assertThat(IndexRepositoryImplPostgres.hotPluginSortIndexName("plugins->plugin/test->size:num"))
-			.startsWith("ref_hotps_plugin_test_size_num_")
-			.isNotEqualTo(IndexRepositoryImplPostgres.hotPluginIndexName("plugins->plugin/test->size:num"));
-		assertThat(IndexRepositoryImplPostgres.hotPluginSortIndexName("plugins->plugin/" + "a".repeat(200)).length()).isLessThanOrEqualTo(63);
+	@DisabledOnSqlite
+	void testHotPluginDropsIndexesWithoutNullsFirst() {
+		var size = IndexRepositoryImplPostgres.hotPluginIndexName("plugins->plugin/test->size:num");
+		var legacySort = "ref_hotps_plugin_test_size_num_legacy";
+		indexRepository.updateHotPlugins(List.of());
+		jdbc.execute("CREATE INDEX " + size + " ON ref ((" + IndexRepositoryImplPostgres.hotPluginExpression("plugins->plugin/test->size:num") + "))");
+		jdbc.execute("CREATE INDEX " + legacySort + " ON ref ((COALESCE(" + IndexRepositoryImplPostgres.hotPluginExpression("plugins->plugin/test->size:num") + ", 0.0)))");
+
+		indexRepository.updateHotPlugins(List.of("plugin/test->size:num"));
+		assertThat(hotPluginIndexes()).containsExactly(size);
+		assertThat(jdbc.queryForObject("SELECT indexdef FROM pg_indexes WHERE indexname = ?", String.class, size)).contains("NULLS FIRST");
+
+		indexRepository.updateHotPlugins(List.of());
+		assertThat(hotPluginIndexes()).isEmpty();
+	}
+
+	@Test
+	@DisabledOnSqlite
+	void testMetadataDateIndexDropsCoalesceIndexPostgres() {
+		indexRepository.dropNewResponse();
+		jdbc.execute("CREATE INDEX ref_new_response_index ON ref ((COALESCE((metadata)->>('newResponse'), '')))");
+		indexRepository.buildNewResponse();
+		assertThat(jdbc.queryForObject("SELECT indexdef FROM pg_indexes WHERE indexname = 'ref_new_response_index'", String.class))
+			.contains("NULLS FIRST")
+			.doesNotContainIgnoringCase("coalesce");
 	}
 
 	@Test
@@ -308,18 +326,15 @@ public class IndexRepositoryIT {
 		var size = IndexRepositoryImplPostgres.hotPluginIndexName("plugins->plugin/test->size:num");
 		var name = IndexRepositoryImplPostgres.hotPluginIndexName("plugins->plugin/test->name");
 		var sizeText = IndexRepositoryImplPostgres.hotPluginIndexName("plugins->plugin/test->size");
-		var sizeSort = IndexRepositoryImplPostgres.hotPluginSortIndexName("plugins->plugin/test->size:num");
-		var nameSort = IndexRepositoryImplPostgres.hotPluginSortIndexName("plugins->plugin/test->name");
-		var sizeTextSort = IndexRepositoryImplPostgres.hotPluginSortIndexName("plugins->plugin/test->size");
 		assertThat(size).startsWith("ref_hotp_plugin_test_size_num_");
 		assertThat(sizeText).isNotEqualTo(size);
 
 		indexRepository.updateHotTags(List.of("plugin/progress:num"));
 		indexRepository.updateHotPlugins(List.of("plugin/test->size:num", "plugins->plugin/test->name", "invalid'plugin"));
-		assertThat(hotPluginIndexes()).containsExactlyInAnyOrder(size, name, sizeSort, nameSort);
+		assertThat(hotPluginIndexes()).containsExactlyInAnyOrder(size, name);
 
 		indexRepository.updateHotPlugins(List.of("plugin/test->size:num", "plugin/test->size"));
-		assertThat(hotPluginIndexes()).containsExactlyInAnyOrder(size, sizeText, sizeSort, sizeTextSort);
+		assertThat(hotPluginIndexes()).containsExactlyInAnyOrder(size, sizeText);
 		assertThat(hotTagIndexes()).hasSize(1);
 
 		indexRepository.updateHotPlugins(List.of());
@@ -344,37 +359,22 @@ public class IndexRepositoryIT {
 	@DisabledOnSqlite
 	@Transactional
 	void testHotPluginIndexUsedForPluginFilterPostgres() {
-		indexRepository.updateHotPlugins(List.of("plugin/test->name"));
-		assertThat(explainPostgres("""
-			select r1_0.url from ref r1_0
-			where ((r1_0.plugins)->('plugin/test'))->>('name')>'m'"""))
-			.contains(IndexRepositoryImplPostgres.hotPluginIndexName("plugins->plugin/test->name"));
-	}
-
-	@Test
-	@DisabledOnSqlite
-	@Transactional
-	void testHotPluginIndexUsedForNumericPluginFilterPostgres() {
-		indexRepository.updateHotPlugins(List.of("plugin/test->items[0]->score:num", "plugin/score:num"));
-		assertThat(explainPostgres("""
-			select r1_0.url from ref r1_0
-			where""" + safeNumeric("(jsonb_array_element(((r1_0.plugins)->('plugin/test'))->('items'),0))->('score')") + "<(20)::numeric"))
-			.contains(IndexRepositoryImplPostgres.hotPluginIndexName("plugins->plugin/test->items[0]->score:num"));
-		assertThat(explainPostgres("""
-			select r1_0.url from ref r1_0
-			where""" + safeNumeric("(r1_0.plugins)->('plugin/score')") + ">=(20)::numeric"))
-			.contains(IndexRepositoryImplPostgres.hotPluginIndexName("plugins->plugin/score:num"));
-	}
-
-	@Test
-	@DisabledOnSqlite
-	@Transactional
-	void testHotPluginIndexUsedForLengthPluginFilterPostgres() {
-		indexRepository.updateHotPlugins(List.of("plugin/test->tags:len"));
-		assertThat(explainPostgres("""
-			select r1_0.url from ref r1_0
-			where (""" + safeLength("((r1_0.plugins)->('plugin/test'))->('tags')") + ")::numeric>(2)::numeric"))
-			.contains(IndexRepositoryImplPostgres.hotPluginIndexName("plugins->plugin/test->tags:len"));
+		var filters = List.of("plugin/test->name/m", "plugin/test->size:num/20", "plugin/test->tags:len/2",
+			"plugin/test->items[0]->score:num/20", "plugin/test->items[1]/m", "plugin/test->items[1]:len/2", "plugin/score:num/20");
+		indexRepository.updateHotPlugins(filters.stream().map(f -> f.substring(0, f.lastIndexOf('/'))).toList());
+		for (var filter : filters) {
+			var column = filter.substring(0, filter.lastIndexOf('/'));
+			var value = filter.substring(filter.lastIndexOf('/') + 1);
+			var index = IndexRepositoryImplPostgres.hotPluginIndexName("plugins->" + column);
+			// Numbers and lengths are inlined, text is bound
+			var params = column.endsWith(":num") || column.endsWith(":len") ? new Object[0] : new Object[]{ value };
+			assertThat(explainFilter(RefFilter.builder().filterBefore(List.of("plugins->" + filter)).build().spec(), false, params))
+				.as("%s before", filter)
+				.contains(index);
+			assertThat(explainFilter(RefFilter.builder().filterAfter(List.of("plugins->" + filter)).build().spec(), false, params))
+				.as("%s after", filter)
+				.contains(index);
+		}
 	}
 
 	/**
@@ -389,7 +389,6 @@ public class IndexRepositoryIT {
 			.filter(s -> s.contains(" order by "))
 			.findFirst()
 			.orElseThrow();
-		assertThat(sql).containsIgnoringCase("coalesce(");
 		em.createNativeQuery("SET LOCAL enable_seqscan = off").executeUpdate();
 		// Bind the page offset and limit
 		return ((List<?>) em.createNativeQuery("EXPLAIN " + sql)
@@ -409,9 +408,15 @@ public class IndexRepositoryIT {
 		indexRepository.updateHotPlugins(columns);
 		for (var column : columns) {
 			for (var direction : Sort.Direction.values()) {
+				assertThat(SqlCapture.capture(() -> refRepository.findAll(
+						RefSpec.sort(RefFilter.builder().build().spec(), PageRequest.of(0, 20, Sort.by(direction, "plugins->" + column))),
+						PageRequest.ofSize(20))).getLast())
+					.as("%s %s", column, direction)
+					.doesNotContainIgnoringCase("coalesce(")
+					.contains(direction.isAscending() ? " asc nulls first" : " desc nulls last");
 				assertThat(explainPluginSortPostgres("plugins->" + column, direction))
 					.as("%s %s", column, direction)
-					.contains(IndexRepositoryImplPostgres.hotPluginSortIndexName("plugins->" + column));
+					.contains(IndexRepositoryImplPostgres.hotPluginIndexName("plugins->" + column));
 			}
 		}
 	}
@@ -464,7 +469,7 @@ public class IndexRepositoryIT {
 		indexRepository.updateHotResponses(List.of());
 		assertThat(hotResponseIndexes()).isEmpty();
 		assertThat(hotTagIndexes()).hasSize(1);
-		assertThat(hotPluginIndexes()).hasSize(2);
+		assertThat(hotPluginIndexes()).hasSize(1);
 		indexRepository.updateHotTags(List.of());
 		indexRepository.updateHotPlugins(List.of());
 	}
@@ -507,13 +512,11 @@ public class IndexRepositoryIT {
 	void testHotResponseIndexUsedForFilterPostgres() {
 		indexRepository.updateHotResponses(List.of("plugin/comment"));
 		indexRepository.updateHotRemoteResponses(List.of("plugin/comment"));
-		assertThat(explainFilterPostgres(RefFilter.builder().pluginResponse(List.of("plugin/comment")).build()))
+		assertThat(explainFilterPostgres(RefFilter.builder().filterAfter(List.of("metadata->plugins->plugin/comment/0")).build()))
 			.contains(IndexRepositoryImplPostgres.hotResponseIndexName("plugins", "plugin/comment"));
-		assertThat(explainFilterPostgres(RefFilter.builder().noPluginResponse(List.of("plugin/comment")).build()))
+		assertThat(explainFilterPostgres(RefFilter.builder().filterEquals(List.of("metadata->plugins->plugin/comment/0")).build()))
 			.contains(IndexRepositoryImplPostgres.hotResponseIndexName("plugins", "plugin/comment"));
-		assertThat(explainFilterPostgres(RefFilter.builder().remotePluginResponse(List.of("plugin/comment")).build()))
-			.contains(IndexRepositoryImplPostgres.hotResponseIndexName("remotePlugins", "plugin/comment"));
-		assertThat(explainFilterPostgres(RefFilter.builder().noRemotePluginResponse(List.of("plugin/comment")).build()))
+		assertThat(explainFilterPostgres(RefFilter.builder().filterAfter(List.of("metadata->remotePlugins->plugin/comment/0")).build()))
 			.contains(IndexRepositoryImplPostgres.hotResponseIndexName("remotePlugins", "plugin/comment"));
 	}
 
@@ -562,5 +565,100 @@ public class IndexRepositoryIT {
 				and ( '@test'='' or r1_0.origin='@test' or r1_0.origin like ('@test'||'.%%') )
 			order by r1_0.modified desc limit 1""".formatted(field("r1_0.metadata", "modified"), field("r1_0.metadata", "regen"))))
 			.contains("ref_regen_index");
+	}
+
+	static final String SQLITE = "#{environment.acceptsProfiles(T(org.springframework.core.env.Profiles).of('sqlite'))}";
+
+	/**
+	 * Runs a filter through {@link RefFilter#spec} and explains the SQL Hibernate rendered for it.
+	 */
+	String explainFilter(Specification<Ref> spec, boolean sqlite, Object... params) {
+		var sql = SqlCapture.capture(() -> refRepository.findAll(spec))
+			.stream()
+			.filter(s -> s.contains(" from ref "))
+			.findFirst()
+			.orElseThrow();
+		if (!sqlite) em.createNativeQuery("SET LOCAL enable_seqscan = off").executeUpdate();
+		return jdbc.queryForList((sqlite ? "EXPLAIN QUERY PLAN " : "EXPLAIN ") + sql, params).stream()
+			.map(row -> row.values().stream().reduce((a, b) -> b).orElseThrow().toString())
+			.collect(Collectors.joining("\n"));
+	}
+
+	@Test
+	void testBuildAndDropCreated() {
+		indexRepository.dropCreated();
+		indexRepository.buildCreated();
+		indexRepository.buildCreated();
+		indexRepository.dropCreated();
+	}
+
+	@Test
+	@DisabledOnSqlite
+	@Transactional
+	void testCreatedIndexUsedPostgres() {
+		indexRepository.buildCreated();
+		for (var direction : Sort.Direction.values()) {
+			assertThat(explainSort("created", direction, false)).as("created %s", direction).contains("ref_created_index");
+		}
+		var now = Instant.parse("2026-01-01T00:00:00Z");
+		var param = Timestamp.from(now);
+		assertThat(explainFilter(RefFilter.builder().filterBefore(List.of("created/" + now)).build().spec(), false, param)).contains("ref_created_index");
+		assertThat(explainFilter(RefFilter.builder().filterAfter(List.of("created/" + now)).build().spec(), false, param)).contains("ref_created_index");
+	}
+
+	@Test
+	@EnabledIf(expression = SQLITE, loadContext = true)
+	@Transactional
+	void testCreatedIndexUsedSqlite() {
+		indexRepository.buildCreated();
+		for (var direction : Sort.Direction.values()) {
+			assertThat(explainSort("created", direction, true)).as("created %s", direction).contains("ref_created_index");
+		}
+		var now = Instant.parse("2026-01-01T00:00:00Z");
+		var param = Timestamp.from(now);
+		assertThat(explainFilter(RefFilter.builder().filterBefore(List.of("created/" + now)).build().spec(), true, param)).contains("ref_created_index");
+		assertThat(explainFilter(RefFilter.builder().filterAfter(List.of("created/" + now)).build().spec(), true, param)).contains("ref_created_index");
+	}
+
+	/**
+	 * Each metadata date filter must use the same index as the matching sort.
+	 */
+	void assertMetadataDateIndexesUsed(boolean sqlite) {
+		indexRepository.buildNewResponse();
+		indexRepository.buildNewReaction();
+		var now = Instant.parse("2026-01-01T00:00:00.5Z");
+		var param = Metadata.timestamp(now);
+		assertThat(explainFilter(RefFilter.builder().filterBefore(List.of("metadata->newResponse/" + now)).build().spec(), sqlite, param)).contains("ref_new_response_index");
+		assertThat(explainFilter(RefFilter.builder().filterAfter(List.of("metadata->newResponse/" + now)).build().spec(), sqlite, param)).contains("ref_new_response_index");
+		assertThat(explainFilter(RefFilter.builder().filterBefore(List.of("metadata->newReaction/" + now)).build().spec(), sqlite, param)).contains("ref_new_reaction_index");
+		assertThat(explainFilter(RefFilter.builder().filterAfter(List.of("metadata->newReaction/" + now)).build().spec(), sqlite, param)).contains("ref_new_reaction_index");
+	}
+
+	@Test
+	@DisabledOnSqlite
+	@Transactional
+	void testMetadataDateIndexesUsedForFilterPostgres() {
+		assertMetadataDateIndexesUsed(false);
+	}
+
+	@Test
+	@EnabledIf(expression = SQLITE, loadContext = true)
+	@Transactional
+	void testMetadataDateIndexesUsedForFilterSqlite() {
+		assertMetadataDateIndexesUsed(true);
+	}
+
+	@Test
+	@DisabledOnSqlite
+	@Transactional
+	void testHotResponseIndexUsedForCountFilterPostgres() {
+		indexRepository.updateHotResponses(List.of("plugin/comment"));
+		indexRepository.updateHotRemoteResponses(List.of("plugin/user/read"));
+		assertThat(explainFilter(RefFilter.builder().filterAfter(List.of("metadata->plugins->plugin/comment/10")).build().spec(), false))
+			.contains(IndexRepositoryImplPostgres.hotResponseIndexName("plugins", "plugin/comment"));
+		assertThat(explainFilter(RefFilter.builder().filterBefore(List.of("metadata->plugins->plugin/comment:num/3")).build().spec(), false))
+			.contains(IndexRepositoryImplPostgres.hotResponseIndexName("plugins", "plugin/comment"));
+		assertThat(explainFilter(RefFilter.builder().filterAfter(List.of("metadata->remotePlugins->plugin/user/read/10")).build().spec(), false))
+			.contains(IndexRepositoryImplPostgres.hotResponseIndexName("remotePlugins", "plugin/user/read"));
 	}
 }
