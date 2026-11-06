@@ -6,7 +6,7 @@ Knowledge Management Server
 [![Gatling](https://github.com/cjmalloy/jasper/actions/workflows/gatling.yml/badge.svg)](https://cjmalloy.github.io/jasper/reports/latest-gatling/)
 [![E2E](https://github.com/cjmalloy/jasper/actions/workflows/e2e.yml/badge.svg)](https://cjmalloy.github.io/jasper/reports/latest-e2e/)
 [![Dependabot](https://img.shields.io/endpoint?url=https://cjmalloy.github.io/jasper/reports/dependabot-badge.json)](https://github.com/cjmalloy/jasper/security/dependabot)
-[![OpenAPI](https://img.shields.io/badge/OpenAPI-1.4.3-brightgreen)](https://editor.swagger.io/?url=https://raw.githubusercontent.com/cjmalloy/jasper/refs/heads/master/src/main/resources/swagger/api.yml)
+[![OpenAPI](https://img.shields.io/badge/OpenAPI-1.5.0-brightgreen)](https://editor.swagger.io/?url=https://raw.githubusercontent.com/cjmalloy/jasper/refs/heads/master/src/main/resources/swagger/api.yml)
 [![Artifact Hub](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/jasper)](https://artifacthub.io/packages/helm/jasper/jasper)
 
 ## Quickstart
@@ -140,75 +140,71 @@ database schema changes.
 The `:num` and `:len` suffixes are automatically applied to metadata fields, so you can use
 `metadata->responses` instead of `metadata->responses:len`.
 
+Refs missing the sorted value (or with a value of the wrong type for `:num`, `:len` or `:dur`) sort first ascending
+and last descending. Response counts (`metadata->responses`, `metadata->plugins->…`, etc.) are never missing:
+a Ref without responses counts as `0`. Sort by `metadata->newResponse` (latest new response, ignoring user URLs)
+or `metadata->newReaction` (latest response created or updated, including user URLs) to find recent activity.
+
 Refs can also be sorted by the value of a tag using `tags->{tag}`. The value is the first
 sub-tag after the prefix of the first tag that has one. For example, `tags->plugin/title`
 sorts on `hello` for the tag `plugin/title/hello`, and `tags->plugin/progress:num`
 sorts numerically on `37` for the tag `plugin/progress/37/100` (ignoring `100` and any further sub-tags).
 Append `:dur` to sort ISO-8601 durations (case-insensitive) by length, so
 `tags->plugin/duration:dur` sorts `plugin/duration/pt90m` after `plugin/duration/pt1h`.
-A bare `plugin/progress` tag is skipped. Refs without a matching tag, or with a value
-that cannot be parsed, sort as `''` or `0`.
+A bare `plugin/progress` tag is skipped, and a value that cannot be parsed counts as missing.
 
 To index a tag value sort on PostgreSQL, add it to `hotTags` in the `_config/index` template config,
 for example `{"hotTags": ["plugin/progress:num", "plugin/duration:dur"]}`. Hot tag indexes that are
 removed from the list are dropped. Hot tags are ignored on SQLite.
 
-### Filtering by value
-Refs can be filtered by the same values they can be sorted on, similar to `modifiedBefore` and `modifiedAfter`.
-Each filter is a sort column (including any `:num`, `:len` or `:dur` suffix) followed by `/` and the value
-to compare against, and keeps Refs whose value is strictly less than (`Before`) or greater than (`After`) it.
-Refs without a value never match. Every filter parameter can be repeated, and all filters must match.
+### Filtering
+Each filter is a sort column (including any `:num`, `:len` or `:dur` suffix) followed by `/` and a value:
+* `filterBefore` keeps values strictly less than the value
+* `filterAfter` keeps values strictly greater than the value
+* `filterEquals` keeps values equal to the value
 
-* `tagBefore` and `tagAfter` take `tags->{tag}[:num|:dur]/{value}`. Tag values are a single tag segment
-  (`[a-z0-9]` with `.` separators), so the value is always after the last `/`. This means numbers cannot be
-  negative and durations must be lowercase (`pt1h`). For example,
-  `tagAfter=tags->plugin/progress:num/9&tagBefore=tags->plugin/progress:num/50` matches `plugin/progress/37/100`,
-  and `tagBefore=tags->plugin/duration:dur/pt1h` matches `plugin/duration/pt10m25s`. Hot tag indexes are used
-  for filtering as well as sorting.
-* `pluginBefore` and `pluginAfter` take `plugins->{plugin}[->{field}...][:num|:len]/{value}`. Fields are optional,
-  since plugin data may be a primitive. Like tag values, the value is always after the last `/`, so it cannot
-  contain `/` (or `->`, so a missing value is never read as a field). Use `:num` to compare numbers (which may be negative) or `:len` to compare array lengths,
-  otherwise values compare as strings, so a prefix such as `pluginAfter=plugins->plugin/test->name/m` keeps
-  names after `m`. For example,
-  `pluginAfter=plugins->_plugin/cache->contentLength:num/1000` matches Refs with a cached file over 1000 bytes,
-  `pluginBefore=plugins->plugin/test->ids:len/3` matches Refs with fewer than three `ids`,
-  and `pluginAfter=plugins->plugin/score:num/10` matches Refs whose `plugin/score` data is a number over 10.
-  Values of the wrong type never match: `:num` skips values that are not numbers and `:len` skips values that
-  are not arrays (including `null`).
-  Strings compare using the database's ordering, so the same filter can match different Refs on different
-  databases. PostgreSQL uses the collation of the database locale, which usually ignores case and accents
-  except to break ties (`a` < `B` < `b`, `e` < `é` < `f`). SQLite compares bytes, so capitals sort before
-  lowercase letters and accented letters sort after `z`. Tag values are lowercase ASCII, so tag filters
-  are the same on both.
+Every filter parameter can be repeated, and all filters must match. Missing values never match, but response counts
+are never missing: a Ref without responses counts as `0`. Values cannot contain `/`, `->` or `,`. Plain text columns
+like `url`, `title` or `tag` can be sorted but not filtered. Invalid filters are rejected with `400 Bad Request`.
 
-To index a plugin filter or sort on PostgreSQL, add its column to `hotPlugins` in the `_config/index` template config,
-for example `{"hotPlugins": ["plugin/test->size:num", "plugin/test->name", "plugin/test->ids:len"]}`
-(the `plugins->` prefix is optional). Each hot plugin builds two indexes: one used by `pluginBefore` and
-`pluginAfter` filters, and one used by plugin sorts, since sorts treat missing values as `''` or `0`.
-Hot plugin indexes that are removed from the list are dropped. Hot plugins are ignored on SQLite.
+The column decides how the value is read:
+* Dates (`modified`, `published`, `created`, `metadata->newResponse` and `metadata->newReaction`) take an ISO-8601
+  instant, e.g. `filterAfter=modified/2024-01-01T00:00:00Z`. Use `Z` rather than an offset, or URL encode the `+`.
+* Response counts (`metadata->plugins->{plugin}` and `metadata->remotePlugins->{plugin}`), vote sorts and `:num`
+  columns take a number, `:len` columns and `metadata->responses` take a length, and `:dur` columns take an ISO-8601
+  duration (`pt1h`).
+* Everything else compares as text. String order depends on the database: PostgreSQL usually ignores case and
+  accents except to break ties, while SQLite sorts capitals before lowercase.
 
-Values cannot contain `,`, since a single parameter is split on commas into a list.
-Invalid filters are rejected with `400 Bad Request`.
+Examples:
+* `filterAfter=metadata->newResponse/2024-01-01T00:00:00Z`: Refs with a new response since the start of 2024
+* `filterAfter=metadata->plugins->plugin/comment/0`: Refs with comments
+* `filterEquals=metadata->plugins->plugin/comment/0`: Refs without comments
+* `filterAfter=metadata->remotePlugins->plugin/user/read/10`: Refs read by more than 10 users
+* `filterAfter=tags->plugin/progress:num/9&filterBefore=tags->plugin/progress:num/50`: matches `plugin/progress/37/100`
+* `filterBefore=tags->plugin/duration:dur/pt1h`: matches `plugin/duration/pt10m25s`
+* `filterAfter=plugins->_plugin/cache->contentLength:num/1000`: Refs with a cached file over 1000 bytes
+* `filterBefore=plugins->plugin/test->ids:len/3`: Refs with fewer than three `ids`
+* `filterEquals=plugins->plugin/test->name/kiwi`: Refs named `kiwi`
 
-Response counts by plugin are sorted numerically: `metadata->plugins->{plugin}` counts responses from the
-same origin and `metadata->remotePlugins->{plugin}` counts responses from all origins, for example
-`metadata->remotePlugins->plugin/comment`. Refs can be filtered by whether they have responses tagged with a
-plugin using `pluginResponse` and `noPluginResponse` (local counts) or `remotePluginResponse` and
-`noRemotePluginResponse` (counts from all origins). Every one of these parameters can be repeated.
+Filters and sorts on private plugins or tags (`_plugin/...`) need read access, otherwise filters are rejected with
+`403 Forbidden` and sorts are ignored.
 
-To index response count filters and sorts on PostgreSQL, add plugins to `hotResponses` (local counts) or
-`hotRemoteResponses` (counts from all origins) in the `_config/index` template config, for example
-`{"hotResponses": ["plugin/comment"], "hotRemoteResponses": ["plugin/comment"]}`. Hot response indexes that
-are removed from the list are dropped. Hot responses are ignored on SQLite.
+`userResponse` / `noUserResponse` take user plugin tags (`plugin/user/...`) and match Refs the current user has
+(or has not) responded to with that plugin, for example `noUserResponse=plugin/user/read` for unread Refs.
 
-Metadata dates useful for sorting:
-- `metadata->modified`: updated whenever the responses, internal responses or plugin counts change.
-- `metadata->newResponse`: updated only when a new response is created (not updated), ignoring
-  user urls (`tag:/user?url=...`).
-- `metadata->newReaction`: updated whenever any response is created or updated, including user urls.
+To make sorts and filters fast on PostgreSQL, list them in the `_config/index` template config, for example
+`{"hotTags": ["plugin/progress:num"], "hotPlugins": ["plugin/test->size:num"], "hotResponses": ["plugin/comment"],
+"hotRemoteResponses": ["plugin/user/read"]}`. Each entry indexes both the sort and the filters on that value.
+See [DB Indices](#db-indices-_configindex-template).
 
-`newResponse` and `newReaction` are always written with 9 fractional digits so that sorting them
-as text gives chronological order.
+### Filtering Exts, Users, Plugins and Templates
+Exts, Users, Plugins and Templates take the same filters on their sort columns: `modified`, `origin:len`, `tag:len`
+and `{field}->{path}[:num|:len]`, where `{field}` is `config` for Exts, `external` for Users, and `config`, `defaults`
+and `schema` for Plugins and Templates. For example, `filterAfter=config->pinned:len/0` matches Exts with pinned Refs,
+`filterAfter=external->ids:len/1` matches Users with more than one external ID, and
+`filterAfter=config->version:num/3` matches Plugins with a version over 3. Only mods can filter or sort Users by
+`external`. These filters are not indexed.
 
 ## Modding
 Jasper allows extensive modification with server reuse. Since changes are done by creating
@@ -751,21 +747,26 @@ The `_config/index` template is installed in the root origin and selects which `
 exist. On startup, and whenever the template changes, each enabled index is created if it is missing
 and each disabled index is dropped.
 
-| Field               | Description                                                                      | Default Value |
-|---------------------|----------------------------------------------------------------------------------|---------------|
-| `tags`              | GIN indices on tags and expanded tags (PostgreSQL only).                         | `true`        |
-| `sources`           | GIN index on sources (PostgreSQL only).                                          | `true`        |
-| `alts`              | GIN index on alternate URLs (PostgreSQL only).                                   | `true`        |
-| `responses`         | GIN index on responses metadata (PostgreSQL only).                               | `true`        |
-| `internalResponses` | GIN index on internal responses metadata (PostgreSQL only).                      | `true`        |
-| `fulltext`          | Full text search index.                                                          | `true`        |
-| `published`         | Index on the published date.                                                     | `true`        |
-| `modified`          | Index on the modified date.                                                      | `true`        |
-| `newResponse`       | Index on `metadata->newResponse`, used when sorting by it.                       | `true`        |
-| `newReaction`       | Index on `metadata->newReaction`, used when sorting by it.                       | `true`        |
-| `ignored`           | Partial index on Refs marked `ignored` during replication, used by pull batches. | `true`        |
-| `cascade`           | Partial index on Refs waiting for a metadata cascade.                            | `true`        |
-| `regen`             | Partial index on Refs waiting for metadata regeneration (background backfill).   | `true`        |
+| Field                | Description                                                                                                                                | Default Value |
+|----------------------|--------------------------------------------------------------------------------------------------------------------------------------------|---------------|
+| `tags`               | GIN indices on tags and expanded tags (PostgreSQL only), and indices for sorting and filtering by `tags:len` and `metadata->expandedTags`. | `true`        |
+| `sources`            | GIN index on sources (PostgreSQL only), and an index for sorting and filtering by `sources:len`.                                           | `true`        |
+| `alts`               | GIN index on alternate URLs (PostgreSQL only), and an index for sorting and filtering by `alternateUrls:len`.                              | `true`        |
+| `responses`          | GIN index on responses metadata (PostgreSQL only), and an index for sorting and filtering by `metadata->responses`.                        | `true`        |
+| `internalResponses`  | GIN index on internal responses metadata (PostgreSQL only), and an index for sorting and filtering by `metadata->internalResponses`.       | `true`        |
+| `fulltext`           | Full text search index.                                                                                                                    | `true`        |
+| `published`          | Index on the published date.                                                                                                               | `true`        |
+| `modified`           | Index on the modified date.                                                                                                                | `true`        |
+| `created`            | Index on the created date, used when sorting and filtering by `created`.                                                                   | `true`        |
+| `newResponse`        | Index on `metadata->newResponse`, used when sorting and filtering by it.                                                                   | `true`        |
+| `newReaction`        | Index on `metadata->newReaction`, used when sorting and filtering by it.                                                                   | `true`        |
+| `ignored`            | Partial index on Refs marked `ignored` during replication, used by pull batches.                                                           | `true`        |
+| `cascade`            | Partial index on Refs waiting for a metadata cascade.                                                                                      | `true`        |
+| `regen`              | Partial index on Refs waiting for metadata regeneration (background backfill).                                                             | `true`        |
+| `hotTags`            | Tag value sorts and filters to index (PostgreSQL only), see [Sorting](#sorting).                                                           | `[]` (empty)  |
+| `hotPlugins`         | Plugin value sorts and filters to index (PostgreSQL only), see [Filtering](#filtering).                                                    | `[]` (empty)  |
+| `hotResponses`       | Plugins whose local response counts are indexed for sorts and filters (PostgreSQL only).                                                   | `[]` (empty)  |
+| `hotRemoteResponses` | Plugins whose response counts from all origins are indexed for sorts and filters (PostgreSQL only).                                        | `[]` (empty)  |
 
 ### Profiles
 Setting the active profiles is done through the `SPRING_PROFILES_ACTIVE` environment
@@ -1295,6 +1296,7 @@ When delegating rng to a trusted server, users push their updates to that server
 When playing on mutually replicating servers, each server is trusted to generate their own rng.
 
 ## Release Notes
+* [v1.5](./docs/release-notes/jasper-1.5.md)
 * [v1.4](./docs/release-notes/jasper-1.4.md)
 * [v1.3](./docs/release-notes/jasper-1.3.md)
 * [v1.2](./docs/release-notes/jasper-1.2.md)

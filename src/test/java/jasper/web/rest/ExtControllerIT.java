@@ -123,4 +123,21 @@ class ExtControllerIT {
 				.param("query", "!(a|b):!(!c)"))
 			.andExpect(status().isOk());
 	}
+
+	@Test
+	void testPageAndCountWithConfigFilters() throws Exception {
+		for (var path : List.of("/api/v1/ext/page", "/api/v1/ext/count")) {
+			mockMvc
+				.perform(get(path)
+					.param("filterAfter", "config->pinned:len/0")
+					.param("filterBefore", "config->order:num/3")
+					.param("filterEquals", "tag:len/1"))
+				.andExpect(status().isOk());
+			for (var invalid : List.of("external->ids:len/0", "published/2026-01-01T00:00:00Z", "config/1", "config->order:num/abc")) {
+				mockMvc
+					.perform(get(path).param("filterAfter", invalid))
+					.andExpect(status().isBadRequest());
+			}
+		}
+	}
 }

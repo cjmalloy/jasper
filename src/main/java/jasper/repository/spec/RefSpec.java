@@ -7,13 +7,14 @@ import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Root;
 import jasper.domain.Ref;
 import jasper.domain.Ref_;
-import jasper.repository.spec.SortSpec.PluginValueFilter;
-import jasper.repository.spec.SortSpec.TagValueFilter;
+import jasper.errors.InvalidQueryException;
+import jasper.repository.spec.SortSpec.Column;
+import jasper.repository.spec.SortSpec.Filter;
+import jasper.repository.spec.SortSpec.TagValueSort;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -21,9 +22,8 @@ import static jasper.domain.proj.Tag.isPublicTag;
 import static jasper.domain.proj.Tag.publicTag;
 import static jasper.domain.proj.Tag.userUrlPrefix;
 import static jasper.repository.spec.OriginSpec.none;
-import static jasper.repository.spec.SortSpec.createJsonbSortExpression;
-import static jasper.repository.spec.SortSpec.createJsonbValue;
 import static jasper.repository.spec.SortSpec.isJsonbSortProperty;
+import static jasper.repository.spec.SortSpec.jsonbColumn;
 import static org.springframework.data.jpa.domain.Specification.unrestricted;
 
 public class RefSpec {
@@ -140,39 +140,6 @@ public class RefSpec {
 				cb.literal(url)));
 	}
 
-	public static Specification<Ref> hasNoPluginResponses(String plugin) {
-		return hasNoResponseCount("plugins", plugin);
-	}
-
-	public static Specification<Ref> hasPluginResponses(String plugin) {
-		return hasResponseCount("plugins", plugin);
-	}
-
-	public static Specification<Ref> hasNoRemotePluginResponses(String plugin) {
-		return hasNoResponseCount("remotePlugins", plugin);
-	}
-
-	public static Specification<Ref> hasRemotePluginResponses(String plugin) {
-		return hasResponseCount("remotePlugins", plugin);
-	}
-
-	/**
-	 * Compares the response count using the same expression as sorting by "metadata->{field}->{plugin}",
-	 * so hot response indexes apply to both.
-	 */
-	@SuppressWarnings("unchecked")
-	private static Specification<Ref> hasResponseCount(String field, String plugin) {
-		return (root, query, cb) -> cb.greaterThan(
-			(Expression<Double>) createJsonbSortExpression(root, cb, "metadata->" + field + "->" + plugin + ":num", "metadata"),
-			cb.function("cast_to_numeric", Double.class, cb.literal(0)));
-	}
-
-	private static Specification<Ref> hasNoResponseCount(String field, String plugin) {
-		return (root, query, cb) -> cb.equal(
-			createJsonbSortExpression(root, cb, "metadata->" + field + "->" + plugin + ":num", "metadata"),
-			cb.function("cast_to_numeric", Double.class, cb.literal(0)));
-	}
-
 	public static Specification<Ref> hasNoPluginResponses(String user, String userOrigin, String plugin) {
 		return (root, query, cb) ->
 			cb.or(
@@ -232,14 +199,6 @@ public class RefSpec {
 		return (root, query, cb) -> tagExists(root, cb, tag);
 	}
 
-	public static Specification<Ref> hasNoChildTag(String tag) {
-		return (root, query, cb) -> cb.isFalse(
-			cb.like(
-				cb.function("jsonb_text", String.class, root.get(Ref_.tags)),
-				"%\"" + tag.replace("_", "\\_") + "/%",
-				'\\'));
-	}
-
 	public static Specification<Ref> hasDownwardTag(String tag) {
 		if (isPublicTag(tag)) {
 			return (root, query, cb) ->
@@ -281,120 +240,84 @@ public class RefSpec {
 			cb.literal(","));
 	}
 
-	public static Specification<Ref> isPublishedAfter(Instant i) {
-		if (i == null) return unrestricted();
-		return (root, query, cb) ->
-				cb.greaterThan(
-						root.get(Ref_.published),
-						i);
-	}
-
-	public static Specification<Ref> isPublishedBefore(Instant i) {
-		if (i == null) return unrestricted();
-		return (root, query, cb) ->
-				cb.lessThan(
-						root.get(Ref_.published),
-						i);
-	}
-
-	public static Specification<Ref> isCreatedAfter(Instant i) {
-		if (i == null) return unrestricted();
-		return (root, query, cb) ->
-				cb.greaterThan(
-						root.get(Ref_.created),
-						i);
-	}
-
-	public static Specification<Ref> isCreatedBefore(Instant i) {
-		if (i == null) return unrestricted();
-		return (root, query, cb) ->
-				cb.lessThan(
-						root.get(Ref_.created),
-						i);
-	}
-
-	public static Specification<Ref> isResponseAfter(Instant i) {
-		if (i == null) return unrestricted();
-		return (root, query, cb) ->
-			cb.greaterThan(cb.function("jsonb_object_field_text", String.class,
-					root.get(Ref_.metadata),
-					cb.literal(Ref_.MODIFIED)),
-				cb.literal(i.toString()));
-	}
-
-	public static Specification<Ref> isResponseBefore(Instant i) {
-		if (i == null) return unrestricted();
-		return (root, query, cb) ->
-			cb.lessThan(cb.function("jsonb_object_field_text", String.class,
-					root.get(Ref_.metadata),
-					cb.literal(Ref_.MODIFIED)),
-				cb.literal(i.toString()));
-	}
-
-	public static Specification<Ref> isTagValueBefore(TagValueFilter filter) {
-		return isTagValue(filter, true);
-	}
-
-	public static Specification<Ref> isTagValueAfter(TagValueFilter filter) {
-		return isTagValue(filter, false);
-	}
-
 	/**
-	 * Compares the value of a tag in the tags array, using the same expression as tag value sorting
-	 * so hot tag indexes apply. Refs without a value for the tag never match.
+	 * Filters on a sort column, using the same expression as sorting so the same indexes apply.
 	 */
-	private static Specification<Ref> isTagValue(TagValueFilter filter, boolean before) {
-		if (filter == null) return unrestricted();
+	public static Specification<Ref> filter(Filter filter) {
 		return (root, query, cb) -> {
-			var tag = cb.literal(filter.sort().tag());
-			var text = cb.function("tag_value", String.class, root.get(Ref_.tags), tag);
-			if (filter.value() instanceof String value) {
-				return cb.and(
-					cb.notEqual(text, ""),
-					before ? cb.lessThan(text, value) : cb.greaterThan(text, value));
-			}
-			var number = cb.function(filter.sort().function(), Double.class, root.get(Ref_.tags), tag);
-			var value = cb.function("cast_to_numeric", Double.class, cb.literal(filter.value()));
-			return cb.and(
-				cb.notEqual(text, ""),
-				before ? cb.lessThan(number, value) : cb.greaterThan(number, value));
+			var column = column(root, cb, filter.column());
+			if (column == null) throw new InvalidQueryException(filter.column(), "not a sort column");
+			return column.filter(cb, filter);
 		};
 	}
 
-	public static Specification<Ref> isPluginValueBefore(PluginValueFilter filter) {
-		return isPluginValue(filter, true);
-	}
-
-	public static Specification<Ref> isPluginValueAfter(PluginValueFilter filter) {
-		return isPluginValue(filter, false);
-	}
-
 	/**
-	 * Compares a field of plugin data, using the same expression as plugin sorting.
-	 * Refs without a value for the field never match.
+	 * The expression of a computed sort column, also used for filters, so one index serves both.
+	 *
+	 * @return the column, or null if this is not a computed column
 	 */
-	@SuppressWarnings("unchecked")
-	private static Specification<Ref> isPluginValue(PluginValueFilter filter, boolean before) {
-		if (filter == null) return unrestricted();
-		return (root, query, cb) -> {
-			var field = createJsonbValue(root, cb, filter.property(), "plugins");
-			if (filter.value() instanceof String value) {
-				Expression<String> text = field.expression();
-				return before ? cb.lessThan(text, value) : cb.greaterThan(text, value);
+	public static Column column(Root<Ref> root, CriteriaBuilder cb, String property) {
+		if (property.startsWith("plugins->plugin/user/vote:")) {
+			// Vote sorts use registered functions
+			return switch (property.substring("plugins->plugin/user/vote:".length())) {
+				case "top" -> new Column(cb.coalesce(cb.function("vote_top", Integer.class, root.get(Ref_.metadata)), cb.literal(0)), false);
+				case "score" -> new Column(cb.coalesce(cb.function("vote_score", Integer.class, root.get(Ref_.metadata)), cb.literal(0)), false);
+				case "decay" -> new Column(cb.coalesce(cb.function("vote_decay", Double.class, root.get(Ref_.metadata), root.get(Ref_.published)), cb.literal(0.0)), false);
+				default -> null;
+			};
+		}
+		if (property.startsWith("tags->")) {
+			// Missing or invalid tag values are NULL
+			var sort = TagValueSort.parse(property);
+			if (sort == null) return null;
+			if ("tag_value".equals(sort.function())) return new Column(cb.function("tag_value", String.class, root.get(Ref_.tags), cb.literal(sort.tag())), true);
+			return new Column(cb.function(sort.function(), Double.class, root.get(Ref_.tags), cb.literal(sort.tag())), true);
+		}
+		if (property.startsWith("metadata->")) {
+			// Generated metadata: dates are missing until the first response, counts are never missing (0)
+			var path = property.substring("metadata->".length()).replaceFirst(":(?:num|len)$", "").split("->");
+			if (path.length == 1 && (path[0].equals("newResponse") || path[0].equals("newReaction"))) {
+				return new Column(cb.function("jsonb_object_field_text", String.class,
+					root.get(Ref_.metadata),
+					cb.literal(path[0])), true);
 			}
-			Expression<Double> number = field.numeric()
-				? field.expression()
-				: cb.function("cast_to_numeric", Double.class, field.expression());
-			var value = cb.function("cast_to_numeric", Double.class, cb.literal(filter.value()));
-			return before ? cb.lessThan(number, value) : cb.greaterThan(number, value);
+			if (path.length == 1 && (path[0].equals("expandedTags") || path[0].equals("responses") || path[0].equals("internalResponses"))) {
+				return new Column(cb.coalesce(
+					cb.function("safe_jsonb_array_length", Integer.class,
+						cb.function("jsonb_object_field", Object.class,
+							root.get(Ref_.metadata),
+							cb.literal(path[0]))),
+					cb.literal(0)), false);
+			}
+			if (path.length == 2 && (path[0].equals("plugins") || path[0].equals("remotePlugins"))) {
+				return new Column(cb.coalesce(
+					cb.function("safe_numeric", Double.class,
+						cb.function("jsonb_object_field", Object.class,
+							cb.function("jsonb_object_field", Object.class,
+								root.get(Ref_.metadata),
+								cb.literal(path[0])),
+							cb.literal(path[1]))),
+					cb.literal(0.0)), false);
+			}
+			return null;
+		}
+		if (isJsonbSortProperty(property, "plugins")) return jsonbColumn(root, cb, property, "plugins");
+		return switch (property) {
+			case "modified" -> new Column(root.get(Ref_.modified), false);
+			case "published" -> new Column(root.get(Ref_.published), false);
+			case "created" -> new Column(root.get(Ref_.created), false);
+			case "origin:len" -> new Column(cb.function("origin_nesting", Integer.class, root.get(Ref_.origin)), false);
+			case "tags:len", "sources:len", "alternateUrls:len" -> new Column(cb.coalesce(
+				cb.function("jsonb_array_length", Integer.class,
+					root.get(property.substring(0, property.length() - ":len".length()))),
+				cb.literal(0)), false);
+			default -> null;
 		};
 	}
 
 	/**
 	 * Creates a Specification with sorting applied based on the PageRequest's sort orders.
-	 * JSONB field sort columns are rewritten as JPA Specification orderBy clauses.
-	 * Sort columns that target JSONB fields use the pattern "metadata->plugins->{pluginTag}"
-	 * or generic JSONB paths like "metadata->field->subfield".
+	 * Computed sort columns use the same expression as filters (see {@link #column}).
 	 *
 	 * @param spec the base specification to add sorting to
 	 * @param pageable the page request containing sort orders
@@ -413,35 +336,12 @@ public class RefSpec {
 			var jpaOrders = new ArrayList<Order>();
 			for (Sort.Order order : orders) {
 				var property = order.getProperty();
-				var ascending = order.isAscending();
-				Expression<?> expr;
-				if (property.startsWith("plugins->plugin/user/vote:")) {
-					// Handle vote sorting patterns using registered functions
-					var voteType = property.substring("plugins->plugin/user/vote:".length());
-					if ("top".equals(voteType)) {
-						expr = cb.coalesce(cb.function("vote_top", Integer.class, root.get(Ref_.metadata)), cb.literal(0));
-					} else if ("score".equals(voteType)) {
-						expr = cb.coalesce(cb.function("vote_score", Integer.class, root.get(Ref_.metadata)), cb.literal(0));
-					} else if ("decay".equals(voteType)) {
-						expr = cb.coalesce(cb.function("vote_decay", Double.class, root.get(Ref_.metadata), root.get(Ref_.published)), cb.literal(0.0));
-					} else {
-						expr = null;
-					}
-				} else if (property.startsWith("tags->")) {
-					expr = SortSpec.createTagValueSortExpression(root, cb, property);
-				} else if (isJsonbSortProperty(property, "metadata", "plugins")) {
-					expr = createJsonbSortExpression(root, cb, property, "metadata", "plugins");
-				} else if (property.endsWith(":len")) {
-					var fieldName = property.substring(0, property.length() - ":len".length());
-					if ("origin".equals(fieldName)) {
-						expr = cb.function("origin_nesting", Integer.class, root.get(fieldName));
-					} else {
-						expr = SortSpec.createArrayLengthExpression(root, cb, fieldName);
-					}
-				} else {
-					expr = root.get(property);
+				var column = column(root, cb, property);
+				if (column != null) {
+					jpaOrders.add(column.order(cb, order.isAscending()));
+				} else if (!property.contains("->") && !property.contains(":")) {
+					jpaOrders.add(order.isAscending() ? cb.asc(root.get(property)) : cb.desc(root.get(property)));
 				}
-				if (expr != null) jpaOrders.add(ascending ? cb.asc(expr) : cb.desc(expr));
 			}
 			if (!jpaOrders.isEmpty()) query.orderBy(jpaOrders);
 			return null;

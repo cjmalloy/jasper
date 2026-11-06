@@ -30,6 +30,10 @@ public class SQLiteConfig implements BeanPostProcessor {
 	private static final Logger logger = LoggerFactory.getLogger(SQLiteConfig.class);
 	private static final ObjectMapper om = new ObjectMapper();
 	/**
+	 * Same pattern as the tag_value_num PostgreSQL function.
+	 */
+	private static final Pattern DECIMAL = Pattern.compile("[0-9]{1,30}(?:[.][0-9]{1,30})?");
+	/**
 	 * Same pattern as the tag_value_dur PostgreSQL function.
 	 */
 	private static final Pattern ISO_DURATION = Pattern.compile(
@@ -76,6 +80,25 @@ public class SQLiteConfig implements BeanPostProcessor {
 		var sqliteConn = conn.unwrap(SQLiteConnection.class);
 		registerJsonbExists(sqliteConn);
 		registerIsoDurationSeconds(sqliteConn);
+		registerDecimalValue(sqliteConn);
+	}
+
+	/**
+	 * Registers decimal_value(text) function for SQLite.
+	 * Returns the value of an unsigned decimal number (e.g. "37" or "2.5"), or null if it cannot be parsed.
+	 */
+	private static void registerDecimalValue(SQLiteConnection conn) throws SQLException {
+		Function.create(conn, "decimal_value", new Function() {
+			@Override
+			protected void xFunc() throws SQLException {
+				var value = args() < 1 ? null : value_text(0);
+				if (value == null || !DECIMAL.matcher(value).matches()) {
+					result();
+				} else {
+					result(Double.parseDouble(value));
+				}
+			}
+		}, Function.FLAG_DETERMINISTIC);
 	}
 
 	/**

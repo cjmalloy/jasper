@@ -25,6 +25,8 @@ public interface IndexRepository {
 	void buildPublished();
 	void dropModified();
 	void buildModified();
+	void dropCreated();
+	void buildCreated();
 	void dropNewResponse();
 	void buildNewResponse();
 	void dropNewReaction();
@@ -61,4 +63,5 @@ public interface IndexRepository {
 	void buildCascade();
 	void dropRegen();
 	void buildRegen();
+
 }
