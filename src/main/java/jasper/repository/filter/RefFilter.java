@@ -1,9 +1,7 @@
 package jasper.repository.filter;
 
 import jasper.domain.Ref;
-import jasper.errors.InvalidQueryException;
-import jasper.repository.spec.SortSpec.PluginValueFilter;
-import jasper.repository.spec.SortSpec.TagValueFilter;
+import jasper.repository.spec.SortSpec.Filter;
 import lombok.Builder;
 import lombok.Getter;
 import org.slf4j.Logger;
@@ -18,7 +16,6 @@ import static jasper.repository.spec.OriginSpec.isOrigin;
 import static jasper.repository.spec.OriginSpec.none;
 import static jasper.repository.spec.RefSpec.*;
 import static jasper.repository.spec.ReplicationSpec.isModifiedAfter;
-import static jasper.repository.spec.ReplicationSpec.isModifiedBefore;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.springframework.data.jpa.domain.Specification.not;
 
@@ -26,10 +23,8 @@ import static org.springframework.data.jpa.domain.Specification.not;
 @Getter
 public class RefFilter implements Query {
 	public static final String QUERY = Query.REGEX;
-	public static final String TAG_VALUE = TagValueFilter.REGEX;
-	public static final int TAG_VALUE_LEN = TagValueFilter.LEN;
-	public static final String PLUGIN_VALUE = PluginValueFilter.REGEX;
-	public static final int PLUGIN_VALUE_LEN = PluginValueFilter.LEN;
+	public static final String FILTER = Filter.REGEX;
+	public static final int FILTER_LEN = Filter.LEN;
 	private static final Logger logger = LoggerFactory.getLogger(RefFilter.class);
 
 	private String origin;
@@ -39,34 +34,19 @@ public class RefFilter implements Query {
 	private Boolean ignored;
 	private String scheme;
 	private String query;
-	private String noDescendents;
 	private String search;
 	private String endsTitle;
 	private boolean rankedOrder;
 	private String sources;
-	private String noSources;
 	private String responses;
-	private String noResponses;
-	private List<String> pluginResponse;
-	private List<String> noPluginResponse;
-	private List<String> remotePluginResponse;
-	private List<String> noRemotePluginResponse;
 	private String user;
 	private String userOrigin;
 	private List<String> userResponse;
 	private List<String> noUserResponse;
-	private Instant modifiedBefore;
 	private Instant modifiedAfter;
-	private Instant publishedBefore;
-	private Instant publishedAfter;
-	private Instant createdBefore;
-	private Instant createdAfter;
-	private Instant responseBefore;
-	private Instant responseAfter;
-	private List<String> tagBefore;
-	private List<String> tagAfter;
-	private List<String> pluginBefore;
-	private List<String> pluginAfter;
+	private List<String> filterBefore;
+	private List<String> filterAfter;
+	private List<String> filterEquals;
 
 	public Specification<Ref> spec(String user, String userOrigin) {
 		this.user = user;
@@ -106,9 +86,6 @@ public class RefFilter implements Query {
 		if (isNotBlank(query)) {
 			result = result.and(new TagQuery(query).refSpec());
 		}
-		if (isNotBlank(noDescendents)) {
-			result = result.and(hasNoChildTag(noDescendents));
-		}
 		if (isNotBlank(search)) {
 			result = result.and(isUrl(search).or(fulltextEn(search, rankedOrder)));
 		}
@@ -119,35 +96,8 @@ public class RefFilter implements Query {
 			result = result.and(hasResponse(sources)
 				.or(hasInternalResponse(sources)));
 		}
-		if (isNotBlank(noSources)) {
-			result = result.and(not(hasResponse(noSources))
-				.and(not(hasInternalResponse(noSources))));
-		}
 		if (isNotBlank(responses)) {
 			result = result.and(hasSource(responses));
-		}
-		if (isNotBlank(noResponses)) {
-			result = result.and(not(hasSource(noResponses)));
-		}
-		if (pluginResponse != null) {
-			for (var r : pluginResponse) {
-				result = result.and(hasPluginResponses(r));
-			}
-		}
-		if (noPluginResponse != null) {
-			for (var nr : noPluginResponse) {
-				result = result.and(hasNoPluginResponses(nr));
-			}
-		}
-		if (remotePluginResponse != null) {
-			for (var r : remotePluginResponse) {
-				result = result.and(hasRemotePluginResponses(r));
-			}
-		}
-		if (noRemotePluginResponse != null) {
-			for (var nr : noRemotePluginResponse) {
-				result = result.and(hasNoRemotePluginResponses(nr));
-			}
 		}
 		if (isNotBlank(user)) {
 			if (userResponse != null) {
@@ -161,62 +111,19 @@ public class RefFilter implements Query {
 				}
 			}
 		}
-		if (modifiedBefore != null) {
-			result = result.and(isModifiedBefore(modifiedBefore));
-		}
 		if (modifiedAfter != null) {
 			result = result.and(isModifiedAfter(modifiedAfter));
 		}
-		if (publishedBefore != null) {
-			result = result.and(isPublishedBefore(publishedBefore));
-		}
-		if (publishedAfter != null) {
-			result = result.and(isPublishedAfter(publishedAfter));
-		}
-		if (createdBefore != null) {
-			result = result.and(isCreatedBefore(createdBefore));
-		}
-		if (createdAfter != null) {
-			result = result.and(isCreatedAfter(createdAfter));
-		}
-		if (responseBefore != null) {
-			result = result.and(isResponseBefore(responseBefore));
-		}
-		if (responseAfter != null) {
-			result = result.and(isResponseAfter(responseAfter));
-		}
-		if (tagBefore != null) {
-			for (var f : tagBefore) {
-				result = result.and(isTagValueBefore(tagValueFilter(f)));
-			}
-		}
-		if (tagAfter != null) {
-			for (var f : tagAfter) {
-				result = result.and(isTagValueAfter(tagValueFilter(f)));
-			}
-		}
-		if (pluginBefore != null) {
-			for (var f : pluginBefore) {
-				result = result.and(isPluginValueBefore(pluginValueFilter(f)));
-			}
-		}
-		if (pluginAfter != null) {
-			for (var f : pluginAfter) {
-				result = result.and(isPluginValueAfter(pluginValueFilter(f)));
-			}
+		for (var f : filters()) {
+			result = result.and(filter(f));
 		}
 		return result;
 	}
 
-	private static TagValueFilter tagValueFilter(String filter) {
-		var result = TagValueFilter.parse(filter);
-		if (result == null) throw new InvalidQueryException(filter, "expected tags->{tag}/{value}, tags->{tag}:num/{number} or tags->{tag}:dur/{duration}");
-		return result;
-	}
-
-	private static PluginValueFilter pluginValueFilter(String filter) {
-		var result = PluginValueFilter.parse(filter);
-		if (result == null) throw new InvalidQueryException(filter, "expected plugins->{plugin}[->{field}...]/{value}, plugins->{plugin}[->{field}...]:num/{number} or plugins->{plugin}[->{field}...]:len/{length}");
-		return result;
+	/**
+	 * The parsed filterBefore, filterAfter and filterEquals.
+	 */
+	public List<Filter> filters() {
+		return Filter.parse(filterBefore, filterAfter, filterEquals);
 	}
 }

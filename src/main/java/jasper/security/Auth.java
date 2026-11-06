@@ -14,9 +14,9 @@ import jasper.errors.FreshLoginException;
 import jasper.repository.RefRepository;
 import jasper.repository.filter.Query;
 import jasper.repository.filter.RefFilter;
+import jasper.repository.filter.TagFilter;
 import jasper.repository.spec.QualifiedTag;
-import jasper.repository.spec.SortSpec.PluginValueFilter;
-import jasper.repository.spec.SortSpec.TagValueFilter;
+import jasper.repository.spec.SortSpec.Filter;
 import jasper.security.jwt.Claims;
 import jasper.security.jwt.JwtAuthentication;
 import jasper.service.dto.UserDto;
@@ -47,7 +47,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -616,34 +615,14 @@ public class Auth {
 	public boolean canReadQuery(Query filter) {
 		// Min Role
 		if (!minRole()) return false;
-		var tagValues = filter instanceof RefFilter f
-			? Stream.of(
-				Stream.of(f.getTagBefore(), f.getTagAfter())
-					.filter(Objects::nonNull)
-					.flatMap(List::stream)
-					.map(TagValueFilter::parse)
-					.filter(Objects::nonNull)
-					.map(v -> v.sort().tag()),
-				Stream.of(f.getPluginBefore(), f.getPluginAfter())
-					.filter(Objects::nonNull)
-					.flatMap(List::stream)
-					.map(PluginValueFilter::parse)
-					.filter(Objects::nonNull)
-					.map(PluginValueFilter::plugin),
-				Stream.of(f.getPluginResponse(), f.getNoPluginResponse(), f.getRemotePluginResponse(), f.getNoRemotePluginResponse())
-					.filter(Objects::nonNull)
-					.flatMap(List::stream))
-				.flatMap(s -> s)
-				.toList()
+		var columns = filter instanceof RefFilter f
+			? f.filters().stream().map(Filter::column).toList()
 			: List.<String>of();
 		// Anyone can read the empty query (retrieve all Refs)
-		if (filter.getQuery() == null && tagValues.isEmpty()) return true;
+		if (filter.getQuery() == null && columns.isEmpty()) return true;
 		// Mod
 		if (hasRole(MOD)) return true;
-		if (tagValues.stream()
-			.filter(Auth::isPrivateTag)
-			.filter(tag -> !isUser(tag))
-			.anyMatch(tag -> !captures(getTagReadAccess(), QualifiedTag.selector(tag)))) return false;
+		if (!columns.stream().allMatch(this::canReadColumn)) return false;
 		var tagList = (filter.getQuery() == null ? Stream.<String>empty() : Arrays.stream(filter.getQuery().split("[!:|()\\s]+")))
 			.filter(StringUtils::isNotBlank)
 			.filter(Auth::isPrivateTag)
@@ -662,27 +641,58 @@ public class Auth {
 		if (hasRole(MOD)) return pageable;
 		var orders = pageable.getSort().toList();
 		var filtered = orders.stream()
-			.filter(order -> {
-				var property = order.getProperty();
-				String afterPrefix;
-				if (property.startsWith("plugins->")) {
-					afterPrefix = property.substring("plugins->".length());
-				} else if (property.startsWith("metadata->plugins->")) {
-					afterPrefix = property.substring("metadata->plugins->".length());
-				} else if (property.startsWith("metadata->remotePlugins->")) {
-					afterPrefix = property.substring("metadata->remotePlugins->".length());
-				} else if (property.startsWith("tags->")) {
-					afterPrefix = property.substring("tags->".length());
-				} else {
-					return true;
-				}
-				int end = afterPrefix.indexOf("->");
-				if (end == -1) end = afterPrefix.indexOf(":");
-				var tag = end == -1 ? afterPrefix : afterPrefix.substring(0, end);
-				if (!isPrivateTag(tag)) return true;
-				if (isUser(tag)) return true;
-				return captures(getTagReadAccess(), QualifiedTag.selector(tag));
-			})
+			.filter(order -> canReadColumn(order.getProperty()))
+			.toList();
+		if (filtered.size() == orders.size()) return pageable;
+		return PageRequest.of(
+			pageable.getPageNumber(),
+			pageable.getPageSize(),
+			Sort.by(filtered));
+	}
+
+	/**
+	 * Can sort or filter Refs by this column. Columns on private plugins or tags reveal
+	 * their values, so the user must be able to read the tag, or own it.
+	 */
+	private boolean canReadColumn(String column) {
+		String afterPrefix;
+		if (column.startsWith("plugins->")) {
+			afterPrefix = column.substring("plugins->".length());
+		} else if (column.startsWith("metadata->plugins->")) {
+			afterPrefix = column.substring("metadata->plugins->".length());
+		} else if (column.startsWith("metadata->remotePlugins->")) {
+			afterPrefix = column.substring("metadata->remotePlugins->".length());
+		} else if (column.startsWith("tags->")) {
+			afterPrefix = column.substring("tags->".length());
+		} else {
+			return true;
+		}
+		int end = afterPrefix.indexOf("->");
+		if (end == -1) end = afterPrefix.indexOf(":");
+		var tag = end == -1 ? afterPrefix : afterPrefix.substring(0, end);
+		if (!isPrivateTag(tag)) return true;
+		if (isUser(tag)) return true;
+		return captures(getTagReadAccess(), QualifiedTag.selector(tag));
+	}
+
+	/**
+	 * User external data is only shown to mods and users who can write the user (see {@link #filterUser}),
+	 * so only mods may filter Users by it.
+	 */
+	public boolean canFilterUsers(TagFilter filter) {
+		if (hasRole(MOD)) return true;
+		return filter.filters().stream().noneMatch(f -> f.column().startsWith("external->"));
+	}
+
+	/**
+	 * Silently remove User sorts on external data unless mod, since it is hidden (see {@link #filterUser}).
+	 */
+	public Pageable userPageable(Pageable pageable) {
+		if (pageable == null || pageable.getSort().isUnsorted()) return pageable;
+		if (hasRole(MOD)) return pageable;
+		var orders = pageable.getSort().toList();
+		var filtered = orders.stream()
+			.filter(order -> !order.getProperty().equals("external") && !order.getProperty().startsWith("external->"))
 			.toList();
 		if (filtered.size() == orders.size()) return pageable;
 		return PageRequest.of(

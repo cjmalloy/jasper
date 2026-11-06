@@ -3,7 +3,7 @@ package jasper.repository;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import jasper.domain.Plugin;
-import jasper.repository.spec.SortSpec.PluginValueFilter;
+import jasper.repository.spec.SortSpec;
 import jasper.repository.spec.SortSpec.TagValueSort;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -13,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.regex.Pattern;
 
@@ -31,61 +32,91 @@ public class IndexRepositoryImplPostgres implements IndexRepository {
 	@Override
 	public void dropTags() {
 		em.createNativeQuery("DROP INDEX IF EXISTS ref_tags_index").executeUpdate();
+		em.createNativeQuery("DROP INDEX IF EXISTS ref_tags_len_index").executeUpdate();
 	}
 
 	@Override
 	public void buildTags() {
 		em.createNativeQuery("CREATE INDEX IF NOT EXISTS ref_tags_index ON ref USING GIN(tags)").executeUpdate();
+		em.createNativeQuery("CREATE INDEX IF NOT EXISTS ref_tags_len_index ON ref ((" + arrayLength("tags") + "))").executeUpdate();
 	}
 
 	@Override
 	public void dropExpandedTags() {
 		em.createNativeQuery("DROP INDEX IF EXISTS ref_expanded_tags_index").executeUpdate();
+		em.createNativeQuery("DROP INDEX IF EXISTS ref_expanded_tags_len_index").executeUpdate();
 	}
 
 	@Override
 	public void buildExpandedTags() {
 		em.createNativeQuery("CREATE INDEX IF NOT EXISTS ref_expanded_tags_index ON ref USING GIN((metadata->'expandedTags'))").executeUpdate();
+		em.createNativeQuery("CREATE INDEX IF NOT EXISTS ref_expanded_tags_len_index ON ref ((" + metadataArrayLength("expandedTags") + "))").executeUpdate();
 	}
 
 	@Override
 	public void dropSources() {
 		em.createNativeQuery("DROP INDEX IF EXISTS ref_sources_index").executeUpdate();
+		em.createNativeQuery("DROP INDEX IF EXISTS ref_sources_len_index").executeUpdate();
 	}
 
 	@Override
 	public void buildSources() {
 		em.createNativeQuery("CREATE INDEX IF NOT EXISTS ref_sources_index ON ref USING GIN(sources)").executeUpdate();
+		em.createNativeQuery("CREATE INDEX IF NOT EXISTS ref_sources_len_index ON ref ((" + arrayLength("sources") + "))").executeUpdate();
 	}
 
 	@Override
 	public void dropAlts() {
 		em.createNativeQuery("DROP INDEX IF EXISTS ref_alternate_urls_index").executeUpdate();
+		em.createNativeQuery("DROP INDEX IF EXISTS ref_alternate_urls_len_index").executeUpdate();
 	}
 
 	@Override
 	public void buildAlts() {
 		em.createNativeQuery("CREATE INDEX IF NOT EXISTS ref_alternate_urls_index ON ref USING GIN(alternate_urls)").executeUpdate();
+		em.createNativeQuery("CREATE INDEX IF NOT EXISTS ref_alternate_urls_len_index ON ref ((" + arrayLength("alternate_urls") + "))").executeUpdate();
 	}
 
 	@Override
 	public void dropResponses() {
 		em.createNativeQuery("DROP INDEX IF EXISTS ref_responses_index").executeUpdate();
+		em.createNativeQuery("DROP INDEX IF EXISTS ref_responses_len_index").executeUpdate();
 	}
 
 	@Override
 	public void buildResponses() {
 		em.createNativeQuery("CREATE INDEX IF NOT EXISTS ref_responses_index ON ref USING GIN((metadata->'responses'))").executeUpdate();
+		em.createNativeQuery("CREATE INDEX IF NOT EXISTS ref_responses_len_index ON ref ((" + metadataArrayLength("responses") + "))").executeUpdate();
 	}
 
 	@Override
 	public void dropInternalResponses() {
 		em.createNativeQuery("DROP INDEX IF EXISTS ref_internal_responses_index").executeUpdate();
+		em.createNativeQuery("DROP INDEX IF EXISTS ref_internal_responses_len_index").executeUpdate();
 	}
 
 	@Override
 	public void buildInternalResponses() {
 		em.createNativeQuery("CREATE INDEX IF NOT EXISTS ref_internal_responses_index ON ref USING GIN((metadata->'internalResponses'))").executeUpdate();
+		em.createNativeQuery("CREATE INDEX IF NOT EXISTS ref_internal_responses_len_index ON ref ((" + metadataArrayLength("internalResponses") + "))").executeUpdate();
+	}
+
+	/**
+	 * Same SQL that {@link jasper.repository.spec.RefSpec#column} renders for a "tags:len", "sources:len" or
+	 * "alternateUrls:len" sort or filter with the PostgreSQL dialect, so the planner can match the index to both.
+	 */
+	static String arrayLength(String column) {
+		return "COALESCE(jsonb_array_length(" + column + "), 0)";
+	}
+
+	/**
+	 * Same SQL that {@link jasper.repository.spec.RefSpec#column} renders for a "metadata->expandedTags",
+	 * "metadata->responses" or "metadata->internalResponses" sort or filter with the PostgreSQL dialect,
+	 * so the planner can match the index to both.
+	 */
+	static String metadataArrayLength(String key) {
+		var value = "(metadata)->('" + key + "')";
+		return "COALESCE((CASE WHEN jsonb_typeof(" + value + ") = 'array' THEN jsonb_array_length(" + value + ") END), 0)";
 	}
 
 	@Override
@@ -119,17 +150,44 @@ public class IndexRepositoryImplPostgres implements IndexRepository {
 	}
 
 	@Override
+	public void dropCreated() {
+		em.createNativeQuery("DROP INDEX IF EXISTS ref_created_index").executeUpdate();
+	}
+
+	@Override
+	public void buildCreated() {
+		em.createNativeQuery("CREATE INDEX IF NOT EXISTS ref_created_index ON ref (created)").executeUpdate();
+	}
+
+	/**
+	 * Builds an expression index matching JSONB sorts, which order missing values first ascending
+	 * and last descending, so the index serves both directions and filters on the same expression.
+	 * Drops an index of the same name built before sorts used NULLS FIRST.
+	 */
+	private void buildNullsFirst(String name, String expression) {
+		var stale = em.createNativeQuery("""
+				SELECT indexname FROM pg_indexes
+				WHERE schemaname = current_schema() AND tablename = 'ref' AND indexname = :name
+					AND indexdef NOT LIKE '%NULLS FIRST%'""")
+			.setParameter("name", name)
+			.getResultList();
+		if (!stale.isEmpty()) em.createNativeQuery("DROP INDEX IF EXISTS " + name).executeUpdate();
+		em.createNativeQuery("CREATE INDEX IF NOT EXISTS " + name + " ON ref ((" + expression + ") NULLS FIRST)").executeUpdate();
+	}
+
+	@Override
 	public void dropNewResponse() {
 		em.createNativeQuery("DROP INDEX IF EXISTS ref_new_response_index").executeUpdate();
 	}
 
 	/**
-	 * Same SQL that {@link jasper.repository.spec.SortSpec#createJsonbSortExpression} renders for a
-	 * metadata sort with the PostgreSQL dialect, so the planner can match the index to the sort.
+	 * Same SQL that {@link jasper.repository.spec.RefSpec#column} renders for a
+	 * metadata date sort with the PostgreSQL dialect, so the planner can match the index to the sort and the
+	 * filters on it.
 	 */
 	@Override
 	public void buildNewResponse() {
-		em.createNativeQuery("CREATE INDEX IF NOT EXISTS ref_new_response_index ON ref ((COALESCE((metadata)->>('newResponse'), '')))").executeUpdate();
+		buildNullsFirst("ref_new_response_index", "(metadata)->>('newResponse')");
 	}
 
 	@Override
@@ -139,7 +197,7 @@ public class IndexRepositoryImplPostgres implements IndexRepository {
 
 	@Override
 	public void buildNewReaction() {
-		em.createNativeQuery("CREATE INDEX IF NOT EXISTS ref_new_reaction_index ON ref ((COALESCE((metadata)->>('newReaction'), '')))").executeUpdate();
+		buildNullsFirst("ref_new_reaction_index", "(metadata)->>('newReaction')");
 	}
 
 	@Override
@@ -185,21 +243,27 @@ public class IndexRepositoryImplPostgres implements IndexRepository {
 				wanted.put(hotTagIndexName(sort), sort);
 			}
 		}
+		// Indexes without NULLS FIRST are from before missing tag values were NULL
 		@SuppressWarnings("unchecked")
-		List<String> existing = em.createNativeQuery("""
-				SELECT indexname FROM pg_indexes
+		List<Object[]> existing = em.createNativeQuery("""
+				SELECT indexname, indexdef LIKE '%NULLS FIRST%' FROM pg_indexes
 				WHERE schemaname = current_schema() AND tablename = 'ref' AND indexname LIKE 'ref\\_hot\\_%'""")
 			.getResultList();
-		for (var name : existing) {
-			if (wanted.containsKey(name)) continue;
+		var current = new HashSet<String>();
+		for (var row : existing) {
+			var name = (String) row[0];
+			if (wanted.containsKey(name) && Boolean.TRUE.equals(row[1])) {
+				current.add(name);
+				continue;
+			}
 			logger.info("Dropping hot tag index {}", name);
 			em.createNativeQuery("DROP INDEX IF EXISTS " + name).executeUpdate();
 		}
 		for (var e : wanted.entrySet()) {
-			if (existing.contains(e.getKey())) continue;
+			if (current.contains(e.getKey())) continue;
 			logger.info("Building hot tag index {} for {} {}", e.getKey(), e.getValue().function(), e.getValue().tag());
 			// Tag is validated against Tag.REGEX, so it is safe to inline
-			em.createNativeQuery("CREATE INDEX IF NOT EXISTS " + e.getKey() + " ON ref (" + e.getValue().function() + "(tags, '" + e.getValue().tag() + "'))").executeUpdate();
+			em.createNativeQuery("CREATE INDEX IF NOT EXISTS " + e.getKey() + " ON ref ((" + e.getValue().function() + "(tags, '" + e.getValue().tag() + "')) NULLS FIRST)").executeUpdate();
 		}
 	}
 
@@ -224,24 +288,29 @@ public class IndexRepositoryImplPostgres implements IndexRepository {
 					continue;
 				}
 				wanted.put(hotPluginIndexName(column), hotPluginExpression(column));
-				wanted.put(hotPluginSortIndexName(column), hotPluginSortExpression(column));
 			}
 		}
+		// Separate sort indexes (ref_hotps_) and indexes without NULLS FIRST are from before sorts used NULLS FIRST
 		@SuppressWarnings("unchecked")
-		List<String> existing = em.createNativeQuery("""
-				SELECT indexname FROM pg_indexes
+		List<Object[]> existing = em.createNativeQuery("""
+				SELECT indexname, indexdef LIKE '%NULLS FIRST%' FROM pg_indexes
 				WHERE schemaname = current_schema() AND tablename = 'ref'
 					AND (indexname LIKE 'ref\\_hotp\\_%' OR indexname LIKE 'ref\\_hotps\\_%')""")
 			.getResultList();
-		for (var name : existing) {
-			if (wanted.containsKey(name)) continue;
+		var current = new HashSet<String>();
+		for (var row : existing) {
+			var name = (String) row[0];
+			if (wanted.containsKey(name) && Boolean.TRUE.equals(row[1])) {
+				current.add(name);
+				continue;
+			}
 			logger.info("Dropping hot plugin index {}", name);
 			em.createNativeQuery("DROP INDEX IF EXISTS " + name).executeUpdate();
 		}
 		for (var e : wanted.entrySet()) {
-			if (existing.contains(e.getKey())) continue;
+			if (current.contains(e.getKey())) continue;
 			logger.info("Building hot plugin index {} on {}", e.getKey(), e.getValue());
-			em.createNativeQuery("CREATE INDEX IF NOT EXISTS " + e.getKey() + " ON ref ((" + e.getValue() + "))").executeUpdate();
+			em.createNativeQuery("CREATE INDEX IF NOT EXISTS " + e.getKey() + " ON ref ((" + e.getValue() + ") NULLS FIRST)").executeUpdate();
 		}
 	}
 
@@ -285,7 +354,7 @@ public class IndexRepositoryImplPostgres implements IndexRepository {
 	}
 
 	/**
-	 * The same SQL that {@link jasper.repository.spec.SortSpec#createJsonbSortExpression} renders for a
+	 * The same SQL that {@link jasper.repository.spec.RefSpec#column} renders for a
 	 * "metadata->plugins->{plugin}" or "metadata->remotePlugins->{plugin}" sort with the PostgreSQL dialect,
 	 * which is also used by the response filters, so the planner can match the index to both.
 	 * The plugin must match {@link Plugin#REGEX}, so it is safe to inline.
@@ -315,39 +384,16 @@ public class IndexRepositoryImplPostgres implements IndexRepository {
 	static String hotPluginColumn(String hotPlugin) {
 		if (hotPlugin == null) return null;
 		var column = hotPlugin.startsWith("plugins->") ? hotPlugin : "plugins->" + hotPlugin;
-		if (!column.matches(PluginValueFilter.COLUMN_REGEX)) return null;
+		if (!column.matches(SortSpec.PLUGIN_COLUMN_REGEX)) return null;
 		return column;
 	}
 
 	/**
-	 * The same SQL that {@link jasper.repository.spec.RefSpec#isPluginValueBefore} renders for a plugin filter
-	 * with the PostgreSQL dialect, so the planner can match the index to plugin filters.
-	 * Lengths are cast to numeric to match the comparison with the filter value.
+	 * The same SQL that {@link jasper.repository.spec.SortSpec#jsonbColumn} renders with the PostgreSQL dialect
+	 * for a plugin sort or filter, so the planner can match one NULLS FIRST index to both.
 	 * The column must be validated with {@link #hotPluginColumn}, so plugin tags and fields are safe to inline.
 	 */
 	static String hotPluginExpression(String column) {
-		var value = hotPluginValue(column);
-		if (column.endsWith(":len")) return "(" + value + ")::numeric";
-		return value;
-	}
-
-	/**
-	 * The same SQL that {@link jasper.repository.spec.SortSpec#createJsonbSortExpression} renders for a plugin sort
-	 * with the PostgreSQL dialect, so the planner can match the index to plugin sorts.
-	 * Missing values default to 0 for lengths, 0.0 for numbers and '' for text, the same as the sort.
-	 * The column must be validated with {@link #hotPluginColumn}, so plugin tags and fields are safe to inline.
-	 */
-	static String hotPluginSortExpression(String column) {
-		var value = hotPluginValue(column);
-		if (column.endsWith(":len")) return "COALESCE(" + value + ", 0)";
-		if (column.endsWith(":num")) return "COALESCE(" + value + ", 0.0)";
-		return "COALESCE(" + value + ", '')";
-	}
-
-	/**
-	 * The same SQL that {@link jasper.repository.spec.SortSpec#createJsonbValue} renders with the PostgreSQL dialect.
-	 */
-	private static String hotPluginValue(String column) {
 		var numeric = column.endsWith(":num");
 		var length = column.endsWith(":len");
 		if (numeric || length) column = column.substring(0, column.length() - 4);
@@ -387,11 +433,4 @@ public class IndexRepositoryImplPostgres implements IndexRepository {
 		return "ref_hotp_" + truncate(column.substring("plugins->".length()).toLowerCase().replaceAll("[^a-z0-9]+", "_"), 40) + "_" + hash;
 	}
 
-	/**
-	 * Index name for a hot plugin sort, unique per column and within the 63 character limit.
-	 */
-	static String hotPluginSortIndexName(String column) {
-		var hash = md5DigestAsHex(column.getBytes(StandardCharsets.UTF_8)).substring(0, 8);
-		return "ref_hotps_" + truncate(column.substring("plugins->".length()).toLowerCase().replaceAll("[^a-z0-9]+", "_"), 40) + "_" + hash;
-	}
 }
