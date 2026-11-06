@@ -16,10 +16,15 @@ import org.springframework.beans.factory.annotation.Autowired;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.AdditionalAnswers.delegatesTo;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.mock;
+import static org.springframework.test.util.AopTestUtils.getTargetObject;
 import static org.springframework.test.util.ReflectionTestUtils.setField;
 
 @IntegrationTest
@@ -77,6 +82,32 @@ public class IngestExtIT {
 
 		assertThat(ext.getModified())
 			.isEqualTo(modified);
+		assertThat(extRepository.findOneByQualifiedTag("test/deleted").get().getModified())
+			.isEqualTo(modified);
+	}
+
+	@Test
+	void testCreateConcurrentTombstoneIdempotent() {
+		var existing = new Ext();
+		existing.setTag("test/deleted");
+		extRepository.save(existing);
+		var modified = extRepository.findOneByQualifiedTag("test/deleted").get().getModified();
+		IngestExt target = getTargetObject(ingest);
+		var repo = mock(ExtRepository.class, delegatesTo(extRepository));
+		// Simulate another request creating the tombstone after the existence check
+		doReturn(Optional.empty()).doAnswer(delegatesTo(extRepository)).when(repo).findOneByQualifiedTag("test/deleted");
+		setField(target, "extRepository", repo);
+		try {
+			var ext = new Ext();
+			ext.setTag("test/deleted");
+
+			ingest.create(ext);
+
+			assertThat(ext.getModified())
+				.isEqualTo(modified);
+		} finally {
+			setField(target, "extRepository", extRepository);
+		}
 		assertThat(extRepository.findOneByQualifiedTag("test/deleted").get().getModified())
 			.isEqualTo(modified);
 	}
