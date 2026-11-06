@@ -3081,7 +3081,7 @@ components:
       format: uri
       pattern: '^[^:/?#]+:(?://[^/?#]*)?[^?#]*(?:\?[^#]*)?(?:#.*)?$'
       description: URL
-      example: http://jasper-kms.info/
+      example: https://jasperkm.info/
       maxLength: 4096
     scheme:
       type: string
