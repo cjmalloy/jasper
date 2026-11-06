@@ -1,14 +1,17 @@
 package jasper.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import jasper.IntegrationTest;
 import jasper.component.ConfigCache;
 import jasper.domain.Ext;
 import jasper.domain.User;
+import jasper.errors.InvalidQueryException;
 import jasper.errors.NotFoundException;
 import jasper.repository.ExtRepository;
 import jasper.repository.UserRepository;
 import jasper.repository.filter.TagFilter;
-import jasper.repository.spec.ExtSpec;
+import jasper.repository.spec.SortSpec;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -628,9 +631,9 @@ public class ExtServiceIT {
 		ext2.setName("Test2");
 		extRepository.save(ext2);
 
-		var spec = ExtSpec.sort(
+		var spec = SortSpec.<Ext>sortTags(
 			TagFilter.builder().build().spec(),
-			PageRequest.of(0, 10));
+			PageRequest.of(0, 10), "config");
 
 		// Execute query to verify no exceptions
 		var result = extRepository.findAll(spec, PageRequest.ofSize(10));
@@ -656,9 +659,9 @@ public class ExtServiceIT {
 
 			var pageable = PageRequest.of(0, 10, Sort.by(
 				Sort.Order.desc("config->value")));
-			var spec = ExtSpec.sort(
+			var spec = SortSpec.<Ext>sortTags(
 				TagFilter.builder().build().spec(),
-				pageable);
+				pageable, "config");
 
 			// Execute query to verify sorting works
 			var result = extRepository.findAll(spec, PageRequest.ofSize(10));
@@ -690,9 +693,9 @@ public class ExtServiceIT {
 
 			var pageable = PageRequest.of(0, 10, org.springframework.data.domain.Sort.by(
 				org.springframework.data.domain.Sort.Order.asc("config->count:num")));
-			var spec = ExtSpec.sort(
+			var spec = SortSpec.<Ext>sortTags(
 				TagFilter.builder().build().spec(),
-				pageable);
+				pageable, "config");
 
 			// Execute query to verify numeric sorting (2 before 10, not string sort where "10" < "2")
 			var result = extRepository.findAll(spec, PageRequest.of(0, 10));
@@ -705,4 +708,82 @@ public class ExtServiceIT {
 		}
 	}
 
+
+	Ext extWithConfig(String tag, String config) throws Exception {
+		var ext = new Ext();
+		ext.setTag(tag);
+		if (config != null) ext.setConfig((ObjectNode) new ObjectMapper().readTree(config));
+		return extRepository.save(ext);
+	}
+
+	List<String> configFiltered(TagFilter filter) {
+		return extService.page(filter, PageRequest.of(0, 10, Sort.by("tag"))).getContent().stream().map(e -> e.getTag()).toList();
+	}
+
+	@Test
+	void testConfigValueFilter() throws Exception {
+		extWithConfig("a", "{\"pinned\": [\"x\"], \"order\": 3, \"title\": \"apple\"}");
+		extWithConfig("b", "{\"pinned\": [], \"order\": \"high\", \"title\": \"kiwi\"}");
+		extWithConfig("c", "{\"pinned\": \"x\", \"order\": 10}");
+		extWithConfig("d", null);
+
+		assertThat(configFiltered(TagFilter.builder().filterAfter(List.of("config->pinned:len/0")).build()))
+			.containsExactly("a");
+		assertThat(configFiltered(TagFilter.builder().filterBefore(List.of("config->pinned:len/1")).build()))
+			.containsExactly("b");
+		assertThat(configFiltered(TagFilter.builder().filterAfter(List.of("config->order:num/2")).build()))
+			.containsExactly("a", "c");
+		assertThat(configFiltered(TagFilter.builder().filterBefore(List.of("config->order:num/10")).build()))
+			.containsExactly("a");
+		assertThat(configFiltered(TagFilter.builder().filterAfter(List.of("config->title/b")).build()))
+			.containsExactly("b");
+		assertThat(extService.count(TagFilter.builder().filterAfter(List.of("config->order:num/2")).build()))
+			.isEqualTo(2);
+		assertThat(configFiltered(TagFilter.builder().filterEquals(List.of("config->title/kiwi")).build()))
+			.containsExactly("b");
+	}
+
+	@Test
+	void testModifiedAndTagLengthFilter() throws Exception {
+		var a = extWithConfig("a", null);
+		extWithConfig("b/c", null);
+
+		assertThat(configFiltered(TagFilter.builder().filterEquals(List.of("tag:len/2")).build()))
+			.containsExactly("b/c");
+		assertThat(configFiltered(TagFilter.builder().filterEquals(List.of("modified/" + a.getModified())).build()))
+			.containsExactly("a");
+		assertThat(configFiltered(TagFilter.builder().filterAfter(List.of("modified/" + a.getModified())).build()))
+			.containsExactly("b/c");
+		assertThat(configFiltered(TagFilter.builder().filterBefore(List.of("modified/" + a.getModified())).build()))
+			.isEmpty();
+	}
+
+	@Test
+	void testInvalidEntityColumnFilter() {
+		assertThatThrownBy(() -> extService.page(TagFilter.builder().filterAfter(List.of("published/2024-01-01T00:00:00Z")).build(), PageRequest.of(0, 10)))
+			.isInstanceOf(InvalidQueryException.class);
+	}
+
+	@Test
+	void testConfigValueFilterPrivateExtHidden() throws Exception {
+		extWithConfig("_secret", "{\"order\": 3}");
+		extWithConfig("public", "{\"order\": 3}");
+
+		assertThat(configFiltered(TagFilter.builder().filterAfter(List.of("config->order:num/2")).build()))
+			.containsExactly("public");
+		assertThat(extService.count(TagFilter.builder().filterAfter(List.of("config->order:num/2")).build()))
+			.isEqualTo(1);
+	}
+
+	@Test
+	void testInvalidConfigValueFilter() {
+		assertThatThrownBy(() -> extService.page(TagFilter.builder().filterAfter(List.of("external->ids:len/0")).build(), PageRequest.of(0, 10)))
+			.isInstanceOf(InvalidQueryException.class);
+		assertThatThrownBy(() -> extService.page(TagFilter.builder().filterAfter(List.of("schema->x/0")).build(), PageRequest.of(0, 10)))
+			.isInstanceOf(InvalidQueryException.class);
+		assertThatThrownBy(() -> extService.page(TagFilter.builder().filterAfter(List.of("config->x:num/abc")).build(), PageRequest.of(0, 10)))
+			.isInstanceOf(InvalidQueryException.class);
+		assertThatThrownBy(() -> extService.page(TagFilter.builder().filterAfter(List.of("config/1")).build(), PageRequest.of(0, 10)))
+			.isInstanceOf(InvalidQueryException.class);
+	}
 }
