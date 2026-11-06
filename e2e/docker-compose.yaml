@@ -14,12 +14,15 @@ services:
         condition: service_healthy
       ssh:
         condition: service_healthy
+      archive-web:
+        condition: service_healthy
     network_mode: host
     environment:
       BASE_URL: http://localhost:8080
       MAIN_API: http://localhost:8081
       REPL_API: http://localhost:8083
       TUNNEL_API: http://localhost:8085
+      ARCHIVE_API: http://localhost:8087
       CI: true
     volumes:
       - ./:/e2e
@@ -161,6 +164,35 @@ services:
     depends_on:
       tunnel-web:
         condition: service_healthy
+  # Archive server (@archive), keeps every version of what it pulls. Postgres only.
+  archive-web:
+    build: ..
+    ports:
+      - 8087:80
+    healthcheck:
+      test: "curl -f http://localhost/management/health/readiness"
+      interval: 5s
+      retries: 60
+    environment:
+      SPRING_LOGGING_LEVEL_ROOT: WARN
+      SPRING_PROFILES_ACTIVE: prod,archive
+      SPRING_DATASOURCE_URL: jdbc:postgresql://archive-db/jasper
+      SPRING_DATASOURCE_USERNAME: jasper
+      SPRING_DATASOURCE_PASSWORD: jasper
+      SERVER_PORT: 80
+      JASPER_LOCAL_ORIGIN: '@archive'
+      JASPER_DEFAULT_ROLE: ROLE_ADMIN
+      JASPER_ALLOW_USER_TAG_HEADER: true
+      JASPER_OVERRIDE_SERVER_WEB_ORIGINS: '@archive'
+      JASPER_HEAP: 512m
+    depends_on:
+      - archive-db
+  archive-db:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_USER: jasper
+      POSTGRES_PASSWORD: jasper
+      POSTGRES_DB: jasper
 
 volumes:
   tunnel-storage:

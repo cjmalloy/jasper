@@ -9,6 +9,7 @@ import jasper.repository.RefRepositoryCustom;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataAccessException;
 import org.springframework.stereotype.Component;
 
@@ -30,7 +31,9 @@ import static jasper.repository.spec.RefSpec.isNotObsolete;
 import static jasper.repository.spec.RefSpec.isUrl;
 import static jasper.repository.spec.RefSpec.isUrls;
 import static java.time.Instant.now;
+import static java.util.Comparator.comparing;
 import static java.util.Comparator.comparingInt;
+import static java.util.function.BinaryOperator.maxBy;
 import static java.util.stream.Collectors.toMap;
 import static org.springframework.data.jpa.domain.Specification.not;
 
@@ -59,11 +62,21 @@ public class Meta {
 	@Autowired
 	ConfigCache configs;
 
+	@Value("#{environment.matchesProfiles('archive')}")
+	boolean archive;
+
+	@Value("#{environment.matchesProfiles('no-metadata')}")
+	boolean noMetadata;
+
 	private record UserUrlResponse(String tag, List<String> responses) { }
 
 	@Timed(value = "jasper.meta", histogram = true)
 	public void ref(String rootOrigin, Ref ref) {
 		if (ref == null) return;
+		if (noMetadata) {
+			expandedTagsOnly(ref);
+			return;
+		}
 		ref.setMetadata(Metadata
 			.builder()
 			.expandedTags(expandTags(ref.getTags()))
@@ -73,7 +86,7 @@ public class Meta {
 				.stream()
 				.map(tag -> new UserUrlResponse(
 					tag,
-					refRepository.findAllResponseIdsWithTag(ref.getUrl(), rootOrigin, tag)
+					refRepository.findAllResponseIdsWithTag(ref.getUrl(), rootOrigin, tag, archive)
 						.stream()
 						.filter(id -> id.getOrigin().equals(rootOrigin))
 						.map(id -> qualifiedUserUrl(id.getUrl(), id.getOrigin()))
@@ -99,6 +112,10 @@ public class Meta {
 			return;
 		}
 		if (ref == null) return;
+		if (noMetadata) {
+			expandedTagsOnly(ref);
+			return;
+		}
 		ref.setMetadata(existing.getMetadata().toBuilder()
 			.expandedTags(expandTags(ref.getTags()))
 			.newResponse(newResponse(rootOrigin, existing, existing.getMetadata().getNewResponse()))
@@ -133,10 +150,22 @@ public class Meta {
 	}
 
 	/**
+	 * Responses are not tracked when the "no-metadata" profile is active.
+	 */
+	private void expandedTagsOnly(Ref ref) {
+		ref.setMetadata(Metadata
+			.builder()
+			.expandedTags(expandTags(ref.getTags()))
+			.build());
+	}
+
+	/**
 	 * Update the newReaction timestamp of the sources of a Ref without rebuilding counts.
 	 * Sources past {@link #SYNC_SOURCES} are updated by the cascade.
 	 */
 	private void reaction(String rootOrigin, Ref ref) {
+		if (archive) refRepository.updateObsolete(ref.getUrl(), rootOrigin, pinned(rootOrigin));
+		if (noMetadata) return;
 		var timestamp = timestamp(now());
 		var sources = (ref.getSources() == null ? List.<String>of() : ref.getSources())
 			.stream()
@@ -150,15 +179,14 @@ public class Meta {
 			source.getMetadata().setNewResponse(newResponse(rootOrigin, source, source.getMetadata().getNewResponse()));
 			source.getMetadata().setNewReaction(timestamp);
 			try {
-				refRepository.updateMetadata(source.getUrl(), source.getOrigin(), source.getMetadata());
+				updateMetadata(source, source.getMetadata());
 				messages.updateMetadata(source);
 			} catch (DataAccessException e) {
 				logger.error("{} Error updating source metadata for ({}) {}", rootOrigin, ref.getOrigin(), ref.getUrl(), e);
 			}
 		}
 		if (ref.getSources() != null && ref.getSources().size() > SYNC_SOURCES) {
-			ref.getMetadata().setCascade(true);
-			refRepository.markCascade(ref.getUrl(), ref.getOrigin());
+			markCascade(ref);
 		}
 	}
 
@@ -182,13 +210,21 @@ public class Meta {
 		var original = ref.getMetadata();
 		ref(rootOrigin, ref);
 		ref.getMetadata().setModified(original == null ? now().toString() : original.getModified());
-		ref.getMetadata().setNewResponse(newResponse(rootOrigin, ref, original == null ? null : original.getNewResponse()));
-		ref.getMetadata().setNewReaction(newReaction(rootOrigin, ref, original == null ? null : original.getNewReaction()));
-		keepOtherOriginUserUrls(rootOrigin, original, ref.getMetadata());
+		if (noMetadata) {
+			if (original != null) {
+				ref.getMetadata().setNewResponse(original.getNewResponse());
+				ref.getMetadata().setNewReaction(original.getNewReaction());
+			}
+		} else {
+			ref.getMetadata().setNewResponse(newResponse(rootOrigin, ref, original == null ? null : original.getNewResponse()));
+			ref.getMetadata().setNewReaction(newReaction(rootOrigin, ref, original == null ? null : original.getNewReaction()));
+			keepOtherOriginUserUrls(rootOrigin, original, ref.getMetadata());
+		}
 		ref.getMetadata().setIgnored(original != null && original.isIgnored());
 		ref.getMetadata().setObsolete(obsolete(rootOrigin, ref));
 		if (ref.getMetadata().isObsolete()) return;
 		refRepository.updateObsolete(ref.getUrl(), rootOrigin, pinned(rootOrigin));
+		if (noMetadata) return;
 		var sources = (ref.getSources() == null ? List.<String>of() : ref.getSources())
 			.stream()
 			.limit(SYNC_SOURCES)
@@ -219,7 +255,7 @@ public class Meta {
 			if (!userUrl(ref.getUrl()) && isNew(ref)) source.getMetadata().setNewResponse(latest(source.getMetadata().getNewResponse(), ref.getCreated()));
 		}
 		try {
-			refRepository.updateMetadata(source.getUrl(), source.getOrigin(), source.getMetadata());
+			updateMetadata(source, source.getMetadata());
 			messages.updateMetadata(source);
 		} catch (DataAccessException e) {
 			logger.error("Error updating source metadata for {} {}", ref.getOrigin(), ref.getUrl(), e);
@@ -284,7 +320,11 @@ public class Meta {
 		var limit = sync ? configs.root().getMaxSources() : SYNC_SOURCES;
 		if (ref == null) {
 			// Deleting
+			// In archive mode only the latest version in each origin is ranked
 			var maybeLatest = refRepository.findAll(isUrl(existing.getUrl()).and(isUnderOrigin(rootOrigin)))
+				.stream()
+				.collect(toMap(Ref::getOrigin, r -> r, maxBy(comparing(Ref::getModified))))
+				.values()
 				.stream()
 				.max(comparingInt((Ref r) -> rank(rootOrigin, r)).thenComparing(Ref::getModified));
 			if (maybeLatest.isPresent()) {
@@ -297,9 +337,9 @@ public class Meta {
 					latest.getMetadata().setNewReaction(existing.getMetadata().getNewReaction());
 				}
 				regen(rootOrigin, latest);
-				refRepository.updateMetadata(latest.getUrl(), latest.getOrigin(), latest.getMetadata());
+				updateMetadata(latest, latest.getMetadata());
 				messages.updateMetadata(latest);
-			} else {
+			} else if (!noMetadata) {
 				try (var stream = refRepository.findRemovedSources(existing.getUrl(), rootOrigin)) {
 					stream.forEach(source -> removeSource(rootOrigin, existing.getUrl(), source, existing));
 				}
@@ -314,6 +354,9 @@ public class Meta {
 		refRepository.updateObsolete(ref.getUrl(), rootOrigin, pinned(rootOrigin));
 		var obsolete = obsolete(rootOrigin, ref);
 		if (ref.getMetadata() != null) ref.getMetadata().setObsolete(obsolete);
+		if (noMetadata) return;
+		// In archive mode an out-of-order version is stored as obsolete without changing its sources
+		if (archive && existing != null && ref.getModified() != null && ref.getModified().isBefore(existing.getModified())) return;
 		// Obsolete user URLs are still counted in their sources
 		if (!userUrl(ref.getUrl())) {
 			if (obsolete) {
@@ -382,7 +425,7 @@ public class Meta {
 			if (newResponse) metadata.setNewResponse(timestamp);
 			source.setMetadata(metadata);
 			try {
-				refRepository.updateMetadata(source.getUrl(), source.getOrigin(), metadata);
+				updateMetadata(source, metadata);
 				messages.updateMetadata(source);
 			} catch (DataAccessException e) {
 logger.error("{} Error updating source metadata for ({}) {}", rootOrigin, ref.getOrigin(), ref.getUrl(), e);
@@ -410,8 +453,17 @@ logger.error("{} Error updating source metadata for ({}) {}", rootOrigin, ref.ge
 				}
 			}
 		}
-		if (cascade) {
-			ref.getMetadata().setCascade(true);
+		if (cascade) markCascade(ref);
+	}
+
+	/**
+	 * Queue a Ref for the cascade. In archive mode only the given version is marked.
+	 */
+	private void markCascade(Ref ref) {
+		if (ref.getMetadata() != null) ref.getMetadata().setCascade(true);
+		if (archive) {
+			refRepository.markCascadeVersion(ref.getUrl(), ref.getOrigin(), ref.getModified());
+		} else {
 			refRepository.markCascade(ref.getUrl(), ref.getOrigin());
 		}
 	}
@@ -430,7 +482,7 @@ logger.error("{} Error updating source metadata for ({}) {}", rootOrigin, ref.ge
 		}
 		source.setMetadata(metadata);
 		try {
-			refRepository.updateMetadata(source.getUrl(), source.getOrigin(), metadata);
+			updateMetadata(source, metadata);
 			messages.updateMetadata(source);
 		} catch (DataAccessException e) {
 			logger.error("{} Error updating source metadata for {} {}",
@@ -456,6 +508,16 @@ logger.error("{} Error updating source metadata for ({}) {}", rootOrigin, ref.ge
 	}
 
 	/**
+	 * Write only the metadata of a Ref. In archive mode only the given version is updated,
+	 * otherwise latest wins.
+	 */
+	public int updateMetadata(Ref ref, Metadata metadata) {
+		return archive
+			? refRepository.updateMetadataVersion(ref.getUrl(), ref.getOrigin(), ref.getModified(), metadata)
+			: refRepository.updateMetadata(ref.getUrl(), ref.getOrigin(), metadata);
+	}
+
+	/**
 	 * Rebuild the source metadata when the visible version of a Ref changes.
 	 * Sources only cited by the previously visible version are rebuilt as well.
 	 * Sources past the limit are updated by the cascade.
@@ -474,16 +536,15 @@ logger.error("{} Error updating source metadata for ({}) {}", rootOrigin, ref.ge
 			cascadeSource(rootOrigin, ref, source);
 		}
 		if (ref.getSources() != null && ref.getSources().size() > limit) {
-			if (ref.getMetadata() != null) ref.getMetadata().setCascade(true);
-			refRepository.markCascade(ref.getUrl(), ref.getOrigin());
+			markCascade(ref);
 		}
 	}
 
 	/**
-	 * Check if a higher ranked version of a Ref exists.
+	 * Check if a higher ranked version of a Ref exists, or a newer version in the same origin.
 	 */
 	private boolean obsolete(String rootOrigin, Ref ref) {
-		return refRepository.higherRankExists(ref.getUrl(), rootOrigin, pinned(rootOrigin), rank(rootOrigin, ref), ref.getModified());
+		return refRepository.higherRankExists(ref.getUrl(), ref.getOrigin(), rootOrigin, pinned(rootOrigin), rank(rootOrigin, ref), ref.getModified());
 	}
 
 	/**

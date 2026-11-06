@@ -67,7 +67,7 @@ public class TemplateService {
 	@Cacheable(value = "template-dto-cache", key = "#qualifiedTag")
 	@Timed(value = "jasper.service", extraTags = {"service", "template"}, histogram = true)
 	public TemplateDto get(String qualifiedTag) {
-		return templateRepository.findOneByQualifiedTag(qualifiedTag)
+		return ingest.current(qualifiedTag)
 			.map(mapper::domainToDto)
 			.orElseThrow(() -> new NotFoundException("Template " + qualifiedTag));
 	}
@@ -104,7 +104,7 @@ public class TemplateService {
 	@Timed(value = "jasper.service", extraTags = {"service", "template"}, histogram = true)
 	public Instant patch(String qualifiedTag, Instant cursor, Patch patch) {
 		var created = false;
-		var template = templateRepository.findOneByQualifiedTag(qualifiedTag).orElse(null);
+		var template = ingest.current(qualifiedTag).orElse(null);
 		if (template == null) {
 			created = true;
 			template = new Template();

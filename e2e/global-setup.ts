@@ -1,5 +1,5 @@
 import { chromium, type FullConfig, request } from '@playwright/test';
-import { mainApi, replApi, tunnelApi } from './setup';
+import { archiveApi, mainApi, replApi, tunnelApi } from './setup';
 
 async function waitForHealth(api: string) {
   const ctx = await request.newContext();
@@ -20,7 +20,7 @@ async function waitForHealth(api: string) {
 }
 
 async function globalSetup(config: FullConfig) {
-  await Promise.all([mainApi, replApi, tunnelApi].map(waitForHealth));
+  await Promise.all([mainApi, replApi, tunnelApi, archiveApi].filter(api => api).map(waitForHealth));
   const baseURL = process.env.BASE_URL || config.projects[0]?.use?.baseURL?.toString() || 'http://localhost:8080';
   const browser = await chromium.launch();
   const page = await browser.newPage();

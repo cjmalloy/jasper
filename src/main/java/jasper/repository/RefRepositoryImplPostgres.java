@@ -2,6 +2,7 @@ package jasper.repository;
 
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Repository;
 
@@ -11,8 +12,16 @@ import java.util.List;
 @Profile("!sqlite")
 public class RefRepositoryImplPostgres implements RefRepositoryCustom {
 
+	/**
+	 * In archive mode only the latest version of a user URL is counted.
+	 */
+	private static final String ARCHIVE_LATEST_USER_URL = " AND NOT EXISTS (SELECT 1 FROM ref n WHERE n.url = r.url AND n.origin = r.origin AND n.modified > r.modified)";
+
 	@PersistenceContext
 	private EntityManager em;
+
+	@Value("#{environment.matchesProfiles('archive')}")
+	boolean archive;
 
 	@Override
 	public List<String> findAllPluginTagsInResponses(String url, String origin) {
@@ -48,10 +57,11 @@ public class RefRepositoryImplPostgres implements RefRepositoryCustom {
 			WHERE r.url != :url
 				AND r.sources @> jsonb_build_array(:url)
 				AND t.tag ~ '^[_+]?plugin(/|$)'
-				AND (r.url ~ '^tag:/[_+]?user([/?]|$)' OR COALESCE(jsonb_object_field_text(r.metadata, 'obsolete'), 'false') != 'true')
+				AND ((r.url ~ '^tag:/[_+]?user([/?]|$)'%s)
+					OR COALESCE(jsonb_object_field_text(r.metadata, 'obsolete'), 'false') != 'true')
 				AND %s
 			GROUP BY t.tag
-			""".formatted(distinct, originFilter), Object[].class)
+			""".formatted(distinct, archive ? ARCHIVE_LATEST_USER_URL : "", originFilter), Object[].class)
 			.setParameter("url", url)
 			.setParameter("origin", origin)
 			.getResultList();
