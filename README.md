@@ -749,11 +749,11 @@ and each disabled index is dropped.
 
 | Field               | Description                                                                      | Default Value |
 |---------------------|----------------------------------------------------------------------------------|---------------|
-| `tags`              | GIN indices on tags and expanded tags (PostgreSQL only).                         | `true`        |
-| `sources`           | GIN index on sources (PostgreSQL only).                                          | `true`        |
-| `alts`              | GIN index on alternate URLs (PostgreSQL only).                                   | `true`        |
-| `responses`         | GIN index on responses metadata (PostgreSQL only).                               | `true`        |
-| `internalResponses` | GIN index on internal responses metadata (PostgreSQL only).                      | `true`        |
+| `tags`              | GIN indices on tags and expanded tags (PostgreSQL only), and indices for sorting and filtering by `tags:len` and `metadata->expandedTags`. | `true`        |
+| `sources`           | GIN index on sources (PostgreSQL only), and an index for sorting and filtering by `sources:len`. | `true`        |
+| `alts`              | GIN index on alternate URLs (PostgreSQL only), and an index for sorting and filtering by `alternateUrls:len`. | `true`        |
+| `responses`         | GIN index on responses metadata (PostgreSQL only), and an index for sorting and filtering by `metadata->responses`. | `true`        |
+| `internalResponses` | GIN index on internal responses metadata (PostgreSQL only), and an index for sorting and filtering by `metadata->internalResponses`. | `true`        |
 | `fulltext`          | Full text search index.                                                          | `true`        |
 | `published`         | Index on the published date.                                                     | `true`        |
 | `modified`          | Index on the modified date.                                                      | `true`        |
