@@ -35,6 +35,8 @@ public class Index implements Serializable {
 	@Builder.Default
 	private boolean created = true;
 	@Builder.Default
+	private boolean title = true;
+	@Builder.Default
 	private boolean newResponse = true;
 	@Builder.Default
 	private boolean newReaction = true;

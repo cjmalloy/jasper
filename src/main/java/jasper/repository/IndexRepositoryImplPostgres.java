@@ -159,6 +159,16 @@ public class IndexRepositoryImplPostgres implements IndexRepository {
 		em.createNativeQuery("CREATE INDEX IF NOT EXISTS ref_created_index ON ref (created)").executeUpdate();
 	}
 
+	@Override
+	public void dropTitle() {
+		em.createNativeQuery("DROP INDEX IF EXISTS ref_title_index").executeUpdate();
+	}
+
+	@Override
+	public void buildTitle() {
+		em.createNativeQuery("CREATE INDEX IF NOT EXISTS ref_title_index ON ref (title)").executeUpdate();
+	}
+
 	/**
 	 * Builds an expression index matching JSONB sorts, which order missing values first ascending
 	 * and last descending, so the index serves both directions and filters on the same expression.
