@@ -40,6 +40,19 @@ public class StorageImplLocal implements Storage {
 	@Autowired
 	Props props;
 
+	private final String root;
+
+	public StorageImplLocal() {
+		this(null);
+	}
+
+	/**
+	 * Local storage in the given folder instead of the storage folder.
+	 */
+	StorageImplLocal(String root) {
+		this.root = root;
+	}
+
 	@Timed(value = "jasper.storage", histogram = true)
 	public byte[] get(String origin, String namespace, String id) {
 		try {
@@ -221,18 +234,22 @@ public class StorageImplLocal implements Storage {
 		}
 	}
 
+	String root() {
+		return root != null ? root : props.getStorage();
+	}
+
 	Path tenants() {
-		return Paths.get(props.getStorage());
+		return Paths.get(root());
 	}
 
 	Path dir(String origin, String namespace) {
 		sanitize(origin, namespace);
-		return Paths.get(props.getStorage(), originTenant(origin), namespace);
+		return Paths.get(root(), originTenant(origin), namespace);
 	}
 
 	Path path(String origin, String namespace, String id) {
 		sanitize(origin, namespace, id);
-		return Paths.get(props.getStorage(), originTenant(origin), namespace, id);
+		return Paths.get(root(), originTenant(origin), namespace, id);
 	}
 
 	private class ZippedLocal implements Zipped {
