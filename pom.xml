@@ -38,8 +38,8 @@
 		<commons-collections4.version>4.6.0</commons-collections4.version>
 		<commons-lang3.version>3.21.0</commons-lang3.version>
 		<commons-compress.version>1.28.0</commons-compress.version>
-		<google-cloud-storage.version>2.77.0</google-cloud-storage.version>
-		<google-cloud-nio.version>0.141.0</google-cloud-nio.version>
+		<google-cloud-storage.version>2.78.0</google-cloud-storage.version>
+		<google-cloud-nio.version>0.142.0</google-cloud-nio.version>
 		<awssdk.version>2.57.10</awssdk.version>
 		<jsoup.version>1.24.1</jsoup.version>
 		<xmlunit.version>2.14.0</xmlunit.version>
