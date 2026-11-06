@@ -24,61 +24,90 @@ public class IndexRepositoryImplSqlite implements IndexRepository {
 	@Override
 	public void dropTags() {
 		em.createNativeQuery("DROP INDEX IF EXISTS ref_tags_index").executeUpdate();
+		em.createNativeQuery("DROP INDEX IF EXISTS ref_tags_len_index").executeUpdate();
 	}
 
 	@Override
 	public void buildTags() {
-		// SQLite does not support GIN indexes — no-op
+		// SQLite does not support GIN indexes, only the length index
+		em.createNativeQuery("CREATE INDEX IF NOT EXISTS ref_tags_len_index ON ref (" + arrayLength("tags") + ")").executeUpdate();
 	}
 
 	@Override
 	public void dropExpandedTags() {
 		em.createNativeQuery("DROP INDEX IF EXISTS ref_expanded_tags_index").executeUpdate();
+		em.createNativeQuery("DROP INDEX IF EXISTS ref_expanded_tags_len_index").executeUpdate();
 	}
 
 	@Override
 	public void buildExpandedTags() {
-		// SQLite does not support GIN indexes — no-op
+		// SQLite does not support GIN indexes, only the length index
+		em.createNativeQuery("CREATE INDEX IF NOT EXISTS ref_expanded_tags_len_index ON ref (" + metadataArrayLength("expandedTags") + ")").executeUpdate();
 	}
 
 	@Override
 	public void dropSources() {
 		em.createNativeQuery("DROP INDEX IF EXISTS ref_sources_index").executeUpdate();
+		em.createNativeQuery("DROP INDEX IF EXISTS ref_sources_len_index").executeUpdate();
 	}
 
 	@Override
 	public void buildSources() {
-		// SQLite does not support GIN indexes — no-op
+		// SQLite does not support GIN indexes, only the length index
+		em.createNativeQuery("CREATE INDEX IF NOT EXISTS ref_sources_len_index ON ref (" + arrayLength("sources") + ")").executeUpdate();
 	}
 
 	@Override
 	public void dropAlts() {
 		em.createNativeQuery("DROP INDEX IF EXISTS ref_alternate_urls_index").executeUpdate();
+		em.createNativeQuery("DROP INDEX IF EXISTS ref_alternate_urls_len_index").executeUpdate();
 	}
 
 	@Override
 	public void buildAlts() {
-		// SQLite does not support GIN indexes — no-op
+		// SQLite does not support GIN indexes, only the length index
+		em.createNativeQuery("CREATE INDEX IF NOT EXISTS ref_alternate_urls_len_index ON ref (" + arrayLength("alternate_urls") + ")").executeUpdate();
 	}
 
 	@Override
 	public void dropResponses() {
 		em.createNativeQuery("DROP INDEX IF EXISTS ref_responses_index").executeUpdate();
+		em.createNativeQuery("DROP INDEX IF EXISTS ref_responses_len_index").executeUpdate();
 	}
 
 	@Override
 	public void buildResponses() {
-		// SQLite does not support GIN indexes — no-op
+		// SQLite does not support GIN indexes, only the length index
+		em.createNativeQuery("CREATE INDEX IF NOT EXISTS ref_responses_len_index ON ref (" + metadataArrayLength("responses") + ")").executeUpdate();
 	}
 
 	@Override
 	public void dropInternalResponses() {
 		em.createNativeQuery("DROP INDEX IF EXISTS ref_internal_responses_index").executeUpdate();
+		em.createNativeQuery("DROP INDEX IF EXISTS ref_internal_responses_len_index").executeUpdate();
 	}
 
 	@Override
 	public void buildInternalResponses() {
-		// SQLite does not support GIN indexes — no-op
+		// SQLite does not support GIN indexes, only the length index
+		em.createNativeQuery("CREATE INDEX IF NOT EXISTS ref_internal_responses_len_index ON ref (" + metadataArrayLength("internalResponses") + ")").executeUpdate();
+	}
+
+	/**
+	 * Same SQL as COALESCE(jsonb_array_length(column), 0) in SQLiteDialect, so the index matches
+	 * "tags:len", "sources:len" and "alternateUrls:len" sorts and filters.
+	 */
+	private static String arrayLength(String column) {
+		return "COALESCE(json_array_length(" + column + "), 0)";
+	}
+
+	/**
+	 * Same SQL as COALESCE(safe_jsonb_array_length(jsonb_object_field(metadata, key)), 0) in SQLiteDialect, so the index
+	 * matches "metadata->expandedTags", "metadata->responses" and "metadata->internalResponses" sorts and filters.
+	 */
+	private static String metadataArrayLength(String key) {
+		var value = "((metadata) -> ('$.\"' || REPLACE('" + key + "', '\"', '\"\"') || '\"'))";
+		return "COALESCE((CASE WHEN json_valid(" + value + ") THEN (CASE WHEN json_type(" + value + ") = 'array' THEN json_array_length(" + value + ") END) END), 0)";
 	}
 
 	@Override

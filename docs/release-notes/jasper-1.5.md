@@ -18,6 +18,7 @@ This release includes changes accumulated since v1.4.0. Only the latest minor re
 * Removed the `metadata->modified` sort, use `metadata->newResponse` instead.
 * JSONB and tag value sorts (`tags->…`, `plugins->…`, `config->…`, `external->…`, `defaults->…`, `schema->…`, `metadata->newResponse` and `metadata->newReaction`) now sort missing values first ascending and last descending, instead of as `''` or `0`. Values that are not a number (`:num`), not an array (`:len`) or not a duration (`:dur`) count as missing. Metadata counts still count missing as `0`.
 * Added `created` to the `_config/index` template (enabled by default) to index sorting and filtering by `created`.
+* The `tags`, `sources`, `alts`, `responses` and `internalResponses` options of the `_config/index` template now also index sorting and filtering by `tags:len`, `metadata->expandedTags`, `sources:len`, `alternateUrls:len`, `metadata->responses` and `metadata->internalResponses`, on PostgreSQL and SQLite.
 * `newResponse`, `newReaction`, `hotTags`, `hotPlugins`, `hotResponses` and `hotRemoteResponses` indexes now also serve filters. Each hot plugin builds one index for its filters and both sort directions.
 * Only mods can filter or sort Users by `external`, since it is hidden from other users. Non-mods get `403 Forbidden` for `external->` filters on Users, and `external->` sorts are ignored.
 

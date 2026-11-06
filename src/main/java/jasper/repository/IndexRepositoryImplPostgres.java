@@ -32,61 +32,91 @@ public class IndexRepositoryImplPostgres implements IndexRepository {
 	@Override
 	public void dropTags() {
 		em.createNativeQuery("DROP INDEX IF EXISTS ref_tags_index").executeUpdate();
+		em.createNativeQuery("DROP INDEX IF EXISTS ref_tags_len_index").executeUpdate();
 	}
 
 	@Override
 	public void buildTags() {
 		em.createNativeQuery("CREATE INDEX IF NOT EXISTS ref_tags_index ON ref USING GIN(tags)").executeUpdate();
+		em.createNativeQuery("CREATE INDEX IF NOT EXISTS ref_tags_len_index ON ref ((" + arrayLength("tags") + "))").executeUpdate();
 	}
 
 	@Override
 	public void dropExpandedTags() {
 		em.createNativeQuery("DROP INDEX IF EXISTS ref_expanded_tags_index").executeUpdate();
+		em.createNativeQuery("DROP INDEX IF EXISTS ref_expanded_tags_len_index").executeUpdate();
 	}
 
 	@Override
 	public void buildExpandedTags() {
 		em.createNativeQuery("CREATE INDEX IF NOT EXISTS ref_expanded_tags_index ON ref USING GIN((metadata->'expandedTags'))").executeUpdate();
+		em.createNativeQuery("CREATE INDEX IF NOT EXISTS ref_expanded_tags_len_index ON ref ((" + metadataArrayLength("expandedTags") + "))").executeUpdate();
 	}
 
 	@Override
 	public void dropSources() {
 		em.createNativeQuery("DROP INDEX IF EXISTS ref_sources_index").executeUpdate();
+		em.createNativeQuery("DROP INDEX IF EXISTS ref_sources_len_index").executeUpdate();
 	}
 
 	@Override
 	public void buildSources() {
 		em.createNativeQuery("CREATE INDEX IF NOT EXISTS ref_sources_index ON ref USING GIN(sources)").executeUpdate();
+		em.createNativeQuery("CREATE INDEX IF NOT EXISTS ref_sources_len_index ON ref ((" + arrayLength("sources") + "))").executeUpdate();
 	}
 
 	@Override
 	public void dropAlts() {
 		em.createNativeQuery("DROP INDEX IF EXISTS ref_alternate_urls_index").executeUpdate();
+		em.createNativeQuery("DROP INDEX IF EXISTS ref_alternate_urls_len_index").executeUpdate();
 	}
 
 	@Override
 	public void buildAlts() {
 		em.createNativeQuery("CREATE INDEX IF NOT EXISTS ref_alternate_urls_index ON ref USING GIN(alternate_urls)").executeUpdate();
+		em.createNativeQuery("CREATE INDEX IF NOT EXISTS ref_alternate_urls_len_index ON ref ((" + arrayLength("alternate_urls") + "))").executeUpdate();
 	}
 
 	@Override
 	public void dropResponses() {
 		em.createNativeQuery("DROP INDEX IF EXISTS ref_responses_index").executeUpdate();
+		em.createNativeQuery("DROP INDEX IF EXISTS ref_responses_len_index").executeUpdate();
 	}
 
 	@Override
 	public void buildResponses() {
 		em.createNativeQuery("CREATE INDEX IF NOT EXISTS ref_responses_index ON ref USING GIN((metadata->'responses'))").executeUpdate();
+		em.createNativeQuery("CREATE INDEX IF NOT EXISTS ref_responses_len_index ON ref ((" + metadataArrayLength("responses") + "))").executeUpdate();
 	}
 
 	@Override
 	public void dropInternalResponses() {
 		em.createNativeQuery("DROP INDEX IF EXISTS ref_internal_responses_index").executeUpdate();
+		em.createNativeQuery("DROP INDEX IF EXISTS ref_internal_responses_len_index").executeUpdate();
 	}
 
 	@Override
 	public void buildInternalResponses() {
 		em.createNativeQuery("CREATE INDEX IF NOT EXISTS ref_internal_responses_index ON ref USING GIN((metadata->'internalResponses'))").executeUpdate();
+		em.createNativeQuery("CREATE INDEX IF NOT EXISTS ref_internal_responses_len_index ON ref ((" + metadataArrayLength("internalResponses") + "))").executeUpdate();
+	}
+
+	/**
+	 * Same SQL that {@link jasper.repository.spec.RefSpec#column} renders for a "tags:len", "sources:len" or
+	 * "alternateUrls:len" sort or filter with the PostgreSQL dialect, so the planner can match the index to both.
+	 */
+	static String arrayLength(String column) {
+		return "COALESCE(jsonb_array_length(" + column + "), 0)";
+	}
+
+	/**
+	 * Same SQL that {@link jasper.repository.spec.RefSpec#column} renders for a "metadata->expandedTags",
+	 * "metadata->responses" or "metadata->internalResponses" sort or filter with the PostgreSQL dialect,
+	 * so the planner can match the index to both.
+	 */
+	static String metadataArrayLength(String key) {
+		var value = "(metadata)->('" + key + "')";
+		return "COALESCE((CASE WHEN jsonb_typeof(" + value + ") = 'array' THEN jsonb_array_length(" + value + ") END), 0)";
 	}
 
 	@Override

@@ -661,4 +661,57 @@ public class IndexRepositoryIT {
 		assertThat(explainFilter(RefFilter.builder().filterAfter(List.of("metadata->remotePlugins->plugin/user/read/10")).build().spec(), false))
 			.contains(IndexRepositoryImplPostgres.hotResponseIndexName("remotePlugins", "plugin/user/read"));
 	}
+
+	static final List<List<String>> LENGTH_INDEXES = List.of(
+		List.of("tags:len", "ref_tags_len_index"),
+		List.of("metadata->expandedTags", "ref_expanded_tags_len_index"),
+		List.of("sources:len", "ref_sources_len_index"),
+		List.of("alternateUrls:len", "ref_alternate_urls_len_index"),
+		List.of("metadata->responses", "ref_responses_len_index"),
+		List.of("metadata->internalResponses:len", "ref_internal_responses_len_index"));
+
+	/**
+	 * Each length sort and filter must use the length index built with the matching index config.
+	 */
+	void assertLengthIndexesUsed(boolean sqlite) {
+		indexRepository.buildTags();
+		indexRepository.buildExpandedTags();
+		indexRepository.buildSources();
+		indexRepository.buildAlts();
+		indexRepository.buildResponses();
+		indexRepository.buildInternalResponses();
+		for (var e : LENGTH_INDEXES) {
+			for (var direction : Sort.Direction.values()) {
+				assertThat(explainSort(e.get(0), direction, sqlite)).as("%s %s", e.get(0), direction).contains(e.get(1));
+			}
+			assertThat(explainFilter(RefFilter.builder().filterAfter(List.of(e.get(0) + "/3")).build().spec(), sqlite)).as("%s filter", e.get(0)).contains(e.get(1));
+		}
+	}
+
+	@Test
+	@DisabledOnSqlite
+	@Transactional
+	void testLengthIndexesUsedPostgres() {
+		assertLengthIndexesUsed(false);
+	}
+
+	@Test
+	@EnabledIf(expression = SQLITE, loadContext = true)
+	@Transactional
+	void testLengthIndexesUsedSqlite() {
+		assertLengthIndexesUsed(true);
+	}
+
+	@Test
+	void testBuildAndDropLengthIndexes() {
+		indexRepository.buildAlts();
+		indexRepository.buildResponses();
+		indexRepository.buildInternalResponses();
+		indexRepository.buildAlts();
+		indexRepository.buildResponses();
+		indexRepository.buildInternalResponses();
+		indexRepository.dropAlts();
+		indexRepository.dropResponses();
+		indexRepository.dropInternalResponses();
+	}
 }
