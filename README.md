@@ -747,26 +747,26 @@ The `_config/index` template is installed in the root origin and selects which `
 exist. On startup, and whenever the template changes, each enabled index is created if it is missing
 and each disabled index is dropped.
 
-| Field               | Description                                                                      | Default Value |
-|---------------------|----------------------------------------------------------------------------------|---------------|
-| `tags`              | GIN indices on tags and expanded tags (PostgreSQL only), and indices for sorting and filtering by `tags:len` and `metadata->expandedTags`. | `true`        |
-| `sources`           | GIN index on sources (PostgreSQL only), and an index for sorting and filtering by `sources:len`. | `true`        |
-| `alts`              | GIN index on alternate URLs (PostgreSQL only), and an index for sorting and filtering by `alternateUrls:len`. | `true`        |
-| `responses`         | GIN index on responses metadata (PostgreSQL only), and an index for sorting and filtering by `metadata->responses`. | `true`        |
-| `internalResponses` | GIN index on internal responses metadata (PostgreSQL only), and an index for sorting and filtering by `metadata->internalResponses`. | `true`        |
-| `fulltext`          | Full text search index.                                                          | `true`        |
-| `published`         | Index on the published date.                                                     | `true`        |
-| `modified`          | Index on the modified date.                                                      | `true`        |
-| `created`           | Index on the created date, used when sorting and filtering by `created`. | `true` |
-| `newResponse`       | Index on `metadata->newResponse`, used when sorting and filtering by it. | `true` |
-| `newReaction`       | Index on `metadata->newReaction`, used when sorting and filtering by it. | `true` |
-| `ignored`           | Partial index on Refs marked `ignored` during replication, used by pull batches. | `true`        |
-| `cascade`           | Partial index on Refs waiting for a metadata cascade.                            | `true`        |
-| `regen`             | Partial index on Refs waiting for metadata regeneration (background backfill).   | `true`        |
-| `hotTags`           | Tag value sorts and filters to index (PostgreSQL only), see [Sorting](#sorting). | `[]` (empty) |
-| `hotPlugins`        | Plugin value sorts and filters to index (PostgreSQL only), see [Filtering](#filtering). | `[]` (empty) |
-| `hotResponses`      | Plugins whose local response counts are indexed for sorts and filters (PostgreSQL only). | `[]` (empty) |
-| `hotRemoteResponses` | Plugins whose response counts from all origins are indexed for sorts and filters (PostgreSQL only). | `[]` (empty) |
+| Field                | Description                                                                                                                                | Default Value |
+|----------------------|--------------------------------------------------------------------------------------------------------------------------------------------|---------------|
+| `tags`               | GIN indices on tags and expanded tags (PostgreSQL only), and indices for sorting and filtering by `tags:len` and `metadata->expandedTags`. | `true`        |
+| `sources`            | GIN index on sources (PostgreSQL only), and an index for sorting and filtering by `sources:len`.                                           | `true`        |
+| `alts`               | GIN index on alternate URLs (PostgreSQL only), and an index for sorting and filtering by `alternateUrls:len`.                              | `true`        |
+| `responses`          | GIN index on responses metadata (PostgreSQL only), and an index for sorting and filtering by `metadata->responses`.                        | `true`        |
+| `internalResponses`  | GIN index on internal responses metadata (PostgreSQL only), and an index for sorting and filtering by `metadata->internalResponses`.       | `true`        |
+| `fulltext`           | Full text search index.                                                                                                                    | `true`        |
+| `published`          | Index on the published date.                                                                                                               | `true`        |
+| `modified`           | Index on the modified date.                                                                                                                | `true`        |
+| `created`            | Index on the created date, used when sorting and filtering by `created`.                                                                   | `true`        |
+| `newResponse`        | Index on `metadata->newResponse`, used when sorting and filtering by it.                                                                   | `true`        |
+| `newReaction`        | Index on `metadata->newReaction`, used when sorting and filtering by it.                                                                   | `true`        |
+| `ignored`            | Partial index on Refs marked `ignored` during replication, used by pull batches.                                                           | `true`        |
+| `cascade`            | Partial index on Refs waiting for a metadata cascade.                                                                                      | `true`        |
+| `regen`              | Partial index on Refs waiting for metadata regeneration (background backfill).                                                             | `true`        |
+| `hotTags`            | Tag value sorts and filters to index (PostgreSQL only), see [Sorting](#sorting).                                                           | `[]` (empty)  |
+| `hotPlugins`         | Plugin value sorts and filters to index (PostgreSQL only), see [Filtering](#filtering).                                                    | `[]` (empty)  |
+| `hotResponses`       | Plugins whose local response counts are indexed for sorts and filters (PostgreSQL only).                                                   | `[]` (empty)  |
+| `hotRemoteResponses` | Plugins whose response counts from all origins are indexed for sorts and filters (PostgreSQL only).                                        | `[]` (empty)  |
 
 ### Profiles
 Setting the active profiles is done through the `SPRING_PROFILES_ACTIVE` environment
