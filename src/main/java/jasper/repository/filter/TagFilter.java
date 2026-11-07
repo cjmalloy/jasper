@@ -27,7 +27,7 @@ import static org.springframework.data.jpa.domain.Specification.not;
 @Getter
 public class TagFilter implements Query {
 	public static final String QUERY = Query.REGEX;
-	public static final String FILTER = Filter.REGEX;
+	public static final String FILTER = Filter.TAG_REGEX;
 	public static final int FILTER_LEN = Filter.LEN;
 	private static final Logger logger = LoggerFactory.getLogger(TagFilter.class);
 

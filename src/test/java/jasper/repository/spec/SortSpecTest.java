@@ -137,4 +137,48 @@ class SortSpecTest {
 		assertThat(filter).doesNotMatch(Filter.REGEX);
 		assertThat(Filter.parse(filter)).isNull();
 	}
+
+	@ParameterizedTest
+	@ValueSource(strings = {
+		"tag:len/equals/1",
+		"config->pinned:len/after/0",
+		"external->ids[0]/after/abc",
+		"defaults->a:num/after/1",
+		"schema->type/equals/a",
+	})
+	void testTagOnlyFilter(String filter) {
+		assertThat(filter).matches(Filter.REGEX);
+		assertThat(filter).matches(Filter.TAG_REGEX);
+		assertThat(filter).doesNotMatch(Filter.REF_REGEX);
+	}
+
+	@ParameterizedTest
+	@ValueSource(strings = {
+		"published/after/2024-01-01T00:00:00Z",
+		"created/after/2024-01-01T00:00:00Z",
+		"tags:len/equals/1",
+		"sources:len/equals/1",
+		"alternateUrls:len/equals/1",
+		"metadata->responses/after/3",
+		"metadata->newResponse/after/2024-01-01T00:00:00Z",
+		"metadata->plugins->plugin/comment/after/0",
+		"plugins->plugin/user/vote:top/after/5",
+		"plugins->plugin/test->size:num/after/1",
+		"tags->plugin/duration:dur/after/PT10M",
+	})
+	void testRefOnlyFilter(String filter) {
+		assertThat(filter).matches(Filter.REGEX);
+		assertThat(filter).matches(Filter.REF_REGEX);
+		assertThat(filter).doesNotMatch(Filter.TAG_REGEX);
+	}
+
+	@ParameterizedTest
+	@ValueSource(strings = {
+		"modified/after/2024-01-01T00:00:00Z",
+		"origin:len/after/1",
+	})
+	void testSharedFilter(String filter) {
+		assertThat(filter).matches(Filter.REF_REGEX);
+		assertThat(filter).matches(Filter.TAG_REGEX);
+	}
 }
