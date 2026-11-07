@@ -169,6 +169,33 @@ public class IndexRepositoryImplPostgres implements IndexRepository {
 		em.createNativeQuery("CREATE INDEX IF NOT EXISTS ref_title_index ON ref (title)").executeUpdate();
 	}
 
+	@Override
+	public void dropOrigin() {
+		em.createNativeQuery("DROP INDEX IF EXISTS ref_origin_index").executeUpdate();
+		em.createNativeQuery("DROP INDEX IF EXISTS ref_origin_prefix_index").executeUpdate();
+		em.createNativeQuery("DROP INDEX IF EXISTS ref_origin_nesting_index").executeUpdate();
+	}
+
+	/**
+	 * The plain index serves origin equality and sorts, the text_pattern_ops index serves the
+	 * sub-origin LIKE prefix filter ("@a.*") with non-C collations, and the nesting index serves
+	 * nesting filters and "origin:len" sorts.
+	 */
+	@Override
+	public void buildOrigin() {
+		em.createNativeQuery("CREATE INDEX IF NOT EXISTS ref_origin_index ON ref (origin)").executeUpdate();
+		em.createNativeQuery("CREATE INDEX IF NOT EXISTS ref_origin_prefix_index ON ref (origin text_pattern_ops)").executeUpdate();
+		em.createNativeQuery("CREATE INDEX IF NOT EXISTS ref_origin_nesting_index ON ref ((" + originNesting() + "))").executeUpdate();
+	}
+
+	/**
+	 * Same SQL as origin_nesting(origin) in PostgreSQLDialect, so the planner can match the index to
+	 * nesting filters and "origin:len" sorts.
+	 */
+	static String originNesting() {
+		return "CASE WHEN origin = '' OR origin = '@' THEN 0 ELSE (LENGTH(origin) - LENGTH(REPLACE(origin, '.', '')) + 1) END";
+	}
+
 	/**
 	 * Builds an expression index matching JSONB sorts, which order missing values first ascending
 	 * and last descending, so the index serves both directions and filters on the same expression.

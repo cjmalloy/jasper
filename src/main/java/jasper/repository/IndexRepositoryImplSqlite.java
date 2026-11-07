@@ -162,6 +162,29 @@ public class IndexRepositoryImplSqlite implements IndexRepository {
 	}
 
 	@Override
+	public void dropOrigin() {
+		em.createNativeQuery("DROP INDEX IF EXISTS ref_origin_index").executeUpdate();
+		em.createNativeQuery("DROP INDEX IF EXISTS ref_origin_nesting_index").executeUpdate();
+	}
+
+	/**
+	 * The plain index serves origin equality and sorts, and the nesting index serves nesting filters
+	 * and "origin:len" sorts. SQLite LIKE is case-insensitive, so it cannot use an index for sub-origins.
+	 */
+	@Override
+	public void buildOrigin() {
+		em.createNativeQuery("CREATE INDEX IF NOT EXISTS ref_origin_index ON ref (origin)").executeUpdate();
+		em.createNativeQuery("CREATE INDEX IF NOT EXISTS ref_origin_nesting_index ON ref (" + originNesting() + ")").executeUpdate();
+	}
+
+	/**
+	 * Same SQL as origin_nesting(origin) in SQLiteDialect, so the index matches nesting filters and "origin:len" sorts.
+	 */
+	private static String originNesting() {
+		return "CASE WHEN origin = '' OR origin = '@' THEN 0 ELSE (LENGTH(origin) - LENGTH(REPLACE(origin, '.', '')) + 1) END";
+	}
+
+	@Override
 	public void dropNewResponse() {
 		em.createNativeQuery("DROP INDEX IF EXISTS ref_new_response_index").executeUpdate();
 	}
