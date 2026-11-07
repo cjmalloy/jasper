@@ -176,21 +176,16 @@ public class IndexRepositoryImplPostgres implements IndexRepository {
 		em.createNativeQuery("DROP INDEX IF EXISTS ref_origin_nesting_index").executeUpdate();
 	}
 
-	/**
-	 * The plain index serves origin equality and sorts, the text_pattern_ops index serves the
-	 * sub-origin LIKE prefix filter ("@a.*") with non-C collations, and the nesting index serves
-	 * nesting filters and "origin:len" sorts.
-	 */
 	@Override
 	public void buildOrigin() {
 		em.createNativeQuery("CREATE INDEX IF NOT EXISTS ref_origin_index ON ref (origin)").executeUpdate();
+		// LIKE '@a.%' can only use a text_pattern_ops index with non-C collations
 		em.createNativeQuery("CREATE INDEX IF NOT EXISTS ref_origin_prefix_index ON ref (origin text_pattern_ops)").executeUpdate();
 		em.createNativeQuery("CREATE INDEX IF NOT EXISTS ref_origin_nesting_index ON ref ((" + originNesting() + "))").executeUpdate();
 	}
 
 	/**
-	 * Same SQL as origin_nesting(origin) in PostgreSQLDialect, so the planner can match the index to
-	 * nesting filters and "origin:len" sorts.
+	 * Must match origin_nesting in PostgreSQLDialect or the planner will not use the index.
 	 */
 	static String originNesting() {
 		return "CASE WHEN origin = '' OR origin = '@' THEN 0 ELSE (LENGTH(origin) - LENGTH(REPLACE(origin, '.', '')) + 1) END";

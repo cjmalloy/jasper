@@ -29,13 +29,7 @@ public interface IndexRepository {
 	void buildCreated();
 	void dropTitle();
 	void buildTitle();
-	/**
-	 * Drop the origin, origin prefix and origin nesting indexes.
-	 */
 	void dropOrigin();
-	/**
-	 * Build indexes for filtering and sorting by origin, sub-origins ("@a.*") and origin nesting ("origin:len").
-	 */
 	void buildOrigin();
 	void dropNewResponse();
 	void buildNewResponse();
