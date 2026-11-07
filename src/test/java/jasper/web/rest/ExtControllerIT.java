@@ -140,4 +140,23 @@ class ExtControllerIT {
 			}
 		}
 	}
+
+	@Test
+	void testPageWithTagLen() throws Exception {
+		mockMvc
+			.perform(get("/api/v1/ext/page")
+				.param("filter", "tag:len/equals/1")
+				.param("sort", "tag:len"))
+			.andExpect(status().isOk());
+	}
+
+	@Test
+	void testPageWithRefColumnFilterShouldFail() throws Exception {
+		for (var value : List.of("published/after/2026-01-01T00:00:00Z", "tags:len/after/0", "sources:len/after/0", "metadata->responses/after/0", "tags->plugin/title/equals/a")) {
+			mockMvc
+				.perform(get("/api/v1/ext/page")
+					.param("filter", value))
+				.andExpect(status().isBadRequest());
+		}
+	}
 }

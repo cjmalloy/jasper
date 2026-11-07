@@ -341,6 +341,8 @@ public class RefSpec {
 					jpaOrders.add(column.order(cb, order.isAscending()));
 				} else if (!property.contains("->") && !property.contains(":")) {
 					jpaOrders.add(order.isAscending() ? cb.asc(root.get(property)) : cb.desc(root.get(property)));
+				} else if (!property.contains("->")) {
+					throw new InvalidQueryException(property, "not a sort column");
 				}
 			}
 			if (!jpaOrders.isEmpty()) query.orderBy(jpaOrders);

@@ -332,4 +332,42 @@ class RefControllerIT {
 				.param("filter", "metadata->plugins->_plugin/secret/equals/0"))
 			.andExpect(status().isForbidden());
 	}
+
+	@Test
+	void testPageWithTagLenShouldFail() throws Exception {
+		for (var path : List.of("/api/v1/ref/page", "/api/v1/ref/count")) {
+			mockMvc
+				.perform(get(path)
+					.param("filter", "tag:len/equals/1"))
+				.andExpect(status().isBadRequest());
+		}
+		mockMvc
+			.perform(get("/api/v1/ref/page")
+				.param("sort", "tag:len"))
+			.andExpect(status().isBadRequest());
+	}
+
+	@Test
+	void testPageWithExtColumnFilterShouldFail() throws Exception {
+		for (var value : List.of("config->name/equals/a", "external->ids:len/after/0", "schema->type/equals/a", "defaults->a:num/after/1")) {
+			mockMvc
+				.perform(get("/api/v1/ref/page")
+					.param("filter", value))
+				.andExpect(status().isBadRequest());
+		}
+	}
+
+	@Test
+	void testPageWithTagsLen() throws Exception {
+		for (var path : List.of("/api/v1/ref/page", "/api/v1/ref/count")) {
+			mockMvc
+				.perform(get(path)
+					.param("filter", "tags:len/equals/1"))
+				.andExpect(status().isOk());
+		}
+		mockMvc
+			.perform(get("/api/v1/ref/page")
+				.param("sort", "tags:len"))
+			.andExpect(status().isOk());
+	}
 }
