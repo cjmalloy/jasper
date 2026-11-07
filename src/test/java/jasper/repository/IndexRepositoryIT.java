@@ -176,6 +176,8 @@ public class IndexRepositoryIT {
 
 	String explainPostgres(String sql) {
 		em.createNativeQuery("SET LOCAL enable_seqscan = off").executeUpdate();
+		// On a near-empty table a BitmapOr on ref_origin_prefix_index can tie with the partial index
+		em.createNativeQuery("SET LOCAL enable_bitmapscan = off").executeUpdate();
 		return ((List<?>) em.createNativeQuery("EXPLAIN " + sql).getResultList()).stream()
 			.map(Object::toString)
 			.collect(Collectors.joining("\n"));
