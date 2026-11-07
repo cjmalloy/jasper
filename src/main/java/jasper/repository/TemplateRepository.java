@@ -64,6 +64,7 @@ public interface TemplateRepository extends JpaRepository<Template, TagId>, Qual
 			AND (t.tag = ''
 				OR t.tag = :tag
 				OR (:tag LIKE '+%' AND concat('+', t.tag) = :tag)
+				OR (:tag LIKE '\\_%' ESCAPE '\\' AND concat('_', t.tag) = :tag)
 				OR locate(concat(t.tag, '/'), :tag) = 1
 				OR (:tag LIKE '\\_%' ESCAPE '\\' AND locate(concat(t.tag, '/'), :tag) = 2)
 				OR (:tag LIKE '+%' AND locate(concat(t.tag, '/'), :tag) = 2))
@@ -78,6 +79,7 @@ public interface TemplateRepository extends JpaRepository<Template, TagId>, Qual
 			AND (t.tag = ''
 				OR t.tag = :tag
 				OR (:tag LIKE '+%' AND concat('+', t.tag) = :tag)
+				OR (:tag LIKE '\\_%' ESCAPE '\\' AND concat('_', t.tag) = :tag)
 				OR locate(concat(t.tag, '/'), :tag) = 1
 				OR (:tag LIKE '\\_%' ESCAPE '\\' AND locate(concat(t.tag, '/'), :tag) = 2)
 				OR (:tag LIKE '+%' AND locate(concat(t.tag, '/'), :tag) = 2))
