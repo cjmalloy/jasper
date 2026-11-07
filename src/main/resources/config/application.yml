@@ -227,7 +227,7 @@ jasper:
     management-include-pattern: ${server.servlet.context-path:}/management/**
     title: Jasper Protocol
     description: REST API for the Jasper Protocol
-    version: 1.5.0
+    version: 1.5.1
     terms-of-service-url:
     contact-name:
     contact-url:
