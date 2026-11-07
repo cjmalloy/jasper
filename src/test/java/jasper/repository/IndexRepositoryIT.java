@@ -649,6 +649,42 @@ public class IndexRepositoryIT {
 	}
 
 	/**
+	 * Origin filters and sorts must use the origin indexes.
+	 */
+	void assertOriginIndexesUsed(boolean sqlite) {
+		indexRepository.buildOrigin();
+		for (var direction : Sort.Direction.values()) {
+			assertThat(explainSort("origin", direction, sqlite)).as("origin %s", direction).contains("ref_origin_index");
+			assertThat(explainSort("origin:len", direction, sqlite)).as("origin:len %s", direction).contains("ref_origin_nesting_index");
+		}
+		assertThat(explainFilter(RefFilter.builder().origin("@test").build().spec(), sqlite, "@test")).containsPattern("ref_origin_(prefix_)?index");
+		assertThat(explainFilter(RefFilter.builder().nesting(2).build().spec(), sqlite, 2)).contains("ref_origin_nesting_index");
+	}
+
+	@Test
+	void testBuildAndDropOrigin() {
+		indexRepository.dropOrigin();
+		indexRepository.buildOrigin();
+		indexRepository.buildOrigin();
+		indexRepository.dropOrigin();
+	}
+
+	@Test
+	@DisabledOnSqlite
+	@Transactional
+	void testOriginIndexesUsedPostgres() {
+		assertOriginIndexesUsed(false);
+		assertThat(explainFilter(RefFilter.builder().origin("@test.*").build().spec(), false, "@test", "@test.%")).contains("ref_origin_prefix_index");
+	}
+
+	@Test
+	@EnabledIf(expression = SQLITE, loadContext = true)
+	@Transactional
+	void testOriginIndexesUsedSqlite() {
+		assertOriginIndexesUsed(true);
+	}
+
+	/**
 	 * Each metadata date filter must use the same index as the matching sort.
 	 */
 	void assertMetadataDateIndexesUsed(boolean sqlite) {

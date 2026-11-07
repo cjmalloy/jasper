@@ -116,6 +116,13 @@ public class Index {
 		} else {
 			indexRepository.dropTitle();
 		}
+		if (index.isOrigin()) {
+			try {
+				indexRepository.buildOrigin();
+			} catch (Exception ignored) {}
+		} else {
+			indexRepository.dropOrigin();
+		}
 		if (index.isNewResponse()) {
 			try {
 				indexRepository.buildNewResponse();

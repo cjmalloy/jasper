@@ -210,6 +210,11 @@ jasper/
 - Keep a readable single-use expression at its call site instead of extracting it into a temporary variable.
 - Treat `src/main/java/jasper/security/Auth.java` as the authoritative security specification; avoid cosmetic refactors that reduce locality or obscure authorization decisions.
 
+**Comments and docs:**
+- Document behavior once. Interfaces hold the important contract; implementations only hold short PostgreSQL/SQLite caveats. Don't repeat a Javadoc on both.
+- Users read `README.md`: keep table rows short and padded to the existing column width so the table doesn't widen.
+- Reserve longer, story-like Javadoc for the few classes people search for and follow (e.g. `Auth.java`); elsewhere prefer no comment or one line.
+
 **Replicated origins:**
 - Pulled origins only get silent plugin data writes, new Refs marked `ignored` so they don't count in the pull cursor, are never replicated until a pulled batch has a newer Ref (`Tagger.silentPlugin`); pulled Refs are also ingested as `ignored` and the whole batch is cleared in one update only after it is fully ingested, so a failed batch never moves the cursor; logs stamped `now` go to the origin owning the `+plugin/origin` Ref (`Tagger.attachLogs`). See "Logs and errors on replicated origins" in `README.md`.
 
