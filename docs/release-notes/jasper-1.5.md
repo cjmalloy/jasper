@@ -4,13 +4,13 @@ This release includes changes accumulated since v1.4.0. Only the latest minor re
 
 ## Server
 
-* Replaced the per-field filter parameters with `filterBefore`, `filterAfter` and `filterEquals` on the Ref, Ext, User, Plugin and Template page and count endpoints. Anything you can sort by, you can filter by: each filter is a sort column followed by `/` and a value, e.g. `filterAfter=modified/2024-01-01T00:00:00Z`, `filterBefore=tags->plugin/progress:num/50`, `filterAfter=plugins->_plugin/cache->contentLength:num/1000`, `filterAfter=metadata->remotePlugins->plugin/user/read/10` for Refs read by more than 10 users, or `filterAfter=config->pinned:len/0` for Exts. Filters use the same expression as the sort, so the same indexes apply. Filters on private plugins or tags need read access, like sorts. See the [README filtering section](../../README.md#filtering).
-* Removed `modifiedBefore`, `modifiedAfter`, `publishedBefore`, `publishedAfter`, `createdBefore`, `createdAfter`, `responseBefore`, `responseAfter`, `tagBefore`, `tagAfter`, `pluginBefore`, `pluginAfter`, `pluginResponse`, `noPluginResponse`, `remotePluginResponse` and `noRemotePluginResponse` from the page and count endpoints. Use the filter parameters instead:
-  * `filterAfter=modified/{date}` instead of `modifiedAfter={date}`
-  * `filterAfter=metadata->newResponse/{date}` instead of `responseAfter={date}`
-  * `filterAfter=tags->{tag}/{value}` instead of `tagAfter=tags->{tag}/{value}`, and the same for `pluginAfter`
-  * `filterAfter=metadata->plugins->{plugin}/0` instead of `pluginResponse={plugin}`
-  * `filterEquals=metadata->plugins->{plugin}/0` instead of `noPluginResponse={plugin}`
+* Replaced the per-field filter parameters with a single repeatable `filter` parameter on the Ref, Ext, User, Plugin and Template page and count endpoints, in the same `{sort column}/{before|after|equals}/{value}` format jasper-ui uses. This also replaces the `filterBefore`, `filterAfter` and `filterEquals` parameters from earlier 1.5 releases. Anything you can sort by, you can filter by: e.g. `filter=modified/after/2024-01-01T00:00:00Z`, `filter=tags->plugin/progress:num/before/50`, `filter=plugins->_plugin/cache->contentLength:num/after/1000`, `filter=metadata->remotePlugins->plugin/user/read/after/10` for Refs read by more than 10 users, or `filter=config->pinned:len/after/0` for Exts. Filters use the same expression as the sort, so the same indexes apply. Filters on private plugins or tags need read access, like sorts. See the [README filtering section](../../README.md#filtering).
+* Removed `modifiedBefore`, `modifiedAfter`, `publishedBefore`, `publishedAfter`, `createdBefore`, `createdAfter`, `responseBefore`, `responseAfter`, `tagBefore`, `tagAfter`, `pluginBefore`, `pluginAfter`, `pluginResponse`, `noPluginResponse`, `remotePluginResponse` and `noRemotePluginResponse` from the page and count endpoints. Use the `filter` parameter instead:
+  * `filter=modified/after/{date}` instead of `modifiedAfter={date}`
+  * `filter=metadata->newResponse/after/{date}` instead of `responseAfter={date}`
+  * `filter=tags->{tag}/after/{value}` instead of `tagAfter=tags->{tag}/{value}`, and the same for `pluginAfter`
+  * `filter=metadata->plugins->{plugin}/after/0` instead of `pluginResponse={plugin}`
+  * `filter=metadata->plugins->{plugin}/equals/0` instead of `noPluginResponse={plugin}`
   * `metadata->remotePlugins->{plugin}` instead of `remotePluginResponse` / `noRemotePluginResponse`
 
   The replication endpoints keep `modifiedAfter`.

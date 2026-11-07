@@ -57,7 +57,7 @@ public class SmtpService {
 				RefFilter.builder()
 						.query("plugin/email:!internal")
 						.endsTitle(ref.getTitle())
-						.filterBefore(List.of("published/" + ref.getPublished())).build().spec(),
+						.filter(List.of("published/before/" + ref.getPublished())).build().spec(),
 				PageRequest.of(0, 1, by(desc(Ref_.PUBLISHED))));
 		if (!source.isEmpty()) {
 			ref.setSources(List.of(source.getContent().get(0).getUrl()));

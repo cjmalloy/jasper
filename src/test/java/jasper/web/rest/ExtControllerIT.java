@@ -129,13 +129,13 @@ class ExtControllerIT {
 		for (var path : List.of("/api/v1/ext/page", "/api/v1/ext/count")) {
 			mockMvc
 				.perform(get(path)
-					.param("filterAfter", "config->pinned:len/0")
-					.param("filterBefore", "config->order:num/3")
-					.param("filterEquals", "tag:len/1"))
+					.param("filter", "config->pinned:len/after/0")
+					.param("filter", "config->order:num/before/3")
+					.param("filter", "tag:len/equals/1"))
 				.andExpect(status().isOk());
-			for (var invalid : List.of("external->ids:len/0", "published/2026-01-01T00:00:00Z", "config/1", "config->order:num/abc")) {
+			for (var invalid : List.of("external->ids:len/after/0", "published/after/2026-01-01T00:00:00Z", "config/after/1", "config->order:num/after/abc", "config->order:num/3")) {
 				mockMvc
-					.perform(get(path).param("filterAfter", invalid))
+					.perform(get(path).param("filter", invalid))
 					.andExpect(status().isBadRequest());
 			}
 		}

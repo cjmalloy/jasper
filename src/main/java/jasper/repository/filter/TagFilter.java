@@ -38,9 +38,7 @@ public class TagFilter implements Query {
 	private Boolean deleted;
 	private String search;
 	private Instant modifiedAfter;
-	private List<String> filterBefore;
-	private List<String> filterAfter;
-	private List<String> filterEquals;
+	private List<String> filter;
 
 	/**
 	 * @param roots the JSONB columns of the entity, the same columns it can be sorted by, e.g. "config"
@@ -76,10 +74,10 @@ public class TagFilter implements Query {
 	}
 
 	/**
-	 * The parsed filterBefore, filterAfter and filterEquals.
+	 * The parsed filters.
 	 */
 	public List<Filter> filters() {
-		return Filter.parse(filterBefore, filterAfter, filterEquals);
+		return Filter.parse(filter);
 	}
 
 	public String cacheKey(Pageable pageable) {
@@ -91,9 +89,7 @@ public class TagFilter implements Query {
 			query + "_" +
 			deleted + "_" +
 			modifiedAfter + "_" +
-			filterBefore + "_" +
-			filterAfter + "_" +
-			filterEquals + "_" +
+			filter + "_" +
 			search;
 	}
 }
