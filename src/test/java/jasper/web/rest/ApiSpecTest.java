@@ -256,7 +256,8 @@ class ApiSpecTest {
 			Map.entry("qtag-plugin", new Object[]{ Plugin.QTAG_REGEX, QTAG_LEN }),
 			Map.entry("tag-user", new Object[]{ User.REGEX, TAG_LEN }),
 			Map.entry("qtag-user", new Object[]{ User.QTAG_REGEX, QTAG_LEN }),
-			Map.entry("filter", new Object[]{ Filter.REGEX, Filter.LEN })
+			Map.entry("ref-filter", new Object[]{ Filter.REF_REGEX, Filter.LEN }),
+			Map.entry("tag-filter", new Object[]{ Filter.TAG_REGEX, Filter.LEN })
 		));
 		expected.forEach((name, e) -> {
 			assertThat(schemas).containsKey(name);

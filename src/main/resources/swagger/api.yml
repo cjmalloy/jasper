@@ -2,7 +2,7 @@ openapi: 3.0.3
 info:
   title: Jasper Protocol
   description: REST API for the Jasper Protocol
-  version: 1.5.1
+  version: 1.5.2
   license:
     name: MIT License
     url: 'https://github.com/cjmalloy/jasper/blob/master/LICENSE'
@@ -234,7 +234,7 @@ paths:
             type: array
             maxItems: 100
             items:
-              $ref: '#/components/schemas/filter'
+              $ref: '#/components/schemas/ref-filter'
         - name: userResponse
           in: query
           description: Only match Refs the current user has responded to with each of these plugins
@@ -333,7 +333,7 @@ paths:
             type: array
             maxItems: 100
             items:
-              $ref: '#/components/schemas/filter'
+              $ref: '#/components/schemas/ref-filter'
         - name: userResponse
           in: query
           description: Only match Refs the current user has responded to with each of these plugins
@@ -1160,7 +1160,7 @@ paths:
             type: array
             maxItems: 100
             items:
-              $ref: '#/components/schemas/filter'
+              $ref: '#/components/schemas/tag-filter'
         - name: search
           in: query
           required: false
@@ -1217,7 +1217,7 @@ paths:
             type: array
             maxItems: 100
             items:
-              $ref: '#/components/schemas/filter'
+              $ref: '#/components/schemas/tag-filter'
         - name: search
           in: query
           required: false
@@ -1418,7 +1418,7 @@ paths:
             type: array
             maxItems: 100
             items:
-              $ref: '#/components/schemas/filter'
+              $ref: '#/components/schemas/tag-filter'
         - name: search
           in: query
           description: Full text search
@@ -1622,7 +1622,7 @@ paths:
             type: array
             maxItems: 100
             items:
-              $ref: '#/components/schemas/filter'
+              $ref: '#/components/schemas/tag-filter'
         - name: search
           in: query
           required: false
@@ -1824,7 +1824,7 @@ paths:
             type: array
             maxItems: 100
             items:
-              $ref: '#/components/schemas/filter'
+              $ref: '#/components/schemas/tag-filter'
         - name: search
           in: query
           required: false
@@ -3021,11 +3021,18 @@ components:
       description: Optionally Qualified User Tag
       example: '+user/charlie@origin'
       maxLength: 129
-    filter:
+    ref-filter:
       type: string
-      pattern: '^(?:modified|published|created|origin:len|tag:len|(?:tags|sources|alternateUrls):len|metadata->(?:newResponse|newReaction)|metadata->(?:expandedTags|responses|internalResponses)(?::len)?|metadata->(?:plugins|remotePlugins)->[_+]?plugin(?:/[a-z0-9]+(?:[./][a-z0-9]+)*)?(?::num)?|plugins->plugin/user/vote:(?:top|score|decay)|plugins->[_+]?plugin(?:/[a-z0-9]+(?:[./][a-z0-9]+)*)?(?:->(?:[A-Za-z0-9_$-]+(?:\[[0-9]{1,9}\])?|\[[0-9]{1,9}\]))*(?::num|:len)?|tags->[_+]?[a-z0-9]+(?:[./][a-z0-9]+)*(?::num|:dur)?|(?:config|defaults|schema|external)(?:->(?:[A-Za-z0-9_$-]+(?:\[[0-9]{1,9}\])?|\[[0-9]{1,9}\]))+(?::num|:len)?)/(?:before|after|equals)/(?:(?!->)[^/,])+$'
-      description: 'Filter on a sort column: {sort column}/{before|after|equals}/{value}. Refs: modified, published, created, metadata->newResponse, metadata->newReaction, metadata->expandedTags, metadata->responses, metadata->internalResponses, metadata->plugins->{plugin}, metadata->remotePlugins->{plugin}, plugins->plugin/user/vote:top|score|decay, plugins->{plugin}[->{field}...][:num|:len], tags->{tag}[:num|:dur], tags:len, sources:len, alternateUrls:len and origin:len. Exts, Users, Plugins and Templates: modified, origin:len, tag:len and {field}->{path}[:num|:len] (Ext: config, User: external (MOD only), Plugin and Template: config, defaults and schema). Dates are ISO 8601 instants, response counts and :num are numbers, :dur is an ISO 8601 duration (lowercase), :len is a length, everything else is text. The value is always after the last ''/'' and cannot contain ''/'', ''->'' or '',''.'
+      pattern: '^(?:modified|published|created|origin:len|(?:tags|sources|alternateUrls):len|metadata->(?:newResponse|newReaction)|metadata->(?:expandedTags|responses|internalResponses)(?::len)?|metadata->(?:plugins|remotePlugins)->[_+]?plugin(?:/[a-z0-9]+(?:[./][a-z0-9]+)*)?(?::num)?|plugins->plugin/user/vote:(?:top|score|decay)|plugins->[_+]?plugin(?:/[a-z0-9]+(?:[./][a-z0-9]+)*)?(?:->(?:[A-Za-z0-9_$-]+(?:\[[0-9]{1,9}\])?|\[[0-9]{1,9}\]))*(?::num|:len)?|tags->[_+]?[a-z0-9]+(?:[./][a-z0-9]+)*(?::num|:dur)?)/(?:before|after|equals)/(?:(?!->)[^/,])+$'
+      description: 'Filter Refs on a sort column: {sort column}/{before|after|equals}/{value}. Columns: modified, published, created, metadata->newResponse, metadata->newReaction, metadata->expandedTags, metadata->responses, metadata->internalResponses, metadata->plugins->{plugin}, metadata->remotePlugins->{plugin}, plugins->plugin/user/vote:top|score|decay, plugins->{plugin}[->{field}...][:num|:len], tags->{tag}[:num|:dur], tags:len, sources:len, alternateUrls:len and origin:len. Dates are ISO 8601 instants, response counts and :num are numbers, :len is a length, everything else is text. :dur only applies to tags->{tag}:dur, whose value is an ISO 8601 duration such as pt10m (tags are stored lowercase, uppercase input such as PT10M is also accepted). The value is always after the last ''/'' and cannot contain ''/'', ''->'' or '',''.'
       example: 'plugins->plugin/test->size:num/after/1000'
+      minLength: 1
+      maxLength: 1024
+    tag-filter:
+      type: string
+      pattern: '^(?:modified|origin:len|tag:len|(?:config|defaults|schema|external)(?:->(?:[A-Za-z0-9_$-]+(?:\[[0-9]{1,9}\])?|\[[0-9]{1,9}\]))+(?::num|:len)?)/(?:before|after|equals)/(?:(?!->)[^/,])+$'
+      description: 'Filter Exts, Users, Plugins and Templates on a sort column: {sort column}/{before|after|equals}/{value}. Columns: modified, origin:len, tag:len (the number of levels in the tag) and {field}->{path}[:num|:len] (Ext: config, User: external (MOD only), Plugin and Template: config, defaults and schema). modified is an ISO 8601 instant, :num is a number, :len is a length, everything else is text. The value is always after the last ''/'' and cannot contain ''/'', ''->'' or '',''.'
+      example: 'config->order:num/after/1'
       minLength: 1
       maxLength: 1024
     Page:
