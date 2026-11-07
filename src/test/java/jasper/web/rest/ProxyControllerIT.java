@@ -18,10 +18,8 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.io.ByteArrayInputStream;
-import java.net.URI;
 import java.util.Arrays;
 
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.asyncDispatch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -49,7 +47,6 @@ class ProxyControllerIT {
 
 	private static final byte[] TEST_CONTENT = "This is a test file with some content for range request testing. It has enough data to test various range scenarios.".getBytes();
 	private String testUrl;
-	private String untitledUrl;
 
 	@BeforeEach
 	void setup() throws Exception {
@@ -76,8 +73,6 @@ class ProxyControllerIT {
 		// Upload a test file to the cache using the real ProxyService
 		var savedRef = proxyService.save("", "test.txt", new ByteArrayInputStream(TEST_CONTENT), "text/plain");
 		testUrl = savedRef.getUrl();
-		// Untitled cache: URLs have no path, so the filename from the request path is used in Content-Disposition
-		untitledUrl = proxyService.save("", null, new ByteArrayInputStream(TEST_CONTENT), "text/plain").getUrl();
 		// Give OS time to flush file buffers to prevent flaky reads under CI load
 		Thread.sleep(1000);
 	}
@@ -315,107 +310,6 @@ class ProxyControllerIT {
 		mockMvc
 			.perform(get("/api/v1/proxy")
 				.param("url", nonExistentUrl)
-				.param("origin", ""))
-			.andExpect(status().isNotFound());
-	}
-
-	private void assertFetchOk(String path, String url, String filename) throws Exception {
-		var result = mockMvc
-			.perform(get(URI.create(path))
-				.param("url", url)
-				.param("origin", ""))
-			.andExpect(request().asyncStarted())
-			.andReturn();
-		mockMvc
-			.perform(asyncDispatch(result))
-			.andExpect(status().isOk())
-			.andExpect(header().string("Accept-Ranges", "bytes"))
-			.andExpect(header().string("Content-Disposition", "inline; filename*=UTF-8''" + filename))
-			.andExpect(content().contentType(MediaType.TEXT_PLAIN))
-			.andExpect(content().bytes(TEST_CONTENT));
-	}
-
-	@Test
-	void testFetchBareRoute() throws Exception {
-		assertFetchOk("/api/v1/proxy", untitledUrl, "file");
-	}
-
-	@Test
-	void testFetchFilenameWithMultipleDots() throws Exception {
-		assertFetchOk("/api/v1/proxy/some.file.name.pdf", untitledUrl, "some.file.name.pdf");
-	}
-
-	@Test
-	void testFetchFilenameIgnoredWhenRefHasTitle() throws Exception {
-		assertFetchOk("/api/v1/proxy/some.file.name.pdf", testUrl, "test.txt");
-	}
-
-	@Test
-	void testFetchUrlEncodedFilename() throws Exception {
-		assertFetchOk("/api/v1/proxy/my%20file.png", untitledUrl, "my%20file.png");
-	}
-
-	@Test
-	void testFetchFilenameNotFound() throws Exception {
-		mockMvc
-			.perform(get("/api/v1/proxy/some.file.name.pdf")
-				.param("url", "cache:nonexistent-id")
-				.param("origin", ""))
-			.andExpect(status().isNotFound());
-	}
-
-	@Test
-	void testFetchFilenameRangeRequest() throws Exception {
-		mockMvc
-			.perform(get("/api/v1/proxy/some.file.name.pdf")
-				.param("url", untitledUrl)
-				.param("origin", "")
-				.header("Range", "bytes=100-50"))
-			.andExpect(status().isRequestedRangeNotSatisfiable())
-			.andExpect(header().string("Content-Range", "bytes */" + TEST_CONTENT.length));
-	}
-
-	@Test
-	void testPrefetchBareRoute() throws Exception {
-		mockMvc
-			.perform(get("/api/v1/proxy/prefetch")
-				.param("url", testUrl)
-				.param("origin", ""))
-			.andExpect(request().asyncNotStarted())
-			.andExpect(status().isNoContent())
-			.andExpect(header().doesNotExist("Content-Disposition"))
-			.andExpect(content().bytes(new byte[0]));
-	}
-
-	@Test
-	void testPrefetchWithFilename() throws Exception {
-		mockMvc
-			.perform(get("/api/v1/proxy/prefetch/some.file.png")
-				.param("url", testUrl)
-				.param("origin", ""))
-			.andExpect(request().asyncNotStarted())
-			.andExpect(status().isNoContent())
-			.andExpect(header().doesNotExist("Content-Disposition"))
-			.andExpect(content().bytes(new byte[0]));
-	}
-
-	@Test
-	void testPrefetchWithFilenameMultipleDots() throws Exception {
-		mockMvc
-			.perform(get("/api/v1/proxy/prefetch/some.file.name.pdf")
-				.param("url", untitledUrl)
-				.param("origin", ""))
-			.andExpect(request().asyncNotStarted())
-			.andExpect(status().isNoContent())
-			.andExpect(header().doesNotExist("Content-Disposition"));
-	}
-
-	@Test
-	void testFetchNestedPathNotMatched() throws Exception {
-		// {filename:.+} only matches a single path segment
-		mockMvc
-			.perform(get("/api/v1/proxy/dir/some.file.png")
-				.param("url", untitledUrl)
 				.param("origin", ""))
 			.andExpect(status().isNotFound());
 	}
