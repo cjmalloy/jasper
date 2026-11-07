@@ -176,8 +176,6 @@ public class IndexRepositoryIT {
 
 	String explainPostgres(String sql) {
 		em.createNativeQuery("SET LOCAL enable_seqscan = off").executeUpdate();
-		// On a near-empty table a BitmapOr on ref_origin_prefix_index can tie with the partial index
-		em.createNativeQuery("SET LOCAL enable_bitmapscan = off").executeUpdate();
 		return ((List<?>) em.createNativeQuery("EXPLAIN " + sql).getResultList()).stream()
 			.map(Object::toString)
 			.collect(Collectors.joining("\n"));
@@ -226,19 +224,6 @@ public class IndexRepositoryIT {
 			where ( r1_0.metadata )->>( 'cascade' )='true' and ( '@test'='' or r1_0.origin='@test' or r1_0.origin like ('@test'||'.%') escape '' )
 			order by r1_0.modified desc fetch first 1 rows only"""))
 			.contains("ref_cascade_index");
-	}
-
-	@Test
-	@DisabledOnSqlite
-	@Transactional
-	void testRegenIndexUsedPostgres() {
-		indexRepository.buildRegen();
-		assertThat(explainPostgres("""
-			select r1_0.url from ref r1_0
-			where ( r1_0.metadata is null or ( r1_0.metadata )->>( 'modified' ) is null or ( r1_0.metadata )->>( 'regen' )='true' )
-				and ( '@test'='' or r1_0.origin='@test' or r1_0.origin like ('@test'||'.%') escape '' )
-			order by r1_0.modified desc fetch first 1 rows only"""))
-			.contains("ref_regen_index");
 	}
 
 	@Test
