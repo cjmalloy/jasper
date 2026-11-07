@@ -751,13 +751,13 @@ public class Replicator {
 	}
 
 	public static String deletorTag(String tag) {
-		if (isBlank(tag)) return "deleted";
+		if (isBlank(localTag(tag))) return "deleted" + tagOrigin(tag);
 		return localTag(tag) + "/deleted" + tagOrigin(tag);
 	}
 
 	public static String deletedTag(String deletor) {
 		var local = localTag(deletor);
-		if (local.equals("deleted")) return "";
+		if (local.equals("deleted")) return tagOrigin(deletor);
 		return local.substring(0, local.length() - "/deleted".length()) + tagOrigin(deletor);
 	}
 
