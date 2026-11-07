@@ -303,23 +303,23 @@ class RefControllerIT {
 		for (var path : List.of("/api/v1/ref/page", "/api/v1/ref/count")) {
 			mockMvc
 				.perform(get(path)
-					.param("filterAfter", "metadata->remotePlugins->plugin/user/read/10")
-					.param("filterBefore", "metadata->plugins->plugin/comment:num/3")
-					.param("filterAfter", "metadata->newResponse/2026-01-01T00:00:00.5Z")
-					.param("filterBefore", "metadata->newResponse/2026-01-02T00:00:00Z")
-					.param("filterAfter", "metadata->newReaction/2026-01-01T00:00:00Z")
-					.param("filterEquals", "metadata->plugins->plugin/comment/0")
-					.param("filterAfter", "created/2026-01-01T00:00:00Z"))
+					.param("filter", "metadata->remotePlugins->plugin/user/read/after/10")
+					.param("filter", "metadata->plugins->plugin/comment:num/before/3")
+					.param("filter", "metadata->newResponse/after/2026-01-01T00:00:00.5Z")
+					.param("filter", "metadata->newResponse/before/2026-01-02T00:00:00Z")
+					.param("filter", "metadata->newReaction/after/2026-01-01T00:00:00Z")
+					.param("filter", "metadata->plugins->plugin/comment/equals/0")
+					.param("filter", "created/after/2026-01-01T00:00:00Z"))
 				.andExpect(status().isOk());
 		}
 	}
 
 	@Test
 	void testPageWithInvalidResponseCountFilterShouldFail() throws Exception {
-		for (var value : List.of("metadata->plugins->plugin/comment/abc", "metadata->plugins->plugin/comment:len/1", "metadata->newResponse/yesterday", "title/abc")) {
+		for (var value : List.of("metadata->plugins->plugin/comment/after/abc", "metadata->plugins->plugin/comment:len/after/1", "metadata->newResponse/after/yesterday", "title/after/abc", "modified/2026-01-01T00:00:00Z", "modified/since/2026-01-01T00:00:00Z")) {
 			mockMvc
 				.perform(get("/api/v1/ref/page")
-					.param("filterAfter", value))
+					.param("filter", value))
 				.andExpect(status().isBadRequest());
 		}
 	}
@@ -329,7 +329,7 @@ class RefControllerIT {
 	void testPageWithPrivateResponseCountFilterShouldFail() throws Exception {
 		mockMvc
 			.perform(get("/api/v1/ref/page")
-				.param("filterEquals", "metadata->plugins->_plugin/secret/0"))
+				.param("filter", "metadata->plugins->_plugin/secret/equals/0"))
 			.andExpect(status().isForbidden());
 	}
 }

@@ -225,31 +225,11 @@ paths:
           required: false
           schema:
             $ref: '#/components/schemas/url'
-        - name: filterBefore
+        - name: filter
           in: query
-          description: 'Only match Refs whose sort column is strictly less than the value: {sort column}/{value}. The value is always after the last ''/'' and cannot contain ''/'', ''->'' or '',''. The column decides the type of the value. Dates (modified, published, created, metadata->newResponse, metadata->newReaction) are ISO 8601 instants, response counts, :num, :dur and :len columns are numbers, durations and lengths, everything else is text. Refs without responses count as 0. Missing values never match. Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering'
+          description: 'Only match Refs whose sort column is before (strictly less than), after (strictly greater than) or equals the value: {sort column}/{before|after|equals}/{value}. The value is always after the last ''/'' and cannot contain ''/'', ''->'' or '',''. The column decides the type of the value. Dates (modified, published, created, metadata->newResponse, metadata->newReaction) are ISO 8601 instants, response counts, :num, :dur and :len columns are numbers, durations and lengths, everything else is text. Refs without responses count as 0. Missing values never match. Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering'
           required: false
-          example: ['modified/2024-01-01T00:00:00Z']
-          schema:
-            type: array
-            maxItems: 100
-            items:
-              $ref: '#/components/schemas/filter'
-        - name: filterAfter
-          in: query
-          description: 'Only match Refs whose sort column is strictly greater than the value: {sort column}/{value}. Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering'
-          required: false
-          example: ['metadata->plugins->plugin/comment/0']
-          schema:
-            type: array
-            maxItems: 100
-            items:
-              $ref: '#/components/schemas/filter'
-        - name: filterEquals
-          in: query
-          description: 'Only match Refs whose sort column equals the value: {sort column}/{value}. Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering'
-          required: false
-          example: ['metadata->plugins->plugin/comment/0']
+          example: ['modified/after/2024-01-01T00:00:00Z']
           schema:
             type: array
             maxItems: 100
@@ -344,31 +324,11 @@ paths:
           required: false
           schema:
             $ref: '#/components/schemas/url'
-        - name: filterBefore
+        - name: filter
           in: query
-          description: 'Only match Refs whose sort column is strictly less than the value: {sort column}/{value}. The value is always after the last ''/'' and cannot contain ''/'', ''->'' or '',''. The column decides the type of the value. Dates (modified, published, created, metadata->newResponse, metadata->newReaction) are ISO 8601 instants, response counts, :num, :dur and :len columns are numbers, durations and lengths, everything else is text. Refs without responses count as 0. Missing values never match. Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering'
+          description: 'Only match Refs whose sort column is before (strictly less than), after (strictly greater than) or equals the value: {sort column}/{before|after|equals}/{value}. The value is always after the last ''/'' and cannot contain ''/'', ''->'' or '',''. The column decides the type of the value. Dates (modified, published, created, metadata->newResponse, metadata->newReaction) are ISO 8601 instants, response counts, :num, :dur and :len columns are numbers, durations and lengths, everything else is text. Refs without responses count as 0. Missing values never match. Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering'
           required: false
-          example: ['modified/2024-01-01T00:00:00Z']
-          schema:
-            type: array
-            maxItems: 100
-            items:
-              $ref: '#/components/schemas/filter'
-        - name: filterAfter
-          in: query
-          description: 'Only match Refs whose sort column is strictly greater than the value: {sort column}/{value}. Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering'
-          required: false
-          example: ['metadata->plugins->plugin/comment/0']
-          schema:
-            type: array
-            maxItems: 100
-            items:
-              $ref: '#/components/schemas/filter'
-        - name: filterEquals
-          in: query
-          description: 'Only match Refs whose sort column equals the value: {sort column}/{value}. Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering'
-          required: false
-          example: ['metadata->plugins->plugin/comment/0']
+          example: ['modified/after/2024-01-01T00:00:00Z']
           schema:
             type: array
             maxItems: 100
@@ -1191,31 +1151,11 @@ paths:
           required: false
           schema:
             type: boolean
-        - name: filterBefore
+        - name: filter
           in: query
-          description: 'Only match Exts whose sort column is strictly less than the value: {sort column}/{value}. The value is always after the last ''/'' and cannot contain ''/'', ''->'' or '',''. The column decides the type of the value. modified is an ISO 8601 instant, :num and :len columns are numbers and lengths, everything else is text. Missing values never match. Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering'
+          description: 'Only match Exts whose sort column is before (strictly less than), after (strictly greater than) or equals the value: {sort column}/{before|after|equals}/{value}. The value is always after the last ''/'' and cannot contain ''/'', ''->'' or '',''. The column decides the type of the value. modified is an ISO 8601 instant, :num and :len columns are numbers and lengths, everything else is text. Missing values never match. Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering'
           required: false
-          example: ['modified/2024-01-01T00:00:00Z']
-          schema:
-            type: array
-            maxItems: 100
-            items:
-              $ref: '#/components/schemas/filter'
-        - name: filterAfter
-          in: query
-          description: 'Only match Exts whose sort column is strictly greater than the value: {sort column}/{value}. Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering'
-          required: false
-          example: ['tag:len/1']
-          schema:
-            type: array
-            maxItems: 100
-            items:
-              $ref: '#/components/schemas/filter'
-        - name: filterEquals
-          in: query
-          description: 'Only match Exts whose sort column equals the value: {sort column}/{value}. Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering'
-          required: false
-          example: ['tag:len/1']
+          example: ['modified/after/2024-01-01T00:00:00Z']
           schema:
             type: array
             maxItems: 100
@@ -1268,31 +1208,11 @@ paths:
           required: false
           schema:
             type: boolean
-        - name: filterBefore
+        - name: filter
           in: query
-          description: 'Only match Exts whose sort column is strictly less than the value: {sort column}/{value}. The value is always after the last ''/'' and cannot contain ''/'', ''->'' or '',''. The column decides the type of the value. modified is an ISO 8601 instant, :num and :len columns are numbers and lengths, everything else is text. Missing values never match. Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering'
+          description: 'Only match Exts whose sort column is before (strictly less than), after (strictly greater than) or equals the value: {sort column}/{before|after|equals}/{value}. The value is always after the last ''/'' and cannot contain ''/'', ''->'' or '',''. The column decides the type of the value. modified is an ISO 8601 instant, :num and :len columns are numbers and lengths, everything else is text. Missing values never match. Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering'
           required: false
-          example: ['modified/2024-01-01T00:00:00Z']
-          schema:
-            type: array
-            maxItems: 100
-            items:
-              $ref: '#/components/schemas/filter'
-        - name: filterAfter
-          in: query
-          description: 'Only match Exts whose sort column is strictly greater than the value: {sort column}/{value}. Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering'
-          required: false
-          example: ['tag:len/1']
-          schema:
-            type: array
-            maxItems: 100
-            items:
-              $ref: '#/components/schemas/filter'
-        - name: filterEquals
-          in: query
-          description: 'Only match Exts whose sort column equals the value: {sort column}/{value}. Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering'
-          required: false
-          example: ['tag:len/1']
+          example: ['modified/after/2024-01-01T00:00:00Z']
           schema:
             type: array
             maxItems: 100
@@ -1489,31 +1409,11 @@ paths:
           required: false
           schema:
             type: boolean
-        - name: filterBefore
+        - name: filter
           in: query
-          description: 'Only match Plugins whose sort column is strictly less than the value: {sort column}/{value}. The value is always after the last ''/'' and cannot contain ''/'', ''->'' or '',''. The column decides the type of the value. modified is an ISO 8601 instant, :num and :len columns are numbers and lengths, everything else is text. Missing values never match. Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering'
+          description: 'Only match Plugins whose sort column is before (strictly less than), after (strictly greater than) or equals the value: {sort column}/{before|after|equals}/{value}. The value is always after the last ''/'' and cannot contain ''/'', ''->'' or '',''. The column decides the type of the value. modified is an ISO 8601 instant, :num and :len columns are numbers and lengths, everything else is text. Missing values never match. Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering'
           required: false
-          example: ['modified/2024-01-01T00:00:00Z']
-          schema:
-            type: array
-            maxItems: 100
-            items:
-              $ref: '#/components/schemas/filter'
-        - name: filterAfter
-          in: query
-          description: 'Only match Plugins whose sort column is strictly greater than the value: {sort column}/{value}. Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering'
-          required: false
-          example: ['tag:len/1']
-          schema:
-            type: array
-            maxItems: 100
-            items:
-              $ref: '#/components/schemas/filter'
-        - name: filterEquals
-          in: query
-          description: 'Only match Plugins whose sort column equals the value: {sort column}/{value}. Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering'
-          required: false
-          example: ['tag:len/1']
+          example: ['modified/after/2024-01-01T00:00:00Z']
           schema:
             type: array
             maxItems: 100
@@ -1713,31 +1613,11 @@ paths:
           required: false
           schema:
             type: boolean
-        - name: filterBefore
+        - name: filter
           in: query
-          description: 'Only match Templates whose sort column is strictly less than the value: {sort column}/{value}. The value is always after the last ''/'' and cannot contain ''/'', ''->'' or '',''. The column decides the type of the value. modified is an ISO 8601 instant, :num and :len columns are numbers and lengths, everything else is text. Missing values never match. Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering'
+          description: 'Only match Templates whose sort column is before (strictly less than), after (strictly greater than) or equals the value: {sort column}/{before|after|equals}/{value}. The value is always after the last ''/'' and cannot contain ''/'', ''->'' or '',''. The column decides the type of the value. modified is an ISO 8601 instant, :num and :len columns are numbers and lengths, everything else is text. Missing values never match. Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering'
           required: false
-          example: ['modified/2024-01-01T00:00:00Z']
-          schema:
-            type: array
-            maxItems: 100
-            items:
-              $ref: '#/components/schemas/filter'
-        - name: filterAfter
-          in: query
-          description: 'Only match Templates whose sort column is strictly greater than the value: {sort column}/{value}. Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering'
-          required: false
-          example: ['tag:len/1']
-          schema:
-            type: array
-            maxItems: 100
-            items:
-              $ref: '#/components/schemas/filter'
-        - name: filterEquals
-          in: query
-          description: 'Only match Templates whose sort column equals the value: {sort column}/{value}. Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering'
-          required: false
-          example: ['tag:len/1']
+          example: ['modified/after/2024-01-01T00:00:00Z']
           schema:
             type: array
             maxItems: 100
@@ -1935,31 +1815,11 @@ paths:
           required: false
           schema:
             type: boolean
-        - name: filterBefore
+        - name: filter
           in: query
-          description: 'Only match Users whose sort column is strictly less than the value: {sort column}/{value}. The value is always after the last ''/'' and cannot contain ''/'', ''->'' or '',''. The column decides the type of the value. modified is an ISO 8601 instant, :num and :len columns are numbers and lengths, everything else is text. Filtering on external is MOD only. Missing values never match. Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering'
+          description: 'Only match Users whose sort column is before (strictly less than), after (strictly greater than) or equals the value: {sort column}/{before|after|equals}/{value}. The value is always after the last ''/'' and cannot contain ''/'', ''->'' or '',''. The column decides the type of the value. modified is an ISO 8601 instant, :num and :len columns are numbers and lengths, everything else is text. Filtering on external is MOD only. Missing values never match. Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering'
           required: false
-          example: ['modified/2024-01-01T00:00:00Z']
-          schema:
-            type: array
-            maxItems: 100
-            items:
-              $ref: '#/components/schemas/filter'
-        - name: filterAfter
-          in: query
-          description: 'Only match Users whose sort column is strictly greater than the value: {sort column}/{value}. Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering'
-          required: false
-          example: ['tag:len/1']
-          schema:
-            type: array
-            maxItems: 100
-            items:
-              $ref: '#/components/schemas/filter'
-        - name: filterEquals
-          in: query
-          description: 'Only match Users whose sort column equals the value: {sort column}/{value}. Can be repeated, all filters must match. See https://github.com/cjmalloy/jasper#filtering'
-          required: false
-          example: ['tag:len/1']
+          example: ['modified/after/2024-01-01T00:00:00Z']
           schema:
             type: array
             maxItems: 100
@@ -3163,9 +3023,9 @@ components:
       maxLength: 129
     filter:
       type: string
-      pattern: '^(?:modified|published|created|origin:len|tag:len|(?:tags|sources|alternateUrls):len|metadata->(?:newResponse|newReaction)|metadata->(?:expandedTags|responses|internalResponses)(?::len)?|metadata->(?:plugins|remotePlugins)->[_+]?plugin(?:/[a-z0-9]+(?:[./][a-z0-9]+)*)?(?::num)?|plugins->plugin/user/vote:(?:top|score|decay)|plugins->[_+]?plugin(?:/[a-z0-9]+(?:[./][a-z0-9]+)*)?(?:->(?:[A-Za-z0-9_$-]+(?:\[[0-9]{1,9}\])?|\[[0-9]{1,9}\]))*(?::num|:len)?|tags->[_+]?[a-z0-9]+(?:[./][a-z0-9]+)*(?::num|:dur)?|(?:config|defaults|schema|external)(?:->(?:[A-Za-z0-9_$-]+(?:\[[0-9]{1,9}\])?|\[[0-9]{1,9}\]))+(?::num|:len)?)/(?:(?!->)[^/,])+$'
-      description: 'Filter on a sort column: {sort column}/{value}. Refs: modified, published, created, metadata->newResponse, metadata->newReaction, metadata->expandedTags, metadata->responses, metadata->internalResponses, metadata->plugins->{plugin}, metadata->remotePlugins->{plugin}, plugins->plugin/user/vote:top|score|decay, plugins->{plugin}[->{field}...][:num|:len], tags->{tag}[:num|:dur], tags:len, sources:len, alternateUrls:len and origin:len. Exts, Users, Plugins and Templates: modified, origin:len, tag:len and {field}->{path}[:num|:len] (Ext: config, User: external (MOD only), Plugin and Template: config, defaults and schema). Dates are ISO 8601 instants, response counts and :num are numbers, :dur is an ISO 8601 duration (lowercase), :len is a length, everything else is text. The value is always after the last ''/'' and cannot contain ''/'', ''->'' or '',''.'
-      example: 'plugins->plugin/test->size:num/1000'
+      pattern: '^(?:modified|published|created|origin:len|tag:len|(?:tags|sources|alternateUrls):len|metadata->(?:newResponse|newReaction)|metadata->(?:expandedTags|responses|internalResponses)(?::len)?|metadata->(?:plugins|remotePlugins)->[_+]?plugin(?:/[a-z0-9]+(?:[./][a-z0-9]+)*)?(?::num)?|plugins->plugin/user/vote:(?:top|score|decay)|plugins->[_+]?plugin(?:/[a-z0-9]+(?:[./][a-z0-9]+)*)?(?:->(?:[A-Za-z0-9_$-]+(?:\[[0-9]{1,9}\])?|\[[0-9]{1,9}\]))*(?::num|:len)?|tags->[_+]?[a-z0-9]+(?:[./][a-z0-9]+)*(?::num|:dur)?|(?:config|defaults|schema|external)(?:->(?:[A-Za-z0-9_$-]+(?:\[[0-9]{1,9}\])?|\[[0-9]{1,9}\]))+(?::num|:len)?)/(?:before|after|equals)/(?:(?!->)[^/,])+$'
+      description: 'Filter on a sort column: {sort column}/{before|after|equals}/{value}. Refs: modified, published, created, metadata->newResponse, metadata->newReaction, metadata->expandedTags, metadata->responses, metadata->internalResponses, metadata->plugins->{plugin}, metadata->remotePlugins->{plugin}, plugins->plugin/user/vote:top|score|decay, plugins->{plugin}[->{field}...][:num|:len], tags->{tag}[:num|:dur], tags:len, sources:len, alternateUrls:len and origin:len. Exts, Users, Plugins and Templates: modified, origin:len, tag:len and {field}->{path}[:num|:len] (Ext: config, User: external (MOD only), Plugin and Template: config, defaults and schema). Dates are ISO 8601 instants, response counts and :num are numbers, :dur is an ISO 8601 duration (lowercase), :len is a length, everything else is text. The value is always after the last ''/'' and cannot contain ''/'', ''->'' or '',''.'
+      example: 'plugins->plugin/test->size:num/after/1000'
       minLength: 1
       maxLength: 1024
     Page:

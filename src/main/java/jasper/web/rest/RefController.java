@@ -105,9 +105,7 @@ public class RefController {
 		@RequestParam(required = false) @Length(max = URL_LEN) @Pattern(regexp = Ref.SCHEME_REGEX) String scheme,
 		@RequestParam(required = false) @Length(max = URL_LEN) @Pattern(regexp = Ref.REGEX) String sources,
 		@RequestParam(required = false) @Length(max = URL_LEN) @Pattern(regexp = Ref.REGEX) String responses,
-		@RequestParam(required = false) @Size(max = 100) List<@NotBlank @Length(max = RefFilter.FILTER_LEN) @Pattern(regexp = RefFilter.FILTER) String> filterBefore,
-		@RequestParam(required = false) @Size(max = 100) List<@NotBlank @Length(max = RefFilter.FILTER_LEN) @Pattern(regexp = RefFilter.FILTER) String> filterAfter,
-		@RequestParam(required = false) @Size(max = 100) List<@NotBlank @Length(max = RefFilter.FILTER_LEN) @Pattern(regexp = RefFilter.FILTER) String> filterEquals,
+		@RequestParam(required = false) @Size(max = 100) List<@NotBlank @Length(max = RefFilter.FILTER_LEN) @Pattern(regexp = RefFilter.FILTER) String> filter,
 		@RequestParam(required = false) @Size(max = 100) List<@NotBlank @Length(max = TAG_LEN) @Pattern(regexp = Plugin.REGEX) String> userResponse,
 		@RequestParam(required = false) @Size(max = 100) List<@NotBlank @Length(max = TAG_LEN) @Pattern(regexp = Plugin.REGEX) String> noUserResponse,
 		@RequestParam(required = false) @Length(max = SEARCH_LEN) String search
@@ -151,9 +149,7 @@ public class RefController {
 				.responses(responses)
 				.userResponse(userResponse)
 				.noUserResponse(noUserResponse)
-				.filterBefore(filterBefore)
-				.filterAfter(filterAfter)
-				.filterEquals(filterEquals).build(),
+				.filter(filter).build(),
 			pageable));
 	}
 
@@ -170,9 +166,7 @@ public class RefController {
 		@RequestParam(required = false) @Length(max = URL_LEN) @Pattern(regexp = Ref.SCHEME_REGEX) String scheme,
 		@RequestParam(required = false) @Length(max = URL_LEN) @Pattern(regexp = Ref.REGEX) String sources,
 		@RequestParam(required = false) @Length(max = URL_LEN) @Pattern(regexp = Ref.REGEX) String responses,
-		@RequestParam(required = false) @Size(max = 100) List<@NotBlank @Length(max = RefFilter.FILTER_LEN) @Pattern(regexp = RefFilter.FILTER) String> filterBefore,
-		@RequestParam(required = false) @Size(max = 100) List<@NotBlank @Length(max = RefFilter.FILTER_LEN) @Pattern(regexp = RefFilter.FILTER) String> filterAfter,
-		@RequestParam(required = false) @Size(max = 100) List<@NotBlank @Length(max = RefFilter.FILTER_LEN) @Pattern(regexp = RefFilter.FILTER) String> filterEquals,
+		@RequestParam(required = false) @Size(max = 100) List<@NotBlank @Length(max = RefFilter.FILTER_LEN) @Pattern(regexp = RefFilter.FILTER) String> filter,
 		@RequestParam(required = false) @Size(max = 100) List<@NotBlank @Length(max = TAG_LEN) @Pattern(regexp = Plugin.REGEX) String> userResponse,
 		@RequestParam(required = false) @Size(max = 100) List<@NotBlank @Length(max = TAG_LEN) @Pattern(regexp = Plugin.REGEX) String> noUserResponse,
 		@RequestParam(required = false) @Length(max = SEARCH_LEN) String search
@@ -189,9 +183,7 @@ public class RefController {
 				.responses(responses)
 				.userResponse(userResponse)
 				.noUserResponse(noUserResponse)
-				.filterBefore(filterBefore)
-				.filterAfter(filterAfter)
-				.filterEquals(filterEquals).build());
+				.filter(filter).build());
 	}
 
 	@ApiResponses({
