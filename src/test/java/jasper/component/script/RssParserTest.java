@@ -400,4 +400,89 @@ public class RssParserTest {
 		assertThat(refs).hasSize(2);
 		assertThat(refs).noneMatch(r -> r.hasPlugin("plugin/embed"));
 	}
+
+	static final String RELATIVE_FEED = """
+		<?xml version="1.0" encoding="UTF-8"?>
+		<rss version="2.0">
+		  <channel>
+		    <title>Relative</title>
+		    <link>https://example.com</link>
+		    <item><title>Sibling</title><link>post/1</link></item>
+		    <item><title>Root</title><link>/post/2</link></item>
+		    <item><title>Parent</title><link>../up?q=1#frag</link></item>
+		    <item><title>Protocol relative</title><link>//cdn.example.com/x</link></item>
+		    <item><title>Absolute</title><link>https://other.com/y</link></item>
+		  </channel>
+		</rss>
+		""";
+
+	List<Ref> scrapeRelative(String feedUrl, boolean stripHash) throws Exception {
+		setUpValidHttpResponse();
+		when(httpEntity.getContent()).thenAnswer(inv -> new ByteArrayInputStream(RELATIVE_FEED.getBytes()));
+		var feed = feedRef("+user/alice");
+		feed.setUrl(feedUrl);
+		var config = new Feed();
+		config.setStripHash(stripHash);
+		ObjectNode plugins = om.createObjectNode();
+		plugins.set("plugin/script/feed", om.convertValue(config, ObjectNode.class));
+		feed.setPlugins(plugins);
+		var captor = ArgumentCaptor.forClass(Ref.class);
+
+		rssParser.runScript(feed, "plugin/script/feed");
+
+		verify(mapper, atLeast(0)).domainToDto(captor.capture());
+		return captor.getAllValues();
+	}
+
+	@Test
+	void testRelativeLinks_ResolvedAgainstFeedUrl() throws Exception {
+		var refs = scrapeRelative("https://example.com/blog/feed.xml", false);
+
+		assertThat(refs).extracting(Ref::getUrl).containsExactlyInAnyOrder(
+			"https://example.com/blog/post/1",
+			"https://example.com/post/2",
+			"https://example.com/up?q=1#frag",
+			"https://cdn.example.com/x",
+			"https://other.com/y");
+	}
+
+	@Test
+	void testRelativeLinks_StripHash() throws Exception {
+		var refs = scrapeRelative("https://example.com/blog/feed.xml", true);
+
+		assertThat(refs).extracting(Ref::getUrl).contains("https://example.com/up?q=1");
+	}
+
+	@Test
+	void testRelativeLinks_FeedUrlWithoutPath() throws Exception {
+		var refs = scrapeRelative("https://example.com", false);
+
+		assertThat(refs).extracting(Ref::getUrl).contains(
+			"https://example.com/post/1",
+			"https://example.com/post/2");
+	}
+
+	@Test
+	void testRelativeLinks_EmptyAfterStripHashResolvesToFeedUrl() throws Exception {
+		setUpValidHttpResponse();
+		when(httpEntity.getContent()).thenAnswer(inv -> new ByteArrayInputStream("""
+			<?xml version="1.0" encoding="UTF-8"?>
+			<rss version="2.0"><channel><title>T</title><link>https://example.com</link>
+			  <item><title>Anchor</title><link>#section</link></item>
+			</channel></rss>
+			""".getBytes()));
+		var feed = feedRef("+user/alice");
+		feed.setUrl("https://example.com/blog/feed.xml");
+		var config = new Feed();
+		config.setStripHash(true);
+		ObjectNode plugins = om.createObjectNode();
+		plugins.set("plugin/script/feed", om.convertValue(config, ObjectNode.class));
+		feed.setPlugins(plugins);
+		var captor = ArgumentCaptor.forClass(Ref.class);
+
+		rssParser.runScript(feed, "plugin/script/feed");
+
+		verify(mapper, atLeast(0)).domainToDto(captor.capture());
+		assertThat(captor.getAllValues()).extracting(Ref::getUrl).containsExactly("https://example.com/blog/feed.xml");
+	}
 }
