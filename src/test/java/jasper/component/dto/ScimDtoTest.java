@@ -109,4 +109,48 @@ class ScimDtoTest {
 		assertThat(response.getStartIndex()).isNull();
 		assertThat(response.getItemsPerPage()).isNull();
 	}
+
+	@Test
+	void listResponseAcceptsMixedCaseKeys() throws Exception {
+		var response = objectMapper.readValue("""
+			{
+			  "SCHEMAS": ["urn:ietf:params:scim:api:messages:2.0:ListResponse"],
+			  "TotalResults": 3,
+			  "startindex": 2,
+			  "ItemsPerPage": 1,
+			  "resources": [{"id": "a"}]
+			}
+			""", new TypeReference<ScimListResponse<Map<String, Object>>>() {});
+
+		assertThat(response.getSchemas()).containsExactly("urn:ietf:params:scim:api:messages:2.0:ListResponse");
+		assertThat(response.getTotalResults()).isEqualTo(3);
+		assertThat(response.getStartIndex()).isEqualTo(2);
+		assertThat(response.getItemsPerPage()).isEqualTo(1);
+		assertThat(response.getResources()).containsExactly(Map.of("id", "a"));
+	}
+
+	@Test
+	void listResponseIgnoresUnknownKeysEvenWhenMapperFails() throws Exception {
+		var response = objectMapper.readValue("""
+			{"totalResults": 1, "unknown": {"a": 1}, "Resources": [], "UNKNOWN": []}
+			""", new TypeReference<ScimListResponse<Map<String, Object>>>() {});
+
+		assertThat(response.getTotalResults()).isEqualTo(1);
+		assertThat(response.getResources()).isEmpty();
+		assertThat(response.getSchemas()).isNull();
+	}
+
+	@Test
+	void emailIsCaseSensitiveAndIgnoresUnknownKeys() throws Exception {
+		// ScimEmail has no ACCEPT_CASE_INSENSITIVE_PROPERTIES: mixed-case keys are dropped as unknown
+		var email = objectMapper.readValue("""
+			{"Value": "x@jasper.local", "TYPE": "work", "primary": true, "unknown": 1}
+			""", ScimEmail.class);
+
+		assertThat(email.getValue()).isNull();
+		assertThat(email.getType()).isNull();
+		assertThat(email.getDisplay()).isNull();
+		assertThat(email.getPrimary()).isTrue();
+		assertThat(objectMapper.writeValueAsString(email)).isEqualTo("{\"primary\":true}");
+	}
 }
