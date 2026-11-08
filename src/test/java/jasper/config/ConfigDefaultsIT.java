@@ -47,6 +47,8 @@ public class ConfigDefaultsIT {
 
 	@BeforeEach
 	void init() {
+		// Other tests delete all templates, recreate _config/server as on startup
+		configCache.init();
 		originalServerConfig = templateRepository.findByTemplateAndOrigin("_config/server", "")
 			.map(Template::getConfig)
 			.orElse(null);

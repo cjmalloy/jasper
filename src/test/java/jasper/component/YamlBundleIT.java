@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import jasper.IntegrationTest;
 import jasper.component.dto.Bundle;
+import jasper.component.dto.ComponentDtoMapper;
 import jasper.domain.Ref;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -30,6 +31,9 @@ public class YamlBundleIT {
 	@Autowired
 	@Qualifier("yamlMapper")
 	ObjectMapper yamlMapper;
+
+	@Autowired
+	ComponentDtoMapper dtoMapper;
 
 	static final String JSON = """
 		{
@@ -189,7 +193,7 @@ public class YamlBundleIT {
 
 	@Test
 	void yamlRoundTripOfScriptInput() throws Exception {
-		// ScriptRunner writes the script input with the same mapper used to read the output
+		// ScriptRunner writes mapper.domainToDto(ref) with the same mapper used to read the output
 		var ref = new Ref();
 		ref.setUrl("https://example.com/1");
 		ref.setTags(new ArrayList<>(List.of("public")));
@@ -197,22 +201,26 @@ public class YamlBundleIT {
 		ref.setModified(MODIFIED);
 		ref.setPublished(PUBLISHED);
 		ref.setCreated(PUBLISHED);
+		var dto = dtoMapper.domainToDto(ref);
 
-		var yamlText = yamlMapper.writeValueAsString(ref);
-		var jsonText = objectMapper.writeValueAsString(ref);
+		var yamlText = yamlMapper.writeValueAsString(dto);
+		var jsonText = objectMapper.writeValueAsString(dto);
 		// Instants are written as ISO-8601 strings, not timestamps
 		assertThat(yamlText).contains("2024-01-02T03:04:05.123456Z");
 		assertThat(jsonText).contains("\"modified\":\"2024-01-02T03:04:05.123456Z\"");
 		assertThat(jsonText).contains("\"published\":\"2024-01-02T03:04:05Z\"");
-		// Nulls are written
-		assertThat(jsonText).contains("\"title\":null");
+		// The DTO omits null titles and empty sources
+		assertThat(objectMapper.readTree(jsonText).has("title")).isFalse();
+		assertThat(objectMapper.readTree(jsonText).has("sources")).isFalse();
+		assertThat(yamlMapper.readTree(yamlText).has("title")).isFalse();
+		assertThat(yamlMapper.readTree(yamlText).has("sources")).isFalse();
 
 		var fromYaml = yamlMapper.readValue(yamlText, Ref.class);
 		var fromJson = objectMapper.readValue(jsonText, Ref.class);
 		for (var r : List.of(fromYaml, fromJson)) {
 			assertThat(r.getUrl()).isEqualTo("https://example.com/1");
 			assertThat(r.getTags()).containsExactly("public");
-			assertThat(r.getSources()).isNotNull().isEmpty();
+			assertThat(r.getSources()).isNull();
 			assertThat(r.getAlternateUrls()).isNull();
 			assertThat(r.getTitle()).isNull();
 			assertThat(r.getModified()).isEqualTo(MODIFIED);

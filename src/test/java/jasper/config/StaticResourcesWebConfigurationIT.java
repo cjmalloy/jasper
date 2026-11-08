@@ -11,9 +11,13 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
 
+import java.util.LinkedHashMap;
+
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.web.servlet.HandlerMapping.BEST_MATCHING_PATTERN_ATTRIBUTE;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.request;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
@@ -59,18 +63,37 @@ class StaticResourcesWebConfigurationIT {
 	}
 
 	@Test
+	void testServesRootResourceFromPattern() throws Exception {
+		mvcOnly
+			.perform(get("/static-resource-test.js"))
+			.andExpect(status().isOk())
+			.andExpect(request().attribute(BEST_MATCHING_PATTERN_ATTRIBUTE, "/*.js"));
+	}
+
+	@Test
 	void testMissingRootResourceNotFound() throws Exception {
 		mvcOnly
 			.perform(get("/missing.js"))
-			.andExpect(status().isNotFound());
+			.andExpect(status().isNotFound())
+			.andExpect(request().attribute(BEST_MATCHING_PATTERN_ATTRIBUTE, "/*.js"));
 	}
 
 	@Test
 	void testMissingResourcesNotFound() throws Exception {
-		for (var path : new String[]{ "/missing.css", "/missing.svg", "/missing.png", "/favicon.ico", "/i18n/missing.json", "/content/missing/file.txt" }) {
+		// The 404 must come from the intended mapping, not an unmapped request or Boot's /** fallback
+		var expected = new LinkedHashMap<String, String>();
+		expected.put("/missing.css", "/*.css");
+		expected.put("/missing.svg", "/*.svg");
+		expected.put("/missing.png", "/*.png");
+		// Registered as "*.ico", Spring prefixes the leading slash
+		expected.put("/favicon.ico", "/*.ico");
+		expected.put("/i18n/missing.json", "/i18n/*");
+		expected.put("/content/missing/file.txt", "/content/**");
+		for (var e : expected.entrySet()) {
 			mvcOnly
-				.perform(get(path))
-				.andExpect(status().isNotFound());
+				.perform(get(e.getKey()))
+				.andExpect(status().isNotFound())
+				.andExpect(request().attribute(BEST_MATCHING_PATTERN_ATTRIBUTE, e.getValue()));
 		}
 	}
 
