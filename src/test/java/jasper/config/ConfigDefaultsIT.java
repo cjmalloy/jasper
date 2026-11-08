@@ -29,7 +29,7 @@ public class ConfigDefaultsIT {
 	static final String TEST_BASE64_SECRET = "MjY0ZWY2ZTZhYmJhMTkyMmE5MTAxMTg3Zjc2ZDlmZWUwYjk0MDgzODA0MDJiOTgyNTk4MmNjYmQ4Yjg3MmVhYjk0MmE0OGFmNzE2YTQ5ZjliMTEyN2NlMWQ4MjA5OTczYjU2NzAxYTc4YThkMzYxNzdmOTk5MTIxODZhMTkwMDM=";
 
 	static final String SERVER_DEFAULT_JSON = "{\"emailHost\":\"jasper.local\",\"maxSources\":1000,\"modSeals\":[\"seal\",\"+seal\",\"_seal\",\"_moderated\"],\"editorSeals\":[\"plugin/qc\"],\"webOrigins\":[\"\"],\"maxReplEntityBatch\":500,\"sshOrigins\":[\"\"],\"maxPushEntityBatch\":5000,\"maxPullEntityBatch\":5000,\"scriptSelectors\":[\"\"],\"hostBlacklist\":[\"*.local\"],\"maxConcurrentScripts\":100000,\"maxConcurrentReplication\":3,\"maxRequests\":500,\"maxRequestsPeriod\":\"PT0.0000005S\",\"maxConcurrentRequests\":500,\"maxConcurrentFetch\":10,\"storage\":\"local\",\"storageBucket\":\"\",\"storageRoutes\":[]}";
-	static final String SECURITY_DEFAULT_JSON = "{\"mode\":\"\",\"clientId\":\"\",\"base64Secret\":\"\",\"secret\":\"\",\"jwksUri\":\"\",\"tokenEndpoint\":\"\",\"scimEndpoint\":\"\",\"usernameClaim\":\"sub\",\"externalId\":false,\"emailDomainInUsername\":false,\"rootEmailDomain\":\"\",\"verifiedEmailClaim\":\"verified_email\",\"authoritiesClaim\":\"auth\",\"readAccessClaim\":\"readAccess\",\"writeAccessClaim\":\"writeAccess\",\"tagReadAccessClaim\":\"tagReadAccess\",\"tagWriteAccessClaim\":\"tagWriteAccess\",\"minRole\":\"ROLE_ANONYMOUS\",\"minWriteRole\":\"ROLE_VIEWER\",\"minFetchRole\":\"ROLE_USER\",\"minConfigRole\":\"ROLE_ADMIN\",\"minReadBackupsRole\":\"ROLE_ADMIN\",\"defaultRole\":\"ROLE_ANONYMOUS\",\"defaultUser\":\"\",\"maxRequests\":50,\"maxRequestsPeriod\":\"PT0.0000005S\",\"maxConcurrentRequests\":0,\"maxConcurrentScripts\":5,\"scriptLimits\":{},\"secretBytes\":\"\"}";
+	static final String SECURITY_DEFAULT_JSON = "{\"mode\":\"\",\"clientId\":\"\",\"base64Secret\":\"\",\"secret\":\"\",\"jwksUri\":\"\",\"tokenEndpoint\":\"\",\"scimEndpoint\":\"\",\"usernameClaim\":\"sub\",\"externalId\":false,\"emailDomainInUsername\":false,\"rootEmailDomain\":\"\",\"verifiedEmailClaim\":\"verified_email\",\"authoritiesClaim\":\"auth\",\"readAccessClaim\":\"readAccess\",\"writeAccessClaim\":\"writeAccess\",\"tagReadAccessClaim\":\"tagReadAccess\",\"tagWriteAccessClaim\":\"tagWriteAccess\",\"minRole\":\"ROLE_ANONYMOUS\",\"minWriteRole\":\"ROLE_VIEWER\",\"minFetchRole\":\"ROLE_USER\",\"minConfigRole\":\"ROLE_ADMIN\",\"minReadBackupsRole\":\"ROLE_ADMIN\",\"defaultRole\":\"ROLE_ANONYMOUS\",\"defaultUser\":\"\",\"maxRequests\":50,\"maxRequestsPeriod\":\"PT0.0000005S\",\"maxConcurrentRequests\":0,\"maxConcurrentScripts\":5,\"scriptLimits\":{}}";
 
 	@Autowired
 	ObjectMapper objectMapper;
@@ -203,12 +203,12 @@ public class ConfigDefaultsIT {
 		var c = objectMapper.convertValue(objectMapper.readTree("""
 			{"maxSources": null, "modSeals": null, "maxRequestsPeriod": null, "emailHost": null}
 			"""), ServerConfig.class);
-		// Current behaviour: null on an int gives 0 (not the 1000 default)
-		assertThat(c.getMaxSources()).isEqualTo(0);
-		// null on a List / object field replaces the default with null
+		// null on a scalar (int, String, Duration) keeps the default
+		assertThat(c.getMaxSources()).isEqualTo(1000);
+		assertThat(c.getMaxRequestsPeriod()).isEqualTo(Duration.ofNanos(500));
+		assertThat(c.getEmailHost()).isEqualTo("jasper.local");
+		// null on a List replaces the default with null (e.g. webOrigins: null disables web access)
 		assertThat(c.getModSeals()).isNull();
-		assertThat(c.getMaxRequestsPeriod()).isNull();
-		assertThat(c.getEmailHost()).isNull();
 		assertThat(c.getEditorSeals()).containsExactly("plugin/qc");
 		assertThat(c.getMaxReplEntityBatch()).isEqualTo(500);
 	}
@@ -252,7 +252,7 @@ public class ConfigDefaultsIT {
 		var c = configCache.root();
 		assertThat(c.getMaxSources()).isEqualTo(7);
 		assertThat(c.getScriptWhitelist()).containsExactly("abc");
-		assertThat(c.getMaxConcurrentFetch()).isEqualTo(0);
+		assertThat(c.getMaxConcurrentFetch()).isEqualTo(10);
 		assertThat(c.getHostBlacklist()).isNull();
 		assertThat(c.getEmailHost()).isEqualTo("jasper.local");
 		assertThat(c.getModSeals()).containsExactly("seal", "+seal", "_seal", "_moderated");
@@ -270,10 +270,10 @@ public class ConfigDefaultsIT {
 
 	@Test
 	void securityDefaultSerialization() throws Exception {
-		// Suspected bug: getSecretBytes() is not @JsonIgnore, so the decoded secret is serialized as "secretBytes"
 		assertThat(objectMapper.writeValueAsString(new SecurityConfig())).isEqualTo(SECURITY_DEFAULT_JSON);
+		// getSecretBytes() is @JsonIgnore, the decoded secret is not serialized
 		var withSecret = new SecurityConfig().withSecret("abc");
-		assertThat(objectMapper.valueToTree(withSecret).get("secretBytes").asText()).isEqualTo("YWJj");
+		assertThat(objectMapper.valueToTree(withSecret).has("secretBytes")).isFalse();
 	}
 
 	@Test
@@ -300,12 +300,13 @@ public class ConfigDefaultsIT {
 		var c = objectMapper.convertValue(objectMapper.readTree("""
 			{"maxRequests": null, "scriptLimits": null, "defaultReadAccess": null, "usernameClaim": null, "externalId": null}
 			"""), SecurityConfig.class);
-		// Current behaviour: null on an int gives 0 (not the 50 default)
-		assertThat(c.getMaxRequests()).isEqualTo(0);
+		// null on a scalar keeps the default
+		assertThat(c.getMaxRequests()).isEqualTo(50);
+		assertThat(c.getUsernameClaim()).isEqualTo("sub");
+		assertThat(c.isExternalId()).isFalse();
+		// null on a Map / List replaces the default with null
 		assertThat(c.getScriptLimits()).isNull();
 		assertThat(c.getDefaultReadAccess()).isNull();
-		assertThat(c.getUsernameClaim()).isNull();
-		assertThat(c.isExternalId()).isFalse();
 		assertThat(c.getMaxConcurrentScripts()).isEqualTo(5);
 		// null scriptLimits falls back to maxConcurrentScripts
 		assertThat(c.scriptLimit("plugin/script")).isEqualTo(5);
@@ -330,7 +331,7 @@ public class ConfigDefaultsIT {
 		// Empty list stays empty, absent list stays null
 		assertThat(c.getDefaultTagReadAccess()).isNotNull().isEmpty();
 		assertThat(c.getDefaultTagWriteAccess()).isNull();
-		assertThat(c.getMaxRequests()).isEqualTo(0);
+		assertThat(c.getMaxRequests()).isEqualTo(50);
 		assertThat(c.getMode()).isEqualTo("jwt");
 		assertThat(c.getMinRole()).isEqualTo("ROLE_ANONYMOUS");
 		assertThat(c.getMaxConcurrentScripts()).isEqualTo(5);

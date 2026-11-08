@@ -27,9 +27,7 @@ import java.util.stream.IntStream;
 
 import static java.util.stream.Collectors.joining;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.hamcrest.Matchers.endsWith;
 import static org.hamcrest.Matchers.hasSize;
-import static org.hamcrest.Matchers.startsWith;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
@@ -473,11 +471,10 @@ class SchemaValidationIT {
 				.andExpect(jsonPath("$.type").value(ErrorConstants.CONSTRAINT_VIOLATION_TYPE.toString()))
 				.andExpect(jsonPath("$.title").value("Method argument not valid"))
 				.andExpect(jsonPath("$.message").value(ErrorConstants.ERR_VALIDATION))
-				// The message template is not interpolated
 				.andExpect(jsonPath("$.fieldErrors", hasSize(1)))
 				.andExpect(jsonPath("$.fieldErrors[0].objectName").value("plugin"))
 				.andExpect(jsonPath("$.fieldErrors[0].field").value("schema"))
-				.andExpect(jsonPath("$.fieldErrors[0].message").value("{schema.invalid}"));
+				.andExpect(jsonPath("$.fieldErrors[0].message").value("invalid JTD schema"));
 		}
 		assertThat(pluginRepository.count()).isZero();
 	}
@@ -492,72 +489,91 @@ class SchemaValidationIT {
 			.andExpect(jsonPath("$.fieldErrors", hasSize(1)))
 			.andExpect(jsonPath("$.fieldErrors[0].objectName").value("template"))
 			.andExpect(jsonPath("$.fieldErrors[0].field").value("schema"))
-			.andExpect(jsonPath("$.fieldErrors[0].message").value("{schema.invalid}"));
+			.andExpect(jsonPath("$.fieldErrors[0].message").value("invalid JTD schema"));
 		assertThat(templateRepository.count()).isZero();
 	}
 
 	/**
-	 * Schemas that can't be bound to a JTD {@code Schema} fail inside the constraint validator.
-	 * Suspected bug: these are 500 Internal Server Error instead of 400.
+	 * Schemas that can't be bound to a JTD {@code Schema} are rejected like schemas failing verify.
 	 */
 	@Test
-	void testUnbindableSchemaIsServerError() throws Exception {
+	void testUnbindableSchemaIsBadRequest() throws Exception {
 		for (var api : new String[]{ "plugin", "template" }) {
 			var tag = api.equals("plugin") ? "plugin/bad" : "bad";
-			postJson("/api/v1/" + api, """
-				{ "tag": "%s", "schema": { "type": "notatype" } }""".formatted(tag))
-				.andExpect(status().isInternalServerError())
-				.andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON))
-				.andExpect(jsonPath("$.type").value(ErrorConstants.DEFAULT_TYPE.toString()))
-				.andExpect(jsonPath("$.title").value("Internal Server Error"))
-				.andExpect(jsonPath("$.message").value("error.http.500"))
-				.andExpect(jsonPath("$.detail").value(startsWith(
-					"Cannot deserialize value of type `com.jsontypedef.jtd.Type` from String \"notatype\"")))
-				.andExpect(jsonPath("$.detail").value(endsWith(
-					"(through reference chain: com.jsontypedef.jtd.Schema[\"type\"])")));
-			postJson("/api/v1/" + api, """
-				{ "tag": "%s", "schema": { "properties": "x" } }""".formatted(tag))
-				.andExpect(status().isInternalServerError())
-				.andExpect(jsonPath("$.detail").value(endsWith(
-					"(through reference chain: com.jsontypedef.jtd.Schema[\"properties\"])")));
-			postJson("/api/v1/" + api, """
-				{ "tag": "%s", "schema": { "foo": 1 } }""".formatted(tag))
-				.andExpect(status().isInternalServerError())
-				.andExpect(jsonPath("$.detail").value(startsWith(
-					"Unrecognized field \"foo\" (class com.jsontypedef.jtd.Schema), not marked as ignorable")));
+			for (var schema : new String[]{ """
+				{ "type": "notatype" }""", """
+				{ "properties": "x" }""", """
+				{ "foo": 1 }""" }) {
+				postJson("/api/v1/" + api, """
+					{ "tag": "%s", "schema": %s }""".formatted(tag, schema))
+					.andExpect(status().isBadRequest())
+					.andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON))
+					.andExpect(jsonPath("$.type").value(ErrorConstants.CONSTRAINT_VIOLATION_TYPE.toString()))
+					.andExpect(jsonPath("$.message").value(ErrorConstants.ERR_VALIDATION))
+					.andExpect(jsonPath("$.fieldErrors", hasSize(1)))
+					.andExpect(jsonPath("$.fieldErrors[0].objectName").value(api))
+					.andExpect(jsonPath("$.fieldErrors[0].field").value("schema"))
+					.andExpect(jsonPath("$.fieldErrors[0].message").value("invalid JTD schema"));
+			}
 		}
 		assertThat(pluginRepository.count()).isZero();
 		assertThat(templateRepository.count()).isZero();
 	}
 
-	/**
-	 * Suspected bug: PATCH skips {@code @SchemaValid}, so a malformed schema is stored
-	 * and every later Ref write with the tag fails with 500.
-	 */
 	@Test
-	void testPatchAcceptsInvalidPluginSchema() throws Exception {
+	void testPatchRejectsInvalidPluginSchema() throws Exception {
 		postJson("/api/v1/plugin", """
 			{ "tag": "plugin/sv", "schema": { "type": "string" } }""")
 			.andExpect(status().isCreated());
 		var cursor = pluginRepository.findOneByQualifiedTag("plugin/sv").orElseThrow().getModified();
 
+		for (var type : new String[]{ "application/merge-patch+json", "application/json-patch+json" }) {
+			mockMvc
+				.perform(admin(patch("/api/v1/plugin"))
+					.param("tag", "plugin/sv")
+					.param("cursor", cursor.toString())
+					.contentType(type)
+					.content(type.contains("merge") ? """
+						{ "schema": { "type": "notatype" } }""" : """
+						[{ "op": "replace", "path": "/schema", "value": { "ref": "missing" } }]"""))
+				.andExpect(status().isBadRequest())
+				.andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON))
+				.andExpect(jsonPath("$.type").value(ErrorConstants.CONSTRAINT_VIOLATION_TYPE.toString()))
+				.andExpect(jsonPath("$.message").value(ErrorConstants.ERR_VALIDATION))
+				.andExpect(jsonPath("$.fieldErrors", hasSize(1)))
+				.andExpect(jsonPath("$.fieldErrors[0].objectName").value("plugin"))
+				.andExpect(jsonPath("$.fieldErrors[0].field").value("schema"))
+				.andExpect(jsonPath("$.fieldErrors[0].message").value("invalid JTD schema"));
+		}
+
+		assertThat(pluginRepository.findOneByQualifiedTag("plugin/sv").orElseThrow().getSchema()).isEqualTo(json("""
+			{ "type": "string" }"""));
+		postRef("https://www.example.com/1", "\"hi\"")
+			.andExpect(status().isCreated());
+	}
+
+	@Test
+	void testPatchRejectsInvalidTemplateSchema() throws Exception {
+		postJson("/api/v1/template", """
+			{ "tag": "sv", "schema": { "optionalProperties": { "a": { "type": "string" } } } }""")
+			.andExpect(status().isCreated());
+		var cursor = templateRepository.findByTemplateAndOrigin("sv", "").orElseThrow().getModified();
+
 		mockMvc
-			.perform(admin(patch("/api/v1/plugin"))
-				.param("tag", "plugin/sv")
+			.perform(admin(patch("/api/v1/template"))
+				.param("tag", "sv")
 				.param("cursor", cursor.toString())
 				.contentType("application/merge-patch+json")
 				.content("""
 					{ "schema": { "type": "notatype" } }"""))
-			.andExpect(status().isOk());
-		configCache.clearPluginCache();
+			.andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.fieldErrors", hasSize(1)))
+			.andExpect(jsonPath("$.fieldErrors[0].objectName").value("template"))
+			.andExpect(jsonPath("$.fieldErrors[0].field").value("schema"))
+			.andExpect(jsonPath("$.fieldErrors[0].message").value("invalid JTD schema"));
 
-		assertThat(pluginRepository.findOneByQualifiedTag("plugin/sv").orElseThrow().getSchema()).isEqualTo(json("""
-			{ "type": "notatype" }"""));
-		postRef("https://www.example.com/1", "\"hi\"")
-			.andExpect(status().isInternalServerError())
-			.andExpect(jsonPath("$.detail").value(startsWith(
-				"Cannot deserialize value of type `com.jsontypedef.jtd.Type` from String \"notatype\"")));
-		assertThat(refRepository.count()).isZero();
+		assertThat(templateRepository.findByTemplateAndOrigin("sv", "").orElseThrow().getSchema()).isEqualTo(json("""
+			{ "optionalProperties": { "a": { "type": "string" } } }"""));
 	}
 
 	/**

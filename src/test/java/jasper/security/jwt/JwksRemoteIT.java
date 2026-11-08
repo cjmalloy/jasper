@@ -13,6 +13,7 @@ import com.nimbusds.jwt.SignedJWT;
 import com.sun.net.httpserver.HttpServer;
 import io.micrometer.core.instrument.MeterRegistry;
 import jasper.IntegrationTest;
+import jasper.component.ConfigCache;
 import jasper.domain.Template;
 import jasper.domain.User;
 import jasper.repository.TemplateRepository;
@@ -77,6 +78,9 @@ class JwksRemoteIT {
 
 	@Autowired
 	MeterRegistry meterRegistry;
+
+	@Autowired
+	ConfigCache configCache;
 
 	@BeforeAll
 	static void startServer() throws Exception {
@@ -244,5 +248,29 @@ class JwksRemoteIT {
 		jwks.remove(path);
 		assertThat(tokenProvider.validateToken(sign(key, "k1", claims().build()), "@jwks.missing")).isFalse();
 		assertThat(requests).containsExactly("GET " + path);
+	}
+
+	@Test
+	void testChangedSecurityConfigRebuildsDecoder() throws Exception {
+		var path = configure("@jwks.rotate");
+		assertThat(tokenProvider.validateToken(sign(key, "k1", claims().build()), "@jwks.rotate")).isTrue();
+		assertThat(tokenProvider.validateToken(sign(otherKey, "k1", claims().build()), "@jwks.rotate")).isFalse();
+		assertThat(requests).containsExactly("GET " + path);
+
+		// Point the origin at a new key set, as an admin editing _config/security would
+		var rotated = "/jwks.rotate/rotated.json";
+		jwks.put(rotated, new JWKSet(otherKey.toPublicJWK()).toString());
+		var template = templateRepository.findByTemplateAndOrigin("_config/security", "@jwks.rotate").orElseThrow();
+		((com.fasterxml.jackson.databind.node.ObjectNode) template.getConfig()).put("jwksUri", "http://localhost:" + server.getAddress().getPort() + rotated);
+		templateRepository.save(template);
+		configCache.clearTemplateCache("@jwks.rotate");
+
+		assertThat(tokenProvider.validateToken(sign(otherKey, "k1", claims().build()), "@jwks.rotate")).isTrue();
+		assertThat(tokenProvider.validateToken(sign(key, "k1", claims().build()), "@jwks.rotate")).isFalse();
+		assertThat(requests).containsExactly("GET " + path, "GET " + rotated);
+
+		// Unchanged settings reuse the cached decoder and key set
+		assertThat(tokenProvider.validateToken(sign(otherKey, "k1", claims().build()), "@jwks.rotate")).isTrue();
+		assertThat(requests).containsExactly("GET " + path, "GET " + rotated);
 	}
 }

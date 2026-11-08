@@ -5,6 +5,7 @@ import com.nimbusds.jose.jwk.source.ImmutableSecret;
 import com.nimbusds.jose.proc.JWSVerificationKeySelector;
 import com.nimbusds.jose.proc.SecurityContext;
 import jasper.component.ConfigCache;
+import jasper.config.Config.SecurityConfig;
 import jasper.config.Props;
 import jasper.domain.User;
 import jasper.domain.proj.Tag;
@@ -57,7 +58,13 @@ public class TokenProviderImpl extends AbstractTokenProvider implements TokenPro
 
 	private static final String[] ROOT_ROLES_ALLOWED = new String[]{ MOD, ADMIN };
 
-	Map<String, JwtDecoder> jwtDecoders = new ConcurrentHashMap<>();
+	Map<String, CachedDecoder> jwtDecoders = new ConcurrentHashMap<>();
+
+	/**
+	 * Decoder with the security settings it was built from, so a changed _config/security rebuilds it.
+	 */
+	record DecoderSettings(String mode, String secret, String base64Secret, String jwksUri) {}
+	record CachedDecoder(DecoderSettings settings, JwtDecoder decoder) {}
 
 	private final SecurityMetersService securityMetersService;
 	private final RestTemplate restTemplate;
@@ -83,28 +90,37 @@ public class TokenProviderImpl extends AbstractTokenProvider implements TokenPro
 	}
 
 	JwtDecoder getDecoder(String origin) {
-		return jwtDecoders.computeIfAbsent(origin, o -> {
-			var security = configs.security(o);
-			switch (security.getMode()) {
-				case "jwt":
-					var secret = security.getSecretBytes();
-					return noClockSkew(NimbusJwtDecoder
-						.withSecretKey(new SecretKeySpec(secret, "HmacSHA512"))
-						.macAlgorithm(MacAlgorithm.HS512)
-						.jwtProcessorCustomizer(p -> p.setJWSKeySelector(new JWSVerificationKeySelector<SecurityContext>(
-							Set.of(JWSAlgorithm.HS256, JWSAlgorithm.HS384, JWSAlgorithm.HS512),
-							new ImmutableSecret<>(secret))))
-						.build());
-				case "jwks":
-					return noClockSkew(NimbusJwtDecoder
-						.withJwkSetUri(security.getJwksUri())
-						.restOperations(restTemplate)
-						.jwsAlgorithms(algs -> algs.addAll(List.of(SignatureAlgorithm.RS256, SignatureAlgorithm.RS384, SignatureAlgorithm.RS512)))
-						.build());
-				default:
-					return null;
-			}
+		var security = configs.security(origin);
+		var settings = new DecoderSettings(security.getMode(), security.getSecret(), security.getBase64Secret(), security.getJwksUri());
+		var current = jwtDecoders.get(origin);
+		if (current != null && current.settings().equals(settings)) return current.decoder();
+		var cached = jwtDecoders.compute(origin, (o, existing) -> {
+			if (existing != null && existing.settings().equals(settings)) return existing;
+			return new CachedDecoder(settings, buildDecoder(security));
 		});
+		return cached.decoder();
+	}
+
+	private JwtDecoder buildDecoder(SecurityConfig security) {
+		switch (security.getMode()) {
+			case "jwt":
+				var secret = security.getSecretBytes();
+				return noClockSkew(NimbusJwtDecoder
+					.withSecretKey(new SecretKeySpec(secret, "HmacSHA512"))
+					.macAlgorithm(MacAlgorithm.HS512)
+					.jwtProcessorCustomizer(p -> p.setJWSKeySelector(new JWSVerificationKeySelector<SecurityContext>(
+						Set.of(JWSAlgorithm.HS256, JWSAlgorithm.HS384, JWSAlgorithm.HS512),
+						new ImmutableSecret<>(secret))))
+					.build());
+			case "jwks":
+				return noClockSkew(NimbusJwtDecoder
+					.withJwkSetUri(security.getJwksUri())
+					.restOperations(restTemplate)
+					.jwsAlgorithms(algs -> algs.addAll(List.of(SignatureAlgorithm.RS256, SignatureAlgorithm.RS384, SignatureAlgorithm.RS512)))
+					.build());
+			default:
+				return null;
+		}
 	}
 
 	private static NimbusJwtDecoder noClockSkew(NimbusJwtDecoder decoder) {
