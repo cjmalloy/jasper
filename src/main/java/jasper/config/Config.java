@@ -2,8 +2,6 @@ package jasper.config;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.annotation.JsonSetter;
-import com.fasterxml.jackson.annotation.Nulls;
 import jasper.domain.proj.HasTags;
 import jasper.repository.spec.QualifiedTag;
 import lombok.AllArgsConstructor;
@@ -47,10 +45,8 @@ public interface Config {
 	@JsonInclude(JsonInclude.Include.NON_NULL)
 	class ServerConfig implements Serializable {
 		@Builder.Default
-		@JsonSetter(nulls = Nulls.SKIP)
 		private String emailHost = "jasper.local";
 		@Builder.Default
-		@JsonSetter(nulls = Nulls.SKIP)
 		private int maxSources = 1000;
 		@Builder.Default
 		private List<String> modSeals = List.of("seal", "+seal", "_seal", "_moderated");
@@ -77,7 +73,6 @@ public interface Config {
 			return webOriginsParsed().stream().anyMatch(s -> s.captures(target));
 		}
 		@Builder.Default
-		@JsonSetter(nulls = Nulls.SKIP)
 		private int maxReplEntityBatch = 500;
 		/**
 		 * Whitelist origins to be allowed to open SSH tunnels.
@@ -100,10 +95,8 @@ public interface Config {
 			return sshOriginsParsed().stream().anyMatch(s -> s.captures(target) && nesting(origin) == nesting(s.origin));
 		}
 		@Builder.Default
-		@JsonSetter(nulls = Nulls.SKIP)
 		private int maxPushEntityBatch = 5000;
 		@Builder.Default
-		@JsonSetter(nulls = Nulls.SKIP)
 		private int maxPullEntityBatch = 5000;
 		/**
 		 * Whitelist selectors to run scripts on.
@@ -164,50 +157,42 @@ public interface Config {
 		 * Maximum concurrent script executions. Default 100_000.
 		 */
 		@Builder.Default
-		@JsonSetter(nulls = Nulls.SKIP)
 		private int maxConcurrentScripts = 100_000;
 		/**
 		 * Maximum concurrent replication push/pull operations. Default 3.
 		 */
 		@Builder.Default
-		@JsonSetter(nulls = Nulls.SKIP)
 		private int maxConcurrentReplication = 3;
 		/**
 		 * Global maximum HTTP requests (across all origins) every maxRequestsPeriod. Default 500.
 		 */
 		@Builder.Default
-		@JsonSetter(nulls = Nulls.SKIP)
 		private int maxRequests = 500;
 		/**
 		 * Refresh period for the global maxRequests rate limit. Default 500 nanoseconds (effectively unlimited).
 		 */
 		@Builder.Default
-		@JsonSetter(nulls = Nulls.SKIP)
 		private Duration maxRequestsPeriod = ofNanos(500);
 		/**
 		 * Global maximum concurrent HTTP requests (across all origins). Default 500.
 		 */
 		@Builder.Default
-		@JsonSetter(nulls = Nulls.SKIP)
 		private int maxConcurrentRequests = 500;
 		/**
 		 * Maximum concurrent fetch operations (scraping). Default 10.
 		 */
 		@Builder.Default
-		@JsonSetter(nulls = Nulls.SKIP)
 		private int maxConcurrentFetch = 10;
 		/**
 		 * Storage provider for any tenant and namespace not matched by a storage route: "local", "gcs" or "s3".
 		 */
 		@Builder.Default
-		@JsonSetter(nulls = Nulls.SKIP)
 		private String storage = "local";
 		/**
 		 * Bucket for any tenant and namespace not matched by a route. Never served by a CDN.
 		 * Required when the storage provider is "gcs" or "s3".
 		 */
 		@Builder.Default
-		@JsonSetter(nulls = Nulls.SKIP)
 		private String storageBucket = "";
 		/**
 		 * Storage routes checked in order. The first route matching both the tenant and namespace is used.
@@ -297,123 +282,99 @@ public interface Config {
 		/**
 		 * Authentication mode (jwt or jwks).
 		 */
-		@JsonSetter(nulls = Nulls.SKIP)
 		private String mode = "";
 		/**
 		 * Client ID for OAuth2/JWT authentication.
 		 */
-		@JsonSetter(nulls = Nulls.SKIP)
 		private String clientId = "";
 		/**
 		 * Base64 encoded secret for JWT validation.
 		 */
-		@JsonSetter(nulls = Nulls.SKIP)
 		private String base64Secret = "";
 		/**
 		 * Plain text secret for JWT validation (alternative to base64Secret).
 		 */
-		@JsonSetter(nulls = Nulls.SKIP)
 		private String secret = "";
 		/**
 		 * URI to JWKS endpoint for token validation.
 		 */
-		@JsonSetter(nulls = Nulls.SKIP)
 		private String jwksUri = "";
 		/**
 		 * OAuth2 token endpoint.
 		 */
-		@JsonSetter(nulls = Nulls.SKIP)
 		private String tokenEndpoint = "";
 		/**
 		 * SCIM endpoint for user management.
 		 */
-		@JsonSetter(nulls = Nulls.SKIP)
 		private String scimEndpoint = "";
 		/**
 		 * JWT claim to use as the username.
 		 */
-		@JsonSetter(nulls = Nulls.SKIP)
 		private String usernameClaim = "sub";
 		/**
 		 * Enable external ID matching for users.
 		 */
-		@JsonSetter(nulls = Nulls.SKIP)
 		private boolean externalId = false;
 		/**
 		 * Include email domain in username.
 		 */
-		@JsonSetter(nulls = Nulls.SKIP)
 		private boolean emailDomainInUsername = false;
 		/**
 		 * Root email domain for the server.
 		 */
-		@JsonSetter(nulls = Nulls.SKIP)
 		private String rootEmailDomain = "";
 		/**
 		 * JWT claim for verified email status.
 		 */
-		@JsonSetter(nulls = Nulls.SKIP)
 		private String verifiedEmailClaim = "verified_email";
 		/**
 		 * JWT claim for user authorities/roles.
 		 */
-		@JsonSetter(nulls = Nulls.SKIP)
 		private String authoritiesClaim = "auth";
 		/**
 		 * JWT claim for read access tags.
 		 */
-		@JsonSetter(nulls = Nulls.SKIP)
 		private String readAccessClaim = "readAccess";
 		/**
 		 * JWT claim for write access tags.
 		 */
-		@JsonSetter(nulls = Nulls.SKIP)
 		private String writeAccessClaim = "writeAccess";
 		/**
 		 * JWT claim for tag read access.
 		 */
-		@JsonSetter(nulls = Nulls.SKIP)
 		private String tagReadAccessClaim = "tagReadAccess";
 		/**
 		 * JWT claim for tag write access.
 		 */
-		@JsonSetter(nulls = Nulls.SKIP)
 		private String tagWriteAccessClaim = "tagWriteAccess";
 		/**
 		 * Minimum role for basic access.
 		 */
-		@JsonSetter(nulls = Nulls.SKIP)
 		private String minRole = "ROLE_ANONYMOUS";
 		/**
 		 * Minimum role for writing.
 		 */
-		@JsonSetter(nulls = Nulls.SKIP)
 		private String minWriteRole = "ROLE_VIEWER";
 		/**
 		 * Minimum role for fetching external resources.
 		 */
-		@JsonSetter(nulls = Nulls.SKIP)
 		private String minFetchRole = "ROLE_USER";
 		/**
 		 * Minimum role for admin config.
 		 */
-		@JsonSetter(nulls = Nulls.SKIP)
 		private String minConfigRole = "ROLE_ADMIN";
 		/**
 		 * Minimum role for downloading backups.
 		 * Backups may contain private data or private SSH keys, so they are extremely sensitive.
 		 */
-		@JsonSetter(nulls = Nulls.SKIP)
 		private String minReadBackupsRole = "ROLE_ADMIN";
 		/**
 		 * Default role given to every user.
 		 */
-		@JsonSetter(nulls = Nulls.SKIP)
 		private String defaultRole = "ROLE_ANONYMOUS";
 		/**
 		 * Default user tag given to every logged out user.
 		 */
-		@JsonSetter(nulls = Nulls.SKIP)
 		private String defaultUser = "";
 		/**
 		 * Default read access tags for all users.
@@ -434,23 +395,19 @@ public interface Config {
 		/**
 		 * Maximum HTTP requests per origin every maxRequestsPeriod. Default 50.
 		 */
-		@JsonSetter(nulls = Nulls.SKIP)
 		private int maxRequests = 50;
 		/**
 		 * Refresh period for the per origin maxRequests rate limit. Default 500 nanoseconds (effectively unlimited).
 		 */
-		@JsonSetter(nulls = Nulls.SKIP)
 		private Duration maxRequestsPeriod = ofNanos(500);
 		/**
 		 * Maximum concurrent HTTP requests per origin. Requests over the limit get 429.
 		 * Default 0 (unlimited, only the server maxConcurrentRequests applies).
 		 */
-		@JsonSetter(nulls = Nulls.SKIP)
 		private int maxConcurrentRequests = 0;
 		/**
 		 * Maximum concurrent script executions per origin. Default 5.
 		 */
-		@JsonSetter(nulls = Nulls.SKIP)
 		private int maxConcurrentScripts = 5;
 		/**
 		 * Per-origin script execution limits. Map of origin selector patterns (origin, or tag+origin) to max concurrent value.
