@@ -63,7 +63,7 @@ public class JWTFilter extends GenericFilterBean {
 		if (tokenProvider.validateToken(jwt, origin)) {
 			try {
 				return tokenProvider.getAuthentication(jwt, origin);
-			} catch (JwtException e) {
+			} catch (JwtException | IllegalArgumentException e) {
 				// Security settings changed after the token was validated
 				logger.debug("{} Token rejected after validation: {}", origin, e.getMessage());
 			}

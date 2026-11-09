@@ -191,4 +191,9 @@ class JWTFilterTest {
     void testJWTFilterModeClearedAfterValidation() throws Exception {
         assertAnonymousAfterSettingsChange(() -> security.setMode("other"));
     }
+
+    @Test
+    void testJWTFilterInvalidKeyAfterValidation() throws Exception {
+        assertAnonymousAfterSettingsChange(() -> security.setBase64Secret("not base64!"));
+    }
 }
