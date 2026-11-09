@@ -76,7 +76,9 @@ public class TokenProviderImpl extends AbstractTokenProvider implements TokenPro
 	}
 
 	public Authentication getAuthentication(String token, String origin) {
-		var claims = new Claims(getDecoder(origin).decode(token).getClaims());
+		var decoder = getDecoder(origin);
+		if (decoder == null) throw new BadJwtException("No client for origin " + formatOrigin(origin) + " in security settings");
+		var claims = new Claims(decoder.decode(token).getClaims());
 		var principal = getUsername(claims, origin);
 		User user;
 		try {

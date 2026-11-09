@@ -19,6 +19,7 @@ import jasper.security.AuthoritiesConstants;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.oauth2.jwt.BadJwtException;
 
 import java.util.ArrayList;
 import java.util.Base64;
@@ -28,6 +29,7 @@ import java.util.Map;
 
 import static jasper.repository.spec.QualifiedTag.qt;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -157,6 +159,57 @@ class TokenProviderImplTest {
         boolean isTokenValid = tokenProvider.validateToken("", "");
 
         assertThat(isTokenValid).isFalse();
+    }
+
+    String validToken(byte[] key) {
+        return createToken("anonymous", key, new Date(System.currentTimeMillis() + ONE_MINUTE * 1000L));
+    }
+
+    @Test
+    void testSameProviderRotatesBase64Secret() {
+        var oldToken = validToken(secret);
+        assertThat(tokenProvider.validateToken(oldToken, "")).isTrue();
+
+        var rotated = "Yfd54a45s65fds737b9aafcb3412e07ed99b267f33413274720ddbb7f6c5e64e9f14075f2d7ed041592f0b7657baf8";
+        configCache.security("").setBase64Secret(rotated);
+
+        assertThat(tokenProvider.validateToken(oldToken, "")).isFalse();
+        assertThat(tokenProvider.validateToken(validToken(Base64.getDecoder().decode(rotated)), "")).isTrue();
+    }
+
+    @Test
+    void testSameProviderRotatesSecret() {
+        var first = "first-secret-first-secret-first-secret-first-secret-first-secret!";
+        var second = "second-secret-second-secret-second-secret-second-secret-second!!";
+        var base64Token = validToken(secret);
+        assertThat(tokenProvider.validateToken(base64Token, "")).isTrue();
+
+        // secret takes precedence over base64Secret
+        configCache.security("").setSecret(first);
+        assertThat(tokenProvider.validateToken(base64Token, "")).isFalse();
+        var firstToken = validToken(first.getBytes());
+        assertThat(tokenProvider.validateToken(firstToken, "")).isTrue();
+
+        configCache.security("").setSecret(second);
+        assertThat(tokenProvider.validateToken(firstToken, "")).isFalse();
+        assertThat(tokenProvider.validateToken(validToken(second.getBytes()), "")).isTrue();
+    }
+
+    @Test
+    void testSameProviderSwitchesMode() {
+        var token = validToken(secret);
+        assertThat(tokenProvider.validateToken(token, "")).isTrue();
+
+        configCache.security("").setMode("");
+        assertThat(tokenProvider.validateToken(token, "")).isFalse();
+
+        configCache.security("").setMode("other");
+        assertThat(tokenProvider.validateToken(token, "")).isFalse();
+        assertThatThrownBy(() -> tokenProvider.getAuthentication(token, ""))
+            .isInstanceOf(BadJwtException.class);
+
+        configCache.security("").setMode("jwt");
+        assertThat(tokenProvider.validateToken(token, "")).isTrue();
     }
 
     private String createToken(String sub, byte[] key, Date expiration) {
