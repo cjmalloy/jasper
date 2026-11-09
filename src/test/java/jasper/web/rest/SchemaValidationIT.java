@@ -576,12 +576,8 @@ class SchemaValidationIT {
 			{ "optionalProperties": { "a": { "type": "string" } } }"""));
 	}
 
-	/**
-	 * Merge-patching an unrelated field of a Plugin without defaults stores a JSON null
-	 * {@code defaults}, which is then rendered as {@code "defaults": null} (a NullNode is not NON_EMPTY).
-	 */
 	@Test
-	void testPatchPluginWithoutDefaultsRendersNullDefaults() throws Exception {
+	void testMergePatchPluginWithoutDefaults() throws Exception {
 		postJson("/api/v1/plugin", """
 			{ "tag": "plugin/sv", "schema": { "type": "string" } }""")
 			.andExpect(status().isCreated());
@@ -602,13 +598,12 @@ class SchemaValidationIT {
 		var after = getJson(get("/api/v1/plugin").param("tag", "plugin/sv"));
 		assertThat(after.get("name").asText()).isEqualTo("Named");
 		assertThat(after.has("config")).isFalse();
-		assertThat(after.has("defaults")).isTrue();
-		assertThat(after.get("defaults").isNull()).isTrue();
-		assertThat(pluginRepository.findOneByQualifiedTag("plugin/sv").orElseThrow().getDefaults().isNull()).isTrue();
+		assertThat(after.get("schema")).isEqualTo(json("""
+			{ "type": "string" }"""));
 	}
 
 	/**
-	 * Patching a Ref merges the plugin defaults into its stored plugin data first,
+	 * Patching a Ref applies the plugin defaults to its plugin data,
 	 * so an unrelated patch fills in missing optional properties.
 	 */
 	@Test

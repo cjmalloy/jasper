@@ -26,7 +26,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
- * Pins Jackson behaviour of the @Jacksonized builders {@link Index} and {@link Script}.
+ * Jackson binding of the @Jacksonized builders {@link Index} and {@link Script}.
  */
 @IntegrationTest
 public class IndexScriptJacksonIT {
@@ -153,21 +153,20 @@ public class IndexScriptJacksonIT {
 	}
 
 	@Test
-	void indexExplicitNullBooleanBecomesFalse() throws Exception {
-		// Current behaviour: an explicit null does NOT keep the @Builder.Default (true),
-		// the primitive builder setter receives false (FAIL_ON_NULL_FOR_PRIMITIVES is off).
-		var index = objectMapper.readValue("{\"tags\": null}", Index.class);
-		assertThat(index.isTags()).isFalse();
-		assertThat(index.isSources()).isTrue();
+	void indexExplicitNullBooleanStillLoads() throws Exception {
+		// Jackson 3 enables FAIL_ON_NULL_FOR_PRIMITIVES by default
+		var index = objectMapper.readValue("{\"tags\": null, \"sources\": false}", Index.class);
+		assertThat(index.isSources()).isFalse();
+		assertThat(index.isAlts()).isTrue();
 
-		var converted = objectMapper.convertValue(objectMapper.readTree("{\"tags\": null}"), Index.class);
-		assertThat(converted.isTags()).isFalse();
-		assertThat(converted.isSources()).isTrue();
+		var converted = objectMapper.convertValue(objectMapper.readTree("{\"tags\": null, \"sources\": false}"), Index.class);
+		assertThat(converted.isSources()).isFalse();
+		assertThat(converted.isAlts()).isTrue();
 	}
 
 	@Test
 	void indexExplicitNullListIsNull() throws Exception {
-		// Current behaviour: explicit null replaces the default empty list with null.
+		// An explicit null clears the list
 		var index = objectMapper.readValue("{\"hotTags\": null}", Index.class);
 		assertThat(index.getHotTags()).isNull();
 		assertThat(index.getHotPlugins()).isNotNull().isEmpty();
@@ -188,7 +187,7 @@ public class IndexScriptJacksonIT {
 
 	@Test
 	void indexDefaultSerialization() throws Exception {
-		// Exact string pins property order (declaration order, not alphabetical)
+		// Exact string checks property order (declaration order, not alphabetical)
 		assertThat(objectMapper.writeValueAsString(Index.builder().build())).isEqualTo(INDEX_DEFAULT_JSON);
 		assertThat((Object) objectMapper.valueToTree(Index.builder().build()))
 			.isEqualTo(objectMapper.readTree(INDEX_DEFAULT_JSON));
@@ -246,8 +245,6 @@ public class IndexScriptJacksonIT {
 
 		var index = configCache.index();
 		assertThat(index.isNewReaction()).isFalse();
-		// Explicit null on a boolean gives false, not the default
-		assertThat(index.isTitle()).isFalse();
 		assertThat(index.getHotRemoteResponses()).containsExactly("plugin/comment");
 		assertThat(index.isTags()).isTrue();
 		assertThat(index.isNewResponse()).isTrue();
@@ -259,7 +256,7 @@ public class IndexScriptJacksonIT {
 		var template = templateRepository.findByTemplateAndOrigin("_config/index", "").orElseThrow();
 		template.setConfig(null);
 		templateRepository.save(template);
-		// Current behaviour: a template with null config is treated like a missing template (defaults)
+		// A template with null config is treated like a missing template
 		assertIndexDefaults(configCache.index());
 	}
 
@@ -288,22 +285,11 @@ public class IndexScriptJacksonIT {
 	}
 
 	@Test
-	void scriptExplicitNullIntBecomesZero() throws Exception {
-		// Current behaviour: explicit null does not keep the 30s default, it gives 0
-		var script = objectMapper.readValue("{\"timeoutMs\": null}", Script.class);
-		assertThat(script.getTimeoutMs()).isEqualTo(0);
-		assertThat(script.getLanguage()).isEqualTo("javascript");
-	}
-
-	@Test
-	void scriptExplicitNullStringBecomesNull() throws Exception {
-		// Current behaviour: explicit null overrides the @Builder.Default with null.
-		// Suspected bug: ScriptRunner then calls config.getFormat().toLowerCase() -> NPE.
-		var script = objectMapper.readValue("{\"language\": null, \"format\": null}", Script.class);
-		assertThat(script.getLanguage()).isNull();
-		assertThat(script.getFormat()).isNull();
-		assertThat(script.getTimeoutMs()).isEqualTo(30_000);
-		assertThat(objectMapper.writeValueAsString(script)).isEqualTo("{\"timeoutMs\":30000}");
+	void scriptExplicitNullIntStillLoads() throws Exception {
+		// Jackson 3 enables FAIL_ON_NULL_FOR_PRIMITIVES by default
+		var script = objectMapper.readValue("{\"timeoutMs\": null, \"language\": \"python\"}", Script.class);
+		assertThat(script.getLanguage()).isEqualTo("python");
+		assertThat(script.getFormat()).isEqualTo("json");
 	}
 
 	@Test

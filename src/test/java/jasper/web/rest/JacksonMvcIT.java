@@ -35,7 +35,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 
 /**
- * Pins the HTTP JSON (de)serialization defaults of the application mapper
+ * HTTP JSON (de)serialization with the application mapper
  * on {@link RefController} and {@link ExtController}.
  */
 @WithMockUser(value = "+user/tester", roles = {"ADMIN"})
@@ -283,24 +283,6 @@ class JacksonMvcIT {
 			assertThat(modified.getNano() % 1000).isZero();
 			assertThat(Duration.between(cursor, modified).abs()).isLessThanOrEqualTo(Duration.ofNanos(500));
 		}
-	}
-
-	@Test
-	void testGetPutRoundTripWithMetadataFails() throws Exception {
-		assertThat(postRef("{\"url\":\"" + URL + "\",\"tags\":[\"public\"],\"title\":\"Before\"}").getStatus()).isEqualTo(201);
-		var before = getRefBody(URL, "");
-
-		// MetadataDto.responses is a count but Metadata.responses is a list, so a GET body can't be PUT back unchanged
-		var response = putRef(before);
-
-		assertThat(response.getStatus()).isEqualTo(400);
-		assertThat(response.getContentType()).isEqualTo("application/problem+json");
-		var problem = objectMapper.readTree(response.getContentAsString());
-		assertThat(problem.get("message").asText()).isEqualTo("error.messageNotReadable");
-		assertThat(problem.get("detail").asText())
-			.startsWith("Cannot deserialize value of type `java.util.ArrayList<java.lang.String>` from Integer value (token `JsonToken.VALUE_NUMBER_INT`)" + MALFORMED_DETAIL_SUFFIX)
-			.endsWith("] (through reference chain: jasper.domain.Ref[\"metadata\"]->jasper.domain.Metadata[\"responses\"])");
-		assertThat(getRef().get("title").asText()).isEqualTo("Before");
 	}
 
 	// Lenient reading

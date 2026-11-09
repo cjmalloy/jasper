@@ -21,7 +21,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
- * Pins the JSON shape of {@link Metadata} as written by the application mapper
+ * JSON shape of {@link Metadata} as written by the application mapper
  * and as exposed through the REST API (via MetadataDto).
  */
 @WithMockUser(value = "+user/tester", roles = {"ADMIN"})
@@ -171,7 +171,7 @@ class MetadataJsonIT {
 
 	@Test
 	void testDeserializeNullForPrimitiveFlag() throws Exception {
-		// FAIL_ON_NULL_FOR_PRIMITIVES is off: null becomes the primitive default
+		// A null flag reads as unset (Jackson 3 enables FAIL_ON_NULL_FOR_PRIMITIVES by default)
 		var metadata = objectMapper.readValue(
 			"{\"modified\":\"m\",\"obsolete\":null,\"regen\":null,\"cascade\":null,\"ignored\":null}",
 			Metadata.class);

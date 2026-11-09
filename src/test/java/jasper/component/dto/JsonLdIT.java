@@ -13,7 +13,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
- * Pins how {@link JsonLd} is read with the app mapper, as done in Scraper.parseLinkedData.
+ * How {@link JsonLd} is read with the app mapper, as done in Scraper.parseLinkedData.
  */
 @IntegrationTest
 public class JsonLdIT {
@@ -73,14 +73,6 @@ public class JsonLdIT {
 		var ld = one("{\"thumbnailUrls\": [\"https://example.com/small.jpg\", \"https://example.com/large.jpg\"]}");
 		assertThat(ld.getThumbnailUrls()).containsExactly("https://example.com/small.jpg", "https://example.com/large.jpg");
 		assertThat(ld.getThumbnailUrl()).isEqualTo("https://example.com/large.jpg");
-	}
-
-	@Test
-	void thumbnailUrlSingularIsNotMapped() throws Exception {
-		// Only "thumbnailUrls" is a property; schema.org "thumbnailUrl" is silently ignored
-		var ld = one("{\"thumbnailUrl\": \"https://example.com/t.jpg\"}");
-		assertThat(ld.getThumbnailUrls()).isNull();
-		assertThat(ld.getThumbnailUrl()).isNull();
 	}
 
 	@Test

@@ -43,7 +43,7 @@ import static jasper.management.SecurityMetersService.INVALID_TOKENS_METER_NAME;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Pins JWKS download through the Spring-managed {@link RestTemplate} in jwks mode.
+ * JWKS download through the Spring-managed {@link RestTemplate} in jwks mode.
  * The global test override forces jwt mode, so it is cleared here and the per-origin
  * <code>_config/security</code> Template selects jwks mode, as in production.
  */

@@ -18,7 +18,7 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Pins that ScriptRunner reads the same Bundle from JSON (primary mapper) and YAML ("yamlMapper").
+ * ScriptRunner reads the same Bundle from JSON (primary mapper) and YAML ("yamlMapper").
  */
 @IntegrationTest
 public class YamlBundleIT {

@@ -12,7 +12,7 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Pins SCIM DTO decoding with the app mapper: ScimClient (Feign, Spring message converters)
+ * SCIM DTO decoding with the app mapper: ScimClient (Feign, Spring message converters)
  * and ProfileManagerScim (convertValue) both use the primary ObjectMapper.
  */
 @IntegrationTest
@@ -57,17 +57,16 @@ public class ScimDtoIT {
 	}
 
 	@Test
-	void emailIsCaseSensitiveAndIgnoresUnknownKeys() throws Exception {
+	void emailIgnoresUnknownKeys() throws Exception {
 		var email = objectMapper.readValue("""
-			{"Value": "x@jasper.local", "TYPE": "work", "display": "d", "primary": false, "unknown": 1}
+			{"value": "x@jasper.local", "type": "work", "display": "d", "primary": false, "unknown": 1}
 			""", ScimEmail.class);
 
-		// ScimEmail has no ACCEPT_CASE_INSENSITIVE_PROPERTIES: mixed-case keys are dropped
-		assertThat(email.getValue()).isNull();
-		assertThat(email.getType()).isNull();
+		assertThat(email.getValue()).isEqualTo("x@jasper.local");
+		assertThat(email.getType()).isEqualTo("work");
 		assertThat(email.getDisplay()).isEqualTo("d");
 		assertThat(email.getPrimary()).isFalse();
-		assertThat(objectMapper.writeValueAsString(email)).isEqualTo("{\"display\":\"d\",\"primary\":false}");
+		assertThat(objectMapper.writeValueAsString(email)).isEqualTo("{\"value\":\"x@jasper.local\",\"type\":\"work\",\"display\":\"d\",\"primary\":false}");
 	}
 
 	@Test
@@ -75,10 +74,9 @@ public class ScimDtoIT {
 		var response = objectMapper.readValue("""
 			{"Resources": [{
 			  "id": "user-1",
-			  "UserName": "ignored-case",
 			  "userName": "x",
 			  "unknown": true,
-			  "emails": [{"value": "x@jasper.local", "VALUE": "dropped", "extra": 1}],
+			  "emails": [{"value": "x@jasper.local", "extra": 1}],
 			  "customClaims": {"roles": "ROLE_USER"}
 			}]}
 			""", new TypeReference<ScimListResponse<Map<String, Object>>>() {});

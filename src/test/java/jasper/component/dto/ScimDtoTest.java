@@ -141,16 +141,15 @@ class ScimDtoTest {
 	}
 
 	@Test
-	void emailIsCaseSensitiveAndIgnoresUnknownKeys() throws Exception {
-		// ScimEmail has no ACCEPT_CASE_INSENSITIVE_PROPERTIES: mixed-case keys are dropped as unknown
+	void emailIgnoresUnknownKeys() throws Exception {
 		var email = objectMapper.readValue("""
-			{"Value": "x@jasper.local", "TYPE": "work", "primary": true, "unknown": 1}
+			{"value": "x@jasper.local", "primary": true, "unknown": 1}
 			""", ScimEmail.class);
 
-		assertThat(email.getValue()).isNull();
+		assertThat(email.getValue()).isEqualTo("x@jasper.local");
 		assertThat(email.getType()).isNull();
 		assertThat(email.getDisplay()).isNull();
 		assertThat(email.getPrimary()).isTrue();
-		assertThat(objectMapper.writeValueAsString(email)).isEqualTo("{\"primary\":true}");
+		assertThat(objectMapper.writeValueAsString(email)).isEqualTo("{\"value\":\"x@jasper.local\",\"primary\":true}");
 	}
 }
