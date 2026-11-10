@@ -39,22 +39,19 @@ class JWTFilterTest {
     private byte[] secret;
 
     private JWTFilter jwtFilter;
-    private SecurityConfig security;
-    private Props props;
-    private ConfigCache configCache;
 
     @BeforeEach
     public void setup() {
 		var root = new ServerConfig();
-		security = new SecurityConfig();
-		configCache = mock(ConfigCache.class);
+		var security = new SecurityConfig();
+		var configCache = mock(ConfigCache.class);
 		when(configCache.root()).thenReturn(root);
 		when(configCache.security(anyString())).thenReturn(security);
 		security.setMode("jwt");
 		security.setClientId("");
         String base64Secret = "Xfd54a45s65fds737b9aafcb3412e07ed99b267f33413274720ddbb7f6c5e64e9f14075f2d7ed041592f0b7657baf8";
 		security.setBase64Secret(base64Secret);
-		props = new Props();
+		Props props = new Props();
 
         SecurityMetersService securityMetersService = new SecurityMetersService(new SimpleMeterRegistry());
 
@@ -160,40 +157,5 @@ class JWTFilterTest {
         assertThat(response.getStatus()).isEqualTo(HttpStatus.OK.value());
 		assertThat(SecurityContextHolder.getContext().getAuthentication()).isInstanceOf(PreAuthenticatedAuthenticationToken.class);
 		assertThat(SecurityContextHolder.getContext().getAuthentication().getAuthorities()).filteredOn(a -> a.getAuthority().equals(ANONYMOUS));
-    }
-
-    void assertAnonymousAfterSettingsChange(Runnable change) throws Exception {
-        var rotating = new TokenProviderImpl(props, configCache, new SecurityMetersService(new SimpleMeterRegistry()), null) {
-            @Override
-            public boolean validateToken(String authToken, String origin) {
-                var valid = super.validateToken(authToken, origin);
-                change.run();
-                return valid;
-            }
-        };
-        var filter = new JWTFilter(props, rotating, defaultTokenProvider, configCache);
-        MockHttpServletRequest request = new MockHttpServletRequest();
-        request.addHeader(JWTFilter.AUTHORIZATION_HEADER, "Bearer " + createToken("test.user", AuthoritiesConstants.USER));
-        request.setRequestURI("/api/test");
-        MockHttpServletResponse response = new MockHttpServletResponse();
-        filter.doFilter(request, response, new MockFilterChain());
-        assertThat(response.getStatus()).isEqualTo(HttpStatus.OK.value());
-        assertThat(SecurityContextHolder.getContext().getAuthentication()).isInstanceOf(PreAuthenticatedAuthenticationToken.class);
-        assertThat(SecurityContextHolder.getContext().getAuthentication().getName()).isBlank();
-    }
-
-    @Test
-    void testJWTFilterSecretRotatedAfterValidation() throws Exception {
-        assertAnonymousAfterSettingsChange(() -> security.setSecret("rotated-secret-rotated-secret-rotated-secret-rotated-secret-1234"));
-    }
-
-    @Test
-    void testJWTFilterModeClearedAfterValidation() throws Exception {
-        assertAnonymousAfterSettingsChange(() -> security.setMode("other"));
-    }
-
-    @Test
-    void testJWTFilterInvalidKeyAfterValidation() throws Exception {
-        assertAnonymousAfterSettingsChange(() -> security.setBase64Secret("not base64!"));
     }
 }

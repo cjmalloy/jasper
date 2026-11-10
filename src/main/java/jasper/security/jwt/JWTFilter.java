@@ -9,9 +9,7 @@ import jasper.component.ConfigCache;
 import jasper.config.Props;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.oauth2.jwt.JwtException;
 import org.springframework.util.StringUtils;
 import org.springframework.web.filter.GenericFilterBean;
 
@@ -50,25 +48,17 @@ public class JWTFilter extends GenericFilterBean {
 				var origin = resolveOrigin(props, httpServletRequest.getHeader(LOCAL_ORIGIN_HEADER));
 				var jwt = resolveToken(httpServletRequest);
 				if (configs.root().web(origin)) {
-					SecurityContextHolder.getContext().setAuthentication(authenticate(jwt, origin));
+					if (tokenProvider.validateToken(jwt, origin)) {
+						SecurityContextHolder.getContext().setAuthentication(tokenProvider.getAuthentication(jwt, origin));
+					} else {
+						SecurityContextHolder.getContext().setAuthentication(defaultTokenProvider.getAuthentication(null, origin));
+					}
 				} else {
 					logger.error("{} No web access for origin ({}): {} ", props.getOrigin(), origin, route);
 				}
 			}
 		}
 		filterChain.doFilter(servletRequest, servletResponse);
-	}
-
-	private Authentication authenticate(String jwt, String origin) {
-		if (tokenProvider.validateToken(jwt, origin)) {
-			try {
-				return tokenProvider.getAuthentication(jwt, origin);
-			} catch (JwtException | IllegalArgumentException e) {
-				// Security settings changed after the token was validated
-				logger.debug("{} Token rejected after validation: {}", origin, e.getMessage());
-			}
-		}
-		return defaultTokenProvider.getAuthentication(null, origin);
 	}
 
 	private String resolveToken(HttpServletRequest request) {
