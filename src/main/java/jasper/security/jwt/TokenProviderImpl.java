@@ -38,6 +38,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 import static jasper.domain.proj.HasOrigin.formatOrigin;
+import static jasper.domain.proj.HasOrigin.isSubOrigin;
 import static jasper.domain.proj.Tag.localTag;
 import static jasper.domain.proj.Tag.matchesPublic;
 import static jasper.domain.proj.Tag.prefix;
@@ -58,13 +59,7 @@ public class TokenProviderImpl extends AbstractTokenProvider implements TokenPro
 
 	private static final String[] ROOT_ROLES_ALLOWED = new String[]{ MOD, ADMIN };
 
-	Map<String, CachedDecoder> jwtDecoders = new ConcurrentHashMap<>();
-
-	/**
-	 * Decoder with the security settings it was built from, so a changed _config/security rebuilds it.
-	 */
-	record DecoderSettings(String mode, String secret, String base64Secret, String jwksUri) {}
-	record CachedDecoder(DecoderSettings settings, JwtDecoder decoder) {}
+	Map<String, JwtDecoder> jwtDecoders = new ConcurrentHashMap<>();
 
 	private final SecurityMetersService securityMetersService;
 	private final RestTemplate restTemplate;
@@ -73,6 +68,7 @@ public class TokenProviderImpl extends AbstractTokenProvider implements TokenPro
 		super(props, caches);
 		this.securityMetersService = securityMetersService;
 		this.restTemplate = restTemplate;
+		caches.securityUpdate(origin -> jwtDecoders.keySet().removeIf(o -> isSubOrigin(origin, o)));
 	}
 
 	public Authentication getAuthentication(String token, String origin) {
@@ -92,15 +88,7 @@ public class TokenProviderImpl extends AbstractTokenProvider implements TokenPro
 	}
 
 	JwtDecoder getDecoder(String origin) {
-		var security = configs.security(origin);
-		var settings = new DecoderSettings(security.getMode(), security.getSecret(), security.getBase64Secret(), security.getJwksUri());
-		var current = jwtDecoders.get(origin);
-		if (current != null && current.settings().equals(settings)) return current.decoder();
-		var cached = jwtDecoders.compute(origin, (o, existing) -> {
-			if (existing != null && existing.settings().equals(settings)) return existing;
-			return new CachedDecoder(settings, buildDecoder(security));
-		});
-		return cached.decoder();
+		return jwtDecoders.computeIfAbsent(origin, o -> buildDecoder(configs.security(o)));
 	}
 
 	private JwtDecoder buildDecoder(SecurityConfig security) {

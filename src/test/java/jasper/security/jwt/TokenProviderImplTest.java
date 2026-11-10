@@ -26,11 +26,14 @@ import java.util.Base64;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Consumer;
 
 import static jasper.repository.spec.QualifiedTag.qt;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -41,6 +44,7 @@ class TokenProviderImplTest {
     private byte[] secret;
     private TokenProviderImpl tokenProvider;
 
+	List<Consumer<String>> securityListeners = new ArrayList<>();
 	ConfigCache configCache = getConfigs();
 	ConfigCache getConfigs() {
 		var root = new ServerConfig();
@@ -49,7 +53,12 @@ class TokenProviderImplTest {
 		var configCache = mock(ConfigCache.class);
 		when(configCache.root()).thenReturn(root);
 		when(configCache.security(anyString())).thenReturn(security);
+		doAnswer(i -> securityListeners.add(i.getArgument(0))).when(configCache).securityUpdate(any());
 		return configCache;
+	}
+
+	void securityUpdated(String origin) {
+		securityListeners.forEach(listener -> listener.accept(origin));
 	}
 
 	TokenProviderImpl getTokenProvider(String localOrigin) {
@@ -172,6 +181,9 @@ class TokenProviderImplTest {
 
         var rotated = "Yfd54a45s65fds737b9aafcb3412e07ed99b267f33413274720ddbb7f6c5e64e9f14075f2d7ed041592f0b7657baf8";
         configCache.security("").setBase64Secret(rotated);
+        // The decoder is cached until the security settings are updated
+        assertThat(tokenProvider.validateToken(oldToken, "")).isTrue();
+        securityUpdated("");
 
         assertThat(tokenProvider.validateToken(oldToken, "")).isFalse();
         assertThat(tokenProvider.validateToken(validToken(Base64.getDecoder().decode(rotated)), "")).isTrue();
@@ -186,11 +198,13 @@ class TokenProviderImplTest {
 
         // secret takes precedence over base64Secret
         configCache.security("").setSecret(first);
+        securityUpdated("");
         assertThat(tokenProvider.validateToken(base64Token, "")).isFalse();
         var firstToken = validToken(first.getBytes());
         assertThat(tokenProvider.validateToken(firstToken, "")).isTrue();
 
         configCache.security("").setSecret(second);
+        securityUpdated("");
         assertThat(tokenProvider.validateToken(firstToken, "")).isFalse();
         assertThat(tokenProvider.validateToken(validToken(second.getBytes()), "")).isTrue();
     }
@@ -201,15 +215,29 @@ class TokenProviderImplTest {
         assertThat(tokenProvider.validateToken(token, "")).isTrue();
 
         configCache.security("").setMode("");
+        securityUpdated("");
         assertThat(tokenProvider.validateToken(token, "")).isFalse();
 
         configCache.security("").setMode("other");
+        securityUpdated("");
         assertThat(tokenProvider.validateToken(token, "")).isFalse();
         assertThatThrownBy(() -> tokenProvider.getAuthentication(token, ""))
             .isInstanceOf(BadJwtException.class);
 
         configCache.security("").setMode("jwt");
+        securityUpdated("");
         assertThat(tokenProvider.validateToken(token, "")).isTrue();
+    }
+
+    @Test
+    void testSecurityUpdateClearsSubOriginDecoders() {
+        tokenProvider.getDecoder("@a");
+        tokenProvider.getDecoder("@a.b");
+        tokenProvider.getDecoder("@ab");
+
+        securityUpdated("@a");
+
+        assertThat(tokenProvider.jwtDecoders).containsOnlyKeys("@ab");
     }
 
     private String createToken(String sub, byte[] key, Date expiration) {

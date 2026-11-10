@@ -5,6 +5,7 @@ import jasper.config.Props;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -142,5 +143,16 @@ public class ConfigCacheEvictTest {
 		configCache.clearTemplateCache("");
 
 		assertThat(cached("template-cache-wrapped", "_config/security@a")).isFalse();
+	}
+
+	@Test
+	void testClearTemplateCacheNotifiesSecurityListeners() {
+		var updated = new ArrayList<String>();
+		configCache.securityUpdate(updated::add);
+
+		configCache.clearTemplateCache("@a");
+		configCache.clearTemplateCache("default");
+
+		assertThat(updated).containsExactly("@a", "");
 	}
 }
