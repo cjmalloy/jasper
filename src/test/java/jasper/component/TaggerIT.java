@@ -106,6 +106,14 @@ public class TaggerIT {
 	}
 
 	@Test
+	void testDebugRefWriteOutsideScriptSelectorsDoesNotAttachLogs() {
+		tagger.tag(URL, "@remote", "+plugin/debug");
+
+		assertThat(refRepository.findAll().stream().filter(r -> r.hasTag("+plugin/log")))
+			.isEmpty();
+	}
+
+	@Test
 	void testNonDebugRefWriteDoesNotAttachLogs() {
 		tagger.tag(URL, "", "test");
 

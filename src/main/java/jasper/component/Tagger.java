@@ -326,11 +326,13 @@ public class Tagger {
 	}
 
 	/**
-	 * If the Ref is tagged +plugin/debug, log the caller stack trace and
-	 * reply to the Ref with a +plugin/log so the user can see it.
+	 * If the Ref is tagged +plugin/debug and its origin is selected by the
+	 * scriptSelectors, log the caller stack trace and reply to the Ref with a
+	 * +plugin/log so the user can see it.
 	 */
 	public void debug(Ref ref, String msg) {
 		if (ref == null || !ref.hasTag("+plugin/debug")) return;
+		if (!configs.root().script("+plugin/debug", ref.getOrigin())) return;
 		var logs = msg + " " + ref.getUrl() + "\n\n" +
 			"tags: `" + ref.getTags() + "`\n\n" +
 			"plugins: `" + ref.getPlugins() + "`\n\n" +
