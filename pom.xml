@@ -36,7 +36,7 @@
 		<apache-httpclient.version>5.6.5</apache-httpclient.version>
 		<commons-io.version>2.22.0</commons-io.version>
 		<commons-collections4.version>4.6.0</commons-collections4.version>
-		<commons-lang3.version>3.21.0</commons-lang3.version>
+		<commons-lang3.version>3.22.0</commons-lang3.version>
 		<commons-compress.version>1.28.0</commons-compress.version>
 		<google-cloud-storage.version>2.78.0</google-cloud-storage.version>
 		<google-cloud-nio.version>0.142.0</google-cloud-nio.version>
