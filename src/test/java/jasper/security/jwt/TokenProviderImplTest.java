@@ -26,6 +26,8 @@ import java.util.Base64;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
 import static jasper.repository.spec.QualifiedTag.qt;
@@ -238,6 +240,27 @@ class TokenProviderImplTest {
         securityUpdated("@a");
 
         assertThat(tokenProvider.jwtDecoders).containsOnlyKeys("@ab");
+    }
+
+    @Test
+    void testSecurityUpdateWhileBuildingDecoderDropsIt() throws Exception {
+        var security = configCache.security("");
+        var building = new CountDownLatch(1);
+        var rotated = new CountDownLatch(1);
+        when(configCache.security("@race")).thenAnswer(i -> {
+            building.countDown();
+            rotated.await(5, TimeUnit.SECONDS);
+            return security;
+        });
+
+        var request = new Thread(() -> tokenProvider.getDecoder("@race"));
+        request.start();
+        assertThat(building.await(5, TimeUnit.SECONDS)).isTrue();
+        securityUpdated("@race");
+        rotated.countDown();
+        request.join(5000);
+
+        assertThat(tokenProvider.jwtDecoders).doesNotContainKey("@race");
     }
 
     private String createToken(String sub, byte[] key, Date expiration) {

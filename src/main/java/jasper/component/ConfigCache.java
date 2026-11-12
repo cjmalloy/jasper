@@ -185,10 +185,17 @@ public class ConfigCache {
 	}
 
 	public void clearTemplateCache(String origin) {
+		clearTemplateCache(origin, null);
+	}
+
+	/**
+	 * Only notifies security listeners when the changed template may be _config/security (tag is null or matches).
+	 */
+	public void clearTemplateCache(String origin, String tag) {
 		evict(origin, false, "template-cache", "template-config-cache", "template-schemas-cache", "template-defaults-cache", "template-dto-cache");
 		// Security config is inherited by sub-origins
 		evict(origin, true, "template-cache-wrapped");
-		securityListeners.forEach(listener -> listener.accept(origin(origin)));
+		if (tag == null || "_config/security".equals(tag)) securityListeners.forEach(listener -> listener.accept(origin(origin)));
 		clear("template-dto-page-cache");
 		logger.debug("{} Cleared template cache.", origin);
 	}

@@ -155,4 +155,16 @@ public class ConfigCacheEvictTest {
 
 		assertThat(updated).containsExactly("@a", "");
 	}
+
+	@Test
+	void testClearTemplateCacheOnlyNotifiesSecurityListenersForSecurityTemplate() {
+		var updated = new ArrayList<String>();
+		configCache.securityUpdate(updated::add);
+
+		configCache.clearTemplateCache("@a", "_config/server");
+		configCache.clearTemplateCache("@a", "custom");
+		configCache.clearTemplateCache("@b", "_config/security");
+
+		assertThat(updated).containsExactly("@b");
+	}
 }

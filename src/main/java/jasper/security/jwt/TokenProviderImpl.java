@@ -35,6 +35,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 
 import static jasper.domain.proj.HasOrigin.formatOrigin;
@@ -60,6 +61,7 @@ public class TokenProviderImpl extends AbstractTokenProvider implements TokenPro
 	private static final String[] ROOT_ROLES_ALLOWED = new String[]{ MOD, ADMIN };
 
 	Map<String, JwtDecoder> jwtDecoders = new ConcurrentHashMap<>();
+	AtomicLong securityGeneration = new AtomicLong();
 
 	private final SecurityMetersService securityMetersService;
 	private final RestTemplate restTemplate;
@@ -68,7 +70,10 @@ public class TokenProviderImpl extends AbstractTokenProvider implements TokenPro
 		super(props, caches);
 		this.securityMetersService = securityMetersService;
 		this.restTemplate = restTemplate;
-		caches.securityUpdate(origin -> jwtDecoders.keySet().removeIf(o -> isSubOrigin(origin, o)));
+		caches.securityUpdate(origin -> {
+			securityGeneration.incrementAndGet();
+			jwtDecoders.keySet().removeIf(o -> isSubOrigin(origin, o));
+		});
 	}
 
 	public Authentication getAuthentication(String token, String origin) {
@@ -88,7 +93,11 @@ public class TokenProviderImpl extends AbstractTokenProvider implements TokenPro
 	}
 
 	JwtDecoder getDecoder(String origin) {
-		return jwtDecoders.computeIfAbsent(origin, o -> buildDecoder(configs.security(o)));
+		var generation = securityGeneration.get();
+		var decoder = jwtDecoders.computeIfAbsent(origin, o -> buildDecoder(configs.security(o)));
+		// Settings changed while building: removeIf may have missed the pending entry
+		if (generation != securityGeneration.get()) jwtDecoders.remove(origin, decoder);
+		return decoder;
 	}
 
 	private JwtDecoder buildDecoder(SecurityConfig security) {
