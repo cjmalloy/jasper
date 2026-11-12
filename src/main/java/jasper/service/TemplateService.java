@@ -6,6 +6,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.fge.jsonpatch.JsonPatchException;
 import com.github.fge.jsonpatch.Patch;
 import io.micrometer.core.annotation.Timed;
+import jakarta.validation.ConstraintViolationException;
+import jakarta.validation.Validator;
 import jasper.component.IngestTemplate;
 import jasper.domain.Template;
 import jasper.errors.InvalidPatchException;
@@ -48,6 +50,9 @@ public class TemplateService {
 
 	@Autowired
 	ObjectMapper objectMapper;
+
+	@Autowired
+	Validator beanValidator;
 
 	@PreAuthorize("@auth.canEditConfig(#template)")
 	@Timed(value = "jasper.service", extraTags = {"service", "template"}, histogram = true)
@@ -114,6 +119,9 @@ public class TemplateService {
 		try {
 			var patched = patch.apply(objectMapper.convertValue(template, JsonNode.class));
 			var updated = objectMapper.treeToValue(patched, Template.class);
+			// PATCH bodies skip the controller @Valid, so validate the patched result
+			var violations = beanValidator.validate(updated);
+			if (!violations.isEmpty()) throw new ConstraintViolationException(violations);
 			if (created) {
 				return create(updated);
 			} else {

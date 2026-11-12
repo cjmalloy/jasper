@@ -443,6 +443,7 @@ public interface Config {
 				.orElse(maxConcurrentScripts));
 		}
 
+		@JsonIgnore
 		public byte[] getSecretBytes() {
 			if (isNotBlank(secret)) return secret.getBytes();
 			return Base64.getDecoder().decode(base64Secret);

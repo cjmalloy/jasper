@@ -71,6 +71,6 @@ public class ClearConfigCache {
 	@Order(Ordered.HIGHEST_PRECEDENCE)
 	@ServiceActivator(inputChannel = "templateRxChannel")
 	public void handleTemplateUpdate(Message<TemplateDto> message) {
-		configs.clearTemplateCache(origin(message.getHeaders().get("origin").toString()));
+		configs.clearTemplateCache(origin(message.getHeaders().get("origin").toString()), message.getPayload().getTag());
 	}
 }
