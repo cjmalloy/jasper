@@ -3,7 +3,7 @@ package jasper.errors;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.ResponseStatus;
 
-@ResponseStatus(HttpStatus.PAYLOAD_TOO_LARGE)
+@ResponseStatus(HttpStatus.CONTENT_TOO_LARGE)
 public class TooLargeException extends RuntimeException {
 
 	public TooLargeException(int requested, int max) {
