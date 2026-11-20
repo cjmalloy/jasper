@@ -12,12 +12,12 @@ public class SchemaValidator implements ConstraintValidator<SchemaValid, JsonNod
 
 	@Override
 	public boolean isValid(JsonNode value, ConstraintValidatorContext context) {
-		var schema = mapper.convertValue(value, Schema.class);
 		if (value == null) return true;
 		try {
-			schema.verify();
+			mapper.convertValue(value, Schema.class).verify();
 			return true;
-		} catch (InvalidSchemaException e) {
+		} catch (IllegalArgumentException | InvalidSchemaException e) {
+			// IllegalArgumentException: not shaped like a JTD schema (unknown type, wrong field types)
 			return false;
 		}
 	}

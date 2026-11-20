@@ -6,6 +6,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.fge.jsonpatch.JsonPatchException;
 import com.github.fge.jsonpatch.Patch;
 import io.micrometer.core.annotation.Timed;
+import jakarta.validation.ConstraintViolationException;
+import jakarta.validation.Validator;
 import jasper.component.IngestPlugin;
 import jasper.domain.Plugin;
 import jasper.errors.InvalidPatchException;
@@ -48,6 +50,9 @@ public class PluginService {
 
 	@Autowired
 	ObjectMapper objectMapper;
+
+	@Autowired
+	Validator beanValidator;
 
 	@PreAuthorize("@auth.canEditConfig(#plugin)")
 	@Timed(value = "jasper.service", extraTags = {"service", "plugin"}, histogram = true)
@@ -115,6 +120,9 @@ public class PluginService {
 		try {
 			var patched = patch.apply(objectMapper.convertValue(plugin, JsonNode.class));
 			var updated = objectMapper.treeToValue(patched, Plugin.class);
+			// PATCH bodies skip the controller @Valid, so validate the patched result
+			var violations = beanValidator.validate(updated);
+			if (!violations.isEmpty()) throw new ConstraintViolationException(violations);
 			if (created) {
 				return create(updated);
 			} else {
