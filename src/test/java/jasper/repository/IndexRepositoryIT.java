@@ -397,7 +397,11 @@ public class IndexRepositoryIT {
 			for (var direction : Sort.Direction.values()) {
 				assertThat(SqlCapture.capture(() -> refRepository.findAll(
 						RefSpec.sort(RefFilter.builder().build().spec(), PageRequest.of(0, 20, Sort.by(direction, "plugins->" + column))),
-						PageRequest.ofSize(20))).getLast())
+						PageRequest.ofSize(20)))
+					.stream()
+					.filter(s -> s.contains(" order by "))
+					.findFirst()
+					.orElseThrow())
 					.as("%s %s", column, direction)
 					.doesNotContainIgnoringCase("coalesce(")
 					.contains(direction.isAscending() ? " asc nulls first" : " desc nulls last");
