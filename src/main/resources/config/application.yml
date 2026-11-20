@@ -170,8 +170,6 @@ spring:
   mvc:
     async:
       request-timeout: 60s
-    pathmatch:
-      matching-strategy: ant_path_matcher
   task:
     scheduling:
       thread-name-prefix: jasper-scheduling-

@@ -2,7 +2,7 @@ package jasper.component.channel;
 
 import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
 import io.fabric8.kubernetes.api.model.SecretBuilder;
-import io.fabric8.kubernetes.client.DefaultKubernetesClient;
+import io.fabric8.kubernetes.client.KubernetesClientBuilder;
 import jasper.component.ConfigCache;
 import jasper.config.Props;
 import jasper.repository.UserRepository;
@@ -58,7 +58,7 @@ public class TunnelServerImplK8s implements TunnelServer {
 		if (configs.user() == null || configs.user().getKey() != null) {
 			hostKey = new String(configs.user().getKey());
 		}
-		try (var client = new DefaultKubernetesClient()) {
+		try (var client = new KubernetesClientBuilder().build()) {
 			client.secrets()
 				.inNamespace(props.getSshConfigNamespace())
 				.resource(new SecretBuilder()
@@ -74,7 +74,7 @@ public class TunnelServerImplK8s implements TunnelServer {
 	public void generateConfig() {
 		logger.info("Generating new authorized_keys");
 		var result = authorizedKeys(configs.root().getSshOrigins(), userRepository);
-		try (var client = new DefaultKubernetesClient()) {
+		try (var client = new KubernetesClientBuilder().build()) {
 			client.configMaps()
 				.inNamespace(props.getSshConfigNamespace())
 				.resource(new ConfigMapBuilder()
