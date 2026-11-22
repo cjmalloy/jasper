@@ -39,6 +39,8 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 
+import static jasper.component.Replicator.deletedTag;
+import static jasper.component.Replicator.isDeletorTag;
 import static jasper.domain.User.merge;
 import static jasper.domain.proj.HasOrigin.fromParts;
 import static jasper.domain.proj.HasOrigin.isSubOrigin;
@@ -189,13 +191,13 @@ public class ConfigCache {
 	}
 
 	/**
-	 * Only notifies security listeners when the changed template may be _config/security (tag is null or matches).
+	 * Only notifies security listeners when the changed template may be _config/security (tag is null, matches, or deletes it).
 	 */
 	public void clearTemplateCache(String origin, String tag) {
 		evict(origin, false, "template-cache", "template-config-cache", "template-schemas-cache", "template-defaults-cache", "template-dto-cache");
 		// Security config is inherited by sub-origins
 		evict(origin, true, "template-cache-wrapped");
-		if (tag == null || "_config/security".equals(tag)) securityListeners.forEach(listener -> listener.accept(origin(origin)));
+		if (tag == null || "_config/security".equals(isDeletorTag(tag) ? deletedTag(tag) : tag)) securityListeners.forEach(listener -> listener.accept(origin(origin)));
 		clear("template-dto-page-cache");
 		logger.debug("{} Cleared template cache.", origin);
 	}

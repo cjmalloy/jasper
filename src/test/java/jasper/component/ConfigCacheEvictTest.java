@@ -163,8 +163,10 @@ public class ConfigCacheEvictTest {
 
 		configCache.clearTemplateCache("@a", "_config/server");
 		configCache.clearTemplateCache("@a", "custom");
+		configCache.clearTemplateCache("@a", "_config/server/deleted");
 		configCache.clearTemplateCache("@b", "_config/security");
+		configCache.clearTemplateCache("@c", "_config/security/deleted");
 
-		assertThat(updated).containsExactly("@b");
+		assertThat(updated).containsExactly("@b", "@c");
 	}
 }
