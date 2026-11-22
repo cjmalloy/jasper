@@ -166,7 +166,7 @@ public class ConfigCache {
 		"template-defaults-cache",
 		"template-dto-cache",
 		"template-dto-page-cache",
-	}, allEntries = true)
+	}, allEntries = true, beforeInvocation = true)
 	public void clearTemplateCache() {
 		securityListeners.forEach(listener -> listener.accept(""));
 		logger.debug("Cleared template cache.");
