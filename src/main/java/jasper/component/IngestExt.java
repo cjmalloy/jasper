@@ -70,17 +70,19 @@ public class IngestExt {
 	public void create(Ext ext) {
 		if (isDeletorTag(ext.getTag())) {
 			if (archive ? current(deletedTag(ext.getQualifiedTag())).isPresent() : extRepository.existsByQualifiedTag(deletedTag(ext.getQualifiedTag()))) throw new AlreadyExistsException();
-			var existing = extRepository.findOneByQualifiedTag(ext.getQualifiedTag());
-			if (existing.isPresent()) {
-				ext.setModified(existing.get().getModified());
-				return;
-			}
+			if (existingTombstone(ext)) return;
 		} else if (!archive) {
 			// In archive mode the deletor tag is kept
 			delete(deletorTag(ext.getQualifiedTag()));
 		}
 		validate.ext(ext.getOrigin(), ext);
-		ensureCreateUniqueModified(ext, true);
+		try {
+			ensureCreateUniqueModified(ext, true);
+		} catch (AlreadyExistsException e) {
+			// Tombstone created concurrently
+			if (isDeletorTag(ext.getTag()) && existingTombstone(ext)) return;
+			throw e;
+		}
 		messages.updateExt(ext);
 	}
 
@@ -146,6 +148,12 @@ public class IngestExt {
 		tombstone.setTag(localTag(qualifiedTag));
 		tombstone.setOrigin(tagOrigin(qualifiedTag));
 		ensureCreateUniqueModified(tombstone);
+	}
+
+	private boolean existingTombstone(Ext ext) {
+		var existing = extRepository.findOneByQualifiedTag(ext.getQualifiedTag());
+		existing.ifPresent(e -> ext.setModified(e.getModified()));
+		return existing.isPresent();
 	}
 
 	void ensureCreateUniqueModified(Ext ext) {

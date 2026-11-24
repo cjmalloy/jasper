@@ -1076,10 +1076,10 @@ public class UserServiceIT {
 		userWithIds("+user/b", "1", "2");
 		userWithIds("+user/c");
 
-		assertThat(userService.page(TagFilter.builder().filterAfter(List.of("external->ids:len/1")).build(), PageRequest.of(0, 10, by(User_.TAG))).getContent())
+		assertThat(userService.page(TagFilter.builder().filter(List.of("external->ids:len/after/1")).build(), PageRequest.of(0, 10, by(User_.TAG))).getContent())
 			.extracting(u -> u.getTag())
 			.containsExactly("+user/b");
-		assertThat(userService.page(TagFilter.builder().filterBefore(List.of("external->ids:len/2")).build(), PageRequest.of(0, 10, by(User_.TAG))).getContent())
+		assertThat(userService.page(TagFilter.builder().filter(List.of("external->ids:len/before/2")).build(), PageRequest.of(0, 10, by(User_.TAG))).getContent())
 			.extracting(u -> u.getTag())
 			.containsExactly("+user/a");
 	}
@@ -1088,14 +1088,14 @@ public class UserServiceIT {
 	void testConfigValueFilterFailed() {
 		userWithIds("+user/a", "1");
 
-		assertThatThrownBy(() -> userService.page(TagFilter.builder().filterAfter(List.of("external->ids:len/0")).build(), PageRequest.of(0, 10)))
+		assertThatThrownBy(() -> userService.page(TagFilter.builder().filter(List.of("external->ids:len/after/0")).build(), PageRequest.of(0, 10)))
 			.isInstanceOf(AccessDeniedException.class);
 	}
 
 	@Test
 	@WithMockUser(value = "+user/tester", roles = "MOD")
 	void testInvalidConfigValueFilter() {
-		assertThatThrownBy(() -> userService.page(TagFilter.builder().filterAfter(List.of("config->ids:len/0")).build(), PageRequest.of(0, 10)))
+		assertThatThrownBy(() -> userService.page(TagFilter.builder().filter(List.of("config->ids:len/after/0")).build(), PageRequest.of(0, 10)))
 			.isInstanceOf(InvalidQueryException.class);
 	}
 

@@ -75,17 +75,19 @@ public class IngestPlugin {
 	public void create(Plugin plugin) {
 		if (isDeletorTag(plugin.getTag())) {
 			if (archive ? current(deletedTag(plugin.getQualifiedTag())).isPresent() : pluginRepository.existsByQualifiedTag(deletedTag(plugin.getQualifiedTag()))) throw new AlreadyExistsException();
-			var existing = pluginRepository.findOneByQualifiedTag(plugin.getQualifiedTag());
-			if (existing.isPresent()) {
-				plugin.setModified(existing.get().getModified());
-				return;
-			}
+			if (existingTombstone(plugin)) return;
 		} else if (!archive) {
 			// In archive mode the deletor tag is kept
 			delete(deletorTag(plugin.getQualifiedTag()));
 		}
 		validate.plugin(plugin.getOrigin(), plugin);
-		ensureCreateUniqueModified(plugin, true);
+		try {
+			ensureCreateUniqueModified(plugin, true);
+		} catch (AlreadyExistsException e) {
+			// Tombstone created concurrently
+			if (isDeletorTag(plugin.getTag()) && existingTombstone(plugin)) return;
+			throw e;
+		}
 		rerank(plugin.getQualifiedTag());
 		messages.updatePlugin(plugin);
 	}
@@ -176,6 +178,12 @@ public class IngestPlugin {
 		if (!localTag(qualifiedTag).equals("plugin/pinned")) return;
 		var count = refRepository.regenTag(tagOrigin(qualifiedTag), "plugin/pinned");
 		logger.info("{} Marked {} Refs for regen after changing plugin/pinned", tagOrigin(qualifiedTag), count);
+	}
+
+	private boolean existingTombstone(Plugin plugin) {
+		var existing = pluginRepository.findOneByQualifiedTag(plugin.getQualifiedTag());
+		existing.ifPresent(e -> plugin.setModified(e.getModified()));
+		return existing.isPresent();
 	}
 
 	void ensureCreateUniqueModified(Plugin plugin) {

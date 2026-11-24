@@ -8,7 +8,8 @@ import jasper.security.jwt.TokenProviderImplDefault;
 import jasper.security.jwt.TokenProviderImplNop;
 import org.apache.hc.client5.http.impl.classic.HttpClients;
 import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManagerBuilder;
-import org.apache.hc.client5.http.ssl.SSLConnectionSocketFactory;
+import org.apache.hc.client5.http.ssl.DefaultClientTlsStrategy;
+import org.apache.hc.client5.http.ssl.HostnameVerificationPolicy;
 import org.apache.http.conn.ssl.TrustStrategy;
 import org.apache.http.ssl.SSLContexts;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -40,9 +41,9 @@ public class AuthConfig {
 		TrustStrategy acceptingTrustStrategy = (X509Certificate[] chain, String authType) -> true;
 		HostnameVerifier hostnameVerifier = (s, sslSession) -> true;
 		var sslContext = SSLContexts.custom().loadTrustMaterial(null, acceptingTrustStrategy).build();
-		var csf = new SSLConnectionSocketFactory(sslContext, hostnameVerifier);
+		var tls = new DefaultClientTlsStrategy(sslContext, HostnameVerificationPolicy.CLIENT, hostnameVerifier);
 		var cm = PoolingHttpClientConnectionManagerBuilder.create()
-				.setSSLSocketFactory(csf)
+				.setTlsSocketStrategy(tls)
 				.build();
 		var httpClient = HttpClients.custom().setConnectionManager(cm).build();
 		var requestFactory = new HttpComponentsClientHttpRequestFactory();

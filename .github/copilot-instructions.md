@@ -2,7 +2,7 @@
 
 Follow these instructions first. Only fall back to further search if something here is incomplete or proven wrong; if you find it wrong, fix this file in the same PR.
 
-Jasper is a Spring Boot 4.1 / Java 25 Maven project (single module plus a separate `gatling/` load-test module and an `e2e/` Playwright module). The only `package.json`/lockfile is `e2e/` (Playwright, runs in Docker); there is no frontend build. Bun and Python are only *runtimes* used by plugin scripts and their tests.
+Jasper is a Spring Boot 4.2 / Java 25 Maven project (single module plus a separate `gatling/` load-test module and an `e2e/` Playwright module). The only `package.json`/lockfile is `e2e/` (Playwright, runs in Docker); there is no frontend build. Bun and Python are only *runtimes* used by plugin scripts and their tests.
 
 ## TL;DR — verified command sequence
 
@@ -199,7 +199,7 @@ jasper/
 - `src/main/java/jasper/web/rest/` — REST controllers (`/api/v1/**`, `/pub/api/**`)
 - `src/main/java/jasper/component/vm/` — JavaScript (Bun), Python and Shell script runners
 
-**Versions (check `pom.xml`/`Dockerfile` for current values):** Spring Boot 4.1.x, Spring Cloud 2025.1.x, Java 25 (21 fallback), Maven 3.10 wrapper, PostgreSQL 18, SQLite JDBC 3.53.x, Testcontainers 2.0.x, Liquibase, Caffeine, Redis (optional), Bun 1.4.x in images, Gatling 3.16.x.
+**Versions (check `pom.xml`/`Dockerfile` for current values):** Spring Boot 4.2.x, Spring Cloud 2026.0.x, Java 25 (21 fallback), Maven 3.10 wrapper, PostgreSQL 18, SQLite JDBC 3.53.x, Testcontainers 2.0.x, Liquibase, Caffeine, Redis (optional), Bun 1.4.x in images, Gatling 3.16.x.
 
 ## Code style guidelines
 
@@ -210,6 +210,11 @@ jasper/
 **Locality:**
 - Keep a readable single-use expression at its call site instead of extracting it into a temporary variable.
 - Treat `src/main/java/jasper/security/Auth.java` as the authoritative security specification; avoid cosmetic refactors that reduce locality or obscure authorization decisions.
+
+**Comments and docs:**
+- Document behavior once. Interfaces hold the important contract; implementations only hold short PostgreSQL/SQLite caveats. Don't repeat a Javadoc on both.
+- Users read `README.md`: keep table rows short and padded to the existing column width so the table doesn't widen.
+- Reserve longer, story-like Javadoc for the few classes people search for and follow (e.g. `Auth.java`); elsewhere prefer no comment or one line.
 
 **Replicated origins:**
 - Pulled origins only get silent plugin data writes, new Refs marked `ignored` so they don't count in the pull cursor, are never replicated until a pulled batch has a newer Ref (`Tagger.silentPlugin`); pulled Refs are also ingested as `ignored` and the whole batch is cleared in one update only after it is fully ingested, so a failed batch never moves the cursor; logs stamped `now` go to the origin owning the `+plugin/origin` Ref (`Tagger.attachLogs`). See "Logs and errors on replicated origins" in `README.md`.

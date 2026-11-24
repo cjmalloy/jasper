@@ -69,16 +69,18 @@ public class IngestUser {
 	public void create(User user) {
 		if (isDeletorTag(user.getTag())) {
 			if (archive ? current(deletedTag(user.getQualifiedTag())).isPresent() : userRepository.existsByQualifiedTag(deletedTag(user.getQualifiedTag()))) throw new AlreadyExistsException();
-			var existing = userRepository.findOneByQualifiedTag(user.getQualifiedTag());
-			if (existing.isPresent()) {
-				user.setModified(existing.get().getModified());
-				return;
-			}
+			if (existingTombstone(user)) return;
 		} else if (!archive) {
 			// In archive mode the deletor tag is kept
 			delete(deletorTag(user.getQualifiedTag()));
 		}
-		ensureCreateUniqueModified(user, true);
+		try {
+			ensureCreateUniqueModified(user, true);
+		} catch (AlreadyExistsException e) {
+			// Tombstone created concurrently
+			if (isDeletorTag(user.getTag()) && existingTombstone(user)) return;
+			throw e;
+		}
 		messages.updateUser(user);
 	}
 
@@ -152,6 +154,12 @@ public class IngestUser {
 		tombstone.setOrigin(tagOrigin(qualifiedTag));
 		ensureCreateUniqueModified(tombstone);
 		afterCommit(() -> messages.deleteUser(qualifiedTag));
+	}
+
+	private boolean existingTombstone(User user) {
+		var existing = userRepository.findOneByQualifiedTag(user.getQualifiedTag());
+		existing.ifPresent(e -> user.setModified(e.getModified()));
+		return existing.isPresent();
 	}
 
 	void ensureCreateUniqueModified(User user) {

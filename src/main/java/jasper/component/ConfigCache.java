@@ -110,6 +110,7 @@ public class ConfigCache {
 
 	Set<String> configCacheTags = ConcurrentHashMap.newKeySet();
 	Set<Consumer<ServerConfig>> rootListeners = ConcurrentHashMap.newKeySet();
+	Set<Consumer<String>> securityListeners = ConcurrentHashMap.newKeySet();
 
 	@PostConstruct
 	public void init() {
@@ -176,8 +177,9 @@ public class ConfigCache {
 		"template-defaults-cache",
 		"template-dto-cache",
 		"template-dto-page-cache",
-	}, allEntries = true)
+	}, allEntries = true, beforeInvocation = true)
 	public void clearTemplateCache() {
+		securityListeners.forEach(listener -> listener.accept(""));
 		logger.debug("Cleared template cache.");
 	}
 
@@ -194,9 +196,17 @@ public class ConfigCache {
 	}
 
 	public void clearTemplateCache(String origin) {
+		clearTemplateCache(origin, null);
+	}
+
+	/**
+	 * Only notifies security listeners when the changed template may be _config/security (tag is null, matches, or deletes it).
+	 */
+	public void clearTemplateCache(String origin, String tag) {
 		evict(origin, false, "template-cache", "template-config-cache", "template-schemas-cache", "template-defaults-cache", "template-dto-cache");
 		// Security config is inherited by sub-origins
 		evict(origin, true, "template-cache-wrapped");
+		if (tag == null || "_config/security".equals(isDeletorTag(tag) ? deletedTag(tag) : tag)) securityListeners.forEach(listener -> listener.accept(origin(origin)));
 		clear("template-dto-page-cache");
 		logger.debug("{} Cleared template cache.", origin);
 	}
@@ -398,6 +408,13 @@ public class ConfigCache {
 	public void rootUpdate(Consumer<ServerConfig> listener) {
 		listener.accept(self.root());
 		rootListeners.add(listener);
+	}
+
+	/**
+	 * Called with an origin whose security settings, and those of its sub-origins, may have changed.
+	 */
+	public void securityUpdate(Consumer<String> listener) {
+		securityListeners.add(listener);
 	}
 
 	@ServiceActivator(inputChannel = "templateRxChannel")

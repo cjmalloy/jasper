@@ -5,6 +5,7 @@ import com.nimbusds.jose.jwk.source.ImmutableSecret;
 import com.nimbusds.jose.proc.JWSVerificationKeySelector;
 import com.nimbusds.jose.proc.SecurityContext;
 import jasper.component.ConfigCache;
+import jasper.config.Config.SecurityConfig;
 import jasper.config.Props;
 import jasper.domain.User;
 import jasper.domain.proj.Tag;
@@ -34,9 +35,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 
 import static jasper.domain.proj.HasOrigin.formatOrigin;
+import static jasper.domain.proj.HasOrigin.isSubOrigin;
 import static jasper.domain.proj.Tag.localTag;
 import static jasper.domain.proj.Tag.matchesPublic;
 import static jasper.domain.proj.Tag.prefix;
@@ -58,6 +61,7 @@ public class TokenProviderImpl extends AbstractTokenProvider implements TokenPro
 	private static final String[] ROOT_ROLES_ALLOWED = new String[]{ MOD, ADMIN };
 
 	Map<String, JwtDecoder> jwtDecoders = new ConcurrentHashMap<>();
+	AtomicLong securityGeneration = new AtomicLong();
 
 	private final SecurityMetersService securityMetersService;
 	private final RestTemplate restTemplate;
@@ -66,10 +70,16 @@ public class TokenProviderImpl extends AbstractTokenProvider implements TokenPro
 		super(props, caches);
 		this.securityMetersService = securityMetersService;
 		this.restTemplate = restTemplate;
+		caches.securityUpdate(origin -> {
+			securityGeneration.incrementAndGet();
+			jwtDecoders.keySet().removeIf(o -> isSubOrigin(origin, o));
+		});
 	}
 
 	public Authentication getAuthentication(String token, String origin) {
-		var claims = new Claims(getDecoder(origin).decode(token).getClaims());
+		var decoder = getDecoder(origin);
+		if (decoder == null) throw new BadJwtException("No client for origin " + formatOrigin(origin) + " in security settings");
+		var claims = new Claims(decoder.decode(token).getClaims());
 		var principal = getUsername(claims, origin);
 		User user;
 		try {
@@ -83,28 +93,33 @@ public class TokenProviderImpl extends AbstractTokenProvider implements TokenPro
 	}
 
 	JwtDecoder getDecoder(String origin) {
-		return jwtDecoders.computeIfAbsent(origin, o -> {
-			var security = configs.security(o);
-			switch (security.getMode()) {
-				case "jwt":
-					var secret = security.getSecretBytes();
-					return noClockSkew(NimbusJwtDecoder
-						.withSecretKey(new SecretKeySpec(secret, "HmacSHA512"))
-						.macAlgorithm(MacAlgorithm.HS512)
-						.jwtProcessorCustomizer(p -> p.setJWSKeySelector(new JWSVerificationKeySelector<SecurityContext>(
-							Set.of(JWSAlgorithm.HS256, JWSAlgorithm.HS384, JWSAlgorithm.HS512),
-							new ImmutableSecret<>(secret))))
-						.build());
-				case "jwks":
-					return noClockSkew(NimbusJwtDecoder
-						.withJwkSetUri(security.getJwksUri())
-						.restOperations(restTemplate)
-						.jwsAlgorithms(algs -> algs.addAll(List.of(SignatureAlgorithm.RS256, SignatureAlgorithm.RS384, SignatureAlgorithm.RS512)))
-						.build());
-				default:
-					return null;
-			}
-		});
+		var generation = securityGeneration.get();
+		var decoder = jwtDecoders.computeIfAbsent(origin, o -> buildDecoder(configs.security(o)));
+		// Settings changed while building: removeIf may have missed the pending entry
+		if (generation != securityGeneration.get()) jwtDecoders.remove(origin, decoder);
+		return decoder;
+	}
+
+	private JwtDecoder buildDecoder(SecurityConfig security) {
+		switch (security.getMode()) {
+			case "jwt":
+				var secret = security.getSecretBytes();
+				return noClockSkew(NimbusJwtDecoder
+					.withSecretKey(new SecretKeySpec(secret, "HmacSHA512"))
+					.macAlgorithm(MacAlgorithm.HS512)
+					.jwtProcessorCustomizer(p -> p.setJWSKeySelector(new JWSVerificationKeySelector<SecurityContext>(
+						Set.of(JWSAlgorithm.HS256, JWSAlgorithm.HS384, JWSAlgorithm.HS512),
+						new ImmutableSecret<>(secret))))
+					.build());
+			case "jwks":
+				return noClockSkew(NimbusJwtDecoder
+					.withJwkSetUri(security.getJwksUri())
+					.restOperations(restTemplate)
+					.jwsAlgorithms(algs -> algs.addAll(List.of(SignatureAlgorithm.RS256, SignatureAlgorithm.RS384, SignatureAlgorithm.RS512)))
+					.build());
+			default:
+				return null;
+		}
 	}
 
 	private static NimbusJwtDecoder noClockSkew(NimbusJwtDecoder decoder) {

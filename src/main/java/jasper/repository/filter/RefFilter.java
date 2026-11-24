@@ -23,7 +23,7 @@ import static org.springframework.data.jpa.domain.Specification.not;
 @Getter
 public class RefFilter implements Query {
 	public static final String QUERY = Query.REGEX;
-	public static final String FILTER = Filter.REGEX;
+	public static final String FILTER = Filter.REF_REGEX;
 	public static final int FILTER_LEN = Filter.LEN;
 	private static final Logger logger = LoggerFactory.getLogger(RefFilter.class);
 
@@ -44,9 +44,7 @@ public class RefFilter implements Query {
 	private List<String> userResponse;
 	private List<String> noUserResponse;
 	private Instant modifiedAfter;
-	private List<String> filterBefore;
-	private List<String> filterAfter;
-	private List<String> filterEquals;
+	private List<String> filter;
 
 	public Specification<Ref> spec(String user, String userOrigin) {
 		this.user = user;
@@ -121,9 +119,9 @@ public class RefFilter implements Query {
 	}
 
 	/**
-	 * The parsed filterBefore, filterAfter and filterEquals.
+	 * The parsed filters.
 	 */
 	public List<Filter> filters() {
-		return Filter.parse(filterBefore, filterAfter, filterEquals);
+		return Filter.parse(filter);
 	}
 }

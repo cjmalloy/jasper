@@ -170,8 +170,6 @@ spring:
   mvc:
     async:
       request-timeout: 60s
-    pathmatch:
-      matching-strategy: ant_path_matcher
   task:
     scheduling:
       thread-name-prefix: jasper-scheduling-
@@ -227,7 +225,7 @@ jasper:
     management-include-pattern: ${server.servlet.context-path:}/management/**
     title: Jasper Protocol
     description: REST API for the Jasper Protocol
-    version: 1.5.0
+    version: 1.5.2
     terms-of-service-url:
     contact-name:
     contact-url:
