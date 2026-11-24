@@ -370,4 +370,18 @@ class RefControllerIT {
 				.param("sort", "tags:len"))
 			.andExpect(status().isOk());
 	}
+
+	@Test
+	void testPageWithoutTrailingSlash() throws Exception {
+		mockMvc
+			.perform(get("/api/v1/ref/page"))
+			.andExpect(status().isOk());
+	}
+
+	@Test
+	void testPageWithTrailingSlashNotFound() throws Exception {
+		mockMvc
+			.perform(get("/api/v1/ref/page/"))
+			.andExpect(status().isNotFound());
+	}
 }

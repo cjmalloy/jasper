@@ -122,6 +122,64 @@ public class IngestTemplateIT {
 	}
 
 	@Test
+	void testCreateRootTombstoneOnSubOriginIgnoresDefaultOriginRoot() {
+		var root = new Template();
+		root.setTag("");
+		templateRepository.save(root);
+		var template = new Template();
+		template.setTag("deleted");
+		template.setOrigin("@sub");
+
+		ingest.create(template);
+		ingest.create(template);
+
+		assertThat(templateRepository.existsByQualifiedTag("deleted@sub"))
+			.isTrue();
+		assertThat(templateRepository.existsByQualifiedTag(""))
+			.isTrue();
+	}
+
+	@Test
+	void testCreateRootOnSubOriginRemovesTombstone() {
+		var tombstone = new Template();
+		tombstone.setTag("deleted");
+		tombstone.setOrigin("@sub");
+		templateRepository.save(tombstone);
+		var template = new Template();
+		template.setTag("");
+		template.setOrigin("@sub");
+
+		ingest.create(template);
+
+		assertThat(templateRepository.existsByQualifiedTag("deleted@sub"))
+			.isFalse();
+		assertThat(templateRepository.existsByQualifiedTag("@sub"))
+			.isTrue();
+	}
+
+	@Test
+	void testPushRootTombstoneOnSubOriginKeepsDefaultOriginRoot() {
+		var root = new Template();
+		root.setTag("");
+		templateRepository.save(root);
+		var subRoot = new Template();
+		subRoot.setTag("");
+		subRoot.setOrigin("@sub");
+		subRoot.setModified(Instant.now().minusSeconds(60));
+		templateRepository.save(subRoot);
+		var template = new Template();
+		template.setTag("deleted");
+		template.setOrigin("@sub");
+
+		ingest.push(template);
+
+		assertThat(templateRepository.existsByQualifiedTag("@sub"))
+			.isFalse();
+		assertThat(templateRepository.existsByQualifiedTag(""))
+			.isTrue();
+	}
+
+	@Test
 	void testDoubleIngestExtFails() {
 		var ext1 = new Template();
 		ext1.setTag("test");
