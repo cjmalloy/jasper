@@ -14,6 +14,7 @@ import jasper.service.dto.UserDto;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.messaging.MessageChannel;
@@ -58,13 +59,25 @@ public class Messages {
 	MessageChannel userTxChannel;
 
 	@Autowired
+	MessageChannel userRxChannel;
+
+	@Autowired
 	MessageChannel extTxChannel;
 
 	@Autowired
 	MessageChannel pluginTxChannel;
 
 	@Autowired
+	MessageChannel pluginRxChannel;
+
+	@Autowired
 	MessageChannel templateTxChannel;
+
+	@Autowired
+	MessageChannel templateRxChannel;
+
+	@Value("#{environment.matchesProfiles('redis')}")
+	boolean redis;
 
 	@Autowired
 	ComponentDtoMapper mapper;
@@ -150,12 +163,15 @@ public class Messages {
 	}
 
 	/**
-	 * Clears cached copies on every node after pruning. Synchronous so the local cache is cleared immediately.
+	 * Clears cached copies on every node after pruning. The local cache is cleared synchronously,
+	 * other nodes are notified through Redis.
 	 */
 	public void invalidateUser(String qualifiedTag) {
 		var tag = localTag(qualifiedTag);
 		var origin = tagOrigin(qualifiedTag);
-		userTxChannel.send(createMessage(deleteNotice(tag, origin, UserDto.class), tagHeaders(origin, tag)));
+		var message = createMessage(deleteNotice(tag, origin, UserDto.class), tagHeaders(origin, tag));
+		userRxChannel.send(message);
+		if (redis) userTxChannel.send(message);
 	}
 
 	@Async
@@ -175,7 +191,9 @@ public class Messages {
 	public void invalidatePlugin(String qualifiedTag) {
 		var tag = localTag(qualifiedTag);
 		var origin = tagOrigin(qualifiedTag);
-		pluginTxChannel.send(createMessage(deleteNotice(tag, origin, PluginDto.class), tagHeaders(origin, tag)));
+		var message = createMessage(deleteNotice(tag, origin, PluginDto.class), tagHeaders(origin, tag));
+		pluginRxChannel.send(message);
+		if (redis) pluginTxChannel.send(message);
 	}
 
 	@Async
@@ -195,7 +213,9 @@ public class Messages {
 	public void invalidateTemplate(String qualifiedTag) {
 		var tag = localTag(qualifiedTag);
 		var origin = tagOrigin(qualifiedTag);
-		templateTxChannel.send(createMessage(deleteNotice(tag, origin, TemplateDto.class), tagHeaders(origin, tag)));
+		var message = createMessage(deleteNotice(tag, origin, TemplateDto.class), tagHeaders(origin, tag));
+		templateRxChannel.send(message);
+		if (redis) templateTxChannel.send(message);
 	}
 
 	private <T> T deleteNotice(String tag, String origin, Class<T> type) {
