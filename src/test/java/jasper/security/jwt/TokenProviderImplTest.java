@@ -27,6 +27,7 @@ import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.FutureTask;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
@@ -253,12 +254,12 @@ class TokenProviderImplTest {
             return security;
         });
 
-        var request = new Thread(() -> tokenProvider.getDecoder("@race"));
-        request.start();
+        var request = new FutureTask<>(() -> tokenProvider.getDecoder("@race"));
+        new Thread(request).start();
         assertThat(building.await(5, TimeUnit.SECONDS)).isTrue();
         securityUpdated("@race");
         rotated.countDown();
-        request.join(5000);
+        assertThat(request.get(5, TimeUnit.SECONDS)).isNotNull();
 
         assertThat(tokenProvider.jwtDecoders).doesNotContainKey("@race");
     }
