@@ -264,6 +264,11 @@ public class ExceptionTranslator extends ResponseEntityExceptionHandler {
 				(problemProperties == null || !problemProperties.containsKey(FIELD_ERRORS_KEY))
 		) problem.setProperty(FIELD_ERRORS_KEY, getFieldErrors(fieldException));
 
+		if (
+			(err instanceof ConstraintViolationException violationException) &&
+				(problemProperties == null || !problemProperties.containsKey(FIELD_ERRORS_KEY))
+		) problem.setProperty(FIELD_ERRORS_KEY, getFieldErrors(violationException));
+
 		findCause(err, ValidationErrors.class).ifPresent(v -> {
 			problem.setProperty(TAG_KEY, v.getTag());
 			problem.setProperty(REASON_KEY, v.getReason());
@@ -272,6 +277,20 @@ public class ExceptionTranslator extends ResponseEntityExceptionHandler {
 		});
 
 		return problem;
+	}
+
+	private List<FieldErrorVM> getFieldErrors(ConstraintViolationException ex) {
+		return ex
+			.getConstraintViolations()
+			.stream()
+			.map(v ->
+				new FieldErrorVM(
+					StringUtils.uncapitalize(v.getRootBeanClass().getSimpleName()),
+					v.getPropertyPath().toString(),
+					v.getMessage()
+				)
+			)
+			.toList();
 	}
 
 	private String extractTitle(Throwable err, int statusCode) {
