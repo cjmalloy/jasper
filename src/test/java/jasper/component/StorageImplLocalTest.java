@@ -1,11 +1,14 @@
 package jasper.component;
 
 import jasper.config.Props;
+import jasper.errors.AlreadyExistsException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
@@ -24,6 +27,30 @@ public class StorageImplLocalTest {
 		storage = new StorageImplLocal();
 		storage.props = new Props();
 		storage.props.setStorage(tmpDir.toString());
+	}
+
+	@Test
+	void testStoreAtFailureLeavesNoFile() {
+		var failing = new InputStream() {
+			int count;
+			@Override
+			public int read() throws IOException {
+				if (count++ > 10) throw new IOException("Transfer failed");
+				return 'a';
+			}
+		};
+		assertThatThrownBy(() -> storage.storeAt("", "cache", "abc", failing)).isInstanceOf(IOException.class);
+		assertThat(storage.exists("", "cache", "abc")).isFalse();
+		assertThat(storage.listStorage("", "cache")).isEmpty();
+	}
+
+	@Test
+	void testStoreAtExisting() throws IOException {
+		storage.storeAt("", "cache", "abc", new ByteArrayInputStream("first".getBytes()));
+		assertThatThrownBy(() -> storage.storeAt("", "cache", "abc", new ByteArrayInputStream("second".getBytes())))
+			.isInstanceOf(AlreadyExistsException.class);
+		assertThat(storage.get("", "cache", "abc")).isEqualTo("first".getBytes());
+		assertThat(storage.listStorage("", "cache")).hasSize(1);
 	}
 
 	@Test

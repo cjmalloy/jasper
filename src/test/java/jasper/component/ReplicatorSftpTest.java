@@ -1,6 +1,8 @@
 package jasper.component;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.github.resilience4j.bulkhead.BulkheadConfig;
+import io.github.resilience4j.bulkhead.BulkheadRegistry;
 import jasper.config.Config.ServerConfig;
 import jasper.config.JacksonConfiguration;
 import jasper.domain.Ref;
@@ -22,6 +24,7 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.attribute.FileTime;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
@@ -70,6 +73,10 @@ class ReplicatorSftpTest {
 		replicator.tunnel = tunnel;
 		replicator.configs = configs;
 		replicator.fileCache = Optional.of(fileCache);
+		replicator.bulkheadRegistry = BulkheadRegistry.of(BulkheadConfig.custom()
+			.maxConcurrentCalls(1)
+			.maxWaitDuration(Duration.ZERO)
+			.build());
 
 		lenient().when(configs.root()).thenReturn(ServerConfig.builderFor("").build());
 		lenient().doAnswer(i -> {
@@ -180,6 +187,40 @@ class ReplicatorSftpTest {
 		when(tunnel.sftpStream(remote, "cache/abc")).thenThrow(new IOException("No such file"));
 
 		assertThat(replicator.sftpStream("cache:abc", remote)).isNull();
+	}
+
+	@Test
+	void sftpStreamHoldsFetchPermitUntilClosed() throws Exception {
+		mode(SftpMode.STREAM);
+		when(tunnel.sftpStream(remote, "cache/abc")).thenAnswer(i -> new ByteArrayInputStream("cached".getBytes()));
+		var bulkhead = replicator.bulkheadRegistry.bulkhead("fetch");
+
+		var is = replicator.sftpStream("cache:abc", remote);
+		assertThat(bulkhead.getMetrics().getAvailableConcurrentCalls()).isZero();
+		assertThat(replicator.sftpStream("cache:abc", remote)).isNull();
+		is.close();
+		is.close();
+		assertThat(bulkhead.getMetrics().getAvailableConcurrentCalls()).isEqualTo(1);
+		replicator.sftpStream("cache:abc", remote).close();
+		assertThat(bulkhead.getMetrics().getAvailableConcurrentCalls()).isEqualTo(1);
+	}
+
+	@Test
+	void sftpStreamFailureReleasesFetchPermit() throws Exception {
+		mode(SftpMode.STREAM);
+		when(tunnel.sftpStream(remote, "cache/abc")).thenThrow(new IOException("No such file"));
+
+		assertThat(replicator.sftpStream("cache:abc", remote)).isNull();
+		assertThat(replicator.bulkheadRegistry.bulkhead("fetch").getMetrics().getAvailableConcurrentCalls()).isEqualTo(1);
+	}
+
+	@Test
+	void sftpStreamSkippedWhenPullForbidden() throws Exception {
+		mode(SftpMode.STREAM);
+		when(configs.root()).thenReturn(ServerConfig.builderFor("").scriptSelectors(List.of()).build());
+
+		assertThat(replicator.sftpStream("cache:abc", remote)).isNull();
+		verify(tunnel, never()).sftpStream(any(), any());
 	}
 
 	@Test

@@ -3,6 +3,7 @@ package jasper.component;
 import feign.FeignException;
 import feign.codec.DecodeException;
 import feign.RetryableException;
+import io.github.resilience4j.bulkhead.BulkheadRegistry;
 import io.github.resilience4j.bulkhead.annotation.Bulkhead;
 import io.micrometer.core.annotation.Timed;
 import jasper.client.JasperClient;
@@ -46,6 +47,7 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Component;
 
 import javax.net.ssl.SSLHandshakeException;
+import java.io.FilterInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
@@ -138,6 +140,9 @@ public class Replicator {
 
 	@Autowired
 	Optional<FileCache> fileCache;
+
+	@Autowired
+	BulkheadRegistry bulkheadRegistry;
 
 	boolean fileCacheMissingError = false;
 
@@ -236,15 +241,35 @@ public class Replicator {
 	public InputStream sftpStream(String url, HasTags remote) {
 		if (!url.startsWith("cache:")) return null;
 		if (!hasMatchingTag(remote, "+plugin/origin/tunnel") || getTunnel(remote).getSftp() != SftpMode.STREAM) return null;
-		if (!configs.root().script("+plugin/origin/pull", remote.getOrigin())) throw new OperationForbiddenOnOriginException(remote.getOrigin());
+		if (!configs.root().script("+plugin/origin/pull", remote.getOrigin())) return null;
 		var id = url.substring("cache:".length());
 		if (!isCacheId(id)) {
 			logger.warn("{} Skipping SFTP for invalid cache id {}", remote.getOrigin(), url);
 			return null;
 		}
+		// Hold a fetch permit for the lifetime of the stream, like FetchImplCache and FetchImplHttp
+		var bulkhead = bulkheadRegistry.bulkhead("fetch");
+		if (!bulkhead.tryAcquirePermission()) {
+			logger.warn("{} Skipping SFTP stream, too many concurrent fetches {}", remote.getOrigin(), url);
+			return null;
+		}
 		try {
-			return tunnel.sftpStream(remote, CACHE + "/" + id);
+			return new FilterInputStream(tunnel.sftpStream(remote, CACHE + "/" + id)) {
+				private boolean closed;
+
+				@Override
+				public synchronized void close() throws IOException {
+					if (closed) return;
+					closed = true;
+					try {
+						super.close();
+					} finally {
+						bulkhead.onComplete();
+					}
+				}
+			};
 		} catch (Exception e) {
+			bulkhead.onComplete();
 			logger.warn("{} Failed to stream from remote cache over SFTP {}: {}",
 				remote.getOrigin(), url, getMessage(e));
 			return null;

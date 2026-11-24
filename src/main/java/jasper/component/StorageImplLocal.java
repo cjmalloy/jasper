@@ -19,6 +19,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.FileSystem;
+import java.nio.file.FileSystemException;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -188,8 +189,27 @@ public class StorageImplLocal implements Storage {
 		var path = path(origin, namespace, id);
 		if (path.toFile().exists()) throw new AlreadyExistsException();
 		Files.createDirectories(path.getParent());
-		try (var fos = new FileOutputStream(path.toFile())) {
-			StreamUtils.copy(is, fos);
+		// Write to a sibling temp file and publish atomically so a failed
+		// or concurrent write never leaves a partial file at the final path
+		var tmp = Files.createTempFile(path.getParent(), "." + id + ".", ".tmp");
+		try {
+			try (var fos = Files.newOutputStream(tmp)) {
+				StreamUtils.copy(is, fos);
+			}
+			try {
+				Files.createLink(path, tmp);
+			} catch (FileAlreadyExistsException e) {
+				throw new AlreadyExistsException();
+			} catch (UnsupportedOperationException | FileSystemException e) {
+				// Hard links not supported, fall back to a non-replacing move
+				try {
+					Files.move(tmp, path);
+				} catch (FileAlreadyExistsException ex) {
+					throw new AlreadyExistsException();
+				}
+			}
+		} finally {
+			Files.deleteIfExists(tmp);
 		}
 	}
 

@@ -88,13 +88,13 @@ public class FileCache {
 		if (thumbnail) {
 			fetchThumbnail(url, origin);
 		} else {
-			fetch(url, origin, true);
+			closeQuietly(fetch(url, origin, true));
 		}
 	}
 
 	@Timed(value = "jasper.cache", histogram = true)
 	public void refresh(String url, String origin) {
-		fetch(url, origin, true);
+		closeQuietly(fetch(url, origin, true));
 	}
 
 	private boolean exists(String url, String origin) {
@@ -132,7 +132,7 @@ public class FileCache {
 		if (bannedOrBroken(existingCache, refresh)) return null;
 		if (url.startsWith("cache:")) {
 			var remote = configs.getRemote(origin);
-			if (remote != null && hasMatchingTag(remote, "+plugin/origin/tunnel") && getTunnel(remote).getSftp() == SftpMode.STREAM) {
+			if (remote != null && !hasMatchingTag(remote, "+plugin/error") && hasMatchingTag(remote, "+plugin/origin/tunnel") && getTunnel(remote).getSftp() == SftpMode.STREAM) {
 				var stream = replicator.sftpStream(url, remote);
 				if (stream != null) return stream;
 			}
@@ -244,7 +244,8 @@ public class FileCache {
 					// Set this as a thumbnail to disable future attempts
 					if (fullSize != null) fullSize.setThumbnail(true);
 					tagger.plugin(url, origin, "_plugin/cache", fullSize, "-_plugin/delta/cache");
-					return storage.stream(origin, CACHE, id);
+					// May not be stored locally in SFTP stream mode
+					return fetch(url, origin);
 				}
 				case Images.Unsupported u -> {
 					// Blank id disables future attempts until the user manually refreshes
@@ -317,7 +318,7 @@ public class FileCache {
 	public void push(String url, String origin, InputStream in) throws IOException {
 		if (!url.startsWith("cache:")) throw new NotFoundException("URL is not cacheable");
 		var id = url.substring("cache:".length());
-		if (id.matches(".*\\W")) throw new NotFoundException("URL is not cacheable");
+		if (!id.matches("[\\w-]+")) throw new NotFoundException("URL is not cacheable");
 		storage.storeAt(origin, CACHE, id, in);
 	}
 
@@ -325,7 +326,7 @@ public class FileCache {
 	public void push(String url, String origin, byte[] data) throws IOException {
 		if (!url.startsWith("cache:")) throw new NotFoundException("URL is not cacheable");
 		var id = url.substring("cache:".length());
-		if (id.matches(".*\\W")) throw new NotFoundException("URL is not cacheable");
+		if (!id.matches("[\\w-]+")) throw new NotFoundException("URL is not cacheable");
 		if (storage.exists(origin, CACHE, id)) {
 			storage.overwrite(origin, CACHE, id, data);
 		} else {
