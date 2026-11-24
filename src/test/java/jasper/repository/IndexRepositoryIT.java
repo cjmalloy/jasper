@@ -229,19 +229,6 @@ public class IndexRepositoryIT {
 	@Test
 	@DisabledOnSqlite
 	@Transactional
-	void testRegenIndexUsedPostgres() {
-		indexRepository.buildRegen();
-		assertThat(explainPostgres("""
-			select r1_0.url from ref r1_0
-			where ( r1_0.metadata is null or ( r1_0.metadata )->>( 'modified' ) is null or ( r1_0.metadata )->>( 'regen' )='true' )
-				and ( '@test'='' or r1_0.origin='@test' or r1_0.origin like ('@test'||'.%') escape '' )
-			order by r1_0.modified desc fetch first 1 rows only"""))
-			.contains("ref_regen_index");
-	}
-
-	@Test
-	@DisabledOnSqlite
-	@Transactional
 	void testHotTagIndexUsedForTagValueFilterPostgres() {
 		indexRepository.updateHotTags(List.of("plugin/progress:num"));
 		assertThat(explainPostgres("""
@@ -368,10 +355,10 @@ public class IndexRepositoryIT {
 			var index = IndexRepositoryImplPostgres.hotPluginIndexName("plugins->" + column);
 			// Numbers and lengths are inlined, text is bound
 			var params = column.endsWith(":num") || column.endsWith(":len") ? new Object[0] : new Object[]{ value };
-			assertThat(explainFilter(RefFilter.builder().filterBefore(List.of("plugins->" + filter)).build().spec(), false, params))
+			assertThat(explainFilter(RefFilter.builder().filter(List.of("plugins->" + column + "/before/" + value)).build().spec(), false, params))
 				.as("%s before", filter)
 				.contains(index);
-			assertThat(explainFilter(RefFilter.builder().filterAfter(List.of("plugins->" + filter)).build().spec(), false, params))
+			assertThat(explainFilter(RefFilter.builder().filter(List.of("plugins->" + column + "/after/" + value)).build().spec(), false, params))
 				.as("%s after", filter)
 				.contains(index);
 		}
@@ -410,7 +397,11 @@ public class IndexRepositoryIT {
 			for (var direction : Sort.Direction.values()) {
 				assertThat(SqlCapture.capture(() -> refRepository.findAll(
 						RefSpec.sort(RefFilter.builder().build().spec(), PageRequest.of(0, 20, Sort.by(direction, "plugins->" + column))),
-						PageRequest.ofSize(20))).getLast())
+						PageRequest.ofSize(20)))
+					.stream()
+					.filter(s -> s.contains(" order by "))
+					.findFirst()
+					.orElseThrow())
 					.as("%s %s", column, direction)
 					.doesNotContainIgnoringCase("coalesce(")
 					.contains(direction.isAscending() ? " asc nulls first" : " desc nulls last");
@@ -512,11 +503,11 @@ public class IndexRepositoryIT {
 	void testHotResponseIndexUsedForFilterPostgres() {
 		indexRepository.updateHotResponses(List.of("plugin/comment"));
 		indexRepository.updateHotRemoteResponses(List.of("plugin/comment"));
-		assertThat(explainFilterPostgres(RefFilter.builder().filterAfter(List.of("metadata->plugins->plugin/comment/0")).build()))
+		assertThat(explainFilterPostgres(RefFilter.builder().filter(List.of("metadata->plugins->plugin/comment/after/0")).build()))
 			.contains(IndexRepositoryImplPostgres.hotResponseIndexName("plugins", "plugin/comment"));
-		assertThat(explainFilterPostgres(RefFilter.builder().filterEquals(List.of("metadata->plugins->plugin/comment/0")).build()))
+		assertThat(explainFilterPostgres(RefFilter.builder().filter(List.of("metadata->plugins->plugin/comment/equals/0")).build()))
 			.contains(IndexRepositoryImplPostgres.hotResponseIndexName("plugins", "plugin/comment"));
-		assertThat(explainFilterPostgres(RefFilter.builder().filterAfter(List.of("metadata->remotePlugins->plugin/comment/0")).build()))
+		assertThat(explainFilterPostgres(RefFilter.builder().filter(List.of("metadata->remotePlugins->plugin/comment/after/0")).build()))
 			.contains(IndexRepositoryImplPostgres.hotResponseIndexName("remotePlugins", "plugin/comment"));
 	}
 
@@ -602,8 +593,8 @@ public class IndexRepositoryIT {
 		}
 		var now = Instant.parse("2026-01-01T00:00:00Z");
 		var param = Timestamp.from(now);
-		assertThat(explainFilter(RefFilter.builder().filterBefore(List.of("created/" + now)).build().spec(), false, param)).contains("ref_created_index");
-		assertThat(explainFilter(RefFilter.builder().filterAfter(List.of("created/" + now)).build().spec(), false, param)).contains("ref_created_index");
+		assertThat(explainFilter(RefFilter.builder().filter(List.of("created/before/" + now)).build().spec(), false, param)).contains("ref_created_index");
+		assertThat(explainFilter(RefFilter.builder().filter(List.of("created/after/" + now)).build().spec(), false, param)).contains("ref_created_index");
 	}
 
 	@Test
@@ -616,8 +607,72 @@ public class IndexRepositoryIT {
 		}
 		var now = Instant.parse("2026-01-01T00:00:00Z");
 		var param = Timestamp.from(now);
-		assertThat(explainFilter(RefFilter.builder().filterBefore(List.of("created/" + now)).build().spec(), true, param)).contains("ref_created_index");
-		assertThat(explainFilter(RefFilter.builder().filterAfter(List.of("created/" + now)).build().spec(), true, param)).contains("ref_created_index");
+		assertThat(explainFilter(RefFilter.builder().filter(List.of("created/before/" + now)).build().spec(), true, param)).contains("ref_created_index");
+		assertThat(explainFilter(RefFilter.builder().filter(List.of("created/after/" + now)).build().spec(), true, param)).contains("ref_created_index");
+	}
+
+	@Test
+	void testBuildAndDropTitle() {
+		indexRepository.dropTitle();
+		indexRepository.buildTitle();
+		indexRepository.buildTitle();
+		indexRepository.dropTitle();
+	}
+
+	@Test
+	@DisabledOnSqlite
+	@Transactional
+	void testTitleIndexUsedPostgres() {
+		indexRepository.buildTitle();
+		for (var direction : Sort.Direction.values()) {
+			assertThat(explainSort("title", direction, false)).as("title %s", direction).contains("ref_title_index");
+		}
+	}
+
+	@Test
+	@EnabledIf(expression = SQLITE, loadContext = true)
+	@Transactional
+	void testTitleIndexUsedSqlite() {
+		indexRepository.buildTitle();
+		for (var direction : Sort.Direction.values()) {
+			assertThat(explainSort("title", direction, true)).as("title %s", direction).contains("ref_title_index");
+		}
+	}
+
+	/**
+	 * Origin filters and sorts must use the origin indexes.
+	 */
+	void assertOriginIndexesUsed(boolean sqlite) {
+		indexRepository.buildOrigin();
+		for (var direction : Sort.Direction.values()) {
+			assertThat(explainSort("origin", direction, sqlite)).as("origin %s", direction).contains("ref_origin_index");
+			assertThat(explainSort("origin:len", direction, sqlite)).as("origin:len %s", direction).contains("ref_origin_nesting_index");
+		}
+		assertThat(explainFilter(RefFilter.builder().origin("@test").build().spec(), sqlite, "@test")).containsPattern("ref_origin_(prefix_)?index");
+		assertThat(explainFilter(RefFilter.builder().nesting(2).build().spec(), sqlite, 2)).contains("ref_origin_nesting_index");
+	}
+
+	@Test
+	void testBuildAndDropOrigin() {
+		indexRepository.dropOrigin();
+		indexRepository.buildOrigin();
+		indexRepository.buildOrigin();
+		indexRepository.dropOrigin();
+	}
+
+	@Test
+	@DisabledOnSqlite
+	@Transactional
+	void testOriginIndexesUsedPostgres() {
+		assertOriginIndexesUsed(false);
+		assertThat(explainFilter(RefFilter.builder().origin("@test.*").build().spec(), false, "@test", "@test.%")).contains("ref_origin_prefix_index");
+	}
+
+	@Test
+	@EnabledIf(expression = SQLITE, loadContext = true)
+	@Transactional
+	void testOriginIndexesUsedSqlite() {
+		assertOriginIndexesUsed(true);
 	}
 
 	/**
@@ -628,10 +683,10 @@ public class IndexRepositoryIT {
 		indexRepository.buildNewReaction();
 		var now = Instant.parse("2026-01-01T00:00:00.5Z");
 		var param = Metadata.timestamp(now);
-		assertThat(explainFilter(RefFilter.builder().filterBefore(List.of("metadata->newResponse/" + now)).build().spec(), sqlite, param)).contains("ref_new_response_index");
-		assertThat(explainFilter(RefFilter.builder().filterAfter(List.of("metadata->newResponse/" + now)).build().spec(), sqlite, param)).contains("ref_new_response_index");
-		assertThat(explainFilter(RefFilter.builder().filterBefore(List.of("metadata->newReaction/" + now)).build().spec(), sqlite, param)).contains("ref_new_reaction_index");
-		assertThat(explainFilter(RefFilter.builder().filterAfter(List.of("metadata->newReaction/" + now)).build().spec(), sqlite, param)).contains("ref_new_reaction_index");
+		assertThat(explainFilter(RefFilter.builder().filter(List.of("metadata->newResponse/before/" + now)).build().spec(), sqlite, param)).contains("ref_new_response_index");
+		assertThat(explainFilter(RefFilter.builder().filter(List.of("metadata->newResponse/after/" + now)).build().spec(), sqlite, param)).contains("ref_new_response_index");
+		assertThat(explainFilter(RefFilter.builder().filter(List.of("metadata->newReaction/before/" + now)).build().spec(), sqlite, param)).contains("ref_new_reaction_index");
+		assertThat(explainFilter(RefFilter.builder().filter(List.of("metadata->newReaction/after/" + now)).build().spec(), sqlite, param)).contains("ref_new_reaction_index");
 	}
 
 	@Test
@@ -654,11 +709,11 @@ public class IndexRepositoryIT {
 	void testHotResponseIndexUsedForCountFilterPostgres() {
 		indexRepository.updateHotResponses(List.of("plugin/comment"));
 		indexRepository.updateHotRemoteResponses(List.of("plugin/user/read"));
-		assertThat(explainFilter(RefFilter.builder().filterAfter(List.of("metadata->plugins->plugin/comment/10")).build().spec(), false))
+		assertThat(explainFilter(RefFilter.builder().filter(List.of("metadata->plugins->plugin/comment/after/10")).build().spec(), false))
 			.contains(IndexRepositoryImplPostgres.hotResponseIndexName("plugins", "plugin/comment"));
-		assertThat(explainFilter(RefFilter.builder().filterBefore(List.of("metadata->plugins->plugin/comment:num/3")).build().spec(), false))
+		assertThat(explainFilter(RefFilter.builder().filter(List.of("metadata->plugins->plugin/comment:num/before/3")).build().spec(), false))
 			.contains(IndexRepositoryImplPostgres.hotResponseIndexName("plugins", "plugin/comment"));
-		assertThat(explainFilter(RefFilter.builder().filterAfter(List.of("metadata->remotePlugins->plugin/user/read/10")).build().spec(), false))
+		assertThat(explainFilter(RefFilter.builder().filter(List.of("metadata->remotePlugins->plugin/user/read/after/10")).build().spec(), false))
 			.contains(IndexRepositoryImplPostgres.hotResponseIndexName("remotePlugins", "plugin/user/read"));
 	}
 
@@ -684,7 +739,7 @@ public class IndexRepositoryIT {
 			for (var direction : Sort.Direction.values()) {
 				assertThat(explainSort(e.get(0), direction, sqlite)).as("%s %s", e.get(0), direction).contains(e.get(1));
 			}
-			assertThat(explainFilter(RefFilter.builder().filterAfter(List.of(e.get(0) + "/3")).build().spec(), sqlite)).as("%s filter", e.get(0)).contains(e.get(1));
+			assertThat(explainFilter(RefFilter.builder().filter(List.of(e.get(0) + "/after/3")).build().spec(), sqlite)).as("%s filter", e.get(0)).contains(e.get(1));
 		}
 	}
 

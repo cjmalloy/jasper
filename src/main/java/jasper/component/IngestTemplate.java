@@ -62,16 +62,18 @@ public class IngestTemplate {
 	public void create(Template template) {
 		if (isDeletorTag(template.getTag())) {
 			if (templateRepository.existsByQualifiedTag(deletedTag(template.getQualifiedTag()))) throw new AlreadyExistsException();
-			var existing = templateRepository.findOneByQualifiedTag(template.getQualifiedTag());
-			if (existing.isPresent()) {
-				template.setModified(existing.get().getModified());
-				return;
-			}
+			if (existingTombstone(template)) return;
 		} else {
 			delete(deletorTag(template.getQualifiedTag()));
 		}
 		validate.template(template.getOrigin(), template);
-		ensureCreateUniqueModified(template);
+		try {
+			ensureCreateUniqueModified(template);
+		} catch (AlreadyExistsException e) {
+			// Tombstone created concurrently
+			if (isDeletorTag(template.getTag()) && existingTombstone(template)) return;
+			throw e;
+		}
 		messages.updateTemplate(template);
 	}
 
@@ -109,6 +111,12 @@ public class IngestTemplate {
 	public void delete(String qualifiedTag) {
 		templateRepository.deleteByQualifiedTag(qualifiedTag);
 		afterCommit(() -> messages.deleteTemplate(qualifiedTag));
+	}
+
+	private boolean existingTombstone(Template template) {
+		var existing = templateRepository.findOneByQualifiedTag(template.getQualifiedTag());
+		existing.ifPresent(e -> template.setModified(e.getModified()));
+		return existing.isPresent();
 	}
 
 	void ensureCreateUniqueModified(Template template) {

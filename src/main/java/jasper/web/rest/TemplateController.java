@@ -89,9 +89,7 @@ public class TemplateController {
 		@RequestParam(required = false) Integer nesting,
 		@RequestParam(required = false) Integer level,
 		@RequestParam(required = false) Boolean deleted,
-		@RequestParam(required = false) @Size(max = 100) List<@NotBlank @Length(max = TagFilter.FILTER_LEN) @Pattern(regexp = TagFilter.FILTER) String> filterBefore,
-		@RequestParam(required = false) @Size(max = 100) List<@NotBlank @Length(max = TagFilter.FILTER_LEN) @Pattern(regexp = TagFilter.FILTER) String> filterAfter,
-		@RequestParam(required = false) @Size(max = 100) List<@NotBlank @Length(max = TagFilter.FILTER_LEN) @Pattern(regexp = TagFilter.FILTER) String> filterEquals,
+		@RequestParam(required = false) @Size(max = 100) List<@NotBlank @Length(max = TagFilter.FILTER_LEN) @Pattern(regexp = TagFilter.FILTER) String> filter,
 		@RequestParam(required = false) @Length(max = SEARCH_LEN) String search
 	) {
 		return httpCache.ifNotModifiedPage(templateService.page(
@@ -101,9 +99,7 @@ public class TemplateController {
 				.level(level)
 				.deleted(deleted)
 				.search(search)
-				.filterBefore(filterBefore)
-				.filterAfter(filterAfter)
-				.filterEquals(filterEquals)
+				.filter(filter)
 				.build(),
 			pageable));
 	}

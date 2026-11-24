@@ -31,6 +31,7 @@ import jasper.errors.UserTagInUseException;
 import jasper.errors.ValidationErrors;
 import jasper.web.rest.errors.ProblemDetailWithCause.ProblemDetailWithCauseBuilder;
 import org.apache.commons.lang3.StringUtils;
+import org.jspecify.annotations.Nullable;
 import org.springframework.core.env.Environment;
 import org.springframework.dao.ConcurrencyFailureException;
 import org.springframework.dao.DataAccessException;
@@ -42,7 +43,6 @@ import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageConversionException;
 import org.springframework.http.converter.HttpMessageNotReadableException;
-import org.springframework.lang.Nullable;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.transaction.CannotCreateTransactionException;
@@ -154,7 +154,7 @@ public class ExceptionTranslator extends ResponseEntityExceptionHandler {
 		m.put(ScrapeProtocolException.class, new ErrorMapping(ERR_SCRAPE_PROTOCOL, PROTOCOL_ERROR_TYPE));
 		// Size
 		m.put(TooLargeException.class, new ErrorMapping(ERR_TOO_LARGE, SIZE_ERROR_TYPE));
-		m.put(MaxUploadSizeExceededException.class, new ErrorMapping(ERR_TOO_LARGE, SIZE_ERROR_TYPE, HttpStatus.PAYLOAD_TOO_LARGE));
+		m.put(MaxUploadSizeExceededException.class, new ErrorMapping(ERR_TOO_LARGE, SIZE_ERROR_TYPE, HttpStatus.CONTENT_TOO_LARGE));
 		m.put(MaxSourcesException.class, new ErrorMapping(ERR_MAX_SOURCES, SIZE_ERROR_TYPE));
 		// Unavailable
 		m.put(NotAvailableException.class, new ErrorMapping(ERR_NOT_AVAILABLE, UNAVAILABLE_TYPE));
@@ -206,9 +206,8 @@ public class ExceptionTranslator extends ResponseEntityExceptionHandler {
 		return handleExceptionInternal((Exception) ex, pdCause, new HttpHeaders(), HttpStatusCode.valueOf(pdCause.getStatus()), request);
 	}
 
-	@Nullable
 	@Override
-	protected ResponseEntity<Object> handleExceptionInternal(
+	protected @Nullable ResponseEntity<Object> handleExceptionInternal(
 		Exception ex,
 		@Nullable Object body,
 		HttpHeaders headers,
@@ -259,10 +258,18 @@ public class ExceptionTranslator extends ResponseEntityExceptionHandler {
 
 		if (problemProperties == null || !problemProperties.containsKey(PATH_KEY)) problem.setProperty(PATH_KEY, getPathValue(request));
 
+		// Spring Framework 7.1 no longer defaults instance to the request path
+		if (problem.getInstance() == null && request != null) problem.setInstance(getPathValue(request));
+
 		if (
 			(err instanceof MethodArgumentNotValidException fieldException) &&
 				(problemProperties == null || !problemProperties.containsKey(FIELD_ERRORS_KEY))
 		) problem.setProperty(FIELD_ERRORS_KEY, getFieldErrors(fieldException));
+
+		if (
+			(err instanceof ConstraintViolationException violationException) &&
+				(problemProperties == null || !problemProperties.containsKey(FIELD_ERRORS_KEY))
+		) problem.setProperty(FIELD_ERRORS_KEY, getFieldErrors(violationException));
 
 		findCause(err, ValidationErrors.class).ifPresent(v -> {
 			problem.setProperty(TAG_KEY, v.getTag());
@@ -272,6 +279,20 @@ public class ExceptionTranslator extends ResponseEntityExceptionHandler {
 		});
 
 		return problem;
+	}
+
+	private List<FieldErrorVM> getFieldErrors(ConstraintViolationException ex) {
+		return ex
+			.getConstraintViolations()
+			.stream()
+			.map(v ->
+				new FieldErrorVM(
+					StringUtils.uncapitalize(v.getRootBeanClass().getSimpleName()),
+					v.getPropertyPath().toString(),
+					v.getMessage()
+				)
+			)
+			.toList();
 	}
 
 	private String extractTitle(Throwable err, int statusCode) {

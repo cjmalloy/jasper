@@ -152,6 +152,36 @@ public class IndexRepositoryImplSqlite implements IndexRepository {
 	}
 
 	@Override
+	public void dropTitle() {
+		em.createNativeQuery("DROP INDEX IF EXISTS ref_title_index").executeUpdate();
+	}
+
+	@Override
+	public void buildTitle() {
+		em.createNativeQuery("CREATE INDEX IF NOT EXISTS ref_title_index ON ref (title)").executeUpdate();
+	}
+
+	@Override
+	public void dropOrigin() {
+		em.createNativeQuery("DROP INDEX IF EXISTS ref_origin_index").executeUpdate();
+		em.createNativeQuery("DROP INDEX IF EXISTS ref_origin_nesting_index").executeUpdate();
+	}
+
+	@Override
+	public void buildOrigin() {
+		// No prefix index: SQLite LIKE is case-insensitive, so sub-origin filters cannot use one
+		em.createNativeQuery("CREATE INDEX IF NOT EXISTS ref_origin_index ON ref (origin)").executeUpdate();
+		em.createNativeQuery("CREATE INDEX IF NOT EXISTS ref_origin_nesting_index ON ref (" + originNesting() + ")").executeUpdate();
+	}
+
+	/**
+	 * Must match origin_nesting in SQLiteDialect or the planner will not use the index.
+	 */
+	private static String originNesting() {
+		return "CASE WHEN origin = '' OR origin = '@' THEN 0 ELSE (LENGTH(origin) - LENGTH(REPLACE(origin, '.', '')) + 1) END";
+	}
+
+	@Override
 	public void dropNewResponse() {
 		em.createNativeQuery("DROP INDEX IF EXISTS ref_new_response_index").executeUpdate();
 	}
@@ -202,9 +232,6 @@ public class IndexRepositoryImplSqlite implements IndexRepository {
 	}
 
 	/**
-	 * Same SQL as jsonb_object_field_text(metadata, key) in SQLiteDialect, so partial indexes match the queries.
-	 */
-	/**
 	 * Builds an index on a metadata date, matching JSONB sorts and filters. SQLite sorts nulls first ascending,
 	 * so no NULLS clause is needed. Drops an index of the same name built before sorts stopped using COALESCE.
 	 */
@@ -216,6 +243,9 @@ public class IndexRepositoryImplSqlite implements IndexRepository {
 		em.createNativeQuery("CREATE INDEX IF NOT EXISTS " + name + " ON ref (" + field(key) + ")").executeUpdate();
 	}
 
+	/**
+	 * Same SQL as jsonb_object_field_text(metadata, key) in SQLiteDialect, so partial indexes match the queries.
+	 */
 	private static String field(String key) {
 		var path = "'$.\"' || REPLACE('" + key + "', '\"', '\"\"') || '\"'";
 		return "(CASE WHEN json_type(metadata, " + path + ") IN ('true', 'false') THEN json_type(metadata, " + path + ") ELSE CAST(json_extract(metadata, " + path + ") AS TEXT) END)";

@@ -6,7 +6,7 @@ Knowledge Management Server
 [![Gatling](https://github.com/cjmalloy/jasper/actions/workflows/gatling.yml/badge.svg)](https://cjmalloy.github.io/jasper/reports/latest-gatling/)
 [![E2E](https://github.com/cjmalloy/jasper/actions/workflows/e2e.yml/badge.svg)](https://cjmalloy.github.io/jasper/reports/latest-e2e/)
 [![Dependabot](https://img.shields.io/endpoint?url=https://cjmalloy.github.io/jasper/reports/dependabot-badge.json)](https://github.com/cjmalloy/jasper/security/dependabot)
-[![OpenAPI](https://img.shields.io/badge/OpenAPI-1.5.0-brightgreen)](https://editor.swagger.io/?url=https://raw.githubusercontent.com/cjmalloy/jasper/refs/heads/master/src/main/resources/swagger/api.yml)
+[![OpenAPI](https://img.shields.io/badge/OpenAPI-1.5.2-brightgreen)](https://editor.swagger.io/?url=https://raw.githubusercontent.com/cjmalloy/jasper/refs/heads/master/src/main/resources/swagger/api.yml)
 [![Artifact Hub](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/jasper)](https://artifacthub.io/packages/helm/jasper/jasper)
 
 ## Quickstart
@@ -158,18 +158,19 @@ for example `{"hotTags": ["plugin/progress:num", "plugin/duration:dur"]}`. Hot t
 removed from the list are dropped. Hot tags are ignored on SQLite.
 
 ### Filtering
-Each filter is a sort column (including any `:num`, `:len` or `:dur` suffix) followed by `/` and a value:
-* `filterBefore` keeps values strictly less than the value
-* `filterAfter` keeps values strictly greater than the value
-* `filterEquals` keeps values equal to the value
+Each `filter` is a sort column (including any `:num`, `:len` or `:dur` suffix), an operator and a value:
+`{sort column}/{before|after|equals}/{value}`, the same format jasper-ui uses in its `filter` URL parameter.
+* `before` keeps values strictly less than the value
+* `after` keeps values strictly greater than the value
+* `equals` keeps values equal to the value
 
-Every filter parameter can be repeated, and all filters must match. Missing values never match, but response counts
+The `filter` parameter can be repeated, and all filters must match. Missing values never match, but response counts
 are never missing: a Ref without responses counts as `0`. Values cannot contain `/`, `->` or `,`. Plain text columns
 like `url`, `title` or `tag` can be sorted but not filtered. Invalid filters are rejected with `400 Bad Request`.
 
 The column decides how the value is read:
 * Dates (`modified`, `published`, `created`, `metadata->newResponse` and `metadata->newReaction`) take an ISO-8601
-  instant, e.g. `filterAfter=modified/2024-01-01T00:00:00Z`. Use `Z` rather than an offset, or URL encode the `+`.
+  instant, e.g. `filter=modified/after/2024-01-01T00:00:00Z`. Use `Z` rather than an offset, or URL encode the `+`.
 * Response counts (`metadata->plugins->{plugin}` and `metadata->remotePlugins->{plugin}`), vote sorts and `:num`
   columns take a number, `:len` columns and `metadata->responses` take a length, and `:dur` columns take an ISO-8601
   duration (`pt1h`).
@@ -177,15 +178,15 @@ The column decides how the value is read:
   accents except to break ties, while SQLite sorts capitals before lowercase.
 
 Examples:
-* `filterAfter=metadata->newResponse/2024-01-01T00:00:00Z`: Refs with a new response since the start of 2024
-* `filterAfter=metadata->plugins->plugin/comment/0`: Refs with comments
-* `filterEquals=metadata->plugins->plugin/comment/0`: Refs without comments
-* `filterAfter=metadata->remotePlugins->plugin/user/read/10`: Refs read by more than 10 users
-* `filterAfter=tags->plugin/progress:num/9&filterBefore=tags->plugin/progress:num/50`: matches `plugin/progress/37/100`
-* `filterBefore=tags->plugin/duration:dur/pt1h`: matches `plugin/duration/pt10m25s`
-* `filterAfter=plugins->_plugin/cache->contentLength:num/1000`: Refs with a cached file over 1000 bytes
-* `filterBefore=plugins->plugin/test->ids:len/3`: Refs with fewer than three `ids`
-* `filterEquals=plugins->plugin/test->name/kiwi`: Refs named `kiwi`
+* `filter=metadata->newResponse/after/2024-01-01T00:00:00Z`: Refs with a new response since the start of 2024
+* `filter=metadata->plugins->plugin/comment/after/0`: Refs with comments
+* `filter=metadata->plugins->plugin/comment/equals/0`: Refs without comments
+* `filter=metadata->remotePlugins->plugin/user/read/after/10`: Refs read by more than 10 users
+* `filter=tags->plugin/progress:num/after/9&filter=tags->plugin/progress:num/before/50`: matches `plugin/progress/37/100`
+* `filter=tags->plugin/duration:dur/before/pt1h`: matches `plugin/duration/pt10m25s`
+* `filter=plugins->_plugin/cache->contentLength:num/after/1000`: Refs with a cached file over 1000 bytes
+* `filter=plugins->plugin/test->ids:len/before/3`: Refs with fewer than three `ids`
+* `filter=plugins->plugin/test->name/equals/kiwi`: Refs named `kiwi`
 
 Filters and sorts on private plugins or tags (`_plugin/...`) need read access, otherwise filters are rejected with
 `403 Forbidden` and sorts are ignored.
@@ -201,9 +202,9 @@ See [DB Indices](#db-indices-_configindex-template).
 ### Filtering Exts, Users, Plugins and Templates
 Exts, Users, Plugins and Templates take the same filters on their sort columns: `modified`, `origin:len`, `tag:len`
 and `{field}->{path}[:num|:len]`, where `{field}` is `config` for Exts, `external` for Users, and `config`, `defaults`
-and `schema` for Plugins and Templates. For example, `filterAfter=config->pinned:len/0` matches Exts with pinned Refs,
-`filterAfter=external->ids:len/1` matches Users with more than one external ID, and
-`filterAfter=config->version:num/3` matches Plugins with a version over 3. Only mods can filter or sort Users by
+and `schema` for Plugins and Templates. For example, `filter=config->pinned:len/after/0` matches Exts with pinned Refs,
+`filter=external->ids:len/after/1` matches Users with more than one external ID, and
+`filter=config->version:num/after/3` matches Plugins with a version over 3. Only mods can filter or sort Users by
 `external`. These filters are not indexed.
 
 ## Modding
@@ -759,6 +760,8 @@ and each disabled index is dropped.
 | `published`          | Index on the published date.                                                                                                               | `true`        |
 | `modified`           | Index on the modified date.                                                                                                                | `true`        |
 | `created`            | Index on the created date, used when sorting and filtering by `created`.                                                                   | `true`        |
+| `title`              | Index on the title, used when sorting by `title`.                                                                                          | `true`        |
+| `origin`             | Indices on the origin and origin nesting, used when sorting and filtering by `origin` and `origin:len`.                                    | `true`        |
 | `newResponse`        | Index on `metadata->newResponse`, used when sorting and filtering by it.                                                                   | `true`        |
 | `newReaction`        | Index on `metadata->newReaction`, used when sorting and filtering by it.                                                                   | `true`        |
 | `ignored`            | Partial index on Refs marked `ignored` during replication, used by pull batches.                                                           | `true`        |

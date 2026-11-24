@@ -337,4 +337,86 @@ public class ValidateExtIT {
 
 		validate.ext("", ext);
 	}
+
+	@Test
+	void testValidateExactPrivateTagWithInvalidTemplate() throws IOException {
+		var user = new User();
+		user.setTag("+user/tester");
+		user.setReadAccess(List.of("_slug"));
+		user.setWriteAccess(List.of("_slug"));
+		userRepository.save(user);
+		var template = new Template();
+		template.setTag("slug");
+		var mapper = new ObjectMapper();
+		template.setSchema((ObjectNode) mapper.readTree("""
+		{
+			"properties": {
+				"name": { "type": "string" },
+				"age": { "type": "uint32" }
+			}
+		}"""));
+		templateRepository.save(template);
+		var ext = new Ext();
+		ext.setTag("_slug");
+		ext.setName("First");
+
+		assertThatThrownBy(() -> validate.ext("", ext))
+			.isInstanceOf(InvalidTemplateException.class);
+	}
+
+	@Test
+	void testValidateExactPrivateTagWithTemplate() throws IOException {
+		var user = new User();
+		user.setTag("+user/tester");
+		user.setReadAccess(List.of("_slug"));
+		user.setWriteAccess(List.of("_slug"));
+		userRepository.save(user);
+		var template = new Template();
+		template.setTag("slug");
+		var mapper = new ObjectMapper();
+		template.setSchema((ObjectNode) mapper.readTree("""
+		{
+			"properties": {
+				"name": { "type": "string" },
+				"age": { "type": "uint32" }
+			}
+		}"""));
+		templateRepository.save(template);
+		var ext = new Ext();
+		ext.setTag("_slug");
+		ext.setName("First");
+		ext.setConfig((ObjectNode) mapper.readTree("""
+		{
+			"name": "Alice",
+			"age": 100
+		}"""));
+
+		validate.ext("", ext);
+	}
+
+	@Test
+	void testValidateExactProtectedTagWithInvalidTemplate() throws IOException {
+		var user = new User();
+		user.setTag("+user/tester");
+		user.setReadAccess(List.of("+slug"));
+		user.setWriteAccess(List.of("+slug"));
+		userRepository.save(user);
+		var template = new Template();
+		template.setTag("slug");
+		var mapper = new ObjectMapper();
+		template.setSchema((ObjectNode) mapper.readTree("""
+		{
+			"properties": {
+				"name": { "type": "string" },
+				"age": { "type": "uint32" }
+			}
+		}"""));
+		templateRepository.save(template);
+		var ext = new Ext();
+		ext.setTag("+slug");
+		ext.setName("First");
+
+		assertThatThrownBy(() -> validate.ext("", ext))
+			.isInstanceOf(InvalidTemplateException.class);
+	}
 }

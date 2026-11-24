@@ -61,16 +61,18 @@ public class IngestExt {
 	public void create(Ext ext) {
 		if (isDeletorTag(ext.getTag())) {
 			if (extRepository.existsByQualifiedTag(deletedTag(ext.getQualifiedTag()))) throw new AlreadyExistsException();
-			var existing = extRepository.findOneByQualifiedTag(ext.getQualifiedTag());
-			if (existing.isPresent()) {
-				ext.setModified(existing.get().getModified());
-				return;
-			}
+			if (existingTombstone(ext)) return;
 		} else {
 			delete(deletorTag(ext.getQualifiedTag()));
 		}
 		validate.ext(ext.getOrigin(), ext);
-		ensureCreateUniqueModified(ext);
+		try {
+			ensureCreateUniqueModified(ext);
+		} catch (AlreadyExistsException e) {
+			// Tombstone created concurrently
+			if (isDeletorTag(ext.getTag()) && existingTombstone(ext)) return;
+			throw e;
+		}
 		messages.updateExt(ext);
 	}
 
@@ -97,6 +99,12 @@ public class IngestExt {
 	@Timed(value = "jasper.ext", histogram = true)
 	public void delete(String qualifiedTag) {
 		extRepository.deleteByQualifiedTag(qualifiedTag);
+	}
+
+	private boolean existingTombstone(Ext ext) {
+		var existing = extRepository.findOneByQualifiedTag(ext.getQualifiedTag());
+		existing.ifPresent(e -> ext.setModified(e.getModified()));
+		return existing.isPresent();
 	}
 
 	void ensureCreateUniqueModified(Ext ext) {

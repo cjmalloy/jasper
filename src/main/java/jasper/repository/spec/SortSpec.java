@@ -90,12 +90,13 @@ public class SortSpec {
 	}
 
 	/**
-	 * A filter on a sort column, e.g. "modified/2024-01-01T00:00:00Z" or "plugins->plugin/test->size:num/10".
+	 * A filter on a sort column: "{sort column}/{before|after|equals}/{value}",
+	 * e.g. "modified/after/2024-01-01T00:00:00Z" or "plugins->plugin/test->size:num/before/10".
 	 * Columns on Refs: "modified", "published", "created", "metadata->newResponse", "metadata->newReaction",
 	 * "metadata->expandedTags", "metadata->responses", "metadata->internalResponses", response counts,
 	 * vote sorts, plugin data, tag values, "tags:len", "sources:len", "alternateUrls:len" and "origin:len".
 	 * Columns on Exts, Users, Plugins and Templates: "modified", "origin:len", "tag:len" and JSONB values.
-	 * The value is always after the last "/", so it cannot contain "/".
+	 * The value is always after the last "/", so it cannot contain "/", and the operator is the segment before it.
 	 * Values cannot contain "->" so a missing value is not mistaken for a field.
 	 * Values cannot contain "," since Spring splits a single list parameter on commas.
 	 * The column decides the type of the value:
@@ -114,28 +115,37 @@ public class SortSpec {
 	public record Filter(String column, Op op, Object value) {
 		public enum Op { BEFORE, AFTER, EQUALS }
 		/**
-		 * The sort columns of Refs, Exts, Users, Plugins and Templates that can be filtered.
+		 * The sort columns of Refs that can be filtered.
 		 */
-		public static final String COLUMN_REGEX = "(?:modified|published|created|origin:len|tag:len|(?:tags|sources|alternateUrls):len"
+		public static final String REF_COLUMN_REGEX = "(?:modified|published|created|origin:len|(?:tags|sources|alternateUrls):len"
 			+ "|metadata->(?:newResponse|newReaction)"
 			+ "|metadata->(?:expandedTags|responses|internalResponses)(?::len)?"
 			+ "|metadata->(?:plugins|remotePlugins)->" + Plugin.REGEX + "(?::num)?"
 			+ "|plugins->plugin/user/vote:(?:top|score|decay)"
 			+ "|" + PLUGIN_COLUMN_REGEX
-			+ "|tags->" + Tag.REGEX + "(?::num|:dur)?"
+			+ "|tags->" + Tag.REGEX + "(?::num|:dur)?)";
+		/**
+		 * The sort columns of Exts, Users, Plugins and Templates that can be filtered.
+		 */
+		public static final String TAG_COLUMN_REGEX = "(?:modified|origin:len|tag:len"
 			+ "|(?:config|defaults|schema|external)(?:->" + FIELD_REGEX + ")+(?::num|:len)?)";
 		public static final String VALUE_REGEX = "(?:(?!->)[^/,])+";
-		public static final String REGEX = COLUMN_REGEX + "/" + VALUE_REGEX;
+		public static final String OP_REGEX = "(?:before|after|equals)";
+		public static final String REF_REGEX = REF_COLUMN_REGEX + "/" + OP_REGEX + "/" + VALUE_REGEX;
+		public static final String TAG_REGEX = TAG_COLUMN_REGEX + "/" + OP_REGEX + "/" + VALUE_REGEX;
+		public static final String REGEX = "(?:" + REF_COLUMN_REGEX + "|" + TAG_COLUMN_REGEX + ")/" + OP_REGEX + "/" + VALUE_REGEX;
 		public static final int LEN = 1024;
 		private static final String NUM_REGEX = "-?[0-9]{1,30}([.][0-9]{1,30})?";
 
 		/**
 		 * @return the parsed filter, or null if the value is not valid for the column
 		 */
-		public static Filter parse(String filter, Op op) {
+		public static Filter parse(String filter) {
 			if (filter == null || !filter.matches(REGEX)) return null;
 			var i = filter.lastIndexOf('/');
-			var column = filter.substring(0, i);
+			var j = filter.lastIndexOf('/', i - 1);
+			var column = filter.substring(0, j);
+			var op = Op.valueOf(filter.substring(j + 1, i).toUpperCase());
 			var value = filter.substring(i + 1);
 			try {
 				if (column.equals("modified") || column.equals("published") || column.equals("created")) {
@@ -164,24 +174,17 @@ public class SortSpec {
 		}
 
 		/**
-		 * Parses the filterBefore, filterAfter and filterEquals parameters.
+		 * Parses the filter parameters.
 		 *
 		 * @throws InvalidQueryException if a value is not valid for its column
 		 */
-		public static List<Filter> parse(List<String> before, List<String> after, List<String> equals) {
+		public static List<Filter> parse(List<String> filters) {
 			var result = new ArrayList<Filter>();
-			for (var op : Op.values()) {
-				var filters = switch (op) {
-					case BEFORE -> before;
-					case AFTER -> after;
-					case EQUALS -> equals;
-				};
-				if (filters == null) continue;
-				for (var f : filters) {
-					var filter = parse(f, op);
-					if (filter == null) throw new InvalidQueryException(f, "expected {sort column}/{value} with a value of the column type");
-					result.add(filter);
-				}
+			if (filters == null) return result;
+			for (var f : filters) {
+				var filter = parse(f);
+				if (filter == null) throw new InvalidQueryException(f, "expected {sort column}/{before|after|equals}/{value} with a value of the column type");
+				result.add(filter);
 			}
 			return result;
 		}
