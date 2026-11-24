@@ -22,7 +22,8 @@
 # - Deleting a tombstone or a deletor tag prunes every version of the
 #   item and its deletor tag in that origin, modified at or before the
 #   start of the prune. This is a local action using the existing delete
-#   permissions: no notice is sent and it is not replicated.
+#   permissions (pruning via a deletor tag also requires permission to
+#   delete the tag it deletes): no notice is sent and it is not replicated.
 # - Once a Ref is deleted, only moderators and admins can re-create or
 #   prune it, since its tombstone has no tags. Replication is not affected.
 # - Writing to pulled origins is not supported, including silent writes,
@@ -33,6 +34,8 @@
 #   include older and deleted versions.
 # - Regular servers pulling from an archive store blank versions as
 #   normal, empty items.
+# - Backups are written oldest first, so restoring one onto a regular
+#   server keeps the newest version of each item.
 # - Do not serve SSH (tunnels) or user logins from an archive server,
 #   since older user versions, including old authorized keys and roles,
 #   may be returned.
