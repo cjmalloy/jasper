@@ -2,7 +2,7 @@
 
 Follow these instructions first. Only fall back to further search if something here is incomplete or proven wrong; if you find it wrong, fix this file in the same PR.
 
-Jasper is a Spring Boot 4.1 / Java 25 Maven project (single module plus a separate `gatling/` load-test module and an `e2e/` Playwright module). The only `package.json`/lockfile is `e2e/` (Playwright, runs in Docker); there is no frontend build. Bun and Python are only *runtimes* used by plugin scripts and their tests.
+Jasper is a Spring Boot 4.2 / Java 25 Maven project (single module plus a separate `gatling/` load-test module and an `e2e/` Playwright module). The only `package.json`/lockfile is `e2e/` (Playwright, runs in Docker); there is no frontend build. Bun and Python are only *runtimes* used by plugin scripts and their tests.
 
 ## TL;DR — verified command sequence
 
@@ -198,7 +198,7 @@ jasper/
 - `src/main/java/jasper/web/rest/` — REST controllers (`/api/v1/**`, `/pub/api/**`)
 - `src/main/java/jasper/component/vm/` — JavaScript (Bun), Python and Shell script runners
 
-**Versions (check `pom.xml`/`Dockerfile` for current values):** Spring Boot 4.1.x, Spring Cloud 2025.1.x, Java 25 (21 fallback), Maven 3.10 wrapper, PostgreSQL 18, SQLite JDBC 3.53.x, Testcontainers 2.0.x, Liquibase, Caffeine, Redis (optional), Bun 1.4.x in images, Gatling 3.16.x.
+**Versions (check `pom.xml`/`Dockerfile` for current values):** Spring Boot 4.2.x, Spring Cloud 2026.0.x, Java 25 (21 fallback), Maven 3.10 wrapper, PostgreSQL 18, SQLite JDBC 3.53.x, Testcontainers 2.0.x, Liquibase, Caffeine, Redis (optional), Bun 1.4.x in images, Gatling 3.16.x.
 
 ## Code style guidelines
 
