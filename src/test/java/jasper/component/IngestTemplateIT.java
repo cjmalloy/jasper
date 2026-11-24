@@ -18,11 +18,14 @@ import org.springframework.transaction.support.TransactionTemplate;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.AdditionalAnswers.delegatesTo;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -90,6 +93,90 @@ public class IngestTemplateIT {
 			.isEqualTo(modified);
 		assertThat(templateRepository.findOneByQualifiedTag("test/deleted").get().getModified())
 			.isEqualTo(modified);
+	}
+
+	@Test
+	void testCreateConcurrentTombstoneIdempotent() {
+		var existing = new Template();
+		existing.setTag("test/deleted");
+		templateRepository.save(existing);
+		var modified = templateRepository.findOneByQualifiedTag("test/deleted").get().getModified();
+		IngestTemplate target = getTargetObject(ingest);
+		var repo = mock(TemplateRepository.class, delegatesTo(templateRepository));
+		// Simulate another request creating the tombstone after the existence check
+		doReturn(Optional.empty()).doAnswer(delegatesTo(templateRepository)).when(repo).findOneByQualifiedTag("test/deleted");
+		setField(target, "templateRepository", repo);
+		try {
+			var template = new Template();
+			template.setTag("test/deleted");
+
+			ingest.create(template);
+
+			assertThat(template.getModified())
+				.isEqualTo(modified);
+		} finally {
+			setField(target, "templateRepository", templateRepository);
+		}
+		assertThat(templateRepository.findOneByQualifiedTag("test/deleted").get().getModified())
+			.isEqualTo(modified);
+	}
+
+	@Test
+	void testCreateRootTombstoneOnSubOriginIgnoresDefaultOriginRoot() {
+		var root = new Template();
+		root.setTag("");
+		templateRepository.save(root);
+		var template = new Template();
+		template.setTag("deleted");
+		template.setOrigin("@sub");
+
+		ingest.create(template);
+		ingest.create(template);
+
+		assertThat(templateRepository.existsByQualifiedTag("deleted@sub"))
+			.isTrue();
+		assertThat(templateRepository.existsByQualifiedTag(""))
+			.isTrue();
+	}
+
+	@Test
+	void testCreateRootOnSubOriginRemovesTombstone() {
+		var tombstone = new Template();
+		tombstone.setTag("deleted");
+		tombstone.setOrigin("@sub");
+		templateRepository.save(tombstone);
+		var template = new Template();
+		template.setTag("");
+		template.setOrigin("@sub");
+
+		ingest.create(template);
+
+		assertThat(templateRepository.existsByQualifiedTag("deleted@sub"))
+			.isFalse();
+		assertThat(templateRepository.existsByQualifiedTag("@sub"))
+			.isTrue();
+	}
+
+	@Test
+	void testPushRootTombstoneOnSubOriginKeepsDefaultOriginRoot() {
+		var root = new Template();
+		root.setTag("");
+		templateRepository.save(root);
+		var subRoot = new Template();
+		subRoot.setTag("");
+		subRoot.setOrigin("@sub");
+		subRoot.setModified(Instant.now().minusSeconds(60));
+		templateRepository.save(subRoot);
+		var template = new Template();
+		template.setTag("deleted");
+		template.setOrigin("@sub");
+
+		ingest.push(template);
+
+		assertThat(templateRepository.existsByQualifiedTag("@sub"))
+			.isFalse();
+		assertThat(templateRepository.existsByQualifiedTag(""))
+			.isTrue();
 	}
 
 	@Test

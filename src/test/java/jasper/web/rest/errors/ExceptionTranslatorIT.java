@@ -92,7 +92,7 @@ class ExceptionTranslatorIT {
 			Arguments.of(AccessDeniedException.class, "access-denied", HttpStatus.FORBIDDEN, ERR_ACCESS_DENIED, ACCESS_VIOLATION_TYPE, "test access denied!"),
 			Arguments.of(AuthenticationException.class, "unauthorized", HttpStatus.UNAUTHORIZED, ERR_UNAUTHORIZED, ACCESS_VIOLATION_TYPE, "test authentication failed!"),
 			Arguments.of(NoResourceFoundException.class, "no-resource", HttpStatus.NOT_FOUND, ERR_NOT_FOUND, NOT_FOUND_TYPE, "No static resource missing.txt for request '/api/exception-translator-test/no-resource'."),
-			Arguments.of(MaxUploadSizeExceededException.class, "max-upload-size", HttpStatus.PAYLOAD_TOO_LARGE, ERR_TOO_LARGE, SIZE_ERROR_TYPE, "Maximum upload size of 100 bytes exceeded"),
+			Arguments.of(MaxUploadSizeExceededException.class, "max-upload-size", HttpStatus.CONTENT_TOO_LARGE, ERR_TOO_LARGE, SIZE_ERROR_TYPE, "Maximum upload size of 100 bytes exceeded"),
 			Arguments.of(DataIntegrityViolationException.class, "data-integrity", HttpStatus.CONFLICT, ERR_DATA_INTEGRITY, CONFLICT_TYPE, "insert into ref violates not-null constraint"),
 			Arguments.of(DuplicateKeyException.class, "duplicate-key", HttpStatus.CONFLICT, ERR_DUPLICATE_KEY, DUPLICATE_KEY_TYPE, "duplicate key value violates unique constraint \"ref_pkey\""),
 			Arguments.of(AlreadyExistsException.class, "already-exists", HttpStatus.CONFLICT, ERR_ALREADY_EXISTS, CONFLICT_TYPE, "Already exists"),
@@ -121,7 +121,7 @@ class ExceptionTranslatorIT {
 			Arguments.of(ScrapeProtocolException.class, "scrape-protocol", HttpStatus.BAD_REQUEST, ERR_SCRAPE_PROTOCOL, PROTOCOL_ERROR_TYPE, "Cannot scrape protocol: ftp"),
 			Arguments.of(ScriptException.class, "script", HttpStatus.INTERNAL_SERVER_ERROR, ERR_SCRIPT, SCRIPT_ERROR_TYPE, "Script failed"),
 			Arguments.of(UntrustedScriptException.class, "untrusted-script", HttpStatus.FORBIDDEN, ERR_UNTRUSTED_SCRIPT, SCRIPT_ERROR_TYPE, null),
-			Arguments.of(TooLargeException.class, "too-large", HttpStatus.PAYLOAD_TOO_LARGE, ERR_TOO_LARGE, SIZE_ERROR_TYPE, "You requested 1000 entities, but the max is 100."),
+			Arguments.of(TooLargeException.class, "too-large", HttpStatus.CONTENT_TOO_LARGE, ERR_TOO_LARGE, SIZE_ERROR_TYPE, "You requested 1000 entities, but the max is 100."),
 			Arguments.of(UserTagInUseException.class, "user-tag-in-use", HttpStatus.CONFLICT, ERR_USER_TAG_IN_USE, CONFLICT_TYPE, "User tag already in use by another user.")
 		);
 	}

@@ -22,7 +22,7 @@ public class FeignConfiguration {
 
 	@Bean
 	public feign.Contract feignContract() {
-		return new feign.Contract.Default();
+		return new feign.DefaultContract();
 	}
 
 	@Bean

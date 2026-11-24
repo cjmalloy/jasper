@@ -18,7 +18,6 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpHeaders;
-import org.springframework.security.access.expression.method.DefaultMethodSecurityExpressionHandler;
 import org.springframework.security.access.hierarchicalroles.RoleHierarchy;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationServiceException;
@@ -195,13 +194,6 @@ public class SecurityConfiguration {
 			USER + " > " + VIEWER,
 			VIEWER + " > " + ANONYMOUS
 		)));
-	}
-
-	@Bean
-	public DefaultMethodSecurityExpressionHandler methodSecurityExpressionHandler() {
-		var expressionHandler = new DefaultMethodSecurityExpressionHandler();
-		expressionHandler.setRoleHierarchy(roleHierarchy());
-		return expressionHandler;
 	}
 
 	@Bean

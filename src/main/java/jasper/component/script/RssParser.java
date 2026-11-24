@@ -40,7 +40,6 @@ import java.io.IOException;
 import java.lang.management.ManagementFactory;
 import java.net.SocketTimeoutException;
 import java.net.URI;
-import java.net.URL;
 import java.time.Instant;
 import java.time.Year;
 import java.time.ZoneId;
@@ -230,7 +229,7 @@ public class RssParser {
 			new URI(link).toURL();
 		} catch (IllegalArgumentException e) {
 			try {
-				link = new URL(new URI(feed.getUrl()).toURL(), link).toExternalForm();
+				link = link.isEmpty() ? feed.getUrl() : new URI(feed.getUrl()).resolve(link).toURL().toExternalForm();
 			} catch (Exception ex) {
 				throw new RuntimeException(ex);
 			}

@@ -159,6 +159,38 @@ public class IndexRepositoryImplPostgres implements IndexRepository {
 		em.createNativeQuery("CREATE INDEX IF NOT EXISTS ref_created_index ON ref (created)").executeUpdate();
 	}
 
+	@Override
+	public void dropTitle() {
+		em.createNativeQuery("DROP INDEX IF EXISTS ref_title_index").executeUpdate();
+	}
+
+	@Override
+	public void buildTitle() {
+		em.createNativeQuery("CREATE INDEX IF NOT EXISTS ref_title_index ON ref (title)").executeUpdate();
+	}
+
+	@Override
+	public void dropOrigin() {
+		em.createNativeQuery("DROP INDEX IF EXISTS ref_origin_index").executeUpdate();
+		em.createNativeQuery("DROP INDEX IF EXISTS ref_origin_prefix_index").executeUpdate();
+		em.createNativeQuery("DROP INDEX IF EXISTS ref_origin_nesting_index").executeUpdate();
+	}
+
+	@Override
+	public void buildOrigin() {
+		em.createNativeQuery("CREATE INDEX IF NOT EXISTS ref_origin_index ON ref (origin)").executeUpdate();
+		// LIKE '@a.%' can only use a text_pattern_ops index with non-C collations
+		em.createNativeQuery("CREATE INDEX IF NOT EXISTS ref_origin_prefix_index ON ref (origin text_pattern_ops)").executeUpdate();
+		em.createNativeQuery("CREATE INDEX IF NOT EXISTS ref_origin_nesting_index ON ref ((" + originNesting() + "))").executeUpdate();
+	}
+
+	/**
+	 * Must match origin_nesting in PostgreSQLDialect or the planner will not use the index.
+	 */
+	static String originNesting() {
+		return "CASE WHEN origin = '' OR origin = '@' THEN 0 ELSE (LENGTH(origin) - LENGTH(REPLACE(origin, '.', '')) + 1) END";
+	}
+
 	/**
 	 * Builds an expression index matching JSONB sorts, which order missing values first ascending
 	 * and last descending, so the index serves both directions and filters on the same expression.

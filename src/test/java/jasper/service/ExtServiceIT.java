@@ -727,19 +727,19 @@ public class ExtServiceIT {
 		extWithConfig("c", "{\"pinned\": \"x\", \"order\": 10}");
 		extWithConfig("d", null);
 
-		assertThat(configFiltered(TagFilter.builder().filterAfter(List.of("config->pinned:len/0")).build()))
+		assertThat(configFiltered(TagFilter.builder().filter(List.of("config->pinned:len/after/0")).build()))
 			.containsExactly("a");
-		assertThat(configFiltered(TagFilter.builder().filterBefore(List.of("config->pinned:len/1")).build()))
+		assertThat(configFiltered(TagFilter.builder().filter(List.of("config->pinned:len/before/1")).build()))
 			.containsExactly("b");
-		assertThat(configFiltered(TagFilter.builder().filterAfter(List.of("config->order:num/2")).build()))
+		assertThat(configFiltered(TagFilter.builder().filter(List.of("config->order:num/after/2")).build()))
 			.containsExactly("a", "c");
-		assertThat(configFiltered(TagFilter.builder().filterBefore(List.of("config->order:num/10")).build()))
+		assertThat(configFiltered(TagFilter.builder().filter(List.of("config->order:num/before/10")).build()))
 			.containsExactly("a");
-		assertThat(configFiltered(TagFilter.builder().filterAfter(List.of("config->title/b")).build()))
+		assertThat(configFiltered(TagFilter.builder().filter(List.of("config->title/after/b")).build()))
 			.containsExactly("b");
-		assertThat(extService.count(TagFilter.builder().filterAfter(List.of("config->order:num/2")).build()))
+		assertThat(extService.count(TagFilter.builder().filter(List.of("config->order:num/after/2")).build()))
 			.isEqualTo(2);
-		assertThat(configFiltered(TagFilter.builder().filterEquals(List.of("config->title/kiwi")).build()))
+		assertThat(configFiltered(TagFilter.builder().filter(List.of("config->title/equals/kiwi")).build()))
 			.containsExactly("b");
 	}
 
@@ -748,19 +748,19 @@ public class ExtServiceIT {
 		var a = extWithConfig("a", null);
 		extWithConfig("b/c", null);
 
-		assertThat(configFiltered(TagFilter.builder().filterEquals(List.of("tag:len/2")).build()))
+		assertThat(configFiltered(TagFilter.builder().filter(List.of("tag:len/equals/2")).build()))
 			.containsExactly("b/c");
-		assertThat(configFiltered(TagFilter.builder().filterEquals(List.of("modified/" + a.getModified())).build()))
+		assertThat(configFiltered(TagFilter.builder().filter(List.of("modified/equals/" + a.getModified())).build()))
 			.containsExactly("a");
-		assertThat(configFiltered(TagFilter.builder().filterAfter(List.of("modified/" + a.getModified())).build()))
+		assertThat(configFiltered(TagFilter.builder().filter(List.of("modified/after/" + a.getModified())).build()))
 			.containsExactly("b/c");
-		assertThat(configFiltered(TagFilter.builder().filterBefore(List.of("modified/" + a.getModified())).build()))
+		assertThat(configFiltered(TagFilter.builder().filter(List.of("modified/before/" + a.getModified())).build()))
 			.isEmpty();
 	}
 
 	@Test
 	void testInvalidEntityColumnFilter() {
-		assertThatThrownBy(() -> extService.page(TagFilter.builder().filterAfter(List.of("published/2024-01-01T00:00:00Z")).build(), PageRequest.of(0, 10)))
+		assertThatThrownBy(() -> extService.page(TagFilter.builder().filter(List.of("published/after/2024-01-01T00:00:00Z")).build(), PageRequest.of(0, 10)))
 			.isInstanceOf(InvalidQueryException.class);
 	}
 
@@ -769,21 +769,21 @@ public class ExtServiceIT {
 		extWithConfig("_secret", "{\"order\": 3}");
 		extWithConfig("public", "{\"order\": 3}");
 
-		assertThat(configFiltered(TagFilter.builder().filterAfter(List.of("config->order:num/2")).build()))
+		assertThat(configFiltered(TagFilter.builder().filter(List.of("config->order:num/after/2")).build()))
 			.containsExactly("public");
-		assertThat(extService.count(TagFilter.builder().filterAfter(List.of("config->order:num/2")).build()))
+		assertThat(extService.count(TagFilter.builder().filter(List.of("config->order:num/after/2")).build()))
 			.isEqualTo(1);
 	}
 
 	@Test
 	void testInvalidConfigValueFilter() {
-		assertThatThrownBy(() -> extService.page(TagFilter.builder().filterAfter(List.of("external->ids:len/0")).build(), PageRequest.of(0, 10)))
+		assertThatThrownBy(() -> extService.page(TagFilter.builder().filter(List.of("external->ids:len/after/0")).build(), PageRequest.of(0, 10)))
 			.isInstanceOf(InvalidQueryException.class);
-		assertThatThrownBy(() -> extService.page(TagFilter.builder().filterAfter(List.of("schema->x/0")).build(), PageRequest.of(0, 10)))
+		assertThatThrownBy(() -> extService.page(TagFilter.builder().filter(List.of("schema->x/after/0")).build(), PageRequest.of(0, 10)))
 			.isInstanceOf(InvalidQueryException.class);
-		assertThatThrownBy(() -> extService.page(TagFilter.builder().filterAfter(List.of("config->x:num/abc")).build(), PageRequest.of(0, 10)))
+		assertThatThrownBy(() -> extService.page(TagFilter.builder().filter(List.of("config->x:num/after/abc")).build(), PageRequest.of(0, 10)))
 			.isInstanceOf(InvalidQueryException.class);
-		assertThatThrownBy(() -> extService.page(TagFilter.builder().filterAfter(List.of("config/1")).build(), PageRequest.of(0, 10)))
+		assertThatThrownBy(() -> extService.page(TagFilter.builder().filter(List.of("config/after/1")).build(), PageRequest.of(0, 10)))
 			.isInstanceOf(InvalidQueryException.class);
 	}
 }
