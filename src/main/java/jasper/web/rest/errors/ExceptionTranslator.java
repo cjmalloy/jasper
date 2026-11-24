@@ -258,6 +258,9 @@ public class ExceptionTranslator extends ResponseEntityExceptionHandler {
 
 		if (problemProperties == null || !problemProperties.containsKey(PATH_KEY)) problem.setProperty(PATH_KEY, getPathValue(request));
 
+		// Spring Framework 7.1 no longer defaults instance to the request path
+		if (problem.getInstance() == null && request != null) problem.setInstance(getPathValue(request));
+
 		if (
 			(err instanceof MethodArgumentNotValidException fieldException) &&
 				(problemProperties == null || !problemProperties.containsKey(FIELD_ERRORS_KEY))
