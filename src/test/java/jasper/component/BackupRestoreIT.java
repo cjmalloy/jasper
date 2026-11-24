@@ -117,6 +117,34 @@ public class BackupRestoreIT {
 	}
 
 	@Test
+	void testBackupAndRestoreRefSources() throws IOException {
+		var ref = new Ref();
+		ref.setUrl("https://example.com/reply");
+		ref.setOrigin(ORIGIN);
+		ref.setSources(List.of("https://example.com/parent"));
+		refRepository.save(ref);
+
+		var options = new BackupOptionsDto();
+		options.setRef(true);
+		options.setExt(false);
+		options.setUser(false);
+		options.setPlugin(false);
+		options.setTemplate(false);
+		options.setCache(false);
+		backup.createBackup(ORIGIN, BACKUP_ID, options);
+		waitForBackup();
+
+		refRepository.deleteAll();
+		backup.restore(ORIGIN, BACKUP_ID, options);
+		waitForRestore();
+
+		assertThat(refRepository.findOneByUrlAndOrigin("https://example.com/reply", ORIGIN))
+			.get()
+			.extracting(Ref::getSources)
+			.isEqualTo(List.of("https://example.com/parent"));
+	}
+
+	@Test
 	void testBackupAndRestoreExts() throws IOException {
 		// Create test data
 		var ext1 = new Ext();
