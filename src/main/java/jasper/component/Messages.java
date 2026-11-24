@@ -58,22 +58,13 @@ public class Messages {
 	MessageChannel userTxChannel;
 
 	@Autowired
-	MessageChannel userRxChannel;
-
-	@Autowired
 	MessageChannel extTxChannel;
 
 	@Autowired
 	MessageChannel pluginTxChannel;
 
 	@Autowired
-	MessageChannel pluginRxChannel;
-
-	@Autowired
 	MessageChannel templateTxChannel;
-
-	@Autowired
-	MessageChannel templateRxChannel;
 
 	@Autowired
 	ComponentDtoMapper mapper;
@@ -158,10 +149,13 @@ public class Messages {
 		sendAndRetry(() -> userTxChannel.send(createMessage(deleteNotice(tag, origin, UserDto.class), tagHeaders(origin, tag))));
 	}
 
+	/**
+	 * Clears cached copies on every node after pruning. Synchronous so the local cache is cleared immediately.
+	 */
 	public void invalidateUser(String qualifiedTag) {
 		var tag = localTag(qualifiedTag);
 		var origin = tagOrigin(qualifiedTag);
-		userRxChannel.send(createMessage(deleteNotice(tag, origin, UserDto.class), tagHeaders(origin, tag)));
+		userTxChannel.send(createMessage(deleteNotice(tag, origin, UserDto.class), tagHeaders(origin, tag)));
 	}
 
 	@Async
@@ -181,7 +175,7 @@ public class Messages {
 	public void invalidatePlugin(String qualifiedTag) {
 		var tag = localTag(qualifiedTag);
 		var origin = tagOrigin(qualifiedTag);
-		pluginRxChannel.send(createMessage(deleteNotice(tag, origin, PluginDto.class), tagHeaders(origin, tag)));
+		pluginTxChannel.send(createMessage(deleteNotice(tag, origin, PluginDto.class), tagHeaders(origin, tag)));
 	}
 
 	@Async
@@ -201,7 +195,7 @@ public class Messages {
 	public void invalidateTemplate(String qualifiedTag) {
 		var tag = localTag(qualifiedTag);
 		var origin = tagOrigin(qualifiedTag);
-		templateRxChannel.send(createMessage(deleteNotice(tag, origin, TemplateDto.class), tagHeaders(origin, tag)));
+		templateTxChannel.send(createMessage(deleteNotice(tag, origin, TemplateDto.class), tagHeaders(origin, tag)));
 	}
 
 	private <T> T deleteNotice(String tag, String origin, Class<T> type) {

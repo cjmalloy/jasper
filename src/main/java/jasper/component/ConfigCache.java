@@ -320,6 +320,8 @@ public class ConfigCache {
 		return refRepository.findAll(
 				RefFilter.builder()
 					.origin(origin)
+					// In archive mode older versions are obsolete
+					.obsolete(archive ? false : null)
 					.query(tag).build().spec()).stream()
 			.map(r -> r.getPlugin(tag, toValueType))
 			.toList();
@@ -451,6 +453,8 @@ public class ConfigCache {
 	public List<TemplateDto> getSchemas(String tag, String origin) {
 		return templateRepository.findAllForTagAndOriginWithSchema(tag, origin)
 			.stream()
+			// In archive mode a blank version is a tombstone
+			.filter(t -> !archive || !Archive.isBlank(t))
 			.map(dtoMapper::domainToDto)
 			.toList();
 	}
@@ -459,6 +463,8 @@ public class ConfigCache {
 	public List<TemplateDto> getDefaults(String tag, String origin) {
 		return templateRepository.findAllForTagAndOriginWithDefaults(tag, origin)
 			.stream()
+			// In archive mode a blank version is a tombstone
+			.filter(t -> !archive || !Archive.isBlank(t))
 			.map(dtoMapper::domainToDto)
 			.toList();
 	}

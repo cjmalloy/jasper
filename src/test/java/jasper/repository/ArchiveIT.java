@@ -1549,4 +1549,38 @@ public class ArchiveIT {
 		assertThat(ingestExt.current("foo"))
 			.isEmpty();
 	}
+
+	@Test
+	void testAllConfigsSkipsOlderVersions() {
+		var mapper = new ObjectMapper();
+		var older = ref("", "Older", now.minusSeconds(20), "+plugin/test");
+		older.setPlugin("+plugin/test", mapper.createObjectNode().put("value", 1));
+		ingest.push("", older, false, false);
+		var newer = ref("", "Newer", now.minusSeconds(10), "+plugin/test");
+		newer.setPlugin("+plugin/test", mapper.createObjectNode().put("value", 2));
+		ingest.push("", newer, false, false);
+		configCache.clearConfigCache();
+
+		assertThat(configCache.getAllConfigs("", "+plugin/test", ObjectNode.class))
+			.extracting(c -> c.get("value").asInt())
+			.containsExactly(2);
+	}
+
+	@Test
+	void testSchemasSkipTombstone() {
+		var template = new Template();
+		template.setTag("test");
+		template.setSchema(new ObjectMapper().createObjectNode().put("type", "string"));
+		template.setModified(now.minusSeconds(20));
+		ingestTemplate.push(template);
+		var tombstone = new Template();
+		tombstone.setTag("test");
+		tombstone.setSchema(new ObjectMapper().createObjectNode());
+		tombstone.setModified(now.minusSeconds(10));
+		ingestTemplate.push(tombstone);
+		configCache.clearTemplateCache();
+
+		assertThat(configCache.getSchemas("test", ""))
+			.isEmpty();
+	}
 }

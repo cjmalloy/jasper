@@ -23,7 +23,16 @@
 #   item and its deletor tag in that origin, modified at or before the
 #   start of the prune. This is a local action using the existing delete
 #   permissions (pruning via a deletor tag also requires permission to
-#   delete the tag it deletes): no notice is sent and it is not replicated.
+#   delete the tag it deletes): it is not replicated, only cached copies
+#   of Users, Plugins and Templates are cleared on every node.
+# - Pushes and pulls with validation enabled (the push API, or pulls with
+#   validatePlugins/validateTemplates) fill defaults and fix published
+#   dates the same as on regular servers. Disable validation on pulls to
+#   store versions exactly as received.
+# - A pushed User newer than the current version inherits a missing key,
+#   public key and external IDs, the same as on regular servers, so the
+#   current version keeps working. Older and blank versions are stored as
+#   received.
 # - Once a Ref is deleted, only moderators and admins can re-create or
 #   prune it, since its tombstone has no tags. Replication is not affected.
 # - Writing to pulled origins is not supported, including silent writes,
