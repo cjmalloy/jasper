@@ -47,6 +47,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.IncorrectResultSizeDataAccessException;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.security.test.context.support.WithMockUser;
+import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
@@ -83,6 +84,8 @@ import static org.springframework.test.util.ReflectionTestUtils.invokeMethod;
 @DisabledIfSystemProperty(named = "spring.profiles.active", matches = ".*sqlite.*")
 @WithMockUser(value = "+user/tester", roles = "ADMIN")
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
+// Close the connection pool after this class so cached contexts don't exhaust Postgres connections
+@DirtiesContext
 public class ArchiveIT {
 	static final String URL = "https://www.example.com/";
 

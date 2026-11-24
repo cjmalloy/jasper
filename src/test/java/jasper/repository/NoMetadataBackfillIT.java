@@ -8,6 +8,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.DisabledIfSystemProperty;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.ActiveProfiles;
 
 import java.time.Instant;
@@ -19,6 +20,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 @IntegrationTest
 @ActiveProfiles({"no-metadata", "test"})
 @DisabledIfSystemProperty(named = "spring.profiles.active", matches = ".*sqlite.*")
+// Close the connection pool after this class so cached contexts don't exhaust Postgres connections
+@DirtiesContext
 public class NoMetadataBackfillIT {
 	static final String URL = "https://www.example.com/";
 

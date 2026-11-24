@@ -19,6 +19,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.test.context.support.WithMockUser;
+import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 
 import java.time.Instant;
@@ -36,6 +37,8 @@ import static org.mockito.Mockito.timeout;
 @IntegrationTest
 @WithMockUser(value = "+user/tester", roles = "ADMIN")
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
+// Close the connection pool after this class so cached contexts don't exhaust Postgres connections
+@DirtiesContext
 public class RegularDeleteIT {
 
 	@Autowired
