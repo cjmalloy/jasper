@@ -35,6 +35,8 @@ import java.security.NoSuchAlgorithmException;
 import java.security.interfaces.RSAPublicKey;
 import java.time.Instant;
 
+import static jasper.component.Replicator.deletedTag;
+import static jasper.component.Replicator.isDeletorTag;
 import static jasper.domain.proj.Tag.localTag;
 import static jasper.domain.proj.Tag.tagOrigin;
 import static jasper.repository.spec.SortSpec.sortTags;
@@ -89,8 +91,10 @@ public class UserService {
 			user.setAuthorizedKeys(new String(user.getPubKey(), StandardCharsets.UTF_8));
 		}
 		var maybeExisting = userRepository.findOneByQualifiedTag(user.getQualifiedTag());
-		// In archive mode a blank version is a tombstone, so keep it blank
-		if (maybeExisting.isPresent() && !(archive && Archive.isBlank(user))) {
+		// In archive mode a blank version is a tombstone, so keep it blank,
+		// and an older version is history, so keep the received values
+		if (maybeExisting.isPresent() && !(archive && (Archive.isBlank(user)
+			|| user.getModified() != null && user.getModified().isBefore(maybeExisting.get().getModified())))) {
 			if (user.getKey() == null) user.setKey(maybeExisting.get().getKey());
 			if (user.getPubKey() == null) user.setPubKey(maybeExisting.get().getPubKey());
 			if (user.getExternal() == null) user.setExternal(maybeExisting.get().getExternal());
@@ -192,6 +196,11 @@ public class UserService {
 	@PreAuthorize("@auth.canWriteUserTag(#qualifiedTag) or @auth.subOrigin(#qualifiedTag) and @auth.hasRole('MOD')")
 	@Timed(value = "jasper.service", extraTags = {"service", "user"}, histogram = true)
 	public void delete(String qualifiedTag) {
+		if (archive && isDeletorTag(qualifiedTag)) {
+			// In archive mode deleting a deletor tag prunes the tag it deletes
+			var parent = deletedTag(qualifiedTag);
+			if (!auth.canWriteUserTag(parent) && !(auth.subOrigin(parent) && auth.hasRole(MOD))) throw new AccessDeniedException("Cannot delete " + parent);
+		}
 		try {
 			ingest.delete(qualifiedTag);
 		} catch (EmptyResultDataAccessException e) {

@@ -94,7 +94,8 @@ public class IngestExt {
 
 	@Timed(value = "jasper.ext", histogram = true)
 	public void push(String rootOrigin, Ext ext, boolean validation, boolean stripInvalidTemplates) {
-		if (validation) validate.ext(rootOrigin, ext, stripInvalidTemplates);
+		// In archive mode a blank version is a tombstone, so don't fill in defaults
+		if (validation && !(archive && isBlank(ext))) validate.ext(rootOrigin, ext, stripInvalidTemplates);
 		pushUniqueModified(ext);
 		// In archive mode pushes never remove rows
 		if (!archive) {

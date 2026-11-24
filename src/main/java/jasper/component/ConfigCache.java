@@ -324,7 +324,8 @@ public class ConfigCache {
 			var remote = refRepository.findAll(
 					RefFilter.builder()
 						.origin(origin)
-						.obsolete(false)
+						// In archive mode older versions are obsolete
+						.obsolete(archive ? false : null)
 						.query("+plugin/origin").build().spec())
 				.stream()
 				.filter(r -> finalLocal.equals(getOrigin(r).getLocal()))

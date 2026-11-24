@@ -111,13 +111,9 @@ public class RefService {
 	 */
 	private Optional<Ref> alternate(String url, String origin) {
 		if (!archive) return refRepository.findOne(isUrl(url).and(isOrigin(origin)));
-		var matches = refRepository.findAll(isUrl(url).and(isOrigin(origin)))
+		var matches = refRepository.findAllCurrentByAlternateUrlAndOrigin(url, origin)
 			.stream()
-			.map(Ref::getUrl)
-			.distinct()
-			.map(u -> refRepository.findOneByUrlAndOrigin(u, origin))
-			.flatMap(Optional::stream)
-			.filter(r -> r.getAlternateUrls() != null && r.getAlternateUrls().contains(url))
+			.filter(r -> !ingest.isTombstone(r))
 			.toList();
 		if (matches.size() > 1) throw new IncorrectResultSizeDataAccessException(1, matches.size());
 		return matches.stream().findFirst();

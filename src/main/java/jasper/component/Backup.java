@@ -143,7 +143,12 @@ public class Backup {
 			buf.append("[");
 			var buffSize = props.getBackupBufferSize();
 			Stream<?> stream;
-			if (newerThan != null) {
+			if (archive) {
+				// Oldest first, so restoring onto a regular server keeps the newest version
+				stream = newerThan != null
+					? repo.streamAllByOriginAndModifiedGreaterThanEqualOrderByModifiedAsc(origin, newerThan)
+					: repo.streamAllByOriginOrderByModifiedAsc(origin);
+			} else if (newerThan != null) {
 				stream = repo.streamAllByOriginAndModifiedGreaterThanEqualOrderByModifiedDesc(origin, newerThan);
 			} else {
 				stream = repo.streamAllByOriginOrderByModifiedDesc(origin);

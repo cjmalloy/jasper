@@ -27,4 +27,18 @@ public interface StreamMixin<T> {
 		@QueryHint(name = HINT_READ_ONLY, value = "true")
 	})
 	Stream<T> streamAllByOriginOrderByModifiedDesc(String origin);
+
+	@QueryHints(value = {
+		@QueryHint(name = HINT_FETCH_SIZE, value = "500"),
+		@QueryHint(name = HINT_CACHEABLE, value = "false"),
+		@QueryHint(name = HINT_READ_ONLY, value = "true")
+	})
+	Stream<T> streamAllByOriginAndModifiedGreaterThanEqualOrderByModifiedAsc(String origin, Instant newerThan);
+
+	@QueryHints(value = {
+		@QueryHint(name = HINT_FETCH_SIZE, value = "500"),
+		@QueryHint(name = HINT_CACHEABLE, value = "false"),
+		@QueryHint(name = HINT_READ_ONLY, value = "true")
+	})
+	Stream<T> streamAllByOriginOrderByModifiedAsc(String origin);
 }

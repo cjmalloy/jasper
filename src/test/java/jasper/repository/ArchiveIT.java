@@ -1439,4 +1439,114 @@ public class ArchiveIT {
 		assertThat(backupRefTitles(true))
 			.hasSize(2);
 	}
+
+	@Test
+	void testBackupIsOldestFirst() {
+		push("", "Second", now);
+		push("", "First", now.minusSeconds(10));
+
+		assertThat(backupRefTitles(false))
+			.containsExactly("First", "Second");
+	}
+
+	@Test
+	void testDeferredPushesMarkOlderVersionsObsolete() {
+		var old = now.minus(1, ChronoUnit.DAYS);
+		push("", "Second", old);
+		push("", "First", old.minusSeconds(10));
+		push("", "Third", old.plusSeconds(10));
+
+		assertThat(version("", old.minusSeconds(10)).getMetadata().isObsolete())
+			.isTrue();
+		assertThat(version("", old).getMetadata().isObsolete())
+			.isTrue();
+		assertThat(version("", old.plusSeconds(10)).getMetadata().isObsolete())
+			.isFalse();
+		assertThat(version("", old.plusSeconds(10)).getMetadata().isRegen())
+			.isTrue();
+	}
+
+	@Test
+	void testBackfillSkipsOlderDeferredUserUrlVersions() {
+		var old = now.minus(1, ChronoUnit.DAYS);
+		push("", "Target", old);
+		pushVote(old.plusSeconds(10), "plugin/user/vote/up");
+		pushVote(old.plusSeconds(20), "plugin/user/vote/down");
+
+		backfillRepository.backfillMetadata("", 10);
+
+		var target = version("", old);
+		assertThat(target.getMetadata().getPlugins())
+			.containsEntry("plugin/user/vote/down", 1L)
+			.doesNotContainKey("plugin/user/vote/up");
+		assertThat(target.getMetadata().getRemotePlugins())
+			.doesNotContainKey("plugin/user/vote/up");
+		assertThat(target.getMetadata().getUserUrls())
+			.doesNotContainKey("plugin/user/vote/up");
+	}
+
+	@Test
+	void testPushKeepsReceivedRngTags() {
+		push("", "Second", now, "plugin/rng", "+plugin/rng/second");
+		push("", "First", now.minusSeconds(10), "plugin/rng", "+plugin/rng/first");
+
+		assertThat(version("", now.minusSeconds(10)).getTags())
+			.containsExactlyInAnyOrder("plugin/rng", "+plugin/rng/first");
+	}
+
+	@Test
+	void testAlternateUrlSkipsDeletedRef() {
+		ingest.push("", alias(URL, "Deleted", now.minusSeconds(20), "https://alias.example.com/"), false, false);
+		var deleted = alias(URL, "Deleted", now.minusSeconds(15), "https://alias.example.com/");
+		deleted.setTags(new ArrayList<>(List.of("plugin/delete")));
+		ingest.push("", deleted, false, false);
+		ingest.push("", alias("https://www.example.com/other", "Live", now.minusSeconds(10), "https://alias.example.com/"), false, false);
+
+		assertThat(refService.get("https://alias.example.com/", ""))
+			.extracting(RefDto::getTitle)
+			.isEqualTo("Live");
+	}
+
+	@Test
+	void testServicePushOlderUserKeepsReceivedExternal() {
+		var current = new User();
+		current.setTag("+user/alice");
+		current.setName("Alice");
+		current.setExternal(External.builder().ids(List.of("alice")).build());
+		current.setModified(now);
+		userService.push(current);
+		var older = new User();
+		older.setTag("+user/alice");
+		older.setName("Alice");
+		older.setModified(now.minusSeconds(10));
+		userService.push(older);
+
+		assertThat(userRepository.findAll().stream()
+			.filter(u -> u.getModified().equals(now.minusSeconds(10)))
+			.findFirst().orElseThrow().getExternal())
+			.isNull();
+	}
+
+	@Test
+	void testPushBlankExtSkipsTemplateDefaults() {
+		var template = new Template();
+		template.setTag("foo");
+		template.setName("Foo");
+		template.setSchema(json("""
+			{ "optionalProperties": { "x": { "type": "string" } } }"""));
+		template.setDefaults(json("""
+			{ "x": "default" }"""));
+		template.setModified(now.minusSeconds(30));
+		ingestTemplate.push(template);
+		configCache.clearTemplateCache();
+		var live = ext("foo", now.minusSeconds(20), "Foo");
+		extService.push(live);
+		var blank = new Ext();
+		blank.setTag("foo");
+		blank.setModified(now.minusSeconds(10));
+		extService.push(blank);
+
+		assertThat(ingestExt.current("foo"))
+			.isEmpty();
+	}
 }

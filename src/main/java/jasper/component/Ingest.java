@@ -145,7 +145,8 @@ public class Ingest {
 		Ref maybeExisting = null;
 		if (generateMetadata) {
 			maybeExisting = refRepository.findOneByUrlAndOrigin(ref.getUrl(), ref.getOrigin()).orElse(null);
-			rng.update(rootOrigin, ref, maybeExisting);
+			// In archive mode received versions are stored unchanged
+			if (!archive) rng.update(rootOrigin, ref, maybeExisting);
 			if (maybeExisting != null) {
 				meta.update(rootOrigin, ref, maybeExisting);
 			} else {
@@ -158,10 +159,16 @@ public class Ingest {
 				.regen(true)
 				.expandedTags(expandTags(ref.getTags()))
 				.build());
+			// In archive mode only the newest version in an origin may be current, even before backfill
+			if (archive) ref.getMetadata().setObsolete(refRepository.existsByUrlAndOriginAndModifiedGreaterThan(ref.getUrl(), ref.getOrigin(), ref.getModified()));
 		}
 		ref.getMetadata().setIgnored(ignored);
 		pushUniqueModified(ref);
-		if (generateMetadata) meta.sources(rootOrigin, ref, maybeExisting);
+		if (generateMetadata) {
+			meta.sources(rootOrigin, ref, maybeExisting);
+		} else if (archive) {
+			refRepository.setOlderVersionsObsolete(ref.getUrl(), ref.getOrigin(), ref.getModified());
+		}
 		messages.updateRef(ref);
 	}
 

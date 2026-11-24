@@ -34,6 +34,32 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 	void deleteByUrlAndOrigin(String url, String origin);
 	boolean existsByUrlAndOrigin(String url, String origin);
 
+	boolean existsByUrlAndOriginAndModifiedGreaterThan(String url, String origin, Instant modified);
+
+	/**
+	 * Archive mode: mark versions in the origin older than the given version as obsolete.
+	 */
+	@Modifying(flushAutomatically = true)
+	@Transactional
+	@Query("""
+		UPDATE Ref r
+		SET r.metadata = jsonb_set(coalesce(r.metadata, cast_to_jsonb('{"regen":true}')), '{obsolete}', cast_to_jsonb('true'), true)
+		WHERE r.url = :url
+			AND r.origin = :origin
+			AND r.modified < :modified
+			AND COALESCE(jsonb_object_field_text(r.metadata, 'obsolete'), 'false') != 'true'""")
+	int setOlderVersionsObsolete(String url, String origin, Instant modified);
+
+	/**
+	 * Archive mode: current versions in the origin with the given alternate URL.
+	 */
+	@Query("""
+		FROM Ref r
+		WHERE r.origin = :origin
+			AND jsonb_exists(r.alternateUrls, :url) = true
+			AND NOT EXISTS (SELECT 1 FROM Ref n WHERE n.url = r.url AND n.origin = r.origin AND n.modified > r.modified)""")
+	List<Ref> findAllCurrentByAlternateUrlAndOrigin(String url, String origin);
+
 	@Modifying
 	@Query("""
 		UPDATE Ref SET
@@ -214,12 +240,12 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 		WHERE r.url != :url
 			AND jsonb_exists(r.sources, :url) = true
 			AND jsonb_exists(COALESCE(jsonb_object_field(r.metadata, 'expandedTags'), r.tags), :tag) = true
-			AND ((r.url IN ('tag:/user', 'tag:/+user', 'tag:/_user')
-					OR r.url LIKE 'tag:/user/%' OR r.url LIKE 'tag:/user?%'
-					OR r.url LIKE 'tag:/+user/%' OR r.url LIKE 'tag:/+user?%'
-					OR r.url LIKE 'tag:/\\_user/%' ESCAPE '\\' OR r.url LIKE 'tag:/\\_user?%' ESCAPE '\\')
-				AND NOT EXISTS (SELECT 1 FROM Ref n WHERE n.url = r.url AND n.origin = r.origin AND n.modified > r.modified)
+			AND (r.url IN ('tag:/user', 'tag:/+user', 'tag:/_user')
+				OR r.url LIKE 'tag:/user/%' OR r.url LIKE 'tag:/user?%'
+				OR r.url LIKE 'tag:/+user/%' OR r.url LIKE 'tag:/+user?%'
+				OR r.url LIKE 'tag:/\\_user/%' ESCAPE '\\' OR r.url LIKE 'tag:/\\_user?%' ESCAPE '\\'
 				OR COALESCE(jsonb_object_field_text(r.metadata, 'obsolete'), 'false') != 'true')
+			AND NOT EXISTS (SELECT 1 FROM Ref n WHERE n.url = r.url AND n.origin = r.origin AND n.modified > r.modified)
 			AND (:origin = '' OR r.origin = :origin OR r.origin LIKE concat(:origin, '.%'))""")
 	List<RefId> findAllLatestResponseIdsWithTag(String url, String origin, String tag);
 
