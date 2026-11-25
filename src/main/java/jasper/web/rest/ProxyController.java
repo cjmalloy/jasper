@@ -19,6 +19,7 @@ import org.springframework.http.CacheControl;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.http.MediaTypeFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -114,6 +115,7 @@ public class ProxyController {
 		var contentType = cache != null && isNotBlank(cache.getMimeType())
 			? parseMediaType(cache.getMimeType())
 			: APPLICATION_OCTET_STREAM;
+		if (APPLICATION_OCTET_STREAM.equalsTypeAndSubtype(contentType)) contentType = guessMediaType(filename, contentType);
 		var contentDisposition = "inline; filename*=UTF-8''" +
 			URLEncoder.encode(filename, StandardCharsets.UTF_8).replace("+", "%20");
 		if (rangeHeader != null && contentLength != null && rangeHeader.startsWith("bytes=")) {
@@ -137,6 +139,20 @@ public class ProxyController {
 			.contentType(contentType)
 			.cacheControl(CacheControl.maxAge(100, TimeUnit.DAYS).cachePrivate())
 			.body(outputStream -> streamContent(is, outputStream, 0, null));
+	}
+
+	/**
+	 * Uploads and servers often leave out the media type. Browsers download
+	 * application/octet-stream instead of displaying it, so guess embeddable
+	 * media from the file extension.
+	 */
+	private static MediaType guessMediaType(String filename, MediaType fallback) {
+		return MediaTypeFactory.getMediaType(filename)
+			.filter(t -> t.equalsTypeAndSubtype(MediaType.APPLICATION_PDF)
+				|| t.getType().equals("image") && !t.getSubtype().startsWith("svg")
+				|| t.getType().equals("audio")
+				|| t.getType().equals("video"))
+			.orElse(fallback);
 	}
 
 	private ResponseEntity<StreamingResponseBody> handleRangeRequest(InputStream is, String rangeHeader, long contentLength, MediaType contentType, String contentDisposition) throws NumberFormatException {

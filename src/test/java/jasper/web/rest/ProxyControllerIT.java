@@ -336,6 +336,43 @@ class ProxyControllerIT {
 	}
 
 	@Test
+	void testFetchGuessesMissingMediaType() throws Exception {
+		var url = proxyService.save("", "paper.pdf", new ByteArrayInputStream(TEST_CONTENT), null).getUrl();
+		assertContentType(url, MediaType.APPLICATION_PDF);
+	}
+
+	@Test
+	void testFetchGuessesOctetStreamMediaType() throws Exception {
+		var url = proxyService.save("", "clip.webm", new ByteArrayInputStream(TEST_CONTENT), "application/octet-stream").getUrl();
+		assertContentType(url, MediaType.parseMediaType("video/webm"));
+	}
+
+	@Test
+	void testFetchDoesNotGuessUnsafeMediaType() throws Exception {
+		var url = proxyService.save("", "page.html", new ByteArrayInputStream(TEST_CONTENT), null).getUrl();
+		assertContentType(url, MediaType.APPLICATION_OCTET_STREAM);
+	}
+
+	@Test
+	void testFetchKeepsKnownMediaType() throws Exception {
+		var url = proxyService.save("", "notes.pdf", new ByteArrayInputStream(TEST_CONTENT), "text/plain").getUrl();
+		assertContentType(url, MediaType.TEXT_PLAIN);
+	}
+
+	private void assertContentType(String url, MediaType type) throws Exception {
+		var result = mockMvc
+			.perform(get("/api/v1/proxy")
+				.param("url", url)
+				.param("origin", ""))
+			.andExpect(request().asyncStarted())
+			.andReturn();
+		mockMvc
+			.perform(asyncDispatch(result))
+			.andExpect(status().isOk())
+			.andExpect(content().contentType(type));
+	}
+
+	@Test
 	void testFetchBareRoute() throws Exception {
 		assertFetchOk("/api/v1/proxy", untitledUrl, "file");
 	}
