@@ -44,6 +44,36 @@ public class IngestExtIT {
 	}
 
 	@Test
+	void testFindOneByQualifiedTag() {
+		var local = new Ext();
+		local.setTag("test");
+		local.setName("Local");
+		extRepository.save(local);
+		var remote = new Ext();
+		remote.setTag("test");
+		remote.setOrigin("@other");
+		remote.setName("Remote");
+		extRepository.save(remote);
+
+		assertThat(extRepository.findOneByQualifiedTag("test"))
+			.get()
+			.extracting(Ext::getName)
+			.isEqualTo("Local");
+		assertThat(extRepository.findOneByQualifiedTag("test@other"))
+			.get()
+			.extracting(Ext::getName)
+			.isEqualTo("Remote");
+		assertThat(extRepository.findOneByQualifiedTag("test@missing"))
+			.isEmpty();
+		assertThat(extRepository.findOneByQualifiedTag("missing"))
+			.isEmpty();
+		assertThat(extRepository.existsByQualifiedTag("test@other"))
+			.isTrue();
+		assertThat(extRepository.existsByQualifiedTag("test@missing"))
+			.isFalse();
+	}
+
+	@Test
 	void testPushDeletorDeletesTag() {
 		var existing = new Ext();
 		existing.setTag("test");

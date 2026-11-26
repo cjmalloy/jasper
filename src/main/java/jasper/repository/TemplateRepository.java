@@ -88,8 +88,6 @@ public interface TemplateRepository extends JpaRepository<Template, TagId>, Qual
 		ORDER BY tag_levels(t.tag) ASC""")
 	List<Template> findAllForTagAndOriginWithDefaults(String tag, String origin);
 
-	Optional<Template> findFirstByTagAndOriginOrderByModifiedDesc(String tag, String origin);
-
 	/**
 	 * Find the latest version if it is not disabled. In archive mode multiple versions may exist.
 	 */

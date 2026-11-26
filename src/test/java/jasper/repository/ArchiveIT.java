@@ -620,6 +620,24 @@ public class ArchiveIT {
 	}
 
 	@Test
+	void testRemoteExtLookupReturnsNewestVersion() {
+		var first = ext("test", now.minusSeconds(10), "First");
+		first.setOrigin("@other");
+		extRepository.save(first);
+		var second = ext("test", now, "Second");
+		second.setOrigin("@other");
+		extRepository.save(second);
+		extRepository.save(ext("test", now.plusSeconds(10), "Local"));
+
+		assertThat(extRepository.findOneByQualifiedTag("test@other"))
+			.get()
+			.extracting(Ext::getName)
+			.isEqualTo("Second");
+		assertThat(extRepository.findOneByQualifiedTag("test@missing"))
+			.isEmpty();
+	}
+
+	@Test
 	void testPluginLookupReturnsLatestVersion() {
 		var first = new Plugin();
 		first.setTag("plugin/test");

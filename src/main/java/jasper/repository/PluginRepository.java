@@ -56,8 +56,6 @@ public interface PluginRepository extends JpaRepository<Plugin, TagId>, Qualifie
 			AND plugin.modified <= :olderThan""")
 	void deleteByOriginAndModifiedLessThanEqual(String origin, Instant olderThan);
 
-	Optional<Plugin> findFirstByTagAndOriginOrderByModifiedDesc(String tag, String origin);
-
 	/**
 	 * Find the latest version if it is not disabled. In archive mode multiple versions may exist.
 	 */

@@ -9,18 +9,26 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
 import java.util.Optional;
 
+import static jasper.domain.proj.Tag.localTag;
+import static jasper.domain.proj.Tag.tagOrigin;
+
 @Transactional(readOnly = true)
 public interface QualifiedTagMixin<T extends Tag> extends JpaSpecificationExecutor<T> {
-	Optional<T> findFirstByQualifiedTagOrderByModifiedDesc(String tag);
+	Optional<T> findFirstByTagAndOriginOrderByModifiedDesc(String tag, String origin);
 
 	/**
 	 * Find the latest version. In archive mode multiple versions may exist.
+	 * Matches on the primary key columns instead of the unindexed qualifiedTag formula.
 	 */
-	default Optional<T> findOneByQualifiedTag(String tag) {
-		return findFirstByQualifiedTagOrderByModifiedDesc(tag);
+	default Optional<T> findOneByQualifiedTag(String qualifiedTag) {
+		return findFirstByTagAndOriginOrderByModifiedDesc(localTag(qualifiedTag), tagOrigin(qualifiedTag));
 	}
 
-	boolean existsByQualifiedTag(String tag);
+	boolean existsByTagAndOrigin(String tag, String origin);
+
+	default boolean existsByQualifiedTag(String qualifiedTag) {
+		return existsByTagAndOrigin(localTag(qualifiedTag), tagOrigin(qualifiedTag));
+	}
 
 	@Transactional
 	void deleteByQualifiedTag(String tag);
