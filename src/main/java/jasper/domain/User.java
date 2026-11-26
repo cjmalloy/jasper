@@ -11,11 +11,9 @@ import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import jasper.domain.proj.HasOrigin;
 import jasper.domain.proj.Tag;
-import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.Setter;
 import org.apache.commons.compress.utils.Sets;
-import org.hibernate.annotations.Formula;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 import org.hibernate.validator.constraints.Length;
@@ -72,10 +70,6 @@ public class User implements Tag {
 	@Length(max = ROLE_LEN)
 	@Pattern(regexp = ROLE_REGEX)
 	private String role = "";
-
-	@Formula("tag || origin")
-	@Setter(AccessLevel.NONE)
-	private String qualifiedTag;
 
 	@Length(max = NAME_LEN)
 	private String name;

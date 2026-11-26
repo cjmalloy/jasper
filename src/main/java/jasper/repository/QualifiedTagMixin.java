@@ -31,7 +31,12 @@ public interface QualifiedTagMixin<T extends Tag> extends JpaSpecificationExecut
 	}
 
 	@Transactional
-	void deleteByQualifiedTag(String tag);
+	void deleteByTagAndOrigin(String tag, String origin);
+
+	@Transactional
+	default void deleteByQualifiedTag(String qualifiedTag) {
+		deleteByTagAndOrigin(localTag(qualifiedTag), tagOrigin(qualifiedTag));
+	}
 
 	/**
 	 * Remove every version modified at or before olderThan. Only used to prune in archive mode.
@@ -40,7 +45,13 @@ public interface QualifiedTagMixin<T extends Tag> extends JpaSpecificationExecut
 	@Modifying(clearAutomatically = true, flushAutomatically = true)
 	@Query("""
 		DELETE FROM #{#entityName} t
-		WHERE t.qualifiedTag = :tag
+		WHERE t.tag = :tag
+			AND t.origin = :origin
 			AND t.modified <= :olderThan""")
-	void deleteByQualifiedTagAndModifiedLessThanEqual(String tag, Instant olderThan);
+	void deleteByTagAndOriginAndModifiedLessThanEqual(String tag, String origin, Instant olderThan);
+
+	@Transactional
+	default void deleteByQualifiedTagAndModifiedLessThanEqual(String qualifiedTag, Instant olderThan) {
+		deleteByTagAndOriginAndModifiedLessThanEqual(localTag(qualifiedTag), tagOrigin(qualifiedTag), olderThan);
+	}
 }
