@@ -21,8 +21,6 @@ import jasper.service.dto.RefDto;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.dao.IncorrectResultSizeDataAccessException;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -35,10 +33,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
-import java.util.Optional;
 
 import static jasper.component.Meta.expandTags;
-import static jasper.repository.spec.OriginSpec.isOrigin;
 import static jasper.repository.spec.RefSpec.isNotObsolete;
 import static jasper.repository.spec.RefSpec.isUrl;
 import static jasper.repository.spec.RefSpec.sort;
@@ -70,8 +66,6 @@ public class RefService {
 	@Autowired
 	ConfigCache configs;
 
-	@Value("#{environment.matchesProfiles('archive')}")
-	boolean archive;
 
 	@PreAuthorize("@auth.canWriteRef(#ref)")
 	@Timed(value = "jasper.service", extraTags = {"service", "ref"}, histogram = true)
@@ -98,25 +92,10 @@ public class RefService {
 	@PostAuthorize("@auth.canReadRef(returnObject)")
 	@Timed(value = "jasper.service", extraTags = {"service", "ref"}, histogram = true)
 	public RefDto get(String url, String origin) {
-		return refRepository.findOneByUrlAndOrigin(url, origin)
-			.or(() -> alternate(url, origin))
-			.filter(r -> !ingest.isTombstone(r))
+		return refRepository.findCurrent(url, origin)
+			.or(() -> refRepository.findCurrentByAlternateUrl(url, origin))
 			.map(mapper::domainToDto)
 			.orElseThrow(() -> new NotFoundException("Ref " + origin + " " + url));
-	}
-
-	/**
-	 * Find the Ref with an alternate URL. In archive mode only the latest version
-	 * of each Ref is matched, so older versions don't keep a removed alternate URL.
-	 */
-	private Optional<Ref> alternate(String url, String origin) {
-		if (!archive) return refRepository.findOne(isUrl(url).and(isOrigin(origin)));
-		var matches = refRepository.findAllCurrentByAlternateUrlAndOrigin(url, origin)
-			.stream()
-			.filter(r -> !ingest.isTombstone(r))
-			.toList();
-		if (matches.size() > 1) throw new IncorrectResultSizeDataAccessException(1, matches.size());
-		return matches.stream().findFirst();
 	}
 
 	@Transactional(readOnly = true)

@@ -18,6 +18,9 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Stream;
 
+import static jasper.repository.spec.OriginSpec.isOrigin;
+import static jasper.repository.spec.RefSpec.isUrl;
+
 /**
  * Abstract methods are profile-specific queries, declared with @Query in
  * {@link RefRepositoryPostgres}, {@link RefRepositorySqlite} and {@link RefRepositoryArchive}.
@@ -94,14 +97,12 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 	int setOlderVersionsObsolete(String url, String origin, Instant modified);
 
 	/**
-	 * Archive mode: current versions in the origin with the given alternate URL.
+	 * The current Ref in the origin with the given alternate URL, or empty if it is missing.
+	 * Overridden in {@link RefRepositoryArchive} to only match current versions.
 	 */
-	@Query("""
-		FROM Ref r
-		WHERE r.origin = :origin
-			AND jsonb_exists(r.alternateUrls, :url) = true
-			AND NOT EXISTS (SELECT 1 FROM Ref n WHERE n.url = r.url AND n.origin = r.origin AND n.modified > r.modified)""")
-	List<Ref> findAllCurrentByAlternateUrlAndOrigin(String url, String origin);
+	default Optional<Ref> findCurrentByAlternateUrl(String url, String origin) {
+		return findOne(isUrl(url).and(isOrigin(origin)));
+	}
 
 	@Modifying
 	@Query("""

@@ -4,6 +4,7 @@ import jasper.domain.Metadata;
 import jasper.domain.Ref;
 import jasper.domain.RefId;
 import org.springframework.context.annotation.Profile;
+import org.springframework.dao.IncorrectResultSizeDataAccessException;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
@@ -198,5 +199,26 @@ public interface RefRepositoryArchive extends RefRepository {
 	@Override
 	default Optional<Ref> findCurrent(String url, String origin) {
 		return findOneByUrlAndOrigin(url, origin).filter(r -> !isBlank(r));
+	}
+
+	@Query("""
+		FROM Ref r
+		WHERE r.origin = :origin
+			AND jsonb_exists(r.alternateUrls, :url) = true
+			AND NOT EXISTS (SELECT 1 FROM Ref n WHERE n.url = r.url AND n.origin = r.origin AND n.modified > r.modified)""")
+	List<Ref> findAllCurrentByAlternateUrlAndOrigin(String url, String origin);
+
+	/**
+	 * Only the latest version of each Ref is matched, so older versions don't keep a removed alternate URL.
+	 * Tombstones are treated as missing.
+	 */
+	@Override
+	default Optional<Ref> findCurrentByAlternateUrl(String url, String origin) {
+		var matches = findAllCurrentByAlternateUrlAndOrigin(url, origin)
+			.stream()
+			.filter(r -> !isBlank(r))
+			.toList();
+		if (matches.size() > 1) throw new IncorrectResultSizeDataAccessException(1, matches.size());
+		return matches.stream().findFirst();
 	}
 }

@@ -187,13 +187,6 @@ public class Ingest {
 
 
 	/**
-	 * In archive mode a blank version is a tombstone and is treated as missing.
-	 */
-	public boolean isTombstone(Ref ref) {
-		return archive && isBlank(ref);
-	}
-
-	/**
 	 * Deleting appends a blank version (tombstone). Deleting a tombstone prunes every version.
 	 */
 	private void archiveDelete(String rootOrigin, Ref existing) {
