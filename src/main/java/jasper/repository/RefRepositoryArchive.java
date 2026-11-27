@@ -5,6 +5,9 @@ import jasper.domain.Ref;
 import jasper.domain.RefId;
 import org.springframework.context.annotation.Profile;
 import org.springframework.dao.IncorrectResultSizeDataAccessException;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
@@ -14,6 +17,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
+import static jasper.repository.spec.RefSpec.isLatest;
 import static jasper.util.Archive.isBlank;
 
 /**
@@ -97,6 +101,7 @@ public interface RefRepositoryArchive extends RefRepository {
 
 	/**
 	 * Only the latest version in each origin is ranked, older versions are always obsolete.
+	 * Rows whose obsolete flag is already correct are not rewritten.
 	 */
 	@Override
 	@Transactional
@@ -108,21 +113,25 @@ public interface RefRepositoryArchive extends RefRepository {
 		FROM ref l
 		WHERE l.url = :url
 			AND (:rootOrigin = '' OR l.origin = :rootOrigin OR l.origin LIKE concat(:rootOrigin, '.%'))
-		ORDER BY l.origin, l.modified DESC)
-	UPDATE ref r
-	SET metadata = jsonb_set(
-		COALESCE(r.metadata, CAST('{}' AS jsonb)),
-		'{obsolete}',
-		to_jsonb(EXISTS (
+		ORDER BY l.origin, l.modified DESC),
+	ranked AS (
+		SELECT c.origin, c.modified, EXISTS (
 			SELECT 1 FROM latest l
-			CROSS JOIN LATERAL (SELECT CASE WHEN :pinned = true AND jsonb_exists(COALESCE(r.metadata->'expandedTags', r.tags, CAST('[]' AS jsonb)), 'plugin/pinned')
-			THEN CASE WHEN r.origin = :rootOrigin THEN 2 ELSE 1 END ELSE 0 END AS rank) rr
-			WHERE (l.origin = r.origin AND l.modified > r.modified)
+			CROSS JOIN LATERAL (SELECT CASE WHEN :pinned = true AND jsonb_exists(COALESCE(c.metadata->'expandedTags', c.tags, CAST('[]' AS jsonb)), 'plugin/pinned')
+			THEN CASE WHEN c.origin = :rootOrigin THEN 2 ELSE 1 END ELSE 0 END AS rank) rr
+			WHERE (l.origin = c.origin AND l.modified > c.modified)
 				OR l.rank > rr.rank
-				OR (l.rank = rr.rank AND l.modified > r.modified))),
-		true)
+				OR (l.rank = rr.rank AND l.modified > c.modified)) AS obsolete
+		FROM ref c
+		WHERE c.url = :url
+			AND (:rootOrigin = '' OR c.origin = :rootOrigin OR c.origin LIKE concat(:rootOrigin, '.%')))
+	UPDATE ref r
+	SET metadata = jsonb_set(COALESCE(r.metadata, CAST('{}' AS jsonb)), '{obsolete}', to_jsonb(k.obsolete), true)
+	FROM ranked k
 	WHERE r.url = :url
-		AND (:rootOrigin = '' OR r.origin = :rootOrigin OR r.origin LIKE concat(:rootOrigin, '.%'))""")
+		AND r.origin = k.origin
+		AND r.modified = k.modified
+		AND (r.metadata IS NULL OR (COALESCE(r.metadata->>'obsolete', 'false') NOT IN ('false', '0')) != k.obsolete)""")
 	int updateObsolete(String url, String rootOrigin, boolean pinned);
 
 	/**
@@ -220,5 +229,22 @@ public interface RefRepositoryArchive extends RefRepository {
 			.toList();
 		if (matches.size() > 1) throw new IncorrectResultSizeDataAccessException(1, matches.size());
 		return matches.stream().findFirst();
+	}
+
+	@Override
+	default List<Ref> findAllLatest(Specification<Ref> spec) {
+		return findAll(spec.and(isLatest()));
+	}
+
+	@Override
+	default Page<Ref> findAllLatest(Specification<Ref> spec, Pageable pageable) {
+		return findAll(spec.and(isLatest()), pageable);
+	}
+
+	@Override
+	default List<Ref> findAllCurrent(Specification<Ref> spec) {
+		return findAllLatest(spec).stream()
+			.filter(r -> !isBlank(r))
+			.toList();
 	}
 }

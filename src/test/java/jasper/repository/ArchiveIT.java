@@ -13,6 +13,7 @@ import jasper.component.IngestTemplate;
 import jasper.component.IngestUser;
 import jasper.component.Messages;
 import jasper.component.Meta;
+import jasper.component.Tagger;
 import jasper.domain.Ext;
 import jasper.domain.External;
 import jasper.domain.Plugin;
@@ -28,6 +29,7 @@ import jasper.errors.NotFoundException;
 import jasper.errors.ValidationErrors;
 import jasper.repository.filter.RefFilter;
 import jasper.repository.filter.TagFilter;
+import jasper.service.BackupService;
 import jasper.service.ExtService;
 import jasper.service.PluginService;
 import jasper.service.RefService;
@@ -148,6 +150,12 @@ public class ArchiveIT {
 
 	@Autowired
 	Meta meta;
+
+	@Autowired
+	Tagger tagger;
+
+	@Autowired
+	BackupService backupService;
 
 	@MockitoSpyBean
 	Messages messages;
@@ -555,6 +563,55 @@ public class ArchiveIT {
 		assertThat(refRepository.findAll(RefFilter.builder().obsolete(false).build().spec()))
 			.extracting(Ref::getTitle)
 			.containsExactly("Second");
+	}
+
+	@Test
+	void testFindAllCurrentIgnoresNewerCopyInOtherOrigin() {
+		push("", "First", now.minusSeconds(20), "test");
+		push("", "Second", now.minusSeconds(10), "test");
+		push("@other", "Other", now, "test");
+		var spec = RefFilter.builder().origin("").query("test").build().spec();
+
+		assertThat(refRepository.findAllCurrent(spec))
+			.extracting(Ref::getTitle)
+			.containsExactly("Second");
+
+		push("", "", now.plusSeconds(10), "test", "plugin/delete");
+
+		assertThat(refRepository.findAllCurrent(spec))
+			.isEmpty();
+	}
+
+	@Test
+	void testUpdateObsoleteSkipsUnchangedVersions() {
+		push("", "First", now.minusSeconds(20));
+		push("", "Second", now.minusSeconds(10));
+		push("", "Third", now);
+
+		assertThat(refRepository.updateObsolete(URL, "", false))
+			.isZero();
+	}
+
+	@Test
+	void testResponseRefAfterDeleteCreatesLiveVersion() {
+		var first = tagger.getResponseRef("+user/tester", "", URL);
+		ingest.delete("", first.getUrl(), "");
+
+		tagger.getResponseRef("+user/tester", "", URL);
+
+		assertThat(refRepository.findCurrent(first.getUrl(), ""))
+			.isPresent();
+	}
+
+	@Test
+	void testBackupKeyAfterExpiry() {
+		var key = backupService.getKey(null);
+		ingest.delete("", "system:backup-key", "");
+
+		var next = backupService.getKey(key);
+
+		assertThat(next).isNotEqualTo(key);
+		assertThat(backupService.unlock(next)).isTrue();
 	}
 
 	@Test

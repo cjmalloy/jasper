@@ -6,6 +6,9 @@ import jasper.domain.Ref;
 import jasper.domain.RefId;
 import jasper.domain.proj.RefUrl;
 import jasper.domain.proj.RefView;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Modifying;
@@ -100,6 +103,26 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 	 * The current Ref in the origin with the given alternate URL, or empty if it is missing.
 	 * Overridden in {@link RefRepositoryArchive} to only match current versions.
 	 */
+	/**
+	 * The latest version of each Ref matching the spec, including tombstones.
+	 * Overridden in {@link RefRepositoryArchive} to skip older versions.
+	 */
+	default List<Ref> findAllLatest(Specification<Ref> spec) {
+		return findAll(spec);
+	}
+
+	default Page<Ref> findAllLatest(Specification<Ref> spec, Pageable pageable) {
+		return findAll(spec, pageable);
+	}
+
+	/**
+	 * Current versions matching the spec.
+	 * Overridden in {@link RefRepositoryArchive} to skip tombstones.
+	 */
+	default List<Ref> findAllCurrent(Specification<Ref> spec) {
+		return findAllLatest(spec);
+	}
+
 	default Optional<Ref> findCurrentByAlternateUrl(String url, String origin) {
 		return findOne(isUrl(url).and(isOrigin(origin)));
 	}

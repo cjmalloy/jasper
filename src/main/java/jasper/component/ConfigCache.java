@@ -314,11 +314,9 @@ public class ConfigCache {
 	@Cacheable(value = "config-cache", key = "#tag + #origin")
 	public <T> List<T> getAllConfigs(String origin, String tag, Class<T> toValueType) {
 		configCacheTags.add(tag);
-		return refRepository.findAll(
+		return refRepository.findAllCurrent(
 				RefFilter.builder()
 					.origin(origin)
-					// In archive mode older versions are obsolete
-					.obsolete(archive ? false : null)
 					.query(tag).build().spec()).stream()
 			.map(r -> r.getPlugin(tag, toValueType))
 			.toList();
@@ -330,11 +328,9 @@ public class ConfigCache {
 		String origin = "";
 		while (isNotBlank(local)) {
 			var finalLocal = local;
-			var remote = refRepository.findAll(
+			var remote = refRepository.findAllCurrent(
 					RefFilter.builder()
 						.origin(origin)
-						// In archive mode older versions are obsolete
-						.obsolete(archive ? false : null)
 						.query("+plugin/origin").build().spec())
 				.stream()
 				.filter(r -> finalLocal.equals(getOrigin(r).getLocal()))

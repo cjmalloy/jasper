@@ -96,6 +96,7 @@ public class IngestPlugin {
 		if (!pluginRepository.existsCurrent(plugin.getQualifiedTag())) throw new NotFoundException("Plugin");
 		validate.plugin(plugin.getOrigin(), plugin);
 		ensureUpdateUniqueModified(plugin);
+		rerank(plugin.getQualifiedTag());
 		messages.updatePlugin(plugin);
 	}
 
