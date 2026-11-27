@@ -7,16 +7,23 @@ import jasper.domain.Template;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
-import org.springframework.stereotype.Repository;
+import org.springframework.data.repository.NoRepositoryBean;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
-@Repository
+/**
+ * Abstract methods are profile-specific queries, declared with @Query in
+ * {@link TemplateRepositoryRegular} and {@link TemplateRepositoryArchive}.
+ */
+@NoRepositoryBean
 @Transactional(readOnly = true)
-public interface TemplateRepository extends TemplateRepositoryCustom, JpaRepository<Template, TagId>, QualifiedTagMixin<Template>, StreamMixin<Template>, ModifiedCursor, OriginMixin {
+public interface TemplateRepository extends JpaRepository<Template, TagId>, QualifiedTagMixin<Template>, StreamMixin<Template>, ModifiedCursor, OriginMixin {
+
+	List<Template> findAllForTagAndOriginWithSchema(String tag, String origin);
+	List<Template> findAllForTagAndOriginWithDefaults(String tag, String origin);
 
 	@Modifying
 	@Query("""

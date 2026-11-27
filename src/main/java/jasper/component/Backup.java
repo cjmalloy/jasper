@@ -367,8 +367,9 @@ public class Backup {
 		logger.info("{} Starting Backfill", origin);
 		refRepository.dropMetadata(origin);
 		logger.info("{} Cleared old metadata", origin);
+		var pinned = configs.getPlugin("plugin/pinned", origin).isPresent();
 		int count = 0;
-		while (props.getBackfillBatchSize() == backfillRepository.backfillMetadata(origin, props.getBackfillBatchSize())) {
+		while (props.getBackfillBatchSize() == backfillRepository.backfillMetadata(origin, pinned, props.getBackfillBatchSize())) {
 			count += props.getBackfillBatchSize();
 			logger.info("{} Generating metadata... {} done", origin, count);
 		}

@@ -72,7 +72,7 @@ public class BackfillRepositoryIT {
 			.build());
 		refRepository.save(response);
 
-		int updated = backfillRepository.backfillMetadata("", 10);
+		int updated = backfill("", 10);
 
 		assertThat(updated).isGreaterThanOrEqualTo(1);
 
@@ -95,7 +95,7 @@ public class BackfillRepositoryIT {
 		parent.setMetadata(Metadata.builder().regen(true).build());
 		refRepository.save(parent);
 
-		int updated = backfillRepository.backfillMetadata("", 10);
+		int updated = backfill("", 10);
 
 		assertThat(updated).isEqualTo(1);
 	}
@@ -120,7 +120,7 @@ public class BackfillRepositoryIT {
 			.build());
 		refRepository.save(kept);
 
-		backfillRepository.backfillMetadata("", 10);
+		backfill("", 10);
 
 		var metadata = refRepository.findOneByUrlAndOrigin(parent.getUrl(), "").orElseThrow().getMetadata();
 		assertThat(metadata.getNewResponse()).isEqualTo(Metadata.timestamp(created));
@@ -154,7 +154,7 @@ public class BackfillRepositoryIT {
 		refRepository.save(vote);
 		var voteModified = refRepository.findOneByUrlAndOrigin(vote.getUrl(), "").orElseThrow().getModified();
 
-		backfillRepository.backfillMetadata("", 10);
+		backfill("", 10);
 
 		var metadata = refRepository.findOneByUrlAndOrigin(parent.getUrl(), "").orElseThrow().getMetadata();
 		assertThat(metadata.getNewResponse()).isEqualTo(Metadata.timestamp(Instant.parse("2025-02-01T00:00:00.123456Z")));
@@ -176,7 +176,7 @@ public class BackfillRepositoryIT {
 		ref2.setMetadata(null);
 		refRepository.save(ref2);
 
-		int updated = backfillRepository.backfillMetadata("@test", 10);
+		int updated = backfill("@test", 10);
 
 		assertThat(updated).isEqualTo(1);
 	}
@@ -189,7 +189,7 @@ public class BackfillRepositoryIT {
 		ref.setMetadata(Metadata.builder().build());
 		refRepository.save(ref);
 
-		int updated = backfillRepository.backfillMetadata("", 10);
+		int updated = backfill("", 10);
 
 		assertThat(updated).isEqualTo(0);
 	}
@@ -229,7 +229,7 @@ public class BackfillRepositoryIT {
 			.build());
 		refRepository.save(response);
 
-		backfillRepository.backfillMetadata("", 10);
+		backfill("", 10);
 
 		var counts = (Object[]) em.createNativeQuery("""
 			SELECT
@@ -272,7 +272,7 @@ public class BackfillRepositoryIT {
 			refRepository.save(userUrl);
 		}
 
-		backfillRepository.backfillMetadata("", 10);
+		backfill("", 10);
 
 		var loaded = refRepository.findOneByUrlAndOrigin(parent.getUrl(), parent.getOrigin()).get();
 		assertThat(loaded.getMetadata().getPlugins()).containsEntry("+plugin/user/run", 1L);
@@ -313,7 +313,7 @@ public class BackfillRepositoryIT {
 			.build());
 		refRepository.save(response);
 
-		backfillRepository.backfillMetadata("@test", 10);
+		backfill("@test", 10);
 
 		var loaded = refRepository.findOneByUrlAndOrigin(parent.getUrl(), parent.getOrigin()).get();
 		assertThat(loaded.getMetadata().getUserUrls().get("+plugin/user/run"))
@@ -338,7 +338,7 @@ public class BackfillRepositoryIT {
 		userUrl.setTags(List.of("+plugin/user/run"));
 		refRepository.save(userUrl);
 
-		backfillRepository.backfillMetadata("@a", 10);
+		backfill("@a", 10);
 
 		var loaded = refRepository.findOneByUrlAndOrigin(parent.getUrl(), parent.getOrigin()).get();
 		assertThat(loaded.getMetadata().getUserUrls().get("+plugin/user/run"))
@@ -369,7 +369,7 @@ public class BackfillRepositoryIT {
 			.build());
 		refRepository.save(userUrl);
 
-		backfillRepository.backfillMetadata("", 10);
+		backfill("", 10);
 
 		var loaded = refRepository.findOneByUrlAndOrigin(parent.getUrl(), parent.getOrigin()).get();
 		assertThat(loaded.getMetadata().getUserUrls().get("+plugin/user/run"))
@@ -397,7 +397,7 @@ public class BackfillRepositoryIT {
 		userUrl.setMetadata(null);
 		refRepository.save(userUrl);
 
-		backfillRepository.backfillMetadata("", 10);
+		backfill("", 10);
 
 		var loaded = refRepository.findOneByUrlAndOrigin(parent.getUrl(), parent.getOrigin()).get();
 		assertThat(loaded.getMetadata().getPlugins()).containsEntry("+plugin/user/run", 1L);
@@ -427,7 +427,7 @@ public class BackfillRepositoryIT {
 			refRepository.save(response);
 		}
 
-		backfillRepository.backfillMetadata("", 10);
+		backfill("", 10);
 
 		var loaded = refRepository.findOneByUrlAndOrigin(parent.getUrl(), parent.getOrigin()).get();
 		assertThat(loaded.getMetadata().getPlugins()).isNullOrEmpty();
@@ -474,7 +474,7 @@ public class BackfillRepositoryIT {
 			.build());
 		refRepository.save(local);
 
-		backfillRepository.backfillMetadata("", 10);
+		backfill("", 10);
 
 		var loaded = refRepository.findOneByUrlAndOrigin(remoteOnly.getUrl(), remoteOnly.getOrigin()).get();
 		assertThat(loaded.getMetadata().getPlugins()).isNullOrEmpty();
@@ -521,7 +521,7 @@ public class BackfillRepositoryIT {
 			.build());
 		refRepository.save(response);
 
-		while (backfillRepository.backfillMetadata("", 1) > 0);
+		while (backfill("", 1) > 0);
 
 		assertParentCounts(parent, 1, 1);
 		var obsoleteFlag = em.createNativeQuery("""
@@ -583,7 +583,7 @@ public class BackfillRepositoryIT {
 		bothRemote.setMetadata(null);
 		refRepository.save(bothRemote);
 
-		while (backfillRepository.backfillMetadata("", 10) > 0);
+		while (backfill("", 10) > 0);
 
 		assertThat(obsoleteFlag(pinned)).isEqualTo("false");
 		assertThat(obsoleteFlag(newer)).isEqualTo("true");
@@ -610,7 +610,7 @@ public class BackfillRepositoryIT {
 		newer.setMetadata(null);
 		refRepository.save(newer);
 
-		while (backfillRepository.backfillMetadata("", 10) > 0);
+		while (backfill("", 10) > 0);
 
 		assertThat(obsoleteFlag(pinned)).isEqualTo("true");
 		assertThat(obsoleteFlag(newer)).isEqualTo("false");
@@ -666,7 +666,7 @@ public class BackfillRepositoryIT {
 			.build());
 		refRepository.save(response);
 
-		while (backfillRepository.backfillMetadata("", 10) > 0);
+		while (backfill("", 10) > 0);
 
 		assertParentCounts(parent, 1, 1);
 	}
@@ -705,7 +705,7 @@ public class BackfillRepositoryIT {
 			.build());
 		refRepository.save(response);
 
-		backfillRepository.backfillMetadata("@test", 10);
+		backfill("@test", 10);
 
 		assertParentCounts(parent, 1, 1);
 	}
@@ -731,7 +731,7 @@ public class BackfillRepositoryIT {
 			refRepository.save(response);
 		}
 
-		backfillRepository.backfillMetadata("", 10);
+		backfill("", 10);
 
 		var loaded = refRepository.findOneByUrlAndOrigin(parent.getUrl(), parent.getOrigin()).get();
 		assertThat(loaded.getMetadata().getPlugins()).containsEntry("plugin/comment", 1L);
@@ -754,7 +754,7 @@ public class BackfillRepositoryIT {
 		response.setMetadata(null);
 		refRepository.save(response);
 
-		assertThat(backfillRepository.backfillMetadata("", 10)).isEqualTo(2);
+		assertThat(backfill("", 10)).isEqualTo(2);
 
 		assertThat(cascade(parent)).isNull();
 		assertThat(cascade(response)).isEqualTo("true");
@@ -776,7 +776,7 @@ public class BackfillRepositoryIT {
 		normal.setMetadata(Metadata.builder().regen(true).build());
 		refRepository.save(normal);
 
-		assertThat(backfillRepository.backfillMetadata("", 10)).isEqualTo(2);
+		assertThat(backfill("", 10)).isEqualTo(2);
 
 		assertThat(refRepository.findOneByUrlAndOrigin(ignored.getUrl(), ignored.getOrigin()).get().getMetadata().isIgnored()).isTrue();
 		assertThat(refRepository.findOneByUrlAndOrigin(normal.getUrl(), normal.getOrigin()).get().getMetadata().isIgnored()).isFalse();
@@ -813,10 +813,14 @@ public class BackfillRepositoryIT {
 		ref.setMetadata(null);
 		refRepository.save(ref);
 
-		backfillRepository.backfillMetadata("@city", 10);
+		backfill("@city", 10);
 
 		var result = refRepository.findOneByUrlAndOrigin(ref.getUrl(), ref.getOrigin()).orElseThrow();
 		assertThat(result.getMetadata().getExpandedTags())
 			.containsExactlyInAnyOrder("+plugin/secret/openai", "internal", "+plugin/secret", "+plugin");
+	}
+
+	int backfill(String origin, int batchSize) {
+		return backfillRepository.backfillMetadata(origin, configCache.getPlugin("plugin/pinned", origin).isPresent(), batchSize);
 	}
 }

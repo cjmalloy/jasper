@@ -1,6 +1,7 @@
 package jasper.repository;
 
 import jasper.IntegrationTest;
+import jasper.component.ConfigCache;
 import jasper.domain.Metadata;
 import jasper.domain.Plugin;
 import jasper.domain.Ref;
@@ -34,6 +35,9 @@ public class NoMetadataBackfillIT {
 	@Autowired
 	BackfillRepository backfillRepository;
 
+	@Autowired
+	ConfigCache configCache;
+
 	@BeforeEach
 	void init() {
 		refRepository.deleteAllInBatch();
@@ -63,7 +67,7 @@ public class NoMetadataBackfillIT {
 		refRepository.save(ref(URL + "response", "@other", now.minusSeconds(10), URL + "source"));
 		refRepository.dropMetadata("");
 
-		while (backfillRepository.backfillMetadata("", 10) > 0);
+		while (backfill("", 10) > 0);
 
 		var source = refRepository.findOneByUrlAndOrigin(URL + "source", "").orElseThrow();
 		assertThat(source.getMetadata()).isNotNull();
@@ -77,5 +81,9 @@ public class NoMetadataBackfillIT {
 		assertThat(response.getMetadata().getExpandedTags()).containsExactlyInAnyOrder("public", "plugin", "plugin/comment");
 		assertThat(refRepository.findOneByUrlAndOrigin(URL + "response", "@other").orElseThrow().getMetadata().isObsolete())
 			.isTrue();
+	}
+
+	int backfill(String origin, int batchSize) {
+		return backfillRepository.backfillMetadata(origin, configCache.getPlugin("plugin/pinned", origin).isPresent(), batchSize);
 	}
 }

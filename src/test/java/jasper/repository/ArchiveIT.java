@@ -371,11 +371,11 @@ public class ArchiveIT {
 		push("", "First", old.minusSeconds(10));
 		push("", "Second", old);
 
-		assertThat(backfillRepository.backfillMetadata("", 1))
+		assertThat(backfill("", 1))
 			.isEqualTo(1);
-		assertThat(backfillRepository.backfillMetadata("", 1))
+		assertThat(backfill("", 1))
 			.isEqualTo(1);
-		assertThat(backfillRepository.backfillMetadata("", 1))
+		assertThat(backfill("", 1))
 			.isZero();
 
 		assertThat(version("", old.minusSeconds(10)).getMetadata().isObsolete())
@@ -423,7 +423,7 @@ public class ArchiveIT {
 		pushVote(now.minusSeconds(10), "plugin/user/vote/up");
 		pushVote(now, "plugin/user/vote/down");
 
-		assertThat(backfillRepository.backfillMetadata("", 10))
+		assertThat(backfill("", 10))
 			.isEqualTo(1);
 
 		var target = version("", old);
@@ -476,7 +476,7 @@ public class ArchiveIT {
 		push("@other", "Other", old.minusSeconds(10));
 		push("", "Unpinned", old);
 
-		assertThat(backfillRepository.backfillMetadata("", 10))
+		assertThat(backfill("", 10))
 			.isEqualTo(3);
 
 		assertThat(version("", old).getMetadata().isObsolete())
@@ -495,7 +495,7 @@ public class ArchiveIT {
 		push("", "Pinned", old.minusSeconds(10), "plugin/pinned");
 		push("@other", "Other", old);
 
-		assertThat(backfillRepository.backfillMetadata("", 10))
+		assertThat(backfill("", 10))
 			.isEqualTo(2);
 
 		assertThat(version("@other", old).getMetadata().isObsolete())
@@ -1494,7 +1494,7 @@ public class ArchiveIT {
 		pushVote(old.plusSeconds(10), "plugin/user/vote/up");
 		pushVote(old.plusSeconds(20), "plugin/user/vote/down");
 
-		backfillRepository.backfillMetadata("", 10);
+		backfill("", 10);
 
 		var target = version("", old);
 		assertThat(target.getMetadata().getPlugins())
@@ -1603,5 +1603,9 @@ public class ArchiveIT {
 
 		assertThat(configCache.getSchemas("test", ""))
 			.isEmpty();
+	}
+
+	int backfill(String origin, int batchSize) {
+		return backfillRepository.backfillMetadata(origin, configCache.getPlugin("plugin/pinned", origin).isPresent(), batchSize);
 	}
 }
