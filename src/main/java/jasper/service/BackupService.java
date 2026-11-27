@@ -88,7 +88,7 @@ public class BackupService {
 	@PreAuthorize("@auth.minReadBackupRole()")
 	@Timed(value = "jasper.service", extraTags = {"service", "backup"}, histogram = true)
 	public String getKey(String key) {
-		var ref = refRepository.findOneByUrlAndOrigin("system:backup-key", auth.getOrigin()).orElse(null);
+		var ref = refRepository.findCurrent("system:backup-key", auth.getOrigin()).orElse(null);
 		if (ref == null) {
 			ref = new Ref();
 			ref.setUrl("system:backup-key");
@@ -109,7 +109,7 @@ public class BackupService {
 
 	@Scheduled(fixedRate = 1, timeUnit = TimeUnit.MINUTES)
 	public void clearBackupKey() {
-		var list = refRepository.findAll(isUrl("system:backup-key"));
+		var list = refRepository.findAllLatest(isUrl("system:backup-key"));
 		for (var ref : list) {
 			if (ref.getCreated().isBefore(Instant.now().minus(15, ChronoUnit.MINUTES))) {
 				ingest.delete(ref.getOrigin(), "system:backup-key", ref.getOrigin());
@@ -119,7 +119,7 @@ public class BackupService {
 
 	public boolean unlock(String key) {
 		if (isBlank(key)) return false;
-		var ref = refRepository.findOneByUrlAndOrigin("system:backup-key", auth.getOrigin()).orElse(null);
+		var ref = refRepository.findCurrent("system:backup-key", auth.getOrigin()).orElse(null);
 		if (ref == null) return false;
 		return key.equals(ref.getComment());
 	}

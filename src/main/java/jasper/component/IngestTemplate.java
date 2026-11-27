@@ -16,6 +16,7 @@ import jasper.repository.TemplateRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.orm.jpa.JpaSystemException;
 import org.springframework.stereotype.Component;
@@ -29,6 +30,10 @@ import java.time.Instant;
 import static jasper.component.Replicator.deletedTag;
 import static jasper.component.Replicator.deletorTag;
 import static jasper.component.Replicator.isDeletorTag;
+import static jasper.domain.proj.Tag.localTag;
+import static jasper.domain.proj.Tag.tagOrigin;
+import static jasper.util.Archive.isBlank;
+import static jasper.util.Archive.nextModified;
 import static jasper.util.DbConstraint.isPkViolation;
 import static jasper.util.DbConstraint.isUniqueModifiedOriginViolation;
 import static jasper.util.Transactions.afterCommit;
@@ -55,20 +60,24 @@ public class IngestTemplate {
 	@Autowired
 	PlatformTransactionManager transactionManager;
 
+	@Value("#{environment.matchesProfiles('archive')}")
+	boolean archive;
+
 	// Exposed for testing
 	Clock ensureUniqueModifiedClock = Clock.systemUTC();
 
 	@Timed(value = "jasper.template", histogram = true)
 	public void create(Template template) {
 		if (isDeletorTag(template.getTag())) {
-			if (templateRepository.existsByQualifiedTag(deletedTag(template.getQualifiedTag()))) throw new AlreadyExistsException();
+			if (templateRepository.existsCurrent(deletedTag(template.getQualifiedTag()))) throw new AlreadyExistsException();
 			if (existingTombstone(template)) return;
-		} else {
+		} else if (!archive) {
+			// In archive mode the deletor tag is kept
 			delete(deletorTag(template.getQualifiedTag()));
 		}
 		validate.template(template.getOrigin(), template);
 		try {
-			ensureCreateUniqueModified(template);
+			ensureCreateUniqueModified(template, true);
 		} catch (AlreadyExistsException e) {
 			// Tombstone created concurrently
 			if (isDeletorTag(template.getTag()) && existingTombstone(template)) return;
@@ -79,7 +88,7 @@ public class IngestTemplate {
 
 	@Timed(value = "jasper.template", histogram = true)
 	public void update(Template template) {
-		if (!templateRepository.existsByQualifiedTag(template.getQualifiedTag())) throw new NotFoundException("Template");
+		if (!templateRepository.existsCurrent(template.getQualifiedTag())) throw new NotFoundException("Template");
 		validate.template(template.getOrigin(), template);
 		ensureUpdateUniqueModified(template);
 		messages.updateTemplate(template);
@@ -101,7 +110,8 @@ public class IngestTemplate {
 			}
 			throw e;
 		}
-		if (isDeletorTag(template.getTag())) {
+		// In archive mode pushes never remove rows
+		if (!archive && isDeletorTag(template.getTag())) {
 			delete(deletedTag(template.getQualifiedTag()));
 		}
 		messages.updateTemplate(template);
@@ -109,7 +119,35 @@ public class IngestTemplate {
 
 	@Timed(value = "jasper.template", histogram = true)
 	public void delete(String qualifiedTag) {
+		if (archive) {
+			archiveDelete(qualifiedTag);
+			return;
+		}
 		templateRepository.deleteByQualifiedTag(qualifiedTag);
+		afterCommit(() -> messages.deleteTemplate(qualifiedTag));
+	}
+
+
+	/**
+	 * Deleting appends a blank version (tombstone). Deleting a tombstone or a deletor tag
+	 * prunes every version of the tag and its deletor tag.
+	 */
+	private void archiveDelete(String qualifiedTag) {
+		var maybeExisting = templateRepository.findOneByQualifiedTag(qualifiedTag);
+		if (maybeExisting.isEmpty()) return;
+		if (isDeletorTag(qualifiedTag) || isBlank(maybeExisting.get())) {
+			var startedAt = Instant.now(ensureUniqueModifiedClock);
+			var tag = isDeletorTag(qualifiedTag) ? deletedTag(qualifiedTag) : qualifiedTag;
+			var deletor = isDeletorTag(qualifiedTag) ? qualifiedTag : deletorTag(qualifiedTag);
+			templateRepository.deleteByQualifiedTagAndModifiedLessThanEqual(tag, startedAt);
+			templateRepository.deleteByQualifiedTagAndModifiedLessThanEqual(deletor, startedAt);
+			afterCommit(() -> messages.invalidateTemplate(tag));
+			return;
+		}
+		var tombstone = new Template();
+		tombstone.setTag(localTag(qualifiedTag));
+		tombstone.setOrigin(tagOrigin(qualifiedTag));
+		ensureCreateUniqueModified(tombstone);
 		afterCommit(() -> messages.deleteTemplate(qualifiedTag));
 	}
 
@@ -120,13 +158,27 @@ public class IngestTemplate {
 	}
 
 	void ensureCreateUniqueModified(Template template) {
+		ensureCreateUniqueModified(template, false);
+	}
+
+	/**
+	 * @param create in archive mode, fail if a current version exists
+	 */
+	void ensureCreateUniqueModified(Template template, boolean create) {
 		var count = 0;
 		while (true) {
 			try {
 				count++;
 				TransactionTemplate transactionTemplate = new TransactionTemplate(transactionManager);
 				transactionTemplate.execute(status -> {
-					template.setModified(Instant.now(ensureUniqueModifiedClock));
+					if (archive) {
+						// The primary key includes modified, so check the current version before appending
+						if (create && templateRepository.existsCurrent(template.getQualifiedTag())) throw new AlreadyExistsException();
+						if (create && isDeletorTag(template.getTag()) && templateRepository.existsCurrent(deletedTag(template.getQualifiedTag()))) throw new AlreadyExistsException();
+						template.setModified(nextModified(Instant.now(ensureUniqueModifiedClock), templateRepository.getCursor(template.getOrigin())));
+					} else {
+						template.setModified(Instant.now(ensureUniqueModifiedClock));
+					}
 					em.persist(template);
 					em.flush();
 					return null;
@@ -152,6 +204,16 @@ public class IngestTemplate {
 				count++;
 				TransactionTemplate transactionTemplate = new TransactionTemplate(transactionManager);
 				transactionTemplate.execute(status -> {
+					if (archive) {
+						// Append a new version instead of overwriting the current one
+						if (templateRepository.findOneByQualifiedTag(template.getQualifiedTag())
+							.filter(e -> e.getModified().equals(cursor))
+							.isEmpty()) throw new ModifiedException("Template");
+						template.setModified(nextModified(Instant.now(ensureUniqueModifiedClock), templateRepository.getCursor(template.getOrigin())));
+						em.persist(template);
+						em.flush();
+						return null;
+					}
 					template.setModified(Instant.now(ensureUniqueModifiedClock));
 					var updated = templateRepository.optimisticUpdate(
 						cursor,

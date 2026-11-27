@@ -376,7 +376,7 @@ public class Tagger {
 	@Timed(value = "jasper.tagger", histogram = true)
 	public Ref getResponseRef(String user, String origin, String url) {
 		var userUrl = urlForTag(url, user);
-		return refRepository.findOneByUrlAndOrigin(userUrl, origin).map(ref -> {
+		return refRepository.findCurrent(userUrl, origin).map(ref -> {
 			if (isNotBlank(url) && (ref.getSources() == null || !ref.getSources().contains(url))) {
 				ref.setSources(new ArrayList<>(List.of(url)));
 			}

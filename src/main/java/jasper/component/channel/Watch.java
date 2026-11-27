@@ -87,7 +87,7 @@ public class Watch {
 		try {
 			Instant lastModified = null;
 			while (true) {
-				var maybeRef = refRepository.findAll(RefFilter.builder()
+				var maybeRef = refRepository.findAllLatest(RefFilter.builder()
 					.origin(origin)
 					.query(tag)
 					.modifiedAfter(lastModified)

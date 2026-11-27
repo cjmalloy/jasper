@@ -39,6 +39,8 @@ public class DisabledConfigRepositoryIT {
 		var plugin = new Plugin();
 		plugin.setTag(tag);
 		plugin.setOrigin("");
+		// A blank plugin is a tombstone in archive mode
+		plugin.setName(tag);
 		if (config != null) plugin.setConfig(json(config));
 		pluginRepository.save(plugin);
 	}

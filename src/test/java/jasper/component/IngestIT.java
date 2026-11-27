@@ -307,7 +307,7 @@ public class IngestIT {
 			var ref = refRepository.getRefBackfill("").orElse(null);
 			if (ref == null) return;
 			meta.regen("", ref);
-			refRepository.updateMetadata(ref.getUrl(), ref.getOrigin(), ref.getMetadata());
+			meta.updateMetadata(ref, ref.getMetadata());
 		}
 	}
 
@@ -764,6 +764,39 @@ public class IngestIT {
 		assertThat(refRepository.existsByUrlAndOrigin(URL, "@origin2")).isFalse();
 		fetched1 = refRepository.findOneByUrlAndOrigin(URL, "@origin1").get();
 		assertThat(fetched1.getMetadata().isObsolete()).isFalse();
+	}
+
+	@Test
+	void testPushNewerVersionOverwrites() {
+		var now = Instant.now().truncatedTo(ChronoUnit.MILLIS);
+		var first = new Ref();
+		first.setUrl(URL);
+		first.setTitle("First");
+		first.setModified(now.minusSeconds(10));
+		ingest.push("", first, false, false);
+		var second = new Ref();
+		second.setUrl(URL);
+		second.setTitle("Second");
+		second.setModified(now);
+		ingest.push("", second, false, false);
+
+		assertThat(refRepository.count()).isEqualTo(1);
+		var fetched = refRepository.findOneByUrlAndOrigin(URL, "").get();
+		assertThat(fetched.getTitle()).isEqualTo("Second");
+		assertThat(fetched.getModified()).isEqualTo(now);
+		assertThat(fetched.getMetadata().isObsolete()).isFalse();
+	}
+
+	@Test
+	void testDeleteRemovesRef() {
+		var ref = new Ref();
+		ref.setUrl(URL);
+		ref.setTitle("First");
+		ingest.create("", ref);
+
+		ingest.delete("", URL, "");
+
+		assertThat(refRepository.count()).isZero();
 	}
 
 	@Test

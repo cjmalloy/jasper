@@ -19,12 +19,14 @@ import jasper.repository.RefRepository;
 import jasper.repository.TemplateRepository;
 import jasper.repository.UserRepository;
 import jasper.repository.filter.RefFilter;
+import jasper.util.Archive;
 import jasper.service.dto.RefDto;
 import jasper.service.dto.TemplateDto;
 import org.apache.sshd.common.config.keys.KeyUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
@@ -33,6 +35,7 @@ import org.springframework.messaging.Message;
 import org.springframework.stereotype.Component;
 
 import java.security.interfaces.RSAPublicKey;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -97,6 +100,9 @@ public class ConfigCache {
 	@Autowired
 	CacheManager cacheManager;
 
+	@Value("#{environment.matchesProfiles('archive')}")
+	boolean archive;
+
 	private static final Set<String> LOCAL_KEYS = Set.of("+user", "_config/server", "_config/index");
 
 	Set<String> configCacheTags = ConcurrentHashMap.newKeySet();
@@ -105,21 +111,21 @@ public class ConfigCache {
 
 	@PostConstruct
 	public void init() {
-		if (templateRepository.findByTemplateAndOrigin(concat("_config/server", props.getWorkerOrigin()), props.getLocalOrigin()).isEmpty()) {
+		if (template(concat("_config/server", props.getWorkerOrigin()), props.getLocalOrigin()).isEmpty()) {
 			try {
 				ingestTemplate.create(config(isBlank(props.getWorkerOrigin()) ? "Server Config" : props.getOrigin() + " Worker Server Config"));
 			} catch (AlreadyExistsException e) {
 				// Race to init
 			}
 		}
-		if (templateRepository.findByTemplateAndOrigin("_config/index", "").isEmpty()) {
+		if (template("_config/index", "").isEmpty()) {
 			try {
 				ingestTemplate.create(index("DB Indices"));
 			} catch (AlreadyExistsException e) {
 				// Race to init
 			}
 		}
-		if (userRepository.findOneByQualifiedTag("+user" + props.getLocalOrigin()).isEmpty()) {
+		if (!userRepository.existsCurrent("+user" + props.getLocalOrigin())) {
 			try {
 				var user = new User();
 				user.setTag("+user");
@@ -241,13 +247,28 @@ public class ConfigCache {
 	@Cacheable("user-cache")
 	public User getUser(String qualifiedTag) {
 		if (isEmpty(qualifiedTag)) return null;
-		return merge(userRepository.findAllByQualifiedSuffix(qualifiedTag.substring(1)))
+		return merge(current(userRepository.findAllByQualifiedSuffix(qualifiedTag.substring(1)), null))
 			.orElse(null);
 	}
 
 	@Cacheable(value = "external-user-cache", key = "{#origin, #externalId}")
 	public Optional<User> getUserByExternalId(String origin, String externalId) {
-		return merge(userRepository.findAllByOriginAndExternalId(origin, externalId));
+		return merge(current(userRepository.findAllByOriginAndExternalId(origin, externalId), externalId));
+	}
+
+	/**
+	 * In archive mode the users may include older versions. Replace them with the current version
+	 * of each user, skipping tombstones and users whose current version no longer has the external ID.
+	 */
+	private List<User> current(List<User> users, String externalId) {
+		if (!archive) return users;
+		return users.stream()
+			.map(User::getQualifiedTag)
+			.distinct()
+			.map(userRepository::findCurrent)
+			.flatMap(Optional::stream)
+			.filter(u -> externalId == null || u.getExternal() != null && u.getExternal().getIds() != null && u.getExternal().getIds().contains(externalId))
+			.toList();
 	}
 
 	public User createUser(String tag, String origin, String externalId) {
@@ -262,12 +283,23 @@ public class ConfigCache {
 	}
 
 	public void setExternalId(String tag, String origin, String externalId) {
-		userRepository.setExternalId(tag, origin, externalId);
+		if (!archive) {
+			userRepository.setExternalId(tag, origin, externalId);
+			return;
+		}
+		// Archive is append only, so add a new version instead of updating in place
+		var user = userRepository.findCurrent(tag + origin).orElse(null);
+		if (user == null || user.hasExternalId(externalId)) return;
+		var ids = new ArrayList<String>();
+		if (user.getExternal() != null && user.getExternal().getIds() != null) ids.addAll(user.getExternal().getIds());
+		ids.add(externalId);
+		user.setExternal(External.builder().ids(ids).build());
+		ingestUser.update(user);
 	}
 
 	@Cacheable(value = "user-cache", key = "'+user'")
 	public User user() {
-		return userRepository.findOneByQualifiedTag("+user" + props.getLocalOrigin())
+		return userRepository.findCurrent("+user" + props.getLocalOrigin())
 			.orElse(null);
 	}
 
@@ -282,7 +314,7 @@ public class ConfigCache {
 	@Cacheable(value = "config-cache", key = "#tag + #origin")
 	public <T> List<T> getAllConfigs(String origin, String tag, Class<T> toValueType) {
 		configCacheTags.add(tag);
-		return refRepository.findAll(
+		return refRepository.findAllCurrent(
 				RefFilter.builder()
 					.origin(origin)
 					.query(tag).build().spec()).stream()
@@ -296,7 +328,7 @@ public class ConfigCache {
 		String origin = "";
 		while (isNotBlank(local)) {
 			var finalLocal = local;
-			var remote = refRepository.findAll(
+			var remote = refRepository.findAllCurrent(
 					RefFilter.builder()
 						.origin(origin)
 						.query("+plugin/origin").build().spec())
@@ -320,8 +352,8 @@ public class ConfigCache {
 
 	@Cacheable(value = "plugin-config-cache", key = "#tag + #origin")
 	public <T> Optional<T> getPluginConfig(String tag, String origin, Class<T> toValueType) {
-		if (!pluginRepository.existsByQualifiedTag(tag + origin)) return empty();
-		return pluginRepository.findByTagAndOrigin(tag, origin)
+		if (!pluginRepository.existsCurrent(tag + origin)) return empty();
+		return plugin(tag, origin)
 			.map(Plugin::getConfig)
 			.map(n -> objectMapper.convertValue(n, toValueType))
 			.or(() -> ofNullable(objectMapper.convertValue(objectMapper.createObjectNode(), toValueType)));
@@ -329,18 +361,26 @@ public class ConfigCache {
 
 	@Cacheable(value = "plugin-cache", key = "#tag + #origin")
 	public Optional<Plugin> getPlugin(String tag, String origin) {
+		return plugin(tag, origin);
+	}
+
+	private Optional<Plugin> plugin(String tag, String origin) {
 		return pluginRepository.findByTagAndOrigin(tag, origin);
 	}
 
 	@Cacheable(value = "template-config-cache", key = "#template + #origin")
 	public <T> Optional<T> getTemplateConfig(String template, String origin, Class<T> toValueType) {
-		return templateRepository.findByTemplateAndOrigin(template, origin)
+		return template(template, origin)
 			.map(Template::getConfig)
 			.map(n -> objectMapper.convertValue(n, toValueType));
 	}
 
 	@Cacheable(value = "template-cache", key = "#template + #origin")
 	public Optional<Template> getTemplate(String template, String origin) {
+		return template(template, origin);
+	}
+
+	private Optional<Template> template(String template, String origin) {
 		return templateRepository.findByTemplateAndOrigin(template, origin);
 	}
 
@@ -369,7 +409,9 @@ public class ConfigCache {
 		var template = message.getPayload();
 		if (isBlank(template.getTag())) return;
 		if (!origin(props.getLocalOrigin()).equals(origin(template.getOrigin()))) return;
-		if (concat("_config/server", props.getWorkerOrigin()).equals(template.getTag())) {
+		// Delete notices are tagged with the deletor tag
+		var tag = isDeletorTag(template.getTag()) ? deletedTag(template.getTag()) : template.getTag();
+		if (concat("_config/server", props.getWorkerOrigin()).equals(tag)) {
 			logger.debug("Server config template updated, updating listeners");
 			rootListeners.forEach(listener -> listener.accept(self.root()));
 		}
@@ -396,6 +438,8 @@ public class ConfigCache {
 	public List<TemplateDto> getSchemas(String tag, String origin) {
 		return templateRepository.findAllForTagAndOriginWithSchema(tag, origin)
 			.stream()
+			// In archive mode a blank version is a tombstone
+			.filter(t -> !archive || !Archive.isBlank(t))
 			.map(dtoMapper::domainToDto)
 			.toList();
 	}
@@ -404,6 +448,8 @@ public class ConfigCache {
 	public List<TemplateDto> getDefaults(String tag, String origin) {
 		return templateRepository.findAllForTagAndOriginWithDefaults(tag, origin)
 			.stream()
+			// In archive mode a blank version is a tombstone
+			.filter(t -> !archive || !Archive.isBlank(t))
 			.map(dtoMapper::domainToDto)
 			.toList();
 	}

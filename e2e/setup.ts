@@ -4,10 +4,13 @@ import { createHmac } from 'node:crypto';
 export const mainApi = process.env.MAIN_API || 'http://localhost:8081';
 export const replApi = process.env.REPL_API || 'http://localhost:8083';
 export const tunnelApi = process.env.TUNNEL_API || 'http://localhost:8085';
+// Archive server (Postgres only), not set in the SQLite stack
+export const archiveApi = process.env.ARCHIVE_API || '';
 
 // Addresses as seen from inside the docker compose network
 export const replApiProxy = 'http://repl-web';
 export const tunnelApiProxy = 'http://tunnel-web';
+export const archiveApiProxy = 'http://archive-web';
 export const sshHost = 'ssh';
 
 /**
@@ -50,6 +53,14 @@ export function mainHeaders(user = 'debug', role = 'ADMIN'): Record<string, stri
  */
 export function remoteHeaders(): Record<string, string> {
   return { ...csrf };
+}
+
+/**
+ * Headers for the archive server (JASPER_DEFAULT_ROLE=ROLE_ADMIN), authenticated as +user/{user}
+ * with the User-Tag header so user responses such as +plugin/user/run can be written.
+ */
+export function archiveHeaders(user = 'debug'): Record<string, string> {
+  return { ...csrf, 'User-Tag': '+user/' + user };
 }
 
 export function runId() {
@@ -210,10 +221,10 @@ const originPlugins = [{
 /**
  * Install the origin plugins (same schemas as the jasper-ui origin mod).
  */
-export async function installOriginPlugins(request: APIRequestContext, api = mainApi, headers = mainHeaders()) {
+export async function installOriginPlugins(request: APIRequestContext, api = mainApi, headers = mainHeaders(), origin = '') {
   for (const plugin of originPlugins) {
-    const resp = await request.post(api + '/api/v1/plugin', { headers, data: plugin });
-    expect([201, 409], `Install ${plugin.tag}: ${await resp.text()}`).toContain(resp.status());
+    const resp = await request.post(api + '/api/v1/plugin', { headers, data: { ...plugin, origin } });
+    expect([201, 409], `Install ${plugin.tag}${origin}: ${await resp.text()}`).toContain(resp.status());
   }
 }
 
@@ -228,10 +239,15 @@ export interface OriginOptions {
   pull?: Record<string, any>;
   tunnel?: Record<string, any>;
   enabled?: boolean;
+  /** Server to create the origin Ref on, defaults to the main server. */
+  api?: string;
+  headers?: Record<string, string>;
+  /** Origin of the origin Ref on that server. */
+  origin?: string;
 }
 
 /**
- * Create a remote origin Ref on the main server signed by +user/{user}.
+ * Create a remote origin Ref (on the main server by default) signed by +user/{user}.
  */
 export async function createOrigin(request: APIRequestContext, opts: OriginOptions) {
   const user = opts.user || 'debug';
@@ -252,5 +268,5 @@ export async function createOrigin(request: APIRequestContext, opts: OriginOptio
     plugins['+plugin/origin/tunnel'] = opts.tunnel;
   }
   if (opts.enabled) tags.push('+plugin/cron');
-  return createRef(request, mainApi, mainHeaders(user), { url: opts.url, title: opts.title, tags, plugins });
+  return createRef(request, opts.api || mainApi, opts.headers || mainHeaders(user), { url: opts.url, origin: opts.origin, title: opts.title, tags, plugins });
 }

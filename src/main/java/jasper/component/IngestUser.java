@@ -16,6 +16,7 @@ import jasper.repository.UserRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.orm.jpa.JpaSystemException;
 import org.springframework.stereotype.Component;
@@ -29,6 +30,10 @@ import java.time.Instant;
 import static jasper.component.Replicator.deletedTag;
 import static jasper.component.Replicator.deletorTag;
 import static jasper.component.Replicator.isDeletorTag;
+import static jasper.domain.proj.Tag.localTag;
+import static jasper.domain.proj.Tag.tagOrigin;
+import static jasper.util.Archive.isBlank;
+import static jasper.util.Archive.nextModified;
 import static jasper.util.DbConstraint.isPkViolation;
 import static jasper.util.DbConstraint.isUniqueModifiedOriginViolation;
 import static jasper.util.Transactions.afterCommit;
@@ -53,19 +58,23 @@ public class IngestUser {
 	@Autowired
 	PlatformTransactionManager transactionManager;
 
+	@Value("#{environment.matchesProfiles('archive')}")
+	boolean archive;
+
 	// Exposed for testing
 	Clock ensureUniqueModifiedClock = Clock.systemUTC();
 
 	@Timed(value = "jasper.user", histogram = true)
 	public void create(User user) {
 		if (isDeletorTag(user.getTag())) {
-			if (userRepository.existsByQualifiedTag(deletedTag(user.getQualifiedTag()))) throw new AlreadyExistsException();
+			if (userRepository.existsCurrent(deletedTag(user.getQualifiedTag()))) throw new AlreadyExistsException();
 			if (existingTombstone(user)) return;
-		} else {
+		} else if (!archive) {
+			// In archive mode the deletor tag is kept
 			delete(deletorTag(user.getQualifiedTag()));
 		}
 		try {
-			ensureCreateUniqueModified(user);
+			ensureCreateUniqueModified(user, true);
 		} catch (AlreadyExistsException e) {
 			// Tombstone created concurrently
 			if (isDeletorTag(user.getTag()) && existingTombstone(user)) return;
@@ -76,7 +85,7 @@ public class IngestUser {
 
 	@Timed(value = "jasper.user", histogram = true)
 	public void update(User user) {
-		if (!userRepository.existsByQualifiedTag(user.getQualifiedTag())) throw new NotFoundException("User");
+		if (!userRepository.existsCurrent(user.getQualifiedTag())) throw new NotFoundException("User");
 		ensureUpdateUniqueModified(user);
 		messages.updateUser(user);
 	}
@@ -96,7 +105,8 @@ public class IngestUser {
 			}
 			throw e;
 		}
-		if (isDeletorTag(user.getTag())) {
+		// In archive mode pushes never remove rows
+		if (!archive && isDeletorTag(user.getTag())) {
 			delete(deletedTag(user.getQualifiedTag()));
 		}
 		messages.updateUser(user);
@@ -104,7 +114,35 @@ public class IngestUser {
 
 	@Timed(value = "jasper.user", histogram = true)
 	public void delete(String qualifiedTag) {
+		if (archive) {
+			archiveDelete(qualifiedTag);
+			return;
+		}
 		userRepository.deleteByQualifiedTag(qualifiedTag);
+		afterCommit(() -> messages.deleteUser(qualifiedTag));
+	}
+
+
+	/**
+	 * Deleting appends a blank version (tombstone). Deleting a tombstone or a deletor tag
+	 * prunes every version of the tag and its deletor tag.
+	 */
+	private void archiveDelete(String qualifiedTag) {
+		var maybeExisting = userRepository.findOneByQualifiedTag(qualifiedTag);
+		if (maybeExisting.isEmpty()) return;
+		if (isDeletorTag(qualifiedTag) || isBlank(maybeExisting.get())) {
+			var startedAt = Instant.now(ensureUniqueModifiedClock);
+			var tag = isDeletorTag(qualifiedTag) ? deletedTag(qualifiedTag) : qualifiedTag;
+			var deletor = isDeletorTag(qualifiedTag) ? qualifiedTag : deletorTag(qualifiedTag);
+			userRepository.deleteByQualifiedTagAndModifiedLessThanEqual(tag, startedAt);
+			userRepository.deleteByQualifiedTagAndModifiedLessThanEqual(deletor, startedAt);
+			afterCommit(() -> messages.invalidateUser(tag));
+			return;
+		}
+		var tombstone = new User();
+		tombstone.setTag(localTag(qualifiedTag));
+		tombstone.setOrigin(tagOrigin(qualifiedTag));
+		ensureCreateUniqueModified(tombstone);
 		afterCommit(() -> messages.deleteUser(qualifiedTag));
 	}
 
@@ -115,13 +153,27 @@ public class IngestUser {
 	}
 
 	void ensureCreateUniqueModified(User user) {
+		ensureCreateUniqueModified(user, false);
+	}
+
+	/**
+	 * @param create in archive mode, fail if a current version exists
+	 */
+	void ensureCreateUniqueModified(User user, boolean create) {
 		var count = 0;
 		while (true) {
 			try {
 				count++;
 				TransactionTemplate transactionTemplate = new TransactionTemplate(transactionManager);
 				transactionTemplate.execute(status -> {
-					user.setModified(Instant.now(ensureUniqueModifiedClock));
+					if (archive) {
+						// The primary key includes modified, so check the current version before appending
+						if (create && userRepository.existsCurrent(user.getQualifiedTag())) throw new AlreadyExistsException();
+						if (create && isDeletorTag(user.getTag()) && userRepository.existsCurrent(deletedTag(user.getQualifiedTag()))) throw new AlreadyExistsException();
+						user.setModified(nextModified(Instant.now(ensureUniqueModifiedClock), userRepository.getCursor(user.getOrigin())));
+					} else {
+						user.setModified(Instant.now(ensureUniqueModifiedClock));
+					}
 					em.persist(user);
 					em.flush();
 					return null;
@@ -147,6 +199,16 @@ public class IngestUser {
 				count++;
 				TransactionTemplate transactionTemplate = new TransactionTemplate(transactionManager);
 				transactionTemplate.execute(status -> {
+					if (archive) {
+						// Append a new version instead of overwriting the current one
+						if (userRepository.findOneByQualifiedTag(user.getQualifiedTag())
+							.filter(e -> e.getModified().equals(cursor))
+							.isEmpty()) throw new ModifiedException("User");
+						user.setModified(nextModified(Instant.now(ensureUniqueModifiedClock), userRepository.getCursor(user.getOrigin())));
+						em.persist(user);
+						em.flush();
+						return null;
+					}
 					user.setModified(Instant.now(ensureUniqueModifiedClock));
 					var updated = userRepository.optimisticUpdate(
 						cursor,

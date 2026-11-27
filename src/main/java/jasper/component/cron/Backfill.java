@@ -53,7 +53,7 @@ public class Backfill {
 				origin, ref.getOrigin(), ref.getTitle(), ref.getUrl());
 			meta.regen(origin, ref);
 			try {
-				refRepository.updateMetadata(ref.getUrl(), ref.getOrigin(), ref.getMetadata());
+				meta.updateMetadata(ref, ref.getMetadata());
 			} catch (Exception e) {
 				logger.error("{} Error backfilling: {}", origin, ref.getUrl(), e);
 				return;

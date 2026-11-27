@@ -44,6 +44,70 @@ public class IngestExtIT {
 	}
 
 	@Test
+	void testFindOneByQualifiedTag() {
+		var local = new Ext();
+		local.setTag("test");
+		local.setName("Local");
+		extRepository.save(local);
+		var remote = new Ext();
+		remote.setTag("test");
+		remote.setOrigin("@other");
+		remote.setName("Remote");
+		extRepository.save(remote);
+
+		assertThat(extRepository.findOneByQualifiedTag("test"))
+			.get()
+			.extracting(Ext::getName)
+			.isEqualTo("Local");
+		assertThat(extRepository.findOneByQualifiedTag("test@other"))
+			.get()
+			.extracting(Ext::getName)
+			.isEqualTo("Remote");
+		assertThat(extRepository.findOneByQualifiedTag("test@missing"))
+			.isEmpty();
+		assertThat(extRepository.findOneByQualifiedTag("missing"))
+			.isEmpty();
+		assertThat(extRepository.existsByQualifiedTag("test@other"))
+			.isTrue();
+		assertThat(extRepository.existsByQualifiedTag("test@missing"))
+			.isFalse();
+	}
+
+	@Test
+	void testPushDeletorDeletesTag() {
+		var existing = new Ext();
+		existing.setTag("test");
+		existing.setModified(Instant.now().minusSeconds(10));
+		ingest.push("", existing, false, false);
+		var deletor = new Ext();
+		deletor.setTag("test/deleted");
+		deletor.setModified(Instant.now());
+
+		ingest.push("", deletor, false, false);
+
+		assertThat(extRepository.existsByQualifiedTag("test"))
+			.isFalse();
+		assertThat(extRepository.existsByQualifiedTag("test/deleted"))
+			.isTrue();
+	}
+
+	@Test
+	void testCreateDeletesDeletor() {
+		var deletor = new Ext();
+		deletor.setTag("test/deleted");
+		extRepository.save(deletor);
+		var ext = new Ext();
+		ext.setTag("test");
+
+		ingest.create(ext);
+
+		assertThat(extRepository.existsByQualifiedTag("test"))
+			.isTrue();
+		assertThat(extRepository.existsByQualifiedTag("test/deleted"))
+			.isFalse();
+	}
+
+	@Test
 	void testIngestExt() {
 		var ext = new Ext();
 		ext.setTag("test");

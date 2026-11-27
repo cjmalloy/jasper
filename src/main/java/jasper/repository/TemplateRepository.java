@@ -7,16 +7,23 @@ import jasper.domain.Template;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
-import org.springframework.stereotype.Repository;
+import org.springframework.data.repository.NoRepositoryBean;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
-@Repository
+/**
+ * Abstract methods are profile-specific queries, declared with @Query in
+ * {@link TemplateRepositoryRegular} and {@link TemplateRepositoryArchive}.
+ */
+@NoRepositoryBean
 @Transactional(readOnly = true)
 public interface TemplateRepository extends JpaRepository<Template, TagId>, QualifiedTagMixin<Template>, StreamMixin<Template>, ModifiedCursor, OriginMixin {
+
+	List<Template> findAllForTagAndOriginWithSchema(String tag, String origin);
+	List<Template> findAllForTagAndOriginWithDefaults(String tag, String origin);
 
 	@Modifying
 	@Query("""
@@ -56,40 +63,11 @@ public interface TemplateRepository extends JpaRepository<Template, TagId>, Qual
 			AND template.modified <= :olderThan""")
 	void deleteByOriginAndModifiedLessThanEqual(String origin, Instant olderThan);
 
-	@Query("""
-		FROM Template AS t
-		WHERE t.origin = :origin
-			AND t.schema IS NOT NULL
-			AND COALESCE(jsonb_object_field_text(t.config, 'disabled'), '') != 'true'
-			AND (t.tag = ''
-				OR t.tag = :tag
-				OR (:tag LIKE '+%' AND concat('+', t.tag) = :tag)
-				OR (:tag LIKE '\\_%' ESCAPE '\\' AND concat('_', t.tag) = :tag)
-				OR locate(concat(t.tag, '/'), :tag) = 1
-				OR (:tag LIKE '\\_%' ESCAPE '\\' AND locate(concat(t.tag, '/'), :tag) = 2)
-				OR (:tag LIKE '+%' AND locate(concat(t.tag, '/'), :tag) = 2))
-		ORDER BY tag_levels(t.tag) ASC""")
-	List<Template> findAllForTagAndOriginWithSchema(String tag, String origin);
-
-	@Query("""
-		FROM Template AS t
-		WHERE t.origin = :origin
-			AND t.defaults IS NOT NULL
-			AND COALESCE(jsonb_object_field_text(t.config, 'disabled'), '') != 'true'
-			AND (t.tag = ''
-				OR t.tag = :tag
-				OR (:tag LIKE '+%' AND concat('+', t.tag) = :tag)
-				OR (:tag LIKE '\\_%' ESCAPE '\\' AND concat('_', t.tag) = :tag)
-				OR locate(concat(t.tag, '/'), :tag) = 1
-				OR (:tag LIKE '\\_%' ESCAPE '\\' AND locate(concat(t.tag, '/'), :tag) = 2)
-				OR (:tag LIKE '+%' AND locate(concat(t.tag, '/'), :tag) = 2))
-		ORDER BY tag_levels(t.tag) ASC""")
-	List<Template> findAllForTagAndOriginWithDefaults(String tag, String origin);
-
-	@Query("""
-		FROM Template AS t
-		WHERE t.origin = :origin
-			AND COALESCE(jsonb_object_field_text(t.config, 'disabled'), '') != 'true'
-			AND t.tag = :template""")
-	Optional<Template> findByTemplateAndOrigin(String template, String origin);
+	/**
+	 * The current version if it is not disabled.
+	 */
+	default Optional<Template> findByTemplateAndOrigin(String template, String origin) {
+		return findCurrent(template + origin)
+			.filter(t -> t.getConfig() == null || !"true".equals(t.getConfig().path("disabled").asText()));
+	}
 }

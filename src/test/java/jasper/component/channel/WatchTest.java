@@ -134,7 +134,7 @@ class WatchTest {
 	@SuppressWarnings("unchecked")
 	void testScannedRefNotifiedWhenTagRemoved() {
 		var existing = Ref.from("https://example.com/@tenant.origin", "@tenant.origin", "+plugin/cron");
-		when(refRepository.findAll(any(Specification.class), any(Pageable.class)))
+		when(refRepository.findAllLatest(any(Specification.class), any(Pageable.class)))
 			.thenReturn((Page<Ref>) new PageImpl<>(List.of(existing)))
 			.thenReturn(Page.empty());
 		var seen = new ArrayList<HasTags>();
@@ -175,14 +175,14 @@ class WatchTest {
 	@Test
 	@SuppressWarnings("unchecked")
 	void testReAddWatchAfterRemoveRescans() {
-		when(refRepository.findAll(any(Specification.class), any(Pageable.class))).thenReturn(Page.empty());
+		when(refRepository.findAllLatest(any(Specification.class), any(Pageable.class))).thenReturn(Page.empty());
 		watch.addWatch("@tenant.*", "+plugin/cron", r -> {});
 		watch.init();
 		watch.removeWatch("@tenant.*", "+plugin/cron");
 
 		watch.addWatch("@tenant.*", "+plugin/cron", r -> {});
 
-		verify(refRepository, times(2)).findAll(any(Specification.class), any(Pageable.class));
+		verify(refRepository, times(2)).findAllLatest(any(Specification.class), any(Pageable.class));
 	}
 
 	@Test
@@ -190,14 +190,14 @@ class WatchTest {
 	void testAddWatchBeforeReadyDoesNotScan() {
 		watch.addWatch("@tenant.origin", "+plugin/cron", r -> {});
 
-		verify(refRepository, never()).findAll(any(Specification.class), any(Pageable.class));
+		verify(refRepository, never()).findAllLatest(any(Specification.class), any(Pageable.class));
 	}
 
 	@Test
 	@SuppressWarnings("unchecked")
 	void testAddWatchAfterReadyScansExistingRefs() {
 		var existing = Ref.from("https://example.com/feed", "@tenant.origin", "+plugin/cron", "plugin/script/feed");
-		when(refRepository.findAll(any(Specification.class), any(Pageable.class)))
+		when(refRepository.findAllLatest(any(Specification.class), any(Pageable.class)))
 			.thenReturn((Page<Ref>) new PageImpl<>(List.of(existing)))
 			.thenReturn(Page.empty());
 		watch.init();
@@ -212,11 +212,11 @@ class WatchTest {
 	@SuppressWarnings("unchecked")
 	void testReAddWatchAfterReadyDoesNotRescan() {
 		watch.addWatch("@tenant.*", "+plugin/cron", r -> {});
-		when(refRepository.findAll(any(Specification.class), any(Pageable.class))).thenReturn(Page.empty());
+		when(refRepository.findAllLatest(any(Specification.class), any(Pageable.class))).thenReturn(Page.empty());
 		watch.init();
 
 		watch.addWatch("@tenant.*", "+plugin/cron", r -> {});
 
-		verify(refRepository).findAll(any(Specification.class), any(Pageable.class));
+		verify(refRepository).findAllLatest(any(Specification.class), any(Pageable.class));
 	}
 }

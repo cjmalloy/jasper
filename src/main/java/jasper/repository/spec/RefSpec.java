@@ -55,6 +55,21 @@ public class RefSpec {
 						cb.literal(url))));
 	}
 
+	/**
+	 * Only the latest version of each (url, origin). In archive mode multiple versions may exist.
+	 */
+	public static Specification<Ref> isLatest() {
+		return (root, query, cb) -> {
+			var newer = query.subquery(Integer.class);
+			var n = newer.from(Ref.class);
+			newer.select(cb.literal(1)).where(
+				cb.equal(n.get(Ref_.url), root.get(Ref_.url)),
+				cb.equal(n.get(Ref_.origin), root.get(Ref_.origin)),
+				cb.greaterThan(n.get(Ref_.modified), root.get(Ref_.modified)));
+			return cb.not(cb.exists(newer));
+		};
+	}
+
 	public static Specification<Ref> isNotObsolete() {
 		return (root, query, cb) ->
 			cb.or(

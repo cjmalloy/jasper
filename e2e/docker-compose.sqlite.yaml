@@ -1,4 +1,12 @@
 services:
+  # The archive profile is Postgres only, so the archive spec is skipped
+  playwright:
+    depends_on:
+      archive-web:
+        condition: service_healthy
+        required: false
+    environment:
+      ARCHIVE_API: ''
   web:
     environment:
       SPRING_PROFILES_ACTIVE: prod,jwt,storage,file-cache,scripts,proxy,sqlite
@@ -36,5 +44,11 @@ services:
     profiles:
       - never
   tunnel-db:
+    profiles:
+      - never
+  archive-web:
+    profiles:
+      - never
+  archive-db:
     profiles:
       - never

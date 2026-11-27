@@ -10,10 +10,8 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jasper.domain.proj.HasOrigin;
 import jasper.domain.proj.Tag;
-import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.Setter;
-import org.hibernate.annotations.Formula;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 import org.hibernate.validator.constraints.Length;
@@ -41,10 +39,6 @@ public class Ext implements Tag {
 	@Pattern(regexp = HasOrigin.REGEX)
 	@Length(max = ORIGIN_LEN)
 	private String origin = "";
-
-	@Formula("tag || origin")
-	@Setter(AccessLevel.NONE)
-	private String qualifiedTag;
 
 	@Length(max = NAME_LEN)
 	private String name;

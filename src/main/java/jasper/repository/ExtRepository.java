@@ -3,6 +3,7 @@ package jasper.repository;
 import com.fasterxml.jackson.databind.JsonNode;
 import jasper.domain.Ext;
 import jasper.domain.TagId;
+import org.springframework.context.annotation.Profile;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -12,7 +13,11 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
 import java.util.List;
 
+/**
+ * Replaced by {@link ExtRepositoryArchive} in archive mode.
+ */
 @Repository
+@Profile("!archive")
 @Transactional(readOnly = true)
 public interface ExtRepository extends JpaRepository<Ext, TagId>, QualifiedTagMixin<Ext>, StreamMixin<Ext>, ModifiedCursor, OriginMixin {
 

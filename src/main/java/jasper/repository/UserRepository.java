@@ -3,6 +3,7 @@ package jasper.repository;
 import jasper.domain.External;
 import jasper.domain.TagId;
 import jasper.domain.User;
+import org.springframework.context.annotation.Profile;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -12,7 +13,14 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
 import java.util.List;
 
+import static jasper.domain.proj.Tag.localTag;
+import static jasper.domain.proj.Tag.tagOrigin;
+
+/**
+ * Replaced by {@link UserRepositoryArchive} in archive mode.
+ */
 @Repository
+@Profile("!archive")
 @Transactional(readOnly = true)
 public interface UserRepository extends JpaRepository<User, TagId>, QualifiedTagMixin<User>, StreamMixin<User>,
 	ModifiedCursor, OriginMixin {
@@ -76,9 +84,17 @@ public interface UserRepository extends JpaRepository<User, TagId>, QualifiedTag
 
 	@Query("""
 		SELECT u FROM User u
-		WHERE (u.qualifiedTag = '+' || :tag) OR (u.qualifiedTag = '_' || :tag)
+		WHERE u.tag IN (concat('+', :tag), concat('_', :tag))
+			AND u.origin = :origin
 		ORDER BY collate_c(u.tag)""")
-	List<User> findAllByQualifiedSuffix(String tag);
+	List<User> findAllByTagSuffixAndOrigin(String tag, String origin);
+
+	/**
+	 * Both the public and protected user for a qualified tag without the prefix, ie. "user/alice@origin".
+	 */
+	default List<User> findAllByQualifiedSuffix(String qualifiedSuffix) {
+		return findAllByTagSuffixAndOrigin(localTag(qualifiedSuffix), tagOrigin(qualifiedSuffix));
+	}
 
 	@Modifying
 	@Transactional

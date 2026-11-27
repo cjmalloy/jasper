@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+	Mapping overrides for the "archive" profile.
+	Adds "modified" to the primary key of all entities so that previous
+	versions are kept instead of being overwritten.
+-->
+<entity-mappings xmlns="https://jakarta.ee/xml/ns/persistence/orm"
+                 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                 xsi:schemaLocation="https://jakarta.ee/xml/ns/persistence/orm https://jakarta.ee/xml/ns/persistence/orm/orm_3_1.xsd"
+                 version="3.1">
+	<entity class="jasper.domain.Ref" metadata-complete="false">
+		<id-class class="jasper.domain.ArchiveRefId"/>
+		<attributes>
+			<id name="modified">
+				<column name="modified" nullable="false" updatable="false"/>
+			</id>
+		</attributes>
+	</entity>
+	<entity class="jasper.domain.Ext" metadata-complete="false">
+		<id-class class="jasper.domain.ArchiveTagId"/>
+		<attributes>
+			<id name="modified">
+				<column name="modified" nullable="false" updatable="false"/>
+			</id>
+		</attributes>
+	</entity>
+	<entity class="jasper.domain.User" metadata-complete="false">
+		<id-class class="jasper.domain.ArchiveTagId"/>
+		<attributes>
+			<id name="modified">
+				<column name="modified" nullable="false" updatable="false"/>
+			</id>
+		</attributes>
+	</entity>
+	<entity class="jasper.domain.Plugin" metadata-complete="false">
+		<id-class class="jasper.domain.ArchiveTagId"/>
+		<attributes>
+			<id name="modified">
+				<column name="modified" nullable="false" updatable="false"/>
+			</id>
+		</attributes>
+	</entity>
+	<entity class="jasper.domain.Template" metadata-complete="false">
+		<id-class class="jasper.domain.ArchiveTagId"/>
+		<attributes>
+			<id name="modified">
+				<column name="modified" nullable="false" updatable="false"/>
+			</id>
+		</attributes>
+	</entity>
+</entity-mappings>

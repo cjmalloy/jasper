@@ -18,19 +18,24 @@ import jasper.security.Auth;
 import jasper.service.dto.DtoMapper;
 import jasper.service.dto.PluginDto;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 
+import static jasper.component.Replicator.deletedTag;
+import static jasper.component.Replicator.isDeletorTag;
 import static jasper.domain.proj.Tag.localTag;
 import static jasper.domain.proj.Tag.tagOrigin;
 import static jasper.repository.spec.SortSpec.sortTags;
+import static jasper.security.AuthoritiesConstants.MOD;
 import static org.springframework.data.domain.PageRequest.of;
 
 @Service
@@ -44,6 +49,9 @@ public class PluginService {
 
 	@Autowired
 	Auth auth;
+
+	@Value("#{environment.matchesProfiles('archive')}")
+	boolean archive;
 
 	@Autowired
 	DtoMapper mapper;
@@ -72,7 +80,7 @@ public class PluginService {
 	@Cacheable(value = "plugin-dto-cache", key = "#qualifiedTag")
 	@Timed(value = "jasper.service", extraTags = {"service", "plugin"}, histogram = true)
 	public PluginDto get(String qualifiedTag) {
-		return pluginRepository.findOneByQualifiedTag(qualifiedTag)
+		return pluginRepository.findCurrent(qualifiedTag)
 			.map(mapper::domainToDto)
 			.orElseThrow(() -> new NotFoundException("Plugin " + qualifiedTag));
 	}
@@ -110,7 +118,7 @@ public class PluginService {
 	@Timed(value = "jasper.service", extraTags = {"service", "plugin"}, histogram = true)
 	public Instant patch(String qualifiedTag, Instant cursor, Patch patch) {
 		var created = false;
-		var plugin = pluginRepository.findOneByQualifiedTag(qualifiedTag).orElse(null);
+		var plugin = pluginRepository.findCurrent(qualifiedTag).orElse(null);
 		if (plugin == null) {
 			created = true;
 			plugin = new Plugin();
@@ -138,6 +146,11 @@ public class PluginService {
 	@PreAuthorize("@auth.canEditConfig(#qualifiedTag) or @auth.subOrigin(#qualifiedTag) and @auth.hasRole('MOD')")
 	@Timed(value = "jasper.service", extraTags = {"service", "plugin"}, histogram = true)
 	public void delete(String qualifiedTag) {
+		if (archive && isDeletorTag(qualifiedTag)) {
+			// In archive mode deleting a deletor tag prunes the tag it deletes
+			var parent = deletedTag(qualifiedTag);
+			if (!auth.canEditConfig(parent) && !(auth.subOrigin(parent) && auth.hasRole(MOD))) throw new AccessDeniedException("Cannot delete " + parent);
+		}
 		try {
 			ingest.delete(qualifiedTag);
 		} catch (EmptyResultDataAccessException e) {
