@@ -26,7 +26,6 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.Clock;
 import java.time.Instant;
-import java.util.Optional;
 
 import static jasper.component.Replicator.deletedTag;
 import static jasper.component.Replicator.deletorTag;
@@ -70,7 +69,7 @@ public class IngestTemplate {
 	@Timed(value = "jasper.template", histogram = true)
 	public void create(Template template) {
 		if (isDeletorTag(template.getTag())) {
-			if (archive ? current(deletedTag(template.getQualifiedTag())).isPresent() : templateRepository.existsByQualifiedTag(deletedTag(template.getQualifiedTag()))) throw new AlreadyExistsException();
+			if (templateRepository.existsCurrent(deletedTag(template.getQualifiedTag()))) throw new AlreadyExistsException();
 			if (existingTombstone(template)) return;
 		} else if (!archive) {
 			// In archive mode the deletor tag is kept
@@ -89,7 +88,7 @@ public class IngestTemplate {
 
 	@Timed(value = "jasper.template", histogram = true)
 	public void update(Template template) {
-		if (archive ? current(template.getQualifiedTag()).isEmpty() : !templateRepository.existsByQualifiedTag(template.getQualifiedTag())) throw new NotFoundException("Template");
+		if (!templateRepository.existsCurrent(template.getQualifiedTag())) throw new NotFoundException("Template");
 		validate.template(template.getOrigin(), template);
 		ensureUpdateUniqueModified(template);
 		messages.updateTemplate(template);
@@ -128,15 +127,6 @@ public class IngestTemplate {
 		afterCommit(() -> messages.deleteTemplate(qualifiedTag));
 	}
 
-	/**
-	 * The current version, or empty if it is missing. In archive mode a blank current version
-	 * is a tombstone and is treated as missing.
-	 */
-	public Optional<Template> current(String qualifiedTag) {
-		var maybeExisting = templateRepository.findOneByQualifiedTag(qualifiedTag);
-		if (!archive) return maybeExisting;
-		return maybeExisting.filter(e -> !isBlank(e));
-	}
 
 	/**
 	 * Deleting appends a blank version (tombstone). Deleting a tombstone or a deletor tag
@@ -183,8 +173,8 @@ public class IngestTemplate {
 				transactionTemplate.execute(status -> {
 					if (archive) {
 						// The primary key includes modified, so check the current version before appending
-						if (create && current(template.getQualifiedTag()).isPresent()) throw new AlreadyExistsException();
-						if (create && isDeletorTag(template.getTag()) && current(deletedTag(template.getQualifiedTag())).isPresent()) throw new AlreadyExistsException();
+						if (create && templateRepository.existsCurrent(template.getQualifiedTag())) throw new AlreadyExistsException();
+						if (create && isDeletorTag(template.getTag()) && templateRepository.existsCurrent(deletedTag(template.getQualifiedTag()))) throw new AlreadyExistsException();
 						template.setModified(nextModified(Instant.now(ensureUniqueModifiedClock), templateRepository.getCursor(template.getOrigin())));
 					} else {
 						template.setModified(Instant.now(ensureUniqueModifiedClock));

@@ -64,10 +64,10 @@ public interface TemplateRepository extends JpaRepository<Template, TagId>, Qual
 	void deleteByOriginAndModifiedLessThanEqual(String origin, Instant olderThan);
 
 	/**
-	 * Find the latest version if it is not disabled. In archive mode multiple versions may exist.
+	 * The current version if it is not disabled.
 	 */
 	default Optional<Template> findByTemplateAndOrigin(String template, String origin) {
-		return findFirstByTagAndOriginOrderByModifiedDesc(template, origin)
+		return findCurrent(template + origin)
 			.filter(t -> t.getConfig() == null || !"true".equals(t.getConfig().path("disabled").asText()));
 	}
 }

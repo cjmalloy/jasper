@@ -533,7 +533,7 @@ public class ArchiveIT {
 
 		assertThat(refRepository.count())
 			.isEqualTo(2);
-		assertThat(ingest.current(URL, ""))
+		assertThat(refRepository.findCurrent(URL, ""))
 			.get()
 			.extracting(Ref::getTitle)
 			.isEqualTo("Second");
@@ -708,7 +708,7 @@ public class ArchiveIT {
 
 		assertThat(VersionKind.countTag(extRepository, "test", ""))
 			.isEqualTo(2);
-		assertThat(ingestExt.current("test"))
+		assertThat(extRepository.findCurrent("test"))
 			.get()
 			.extracting(Ext::getName)
 			.isEqualTo("Second");
@@ -777,7 +777,7 @@ public class ArchiveIT {
 		push("", "First", now.minusSeconds(20));
 		push("", "", now.minusSeconds(10), "internal", "plugin/delete");
 
-		assertThat(ingest.current(URL, ""))
+		assertThat(refRepository.findCurrent(URL, ""))
 			.isEmpty();
 
 		ingest.delete("", URL, "");
@@ -1105,7 +1105,7 @@ public class ArchiveIT {
 
 		assertThat(VersionKind.countTag(userRepository, "+user/blank", ""))
 			.isEqualTo(2);
-		assertThat(ingestUser.current("+user/blank"))
+		assertThat(userRepository.findCurrent("+user/blank"))
 			.isEmpty();
 	}
 
@@ -1124,7 +1124,7 @@ public class ArchiveIT {
 		assertThat(userRepository.findAll().stream().filter(u -> u.getModified().equals(now.minusSeconds(10))).findFirst())
 			.get()
 			.satisfies(u -> assertThat(u.hasExternalId()).isFalse());
-		assertThat(ingestUser.current("+user/ext"))
+		assertThat(userRepository.findCurrent("+user/ext"))
 			.get()
 			.satisfies(u -> assertThat(u.hasExternalId("ext@example.com")).isTrue())
 			.extracting(User::getRole)
@@ -1158,7 +1158,7 @@ public class ArchiveIT {
 
 		ingest.update("", ref("", "Second", now.plusSeconds(60)));
 
-		assertThat(ingest.current(URL, ""))
+		assertThat(refRepository.findCurrent(URL, ""))
 			.get()
 			.satisfies(r -> assertThat(r.getTitle()).isEqualTo("Second"))
 			.satisfies(r -> assertThat(r.getModified()).isAfter(now.plusSeconds(60)));
@@ -1170,7 +1170,7 @@ public class ArchiveIT {
 
 		ingestExt.update(ext("test", now.plusSeconds(60), "Second"));
 
-		assertThat(ingestExt.current("test"))
+		assertThat(extRepository.findCurrent("test"))
 			.get()
 			.satisfies(e -> assertThat(e.getName()).isEqualTo("Second"))
 			.satisfies(e -> assertThat(e.getModified()).isAfter(now.plusSeconds(60)));
@@ -1188,7 +1188,7 @@ public class ArchiveIT {
 			.isEqualTo(2);
 		assertThat(version("", now.minusSeconds(10)).getTitle())
 			.isEqualTo("First");
-		assertThat(ingest.current(URL, ""))
+		assertThat(refRepository.findCurrent(URL, ""))
 			.get()
 			.satisfies(r -> assertThat(r.getTitle()).isEqualTo("Silent"))
 			.satisfies(r -> assertThat(r.getModified()).isEqualTo(now.minusSeconds(10).plus(1, ChronoUnit.MICROS)));
@@ -1290,7 +1290,7 @@ public class ArchiveIT {
 
 		ingestExt.update(ext("test", ext.getModified(), "Second"));
 
-		assertThat(ingestExt.current("test"))
+		assertThat(extRepository.findCurrent("test"))
 			.get()
 			.extracting(Ext::getName)
 			.isEqualTo("Second");
@@ -1328,7 +1328,7 @@ public class ArchiveIT {
 
 		userService.push(blank);
 
-		assertThat(ingestUser.current("+user/blank"))
+		assertThat(userRepository.findCurrent("+user/blank"))
 			.isEmpty();
 	}
 
@@ -1567,7 +1567,7 @@ public class ArchiveIT {
 		blank.setModified(now.minusSeconds(10));
 		extService.push(blank);
 
-		assertThat(ingestExt.current("foo"))
+		assertThat(extRepository.findCurrent("foo"))
 			.isEmpty();
 	}
 

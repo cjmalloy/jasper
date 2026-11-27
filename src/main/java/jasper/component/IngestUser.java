@@ -26,7 +26,6 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.Clock;
 import java.time.Instant;
-import java.util.Optional;
 
 import static jasper.component.Replicator.deletedTag;
 import static jasper.component.Replicator.deletorTag;
@@ -68,7 +67,7 @@ public class IngestUser {
 	@Timed(value = "jasper.user", histogram = true)
 	public void create(User user) {
 		if (isDeletorTag(user.getTag())) {
-			if (archive ? current(deletedTag(user.getQualifiedTag())).isPresent() : userRepository.existsByQualifiedTag(deletedTag(user.getQualifiedTag()))) throw new AlreadyExistsException();
+			if (userRepository.existsCurrent(deletedTag(user.getQualifiedTag()))) throw new AlreadyExistsException();
 			if (existingTombstone(user)) return;
 		} else if (!archive) {
 			// In archive mode the deletor tag is kept
@@ -86,7 +85,7 @@ public class IngestUser {
 
 	@Timed(value = "jasper.user", histogram = true)
 	public void update(User user) {
-		if (archive ? current(user.getQualifiedTag()).isEmpty() : !userRepository.existsByQualifiedTag(user.getQualifiedTag())) throw new NotFoundException("User");
+		if (!userRepository.existsCurrent(user.getQualifiedTag())) throw new NotFoundException("User");
 		ensureUpdateUniqueModified(user);
 		messages.updateUser(user);
 	}
@@ -123,15 +122,6 @@ public class IngestUser {
 		afterCommit(() -> messages.deleteUser(qualifiedTag));
 	}
 
-	/**
-	 * The current version, or empty if it is missing. In archive mode a blank current version
-	 * is a tombstone and is treated as missing.
-	 */
-	public Optional<User> current(String qualifiedTag) {
-		var maybeExisting = userRepository.findOneByQualifiedTag(qualifiedTag);
-		if (!archive) return maybeExisting;
-		return maybeExisting.filter(e -> !isBlank(e));
-	}
 
 	/**
 	 * Deleting appends a blank version (tombstone). Deleting a tombstone or a deletor tag
@@ -178,8 +168,8 @@ public class IngestUser {
 				transactionTemplate.execute(status -> {
 					if (archive) {
 						// The primary key includes modified, so check the current version before appending
-						if (create && current(user.getQualifiedTag()).isPresent()) throw new AlreadyExistsException();
-						if (create && isDeletorTag(user.getTag()) && current(deletedTag(user.getQualifiedTag())).isPresent()) throw new AlreadyExistsException();
+						if (create && userRepository.existsCurrent(user.getQualifiedTag())) throw new AlreadyExistsException();
+						if (create && isDeletorTag(user.getTag()) && userRepository.existsCurrent(deletedTag(user.getQualifiedTag()))) throw new AlreadyExistsException();
 						user.setModified(nextModified(Instant.now(ensureUniqueModifiedClock), userRepository.getCursor(user.getOrigin())));
 					} else {
 						user.setModified(Instant.now(ensureUniqueModifiedClock));

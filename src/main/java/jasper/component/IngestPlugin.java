@@ -27,7 +27,6 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.Clock;
 import java.time.Instant;
-import java.util.Optional;
 
 import static jasper.component.Replicator.deletedTag;
 import static jasper.component.Replicator.deletorTag;
@@ -74,7 +73,7 @@ public class IngestPlugin {
 	@Timed(value = "jasper.plugin", histogram = true)
 	public void create(Plugin plugin) {
 		if (isDeletorTag(plugin.getTag())) {
-			if (archive ? current(deletedTag(plugin.getQualifiedTag())).isPresent() : pluginRepository.existsByQualifiedTag(deletedTag(plugin.getQualifiedTag()))) throw new AlreadyExistsException();
+			if (pluginRepository.existsCurrent(deletedTag(plugin.getQualifiedTag()))) throw new AlreadyExistsException();
 			if (existingTombstone(plugin)) return;
 		} else if (!archive) {
 			// In archive mode the deletor tag is kept
@@ -94,7 +93,7 @@ public class IngestPlugin {
 
 	@Timed(value = "jasper.plugin", histogram = true)
 	public void update(Plugin plugin) {
-		if (archive ? current(plugin.getQualifiedTag()).isEmpty() : !pluginRepository.existsByQualifiedTag(plugin.getQualifiedTag())) throw new NotFoundException("Plugin");
+		if (!pluginRepository.existsCurrent(plugin.getQualifiedTag())) throw new NotFoundException("Plugin");
 		validate.plugin(plugin.getOrigin(), plugin);
 		ensureUpdateUniqueModified(plugin);
 		messages.updatePlugin(plugin);
@@ -135,15 +134,6 @@ public class IngestPlugin {
 		afterCommit(() -> messages.deletePlugin(qualifiedTag));
 	}
 
-	/**
-	 * The current version, or empty if it is missing. In archive mode a blank current version
-	 * is a tombstone and is treated as missing.
-	 */
-	public Optional<Plugin> current(String qualifiedTag) {
-		var maybeExisting = pluginRepository.findOneByQualifiedTag(qualifiedTag);
-		if (!archive) return maybeExisting;
-		return maybeExisting.filter(e -> !isBlank(e));
-	}
 
 	/**
 	 * Deleting appends a blank version (tombstone). Deleting a tombstone or a deletor tag
@@ -202,8 +192,8 @@ public class IngestPlugin {
 				transactionTemplate.execute(status -> {
 					if (archive) {
 						// The primary key includes modified, so check the current version before appending
-						if (create && current(plugin.getQualifiedTag()).isPresent()) throw new AlreadyExistsException();
-						if (create && isDeletorTag(plugin.getTag()) && current(deletedTag(plugin.getQualifiedTag())).isPresent()) throw new AlreadyExistsException();
+						if (create && pluginRepository.existsCurrent(plugin.getQualifiedTag())) throw new AlreadyExistsException();
+						if (create && isDeletorTag(plugin.getTag()) && pluginRepository.existsCurrent(deletedTag(plugin.getQualifiedTag()))) throw new AlreadyExistsException();
 						plugin.setModified(nextModified(Instant.now(ensureUniqueModifiedClock), pluginRepository.getCursor(plugin.getOrigin())));
 					} else {
 						plugin.setModified(Instant.now(ensureUniqueModifiedClock));

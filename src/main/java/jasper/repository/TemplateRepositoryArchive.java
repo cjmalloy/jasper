@@ -6,7 +6,10 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Optional;
 import java.util.List;
+
+import static jasper.util.Archive.isBlank;
 
 /**
  * Archive mode Template queries. Multiple versions of a Template may exist.
@@ -58,4 +61,17 @@ public interface TemplateRepositoryArchive extends TemplateRepository {
 		AND COALESCE(t.config->>'disabled', '') != 'true'
 	ORDER BY CASE WHEN t.tag = '' THEN 0 ELSE length(t.tag) - length(replace(t.tag, '/', '')) + 1 END ASC""")
 	List<Template> findAllForTagAndOriginWithDefaults(String tag, String origin);
+
+	/**
+	 * A blank current version is a tombstone and is treated as missing.
+	 */
+	@Override
+	default Optional<Template> findCurrent(String qualifiedTag) {
+		return findOneByQualifiedTag(qualifiedTag).filter(t -> !isBlank(t));
+	}
+
+	@Override
+	default boolean existsCurrent(String qualifiedTag) {
+		return findCurrent(qualifiedTag).isPresent();
+	}
 }

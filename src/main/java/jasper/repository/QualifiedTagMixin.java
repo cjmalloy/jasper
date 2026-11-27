@@ -24,6 +24,22 @@ public interface QualifiedTagMixin<T extends Tag> extends JpaSpecificationExecut
 		return findFirstByTagAndOriginOrderByModifiedDesc(localTag(qualifiedTag), tagOrigin(qualifiedTag));
 	}
 
+	/**
+	 * The current version, or empty if it is missing.
+	 * Archive repositories override this to treat a tombstone as missing.
+	 */
+	default Optional<T> findCurrent(String qualifiedTag) {
+		return findOneByQualifiedTag(qualifiedTag);
+	}
+
+	/**
+	 * Whether a current version exists.
+	 * Archive repositories override this to treat a tombstone as missing.
+	 */
+	default boolean existsCurrent(String qualifiedTag) {
+		return existsByQualifiedTag(qualifiedTag);
+	}
+
 	boolean existsByTagAndOrigin(String tag, String origin);
 
 	default boolean existsByQualifiedTag(String qualifiedTag) {

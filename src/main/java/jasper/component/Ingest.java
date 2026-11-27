@@ -29,7 +29,6 @@ import org.springframework.transaction.support.TransactionTemplate;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
-import java.util.Optional;
 
 import static jasper.component.Meta.expandTags;
 import static jasper.util.Archive.isBlank;
@@ -93,7 +92,7 @@ public class Ingest {
 	 */
 	@Timed(value = "jasper.ref", histogram = true)
 	public void update(String rootOrigin, Ref ref, boolean syncSources) {
-		var maybeExisting = current(ref.getUrl(), ref.getOrigin());
+		var maybeExisting = refRepository.findCurrent(ref.getUrl(), ref.getOrigin());
 		if (maybeExisting.isEmpty()) throw new NotFoundException("Ref");
 		validate.ref(rootOrigin, ref);
 		rng.update(rootOrigin, ref, maybeExisting.get());
@@ -105,7 +104,7 @@ public class Ingest {
 
 	@Timed(value = "jasper.ref", histogram = true)
 	public void updateResponse(String rootOrigin, Ref ref) {
-		var maybeExisting = current(ref.getUrl(), ref.getOrigin());
+		var maybeExisting = refRepository.findCurrent(ref.getUrl(), ref.getOrigin());
 		if (maybeExisting.isEmpty()) throw new NotFoundException("Ref");
 		validate.response(rootOrigin, ref);
 		rng.update(rootOrigin, ref, maybeExisting.get());
@@ -186,15 +185,6 @@ public class Ingest {
 		afterCommit(() -> messages.deleteRef(maybeExisting.get()));
 	}
 
-	/**
-	 * The current version, or empty if it is missing. In archive mode a blank current version
-	 * is a tombstone and is treated as missing.
-	 */
-	public Optional<Ref> current(String url, String origin) {
-		var maybeExisting = refRepository.findOneByUrlAndOrigin(url, origin);
-		if (!archive) return maybeExisting;
-		return maybeExisting.filter(r -> !isBlank(r));
-	}
 
 	/**
 	 * In archive mode a blank version is a tombstone and is treated as missing.
@@ -239,7 +229,7 @@ public class Ingest {
 				new TransactionTemplate(transactionManager).execute(status -> {
 					if (archive) {
 						// The primary key includes modified, so check the current version before appending
-						if (create && current(ref.getUrl(), ref.getOrigin()).isPresent()) throw new AlreadyExistsException();
+						if (create && refRepository.findCurrent(ref.getUrl(), ref.getOrigin()).isPresent()) throw new AlreadyExistsException();
 						ref.setModified(nextModified(Instant.now(ensureUniqueModifiedClock), refRepository.getCursor(ref.getOrigin())));
 					} else {
 						ref.setModified(Instant.now(ensureUniqueModifiedClock));

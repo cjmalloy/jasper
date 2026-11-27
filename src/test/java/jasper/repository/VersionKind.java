@@ -148,7 +148,7 @@ public abstract class VersionKind {
 				void doCreate(Ext e) { ingestExt.create(e); }
 				void doDelete(String qt) { ingestExt.delete(qt); }
 				public void serviceDelete(String origin) { extService.delete(key + origin); }
-				Optional<Ext> doCurrent(String qt) { return ingestExt.current(qt); }
+				Optional<Ext> doCurrent(String qt) { return extRepository.findCurrent(qt); }
 				Object doGet(String qt) { return extService.get(qt); }
 				String title(Ext e) { return e.getName(); }
 				public long pageCount() {
@@ -171,7 +171,7 @@ public abstract class VersionKind {
 				void doCreate(User u) { ingestUser.create(u); }
 				void doDelete(String qt) { ingestUser.delete(qt); }
 				public void serviceDelete(String origin) { userService.delete(key + origin); }
-				Optional<User> doCurrent(String qt) { return ingestUser.current(qt); }
+				Optional<User> doCurrent(String qt) { return userRepository.findCurrent(qt); }
 				Object doGet(String qt) {
 					configCache.clearUserCache();
 					return userService.get(qt);
@@ -198,7 +198,7 @@ public abstract class VersionKind {
 				void doCreate(Plugin p) { ingestPlugin.create(p); }
 				void doDelete(String qt) { ingestPlugin.delete(qt); }
 				public void serviceDelete(String origin) { pluginService.delete(key + origin); }
-				Optional<Plugin> doCurrent(String qt) { return ingestPlugin.current(qt); }
+				Optional<Plugin> doCurrent(String qt) { return pluginRepository.findCurrent(qt); }
 				Object doGet(String qt) {
 					configCache.clearPluginCache();
 					return pluginService.get(qt);
@@ -225,7 +225,7 @@ public abstract class VersionKind {
 				void doCreate(Template t) { ingestTemplate.create(t); }
 				void doDelete(String qt) { ingestTemplate.delete(qt); }
 				public void serviceDelete(String origin) { templateService.delete(key + origin); }
-				Optional<Template> doCurrent(String qt) { return ingestTemplate.current(qt); }
+				Optional<Template> doCurrent(String qt) { return templateRepository.findCurrent(qt); }
 				Object doGet(String qt) {
 					configCache.clearTemplateCache();
 					return templateService.get(qt);
@@ -301,11 +301,11 @@ public abstract class VersionKind {
 		}
 
 		public Optional<?> current(String origin) {
-			return ingest.current(key, origin);
+			return refRepository.findCurrent(key, origin);
 		}
 
 		public Object get(String origin) {
-			return ingest.current(key, origin).orElseThrow(() -> new NotFoundException("Ref"));
+			return refRepository.findCurrent(key, origin).orElseThrow(() -> new NotFoundException("Ref"));
 		}
 
 		public Optional<String> latestTitle(String origin) {

@@ -66,6 +66,14 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 		return findFirstByUrlAndOriginOrderByModifiedDesc(url, origin);
 	}
 
+	/**
+	 * The current version, or empty if it is missing.
+	 * Overridden in {@link RefRepositoryArchive} to treat a tombstone as missing.
+	 */
+	default Optional<Ref> findCurrent(String url, String origin) {
+		return findOneByUrlAndOrigin(url, origin);
+	}
+
 	void deleteByUrlAndOrigin(String url, String origin);
 	boolean existsByUrlAndOrigin(String url, String origin);
 

@@ -3,6 +3,7 @@ package jasper.repository;
 import jasper.domain.External;
 import jasper.domain.TagId;
 import jasper.domain.User;
+import org.springframework.context.annotation.Profile;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -15,7 +16,11 @@ import java.util.List;
 import static jasper.domain.proj.Tag.localTag;
 import static jasper.domain.proj.Tag.tagOrigin;
 
+/**
+ * Replaced by {@link UserRepositoryArchive} in archive mode.
+ */
 @Repository
+@Profile("!archive")
 @Transactional(readOnly = true)
 public interface UserRepository extends JpaRepository<User, TagId>, QualifiedTagMixin<User>, StreamMixin<User>,
 	ModifiedCursor, OriginMixin {

@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import jasper.domain.Plugin;
 import jasper.domain.TagId;
+import org.springframework.context.annotation.Profile;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -14,7 +15,11 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
+/**
+ * Replaced by {@link PluginRepositoryArchive} in archive mode.
+ */
 @Repository
+@Profile("!archive")
 @Transactional(readOnly = true)
 public interface PluginRepository extends JpaRepository<Plugin, TagId>, QualifiedTagMixin<Plugin>, StreamMixin<Plugin>, ModifiedCursor, OriginMixin {
 
@@ -57,10 +62,10 @@ public interface PluginRepository extends JpaRepository<Plugin, TagId>, Qualifie
 	void deleteByOriginAndModifiedLessThanEqual(String origin, Instant olderThan);
 
 	/**
-	 * Find the latest version if it is not disabled. In archive mode multiple versions may exist.
+	 * The current version if it is not disabled.
 	 */
 	default Optional<Plugin> findByTagAndOrigin(String tag, String origin) {
-		return findFirstByTagAndOriginOrderByModifiedDesc(tag, origin)
+		return findCurrent(tag + origin)
 			.filter(p -> p.getConfig() == null || !"true".equals(p.getConfig().path("disabled").asText()));
 	}
 }

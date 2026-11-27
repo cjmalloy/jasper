@@ -89,9 +89,6 @@ public class ConfigCache {
 	IngestUser ingestUser;
 
 	@Autowired
-	IngestPlugin ingestPlugin;
-
-	@Autowired
 	ObjectMapper objectMapper;
 
 	@Autowired
@@ -128,7 +125,7 @@ public class ConfigCache {
 				// Race to init
 			}
 		}
-		if (ingestUser.current("+user" + props.getLocalOrigin()).isEmpty()) {
+		if (!userRepository.existsCurrent("+user" + props.getLocalOrigin())) {
 			try {
 				var user = new User();
 				user.setTag("+user");
@@ -268,7 +265,7 @@ public class ConfigCache {
 		return users.stream()
 			.map(User::getQualifiedTag)
 			.distinct()
-			.map(ingestUser::current)
+			.map(userRepository::findCurrent)
 			.flatMap(Optional::stream)
 			.filter(u -> externalId == null || u.getExternal() != null && u.getExternal().getIds() != null && u.getExternal().getIds().contains(externalId))
 			.toList();
@@ -291,7 +288,7 @@ public class ConfigCache {
 			return;
 		}
 		// Archive is append only, so add a new version instead of updating in place
-		var user = ingestUser.current(tag + origin).orElse(null);
+		var user = userRepository.findCurrent(tag + origin).orElse(null);
 		if (user == null || user.hasExternalId(externalId)) return;
 		var ids = new ArrayList<String>();
 		if (user.getExternal() != null && user.getExternal().getIds() != null) ids.addAll(user.getExternal().getIds());
@@ -302,7 +299,7 @@ public class ConfigCache {
 
 	@Cacheable(value = "user-cache", key = "'+user'")
 	public User user() {
-		return ingestUser.current("+user" + props.getLocalOrigin())
+		return userRepository.findCurrent("+user" + props.getLocalOrigin())
 			.orElse(null);
 	}
 
@@ -359,7 +356,7 @@ public class ConfigCache {
 
 	@Cacheable(value = "plugin-config-cache", key = "#tag + #origin")
 	public <T> Optional<T> getPluginConfig(String tag, String origin, Class<T> toValueType) {
-		if (archive ? ingestPlugin.current(tag + origin).isEmpty() : !pluginRepository.existsByQualifiedTag(tag + origin)) return empty();
+		if (!pluginRepository.existsCurrent(tag + origin)) return empty();
 		return plugin(tag, origin)
 			.map(Plugin::getConfig)
 			.map(n -> objectMapper.convertValue(n, toValueType))
@@ -371,12 +368,8 @@ public class ConfigCache {
 		return plugin(tag, origin);
 	}
 
-	/**
-	 * The enabled current version. In archive mode a blank version is a tombstone and is treated as missing.
-	 */
 	private Optional<Plugin> plugin(String tag, String origin) {
-		return pluginRepository.findByTagAndOrigin(tag, origin)
-			.filter(p -> !archive || !Archive.isBlank(p));
+		return pluginRepository.findByTagAndOrigin(tag, origin);
 	}
 
 	@Cacheable(value = "template-config-cache", key = "#template + #origin")
@@ -391,12 +384,8 @@ public class ConfigCache {
 		return template(template, origin);
 	}
 
-	/**
-	 * The enabled current version. In archive mode a blank version is a tombstone and is treated as missing.
-	 */
 	private Optional<Template> template(String template, String origin) {
-		return templateRepository.findByTemplateAndOrigin(template, origin)
-			.filter(t -> !archive || !Archive.isBlank(t));
+		return templateRepository.findByTemplateAndOrigin(template, origin);
 	}
 
 	@Cacheable(value = "template-cache", key = "'_config/server'")

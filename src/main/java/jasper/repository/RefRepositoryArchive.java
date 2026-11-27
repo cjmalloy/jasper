@@ -11,6 +11,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
+
+import static jasper.util.Archive.isBlank;
 
 /**
  * Archive mode Ref queries. Multiple versions of a Ref may exist in each origin.
@@ -188,4 +191,12 @@ public interface RefRepositoryArchive extends RefRepository {
 			AND r.origin = :origin
 			AND r.modified = :modified""")
 	int markCascade(String url, String origin, Instant modified);
+
+	/**
+	 * A blank current version is a tombstone and is treated as missing.
+	 */
+	@Override
+	default Optional<Ref> findCurrent(String url, String origin) {
+		return findOneByUrlAndOrigin(url, origin).filter(r -> !isBlank(r));
+	}
 }
