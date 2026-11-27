@@ -16,7 +16,7 @@ import java.util.List;
  * Archive mode Ref queries. Multiple versions of a Ref may exist in each origin.
  * Archive mode is only supported on PostgreSQL.
  */
-@Repository
+@Repository("refRepositoryImpl")
 @Profile("archive & !sqlite")
 public class RefRepositoryImplArchive implements RefRepositoryCustom {
 

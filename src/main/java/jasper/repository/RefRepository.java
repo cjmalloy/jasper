@@ -20,7 +20,7 @@ import java.util.stream.Stream;
 
 @Repository
 @Transactional(readOnly = true)
-public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificationExecutor<Ref>, StreamMixin<RefView>, ModifiedCursor, OriginMixin {
+public interface RefRepository extends RefRepositoryCustom, JpaRepository<Ref, RefId>, JpaSpecificationExecutor<Ref>, StreamMixin<RefView>, ModifiedCursor, OriginMixin {
 
 	Optional<Ref> findFirstByUrlAndOriginOrderByModifiedDesc(String url, String origin);
 

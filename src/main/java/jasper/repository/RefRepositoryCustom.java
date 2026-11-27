@@ -9,7 +9,8 @@ import java.util.List;
 
 /**
  * Database-specific and archive-specific Ref queries.
- * Implementations are selected via @Profile.
+ * Implementations are selected via @Profile and registered as the "refRepositoryImpl"
+ * bean so Spring Data mixes them into {@link RefRepository}.
  */
 public interface RefRepositoryCustom {
 	List<String> findAllPluginTagsInResponses(String url, String origin);

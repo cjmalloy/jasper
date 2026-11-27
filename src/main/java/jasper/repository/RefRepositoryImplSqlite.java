@@ -12,7 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
 import java.util.List;
 
-@Repository
+@Repository("refRepositoryImpl")
 @Profile("sqlite")
 public class RefRepositoryImplSqlite implements RefRepositoryCustom {
 

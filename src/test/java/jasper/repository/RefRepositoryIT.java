@@ -25,9 +25,6 @@ public class RefRepositoryIT {
 	RefRepository refRepository;
 
 	@Autowired
-	RefRepositoryCustom refRepositoryCustom;
-
-	@Autowired
 	PluginRepository pluginRepository;
 
 	@Autowired
@@ -59,7 +56,7 @@ public class RefRepositoryIT {
 			.build());
 		refRepository.save(response);
 
-		var result = refRepositoryCustom.findAllPluginTagsInResponses("http://example.com/parent", "");
+		var result = refRepository.findAllPluginTagsInResponses("http://example.com/parent", "");
 
 		assertThat(result).containsExactlyInAnyOrder("plugin/comment", "+plugin/vote/up");
 		assertThat(result).doesNotContain("public");
@@ -76,7 +73,7 @@ public class RefRepositoryIT {
 			.build());
 		refRepository.save(self);
 
-		var result = refRepositoryCustom.findAllPluginTagsInResponses("http://example.com/self", "");
+		var result = refRepository.findAllPluginTagsInResponses("http://example.com/self", "");
 
 		assertThat(result).isEmpty();
 	}
@@ -88,7 +85,7 @@ public class RefRepositoryIT {
 		parent.setOrigin("");
 		refRepository.save(parent);
 
-		var result = refRepositoryCustom.findAllPluginTagsInResponses("http://example.com/parent", "");
+		var result = refRepository.findAllPluginTagsInResponses("http://example.com/parent", "");
 
 		assertThat(result).isEmpty();
 	}
@@ -118,7 +115,7 @@ public class RefRepositoryIT {
 			.build());
 		refRepository.save(resp2);
 
-		var result = refRepositoryCustom.findAllPluginTagsInResponses("http://example.com/parent", "@test");
+		var result = refRepository.findAllPluginTagsInResponses("http://example.com/parent", "@test");
 
 		assertThat(result).containsExactly("plugin/comment");
 	}
@@ -140,7 +137,7 @@ public class RefRepositoryIT {
 		refRepository.save(response);
 
 		// Even with no plugins in the database, plugin tags in responses should still be found
-		var result = refRepositoryCustom.findAllPluginTagsInResponses("http://example.com/parent", "");
+		var result = refRepository.findAllPluginTagsInResponses("http://example.com/parent", "");
 
 		assertThat(result).containsExactly("plugin/comment");
 		assertThat(result).doesNotContain("public");
@@ -173,7 +170,7 @@ public class RefRepositoryIT {
 			.build());
 		refRepository.save(resp2);
 
-		var result = refRepositoryCustom.countPluginTagsInResponses("http://example.com/parent", "");
+		var result = refRepository.countPluginTagsInResponses("http://example.com/parent", "");
 
 		var map = result.stream().collect(java.util.stream.Collectors.toMap(r -> (String) r[0], r -> ((Number) r[1]).longValue()));
 		assertThat(map).containsEntry("plugin/comment", 2L);
@@ -198,7 +195,7 @@ public class RefRepositoryIT {
 		refRepository.save(response);
 
 		// Even with no plugins in the database, plugin tags in responses should still be counted
-		var result = refRepositoryCustom.countPluginTagsInResponses("http://example.com/parent", "");
+		var result = refRepository.countPluginTagsInResponses("http://example.com/parent", "");
 
 		var map = result.stream().collect(java.util.stream.Collectors.toMap(r -> (String) r[0], r -> ((Number) r[1]).longValue()));
 		assertThat(map).containsEntry("plugin/comment", 1L);
@@ -223,7 +220,7 @@ public class RefRepositoryIT {
 			refRepository.save(response);
 		}
 
-		var result = refRepositoryCustom.countPluginTagsInResponses("http://example.com/parent", "");
+		var result = refRepository.countPluginTagsInResponses("http://example.com/parent", "");
 
 		var map = result.stream().collect(java.util.stream.Collectors.toMap(r -> (String) r[0], r -> ((Number) r[1]).longValue()));
 		assertThat(map).containsEntry("plugin/comment", 2L);
@@ -247,7 +244,7 @@ public class RefRepositoryIT {
 			.build());
 		refRepository.save(response);
 
-		var result = refRepositoryCustom.findAllUserPluginTagsInResponses("http://example.com/parent", "");
+		var result = refRepository.findAllUserPluginTagsInResponses("http://example.com/parent", "");
 
 		assertThat(result).containsExactlyInAnyOrder("plugin/user/tester", "+plugin/user/admin");
 	}
@@ -277,7 +274,7 @@ public class RefRepositoryIT {
 			.build());
 		refRepository.save(resp2);
 
-		var result = refRepositoryCustom.findAllUserPluginTagsInResponses("http://example.com/parent", "@test");
+		var result = refRepository.findAllUserPluginTagsInResponses("http://example.com/parent", "@test");
 
 		assertThat(result).containsExactly("plugin/user/local");
 	}
@@ -298,7 +295,7 @@ public class RefRepositoryIT {
 			.build());
 		refRepository.save(response);
 
-		var result = refRepositoryCustom.findAllUserPluginTagsInResponses("http://example.com/parent", "");
+		var result = refRepository.findAllUserPluginTagsInResponses("http://example.com/parent", "");
 
 		assertThat(result).containsExactly("_plugin/user/test");
 		assertThat(result).doesNotContain("+plugin/comment");
@@ -321,7 +318,7 @@ public class RefRepositoryIT {
 			.build());
 		refRepository.save(response);
 
-		var result = refRepositoryCustom.findAllUserPluginTagsInResponses("http://example.com/parent", "");
+		var result = refRepository.findAllUserPluginTagsInResponses("http://example.com/parent", "");
 
 		assertThat(result).containsExactlyInAnyOrder("plugin/user/tester", "+plugin/user/admin");
 	}
@@ -342,7 +339,7 @@ public class RefRepositoryIT {
 			.build());
 		refRepository.save(response);
 
-		var result = refRepositoryCustom.findAllUserPluginTagsInResponses("http://example.com/parent", "");
+		var result = refRepository.findAllUserPluginTagsInResponses("http://example.com/parent", "");
 
 		assertThat(result).isEmpty();
 	}
@@ -372,7 +369,7 @@ public class RefRepositoryIT {
 			.build());
 		refRepository.save(resp2);
 
-		var result = refRepositoryCustom.findAllUserPluginTagsInResponses("http://example.com/parent", "");
+		var result = refRepository.findAllUserPluginTagsInResponses("http://example.com/parent", "");
 
 		assertThat(result).containsExactlyInAnyOrder("plugin/user/tester", "+plugin/user/admin");
 	}
@@ -388,7 +385,7 @@ public class RefRepositoryIT {
 			.build());
 		refRepository.save(self);
 
-		var result = refRepositoryCustom.findAllUserPluginTagsInResponses("http://example.com/self", "");
+		var result = refRepository.findAllUserPluginTagsInResponses("http://example.com/self", "");
 
 		assertThat(result).isEmpty();
 	}
@@ -408,7 +405,7 @@ public class RefRepositoryIT {
 		// No metadata / expandedTags set
 		refRepository.save(response);
 
-		var result = refRepositoryCustom.findAllUserPluginTagsInResponses("http://example.com/parent", "");
+		var result = refRepository.findAllUserPluginTagsInResponses("http://example.com/parent", "");
 
 		assertThat(result).containsExactly("plugin/user/tester");
 	}
@@ -517,7 +514,7 @@ public class RefRepositoryIT {
 		refRepository.save(ref);
 		assertThat(refRepository.getRefCascade("")).isEmpty();
 
-		assertThat(refRepositoryCustom.markCascade("http://example.com/response", "", modified("http://example.com/response", ""))).isEqualTo(1);
+		assertThat(refRepository.markCascade("http://example.com/response", "", modified("http://example.com/response", ""))).isEqualTo(1);
 
 		var result = refRepository.findOneByUrlAndOrigin("http://example.com/response", "").orElseThrow();
 		assertThat(result.getMetadata().isCascade()).isTrue();
@@ -536,7 +533,7 @@ public class RefRepositoryIT {
 		ref.setOrigin("");
 		refRepository.save(ref);
 
-		assertThat(refRepositoryCustom.markCascade("http://example.com/response", "", modified("http://example.com/response", ""))).isEqualTo(1);
+		assertThat(refRepository.markCascade("http://example.com/response", "", modified("http://example.com/response", ""))).isEqualTo(1);
 
 		var result = refRepository.findOneByUrlAndOrigin("http://example.com/response", "").orElseThrow();
 		assertThat(result.getMetadata().isCascade()).isTrue();
@@ -552,7 +549,7 @@ public class RefRepositoryIT {
 			refRepository.save(ref);
 		}
 
-		assertThat(refRepositoryCustom.markCascade("http://example.com/response", "@test", modified("http://example.com/response", "@test"))).isEqualTo(1);
+		assertThat(refRepository.markCascade("http://example.com/response", "@test", modified("http://example.com/response", "@test"))).isEqualTo(1);
 
 		assertThat(refRepository.findOneByUrlAndOrigin("http://example.com/response", "@test").orElseThrow()
 			.getMetadata().isCascade()).isTrue();
@@ -578,7 +575,7 @@ public class RefRepositoryIT {
 		refRepository.save(ref);
 		var before = refRepository.findOneByUrlAndOrigin("http://example.com/ref", "").orElseThrow();
 
-		assertThat(refRepositoryCustom.updateMetadata("http://example.com/ref", "", modified("http://example.com/ref", ""), Metadata.builder()
+		assertThat(refRepository.updateMetadata("http://example.com/ref", "", modified("http://example.com/ref", ""), Metadata.builder()
 			.modified("2026-01-01T00:00:00Z")
 			.responses(new ArrayList<>(List.of("http://example.com/response")))
 			.cascade(true)
@@ -607,7 +604,7 @@ public class RefRepositoryIT {
 			refRepository.save(ref);
 		}
 
-		assertThat(refRepositoryCustom.updateMetadata("http://example.com/ref", "@test", modified("http://example.com/ref", "@test"), Metadata.builder().cascade(true).build())).isEqualTo(1);
+		assertThat(refRepository.updateMetadata("http://example.com/ref", "@test", modified("http://example.com/ref", "@test"), Metadata.builder().cascade(true).build())).isEqualTo(1);
 
 		assertThat(refRepository.findOneByUrlAndOrigin("http://example.com/ref", "@test").orElseThrow()
 			.getMetadata().isCascade()).isTrue();

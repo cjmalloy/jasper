@@ -12,7 +12,7 @@ import java.util.List;
  * Archive mode Template queries. Multiple versions of a Template may exist.
  * Archive mode is only supported on PostgreSQL.
  */
-@Repository
+@Repository("templateRepositoryImpl")
 @Profile("archive & !sqlite")
 public class TemplateRepositoryImplArchive implements TemplateRepositoryCustom {
 

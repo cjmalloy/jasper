@@ -14,7 +14,6 @@ import jasper.errors.InvalidPushException;
 import jasper.errors.ModifiedException;
 import jasper.errors.NotFoundException;
 import jasper.repository.RefRepository;
-import jasper.repository.RefRepositoryCustom;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -48,9 +47,6 @@ public class Ingest {
 
 	@Autowired
 	RefRepository refRepository;
-
-	@Autowired
-	RefRepositoryCustom refRepositoryCustom;
 
 	@Autowired
 	EntityManager em;
@@ -355,7 +351,7 @@ public class Ingest {
 	void pushUniqueModified(Ref ref) {
 		try {
 			// In archive mode only a repeated push of the same version is updated, otherwise a new version is inserted
-			int updated = refRepositoryCustom.pushAsyncMetadata(ref);
+			int updated = refRepository.pushAsyncMetadata(ref);
 			if (updated == 0) {
 				refRepository.save(ref);
 			}

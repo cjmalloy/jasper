@@ -8,7 +8,6 @@ import jasper.errors.AlreadyExistsException;
 import jasper.errors.InvalidPluginException;
 import jasper.errors.ModifiedException;
 import jasper.repository.RefRepository;
-import jasper.repository.RefRepositoryCustom;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -45,9 +44,6 @@ public class Tagger {
 
 	@Autowired
 	RefRepository refRepository;
-
-	@Autowired
-	RefRepositoryCustom refRepositoryCustom;
 
 	@Autowired
 	Ingest ingest;
@@ -451,7 +447,7 @@ public class Tagger {
 	public void removeAllResponses(String url, String origin, String tag) {
 		var remote = configs.getRemote(origin);
 		if (remote != null) origin = remote.getOrigin();
-		for (var res : refRepositoryCustom.findAllResponseIdsWithTag(url, origin, tag)) {
+		for (var res : refRepository.findAllResponseIdsWithTag(url, origin, tag)) {
 			// Never write to sub-origins
 			if (!res.getOrigin().equals(origin)) continue;
 			internalTag(res.getUrl(), origin, "-" + tag);

@@ -5,7 +5,6 @@ import jakarta.persistence.EntityManager;
 import jasper.domain.Metadata;
 import jasper.domain.Ref;
 import jasper.repository.RefRepository;
-import jasper.repository.RefRepositoryCustom;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -51,9 +50,6 @@ public class Meta {
 	RefRepository refRepository;
 
 	@Autowired
-	RefRepositoryCustom refRepositoryCustom;
-
-	@Autowired
 	Messages messages;
 
 	@Autowired
@@ -82,21 +78,21 @@ public class Meta {
 			.expandedTags(expandTags(ref.getTags()))
 			.responses(refRepository.findAllResponsesWithoutTag(ref.getUrl(), rootOrigin, "internal"))
 			.internalResponses(refRepository.findAllResponsesWithTag(ref.getUrl(), rootOrigin, "internal"))
-			.userUrls(refRepositoryCustom.findAllUserPluginTagsInResponses(ref.getUrl(), rootOrigin)
+			.userUrls(refRepository.findAllUserPluginTagsInResponses(ref.getUrl(), rootOrigin)
 				.stream()
 				.map(tag -> new UserUrlResponse(
 					tag,
-					refRepositoryCustom.findAllResponseIdsWithTag(ref.getUrl(), rootOrigin, tag)
+					refRepository.findAllResponseIdsWithTag(ref.getUrl(), rootOrigin, tag)
 						.stream()
 						.filter(id -> id.getOrigin().equals(rootOrigin))
 						.map(id -> qualifiedUserUrl(id.getUrl(), id.getOrigin()))
 						.toList()))
 				.filter(p -> !p.responses.isEmpty())
 				.collect(toMap(UserUrlResponse::tag, UserUrlResponse::responses)))
-			.plugins(refRepositoryCustom.countLocalPluginTagsInResponses(ref.getUrl(), ref.getOrigin())
+			.plugins(refRepository.countLocalPluginTagsInResponses(ref.getUrl(), ref.getOrigin())
 				.stream()
 				.collect(toMap(r -> (String) r[0], r -> ((Number) r[1]).longValue())))
-			.remotePlugins(refRepositoryCustom.countPluginTagsInResponses(ref.getUrl(), rootOrigin)
+			.remotePlugins(refRepository.countPluginTagsInResponses(ref.getUrl(), rootOrigin)
 				.stream()
 				.collect(toMap(r -> (String) r[0], r -> ((Number) r[1]).longValue())))
 			.newResponse(orCreated(null, ref))
@@ -164,7 +160,7 @@ public class Meta {
 	 * Sources past {@link #SYNC_SOURCES} are updated by the cascade.
 	 */
 	private void reaction(String rootOrigin, Ref ref) {
-		if (archive) refRepositoryCustom.updateObsolete(ref.getUrl(), rootOrigin, pinned(rootOrigin));
+		if (archive) refRepository.updateObsolete(ref.getUrl(), rootOrigin, pinned(rootOrigin));
 		if (noMetadata) return;
 		var timestamp = timestamp(now());
 		var sources = (ref.getSources() == null ? List.<String>of() : ref.getSources())
@@ -223,7 +219,7 @@ public class Meta {
 		ref.getMetadata().setIgnored(original != null && original.isIgnored());
 		ref.getMetadata().setObsolete(obsolete(rootOrigin, ref));
 		if (ref.getMetadata().isObsolete()) return;
-		refRepositoryCustom.updateObsolete(ref.getUrl(), rootOrigin, pinned(rootOrigin));
+		refRepository.updateObsolete(ref.getUrl(), rootOrigin, pinned(rootOrigin));
 		if (noMetadata) return;
 		var sources = (ref.getSources() == null ? List.<String>of() : ref.getSources())
 			.stream()
@@ -351,7 +347,7 @@ public class Meta {
 		var cascade = false;
 		var wasVisible = existing != null && (existing.getMetadata() == null || !existing.getMetadata().isObsolete());
 		var shadowed = refRepository.exists(isUrl(ref.getUrl()).and(isNotObsolete()).and(isUnderOrigin(rootOrigin)).and(not(isOrigin(ref.getOrigin()))));
-		refRepositoryCustom.updateObsolete(ref.getUrl(), rootOrigin, pinned(rootOrigin));
+		refRepository.updateObsolete(ref.getUrl(), rootOrigin, pinned(rootOrigin));
 		var obsolete = obsolete(rootOrigin, ref);
 		if (ref.getMetadata() != null) ref.getMetadata().setObsolete(obsolete);
 		if (noMetadata) return;
@@ -461,7 +457,7 @@ logger.error("{} Error updating source metadata for ({}) {}", rootOrigin, ref.ge
 	 */
 	private void markCascade(Ref ref) {
 		if (ref.getMetadata() != null) ref.getMetadata().setCascade(true);
-		refRepositoryCustom.markCascade(ref.getUrl(), ref.getOrigin(), ref.getModified());
+		refRepository.markCascade(ref.getUrl(), ref.getOrigin(), ref.getModified());
 	}
 
 	private void removeSource(String rootOrigin, String url, Ref source, Ref existing) {
@@ -508,7 +504,7 @@ logger.error("{} Error updating source metadata for ({}) {}", rootOrigin, ref.ge
 	 * otherwise latest wins.
 	 */
 	public int updateMetadata(Ref ref, Metadata metadata) {
-		return refRepositoryCustom.updateMetadata(ref.getUrl(), ref.getOrigin(), ref.getModified(), metadata);
+		return refRepository.updateMetadata(ref.getUrl(), ref.getOrigin(), ref.getModified(), metadata);
 	}
 
 	/**
@@ -538,7 +534,7 @@ logger.error("{} Error updating source metadata for ({}) {}", rootOrigin, ref.ge
 	 * Check if a higher ranked version of a Ref exists, or a newer version in the same origin.
 	 */
 	private boolean obsolete(String rootOrigin, Ref ref) {
-		return refRepositoryCustom.higherRankExists(ref.getUrl(), ref.getOrigin(), rootOrigin, pinned(rootOrigin), rank(rootOrigin, ref), ref.getModified());
+		return refRepository.higherRankExists(ref.getUrl(), ref.getOrigin(), rootOrigin, pinned(rootOrigin), rank(rootOrigin, ref), ref.getModified());
 	}
 
 	/**
