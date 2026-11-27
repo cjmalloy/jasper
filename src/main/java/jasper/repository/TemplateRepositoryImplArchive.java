@@ -14,7 +14,7 @@ import java.util.List;
  */
 @Repository
 @Profile("archive & !sqlite")
-public class TemplateRepositoryImplPostgresArchive implements TemplateRepositoryCustom {
+public class TemplateRepositoryImplArchive implements TemplateRepositoryCustom {
 
 	@PersistenceContext
 	EntityManager em;

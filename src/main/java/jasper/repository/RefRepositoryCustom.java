@@ -1,5 +1,7 @@
 package jasper.repository;
 
+import jasper.domain.Metadata;
+import jasper.domain.Ref;
 import jasper.domain.RefId;
 
 import java.time.Instant;
@@ -16,11 +18,28 @@ public interface RefRepositoryCustom {
 	List<String> findAllUserPluginTagsInResponses(String url, String origin);
 	List<RefId> findAllResponseIdsWithTag(String url, String origin, String tag);
 	/**
-	 * @see RefRepository#updateObsolete(String, String, boolean)
+	 * Only the highest ranked version of a Ref is not obsolete.
+	 * Versions in the root origin tagged plugin/pinned rank highest, then versions in other origins
+	 * tagged plugin/pinned, then everything else. The newest version wins within a rank.
+	 * Refs are only ranked by plugin/pinned if the plugin is installed in the root origin.
 	 */
 	int updateObsolete(String url, String rootOrigin, boolean pinned);
 	/**
-	 * @see RefRepository#higherRankExists(String, String, boolean, int, Instant)
+	 * Check if a higher ranked version of a Ref exists.
+	 * @see #updateObsolete(String, String, boolean)
 	 */
 	boolean higherRankExists(String url, String origin, String rootOrigin, boolean pinned, int rank, Instant modified);
+	/**
+	 * Update an existing Ref, merging the partial metadata.
+	 * @return number of rows updated, 0 if the Ref should be inserted instead
+	 */
+	int pushAsyncMetadata(Ref ref);
+	/**
+	 * Write only the metadata of a Ref.
+	 */
+	int updateMetadata(String url, String origin, Instant modified, Metadata metadata);
+	/**
+	 * Queue a Ref for the cascade.
+	 */
+	int markCascade(String url, String origin, Instant modified);
 }

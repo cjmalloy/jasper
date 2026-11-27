@@ -461,11 +461,7 @@ logger.error("{} Error updating source metadata for ({}) {}", rootOrigin, ref.ge
 	 */
 	private void markCascade(Ref ref) {
 		if (ref.getMetadata() != null) ref.getMetadata().setCascade(true);
-		if (archive) {
-			refRepository.markCascadeVersion(ref.getUrl(), ref.getOrigin(), ref.getModified());
-		} else {
-			refRepository.markCascade(ref.getUrl(), ref.getOrigin());
-		}
+		refRepositoryCustom.markCascade(ref.getUrl(), ref.getOrigin(), ref.getModified());
 	}
 
 	private void removeSource(String rootOrigin, String url, Ref source, Ref existing) {
@@ -512,9 +508,7 @@ logger.error("{} Error updating source metadata for ({}) {}", rootOrigin, ref.ge
 	 * otherwise latest wins.
 	 */
 	public int updateMetadata(Ref ref, Metadata metadata) {
-		return archive
-			? refRepository.updateMetadataVersion(ref.getUrl(), ref.getOrigin(), ref.getModified(), metadata)
-			: refRepository.updateMetadata(ref.getUrl(), ref.getOrigin(), metadata);
+		return refRepositoryCustom.updateMetadata(ref.getUrl(), ref.getOrigin(), ref.getModified(), metadata);
 	}
 
 	/**

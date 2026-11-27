@@ -307,7 +307,7 @@ public class IngestIT {
 			var ref = refRepository.getRefBackfill("").orElse(null);
 			if (ref == null) return;
 			meta.regen("", ref);
-			refRepository.updateMetadata(ref.getUrl(), ref.getOrigin(), ref.getMetadata());
+			meta.updateMetadata(ref, ref.getMetadata());
 		}
 	}
 

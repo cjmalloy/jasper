@@ -96,6 +96,9 @@ public class ArchiveIT {
 	RefRepository refRepository;
 
 	@Autowired
+	RefRepositoryCustom refRepositoryCustom;
+
+	@Autowired
 	BackfillRepository backfillRepository;
 
 	@Autowired
@@ -338,7 +341,7 @@ public class ArchiveIT {
 		var before = version("", now).getMetadata();
 
 		older.getMetadata().setResponses(new ArrayList<>(List.of("https://www.example.com/response")));
-		assertThat(refRepository.updateMetadataVersion(URL, "", older.getModified(), older.getMetadata()))
+		assertThat(refRepositoryCustom.updateMetadata(URL, "", older.getModified(), older.getMetadata()))
 			.isEqualTo(1);
 
 		assertThat(version("", now.minusSeconds(10)).getMetadata())
@@ -354,7 +357,7 @@ public class ArchiveIT {
 		push("", "First", now.minusSeconds(10));
 		push("", "Second", now);
 
-		assertThat(refRepository.markCascadeVersion(URL, "", now))
+		assertThat(refRepositoryCustom.markCascade(URL, "", now))
 			.isEqualTo(1);
 
 		assertThat(version("", now).getMetadata().isCascade())

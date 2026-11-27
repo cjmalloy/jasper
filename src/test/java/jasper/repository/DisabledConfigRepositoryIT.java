@@ -21,6 +21,9 @@ public class DisabledConfigRepositoryIT {
 	@Autowired
 	TemplateRepository templateRepository;
 
+	@Autowired
+	TemplateRepositoryCustom templateRepositoryCustom;
+
 	@BeforeEach
 	void init() {
 		pluginRepository.deleteAllInBatch();
@@ -73,9 +76,9 @@ public class DisabledConfigRepositoryIT {
 		assertThat(templateRepository.findByTemplateAndOrigin("enabled", "")).isPresent();
 		assertThat(templateRepository.findByTemplateAndOrigin("notdisabled", "")).isPresent();
 		assertThat(templateRepository.findByTemplateAndOrigin("disabled", "")).isEmpty();
-		assertThat(templateRepository.findAllForTagAndOriginWithSchema("disabled", "")).isEmpty();
-		assertThat(templateRepository.findAllForTagAndOriginWithDefaults("disabled", "")).isEmpty();
-		assertThat(templateRepository.findAllForTagAndOriginWithSchema("notdisabled", ""))
+		assertThat(templateRepositoryCustom.findAllForTagAndOriginWithSchema("disabled", "")).isEmpty();
+		assertThat(templateRepositoryCustom.findAllForTagAndOriginWithDefaults("disabled", "")).isEmpty();
+		assertThat(templateRepositoryCustom.findAllForTagAndOriginWithSchema("notdisabled", ""))
 			.extracting(Template::getTag).containsExactly("notdisabled");
 	}
 }

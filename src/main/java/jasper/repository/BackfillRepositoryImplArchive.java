@@ -3,7 +3,6 @@ package jasper.repository;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
@@ -14,18 +13,17 @@ import static jasper.util.Archive.isBlank;
  * Archive mode metadata backfill. Archive mode is only supported on PostgreSQL.
  */
 @Repository
-@Profile("archive & !sqlite")
+@Profile("archive & !sqlite & !no-metadata")
 @Transactional
-public class BackfillRepositoryImplPostgresArchive implements BackfillRepository {
-
+public class BackfillRepositoryImplArchive implements BackfillRepository {
 	/**
-	 * Archive mode version of {@link BackfillRepositoryImplPostgres#BACKFILL_METADATA}.
+	 * Archive mode version of {@link BackfillRepositoryImplPostgres#BACKFILL}.
 	 * Only the latest version in each origin is ranked, older versions are always obsolete.
 	 * Older versions of a user URL are skipped.
 	 * Rows are matched by modified so only a single version is updated.
 	 * The plugin/pinned check is done in Java so a deleted or disabled plugin doesn't count.
 	 */
-	private static final String BACKFILL_METADATA = """
+	private static final String BACKFILL = """
 		WITH rows as (
 			SELECT url, origin, modified from ref
 			WHERE (metadata IS NULL OR metadata->>'regen' = 'true')
@@ -87,45 +85,11 @@ public class BackfillRepositoryImplPostgresArchive implements BackfillRepository
 		WHERE EXISTS (SELECT * from rows WHERE r.url = rows.url AND r.origin = rows.origin AND r.modified = rows.modified)
 		""";
 
-	/**
-	 * Archive mode version of {@link BackfillRepositoryImplPostgres#BACKFILL_NO_METADATA}.
-	 */
-	private static final String BACKFILL_NO_METADATA = """
-		WITH rows as (
-			SELECT url, origin, modified from ref
-			WHERE (metadata IS NULL OR metadata->>'regen' = 'true')
-			AND (:origin = '' OR origin = :origin OR origin LIKE concat(:origin, '.%'))
-			LIMIT :batchSize
-		)
-		UPDATE ref r
-		SET metadata = jsonb_strip_nulls(jsonb_build_object(
-			'modified', COALESCE(r.metadata->>'modified', to_char(NOW(), 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')),
-			'expandedTags', (SELECT jsonb_agg(DISTINCT x.tag) FROM jsonb_array_elements_text(COALESCE(r.tags, '[]')) AS t(tag)
-				CROSS JOIN LATERAL (SELECT t.tag UNION SELECT left(t.tag, g.n - 1) FROM generate_series(1, length(t.tag)) AS g(n) WHERE substr(t.tag, g.n, 1) = '/') AS x(tag)),
-			'obsolete', EXISTS (SELECT 1 FROM ref n
-				CROSS JOIN LATERAL (SELECT (CASE WHEN :pinned = true
-					AND EXISTS (SELECT 1 FROM jsonb_array_elements_text(COALESCE(n.tags, '[]')) AS t(tag) WHERE t.tag = 'plugin/pinned' OR t.tag LIKE 'plugin/pinned/%')
-				THEN CASE WHEN n.origin = :origin THEN 2 ELSE 1 END ELSE 0 END) AS rank) AS nr
-				CROSS JOIN LATERAL (SELECT (CASE WHEN :pinned = true
-					AND EXISTS (SELECT 1 FROM jsonb_array_elements_text(COALESCE(r.tags, '[]')) AS t(tag) WHERE t.tag = 'plugin/pinned' OR t.tag LIKE 'plugin/pinned/%')
-				THEN CASE WHEN r.origin = :origin THEN 2 ELSE 1 END ELSE 0 END) AS rank) AS rr
-				WHERE n.url = r.url AND (:origin = '' OR n.origin = :origin OR n.origin LIKE concat(:origin, '.%'))
-					AND ((n.origin = r.origin AND n.modified > r.modified)
-						OR (NOT EXISTS (SELECT 1 FROM ref nn WHERE nn.url = n.url AND nn.origin = n.origin AND nn.modified > n.modified)
-							AND (nr.rank > rr.rank OR (nr.rank = rr.rank AND n.modified > r.modified))))),
-			'ignored', CASE WHEN r.metadata->>'ignored' = 'true' THEN true END
-		))
-		WHERE EXISTS (SELECT * from rows WHERE r.url = rows.url AND r.origin = rows.origin AND r.modified = rows.modified)
-		""";
-
 	@PersistenceContext
 	private EntityManager em;
 
 	@Autowired
 	PluginRepository pluginRepository;
-
-	@Value("#{environment.matchesProfiles('no-metadata')}")
-	boolean noMetadata;
 
 	/**
 	 * Refs are only ranked by plugin/pinned if the plugin is installed in the root origin.
@@ -140,7 +104,7 @@ public class BackfillRepositoryImplPostgresArchive implements BackfillRepository
 	@Override
 	public int backfillMetadata(String origin, int batchSize) {
 		em.flush();
-		int updated = em.createNativeQuery(noMetadata ? BACKFILL_NO_METADATA : BACKFILL_METADATA)
+		int updated = em.createNativeQuery(BACKFILL)
 			.setParameter("pinned", pinned(origin))
 			.setParameter("origin", origin)
 			.setParameter("batchSize", batchSize)

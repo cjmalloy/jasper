@@ -498,6 +498,10 @@ public class RefRepositoryIT {
 		assertThat(updated.getMetadata().isRegen()).isTrue();
 	}
 
+	Instant modified(String url, String origin) {
+		return refRepository.findOneByUrlAndOrigin(url, origin).orElseThrow().getModified();
+	}
+
 	// --- markCascade ---
 
 	@Test
@@ -513,7 +517,7 @@ public class RefRepositoryIT {
 		refRepository.save(ref);
 		assertThat(refRepository.getRefCascade("")).isEmpty();
 
-		assertThat(refRepository.markCascade("http://example.com/response", "")).isEqualTo(1);
+		assertThat(refRepositoryCustom.markCascade("http://example.com/response", "", modified("http://example.com/response", ""))).isEqualTo(1);
 
 		var result = refRepository.findOneByUrlAndOrigin("http://example.com/response", "").orElseThrow();
 		assertThat(result.getMetadata().isCascade()).isTrue();
@@ -532,7 +536,7 @@ public class RefRepositoryIT {
 		ref.setOrigin("");
 		refRepository.save(ref);
 
-		assertThat(refRepository.markCascade("http://example.com/response", "")).isEqualTo(1);
+		assertThat(refRepositoryCustom.markCascade("http://example.com/response", "", modified("http://example.com/response", ""))).isEqualTo(1);
 
 		var result = refRepository.findOneByUrlAndOrigin("http://example.com/response", "").orElseThrow();
 		assertThat(result.getMetadata().isCascade()).isTrue();
@@ -548,7 +552,7 @@ public class RefRepositoryIT {
 			refRepository.save(ref);
 		}
 
-		assertThat(refRepository.markCascade("http://example.com/response", "@test")).isEqualTo(1);
+		assertThat(refRepositoryCustom.markCascade("http://example.com/response", "@test", modified("http://example.com/response", "@test"))).isEqualTo(1);
 
 		assertThat(refRepository.findOneByUrlAndOrigin("http://example.com/response", "@test").orElseThrow()
 			.getMetadata().isCascade()).isTrue();
@@ -574,7 +578,7 @@ public class RefRepositoryIT {
 		refRepository.save(ref);
 		var before = refRepository.findOneByUrlAndOrigin("http://example.com/ref", "").orElseThrow();
 
-		assertThat(refRepository.updateMetadata("http://example.com/ref", "", Metadata.builder()
+		assertThat(refRepositoryCustom.updateMetadata("http://example.com/ref", "", modified("http://example.com/ref", ""), Metadata.builder()
 			.modified("2026-01-01T00:00:00Z")
 			.responses(new ArrayList<>(List.of("http://example.com/response")))
 			.cascade(true)
@@ -603,7 +607,7 @@ public class RefRepositoryIT {
 			refRepository.save(ref);
 		}
 
-		assertThat(refRepository.updateMetadata("http://example.com/ref", "@test", Metadata.builder().cascade(true).build())).isEqualTo(1);
+		assertThat(refRepositoryCustom.updateMetadata("http://example.com/ref", "@test", modified("http://example.com/ref", "@test"), Metadata.builder().cascade(true).build())).isEqualTo(1);
 
 		assertThat(refRepository.findOneByUrlAndOrigin("http://example.com/ref", "@test").orElseThrow()
 			.getMetadata().isCascade()).isTrue();
