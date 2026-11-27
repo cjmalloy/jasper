@@ -2,26 +2,24 @@ package jasper.repository;
 
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
 
 @Repository
-@Profile("!sqlite")
+@Profile("!sqlite & !archive")
 public class RefRepositoryImplPostgres implements RefRepositoryCustom {
-
-	/**
-	 * In archive mode only the latest version is counted.
-	 */
-	private static final String ARCHIVE_LATEST = " AND NOT EXISTS (SELECT 1 FROM ref n WHERE n.url = r.url AND n.origin = r.origin AND n.modified > r.modified)";
 
 	@PersistenceContext
 	private EntityManager em;
 
-	@Value("#{environment.matchesProfiles('archive')}")
-	boolean archive;
+	/**
+	 * Extra filter on the counted responses.
+	 */
+	protected String versionFilter() {
+		return "";
+	}
 
 	@Override
 	public List<String> findAllPluginTagsInResponses(String url, String origin) {
@@ -61,7 +59,7 @@ public class RefRepositoryImplPostgres implements RefRepositoryCustom {
 					OR COALESCE(jsonb_object_field_text(r.metadata, 'obsolete'), 'false') != 'true')%s
 				AND %s
 			GROUP BY t.tag
-			""".formatted(distinct, archive ? ARCHIVE_LATEST : "", originFilter), Object[].class)
+			""".formatted(distinct, versionFilter(), originFilter), Object[].class)
 			.setParameter("url", url)
 			.setParameter("origin", origin)
 			.getResultList();

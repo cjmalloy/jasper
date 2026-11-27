@@ -451,7 +451,7 @@ public class ConfigCache {
 
 	@Cacheable(value = "template-schemas-cache", key = "#tag + #origin")
 	public List<TemplateDto> getSchemas(String tag, String origin) {
-		return templateRepository.findAllForTagAndOriginWithSchema(tag, origin)
+		return templateRepository.findAllForTagAndOriginWithSchema(tag, origin, archive)
 			.stream()
 			// In archive mode a blank version is a tombstone
 			.filter(t -> !archive || !Archive.isBlank(t))
@@ -461,7 +461,7 @@ public class ConfigCache {
 
 	@Cacheable(value = "template-defaults-cache", key = "#tag + #origin")
 	public List<TemplateDto> getDefaults(String tag, String origin) {
-		return templateRepository.findAllForTagAndOriginWithDefaults(tag, origin)
+		return templateRepository.findAllForTagAndOriginWithDefaults(tag, origin, archive)
 			.stream()
 			// In archive mode a blank version is a tombstone
 			.filter(t -> !archive || !Archive.isBlank(t))

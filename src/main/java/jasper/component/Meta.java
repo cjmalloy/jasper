@@ -164,7 +164,7 @@ public class Meta {
 	 * Sources past {@link #SYNC_SOURCES} are updated by the cascade.
 	 */
 	private void reaction(String rootOrigin, Ref ref) {
-		if (archive) refRepository.updateObsolete(ref.getUrl(), rootOrigin, pinned(rootOrigin));
+		if (archive) refRepository.updateObsolete(ref.getUrl(), rootOrigin, pinned(rootOrigin), true);
 		if (noMetadata) return;
 		var timestamp = timestamp(now());
 		var sources = (ref.getSources() == null ? List.<String>of() : ref.getSources())
@@ -223,7 +223,7 @@ public class Meta {
 		ref.getMetadata().setIgnored(original != null && original.isIgnored());
 		ref.getMetadata().setObsolete(obsolete(rootOrigin, ref));
 		if (ref.getMetadata().isObsolete()) return;
-		refRepository.updateObsolete(ref.getUrl(), rootOrigin, pinned(rootOrigin));
+		refRepository.updateObsolete(ref.getUrl(), rootOrigin, pinned(rootOrigin), archive);
 		if (noMetadata) return;
 		var sources = (ref.getSources() == null ? List.<String>of() : ref.getSources())
 			.stream()
@@ -351,7 +351,7 @@ public class Meta {
 		var cascade = false;
 		var wasVisible = existing != null && (existing.getMetadata() == null || !existing.getMetadata().isObsolete());
 		var shadowed = refRepository.exists(isUrl(ref.getUrl()).and(isNotObsolete()).and(isUnderOrigin(rootOrigin)).and(not(isOrigin(ref.getOrigin()))));
-		refRepository.updateObsolete(ref.getUrl(), rootOrigin, pinned(rootOrigin));
+		refRepository.updateObsolete(ref.getUrl(), rootOrigin, pinned(rootOrigin), archive);
 		var obsolete = obsolete(rootOrigin, ref);
 		if (ref.getMetadata() != null) ref.getMetadata().setObsolete(obsolete);
 		if (noMetadata) return;
@@ -544,7 +544,7 @@ logger.error("{} Error updating source metadata for ({}) {}", rootOrigin, ref.ge
 	 * Check if a higher ranked version of a Ref exists, or a newer version in the same origin.
 	 */
 	private boolean obsolete(String rootOrigin, Ref ref) {
-		return refRepository.higherRankExists(ref.getUrl(), ref.getOrigin(), rootOrigin, pinned(rootOrigin), rank(rootOrigin, ref), ref.getModified());
+		return refRepository.higherRankExists(ref.getUrl(), ref.getOrigin(), rootOrigin, pinned(rootOrigin), rank(rootOrigin, ref), ref.getModified(), archive);
 	}
 
 	/**
