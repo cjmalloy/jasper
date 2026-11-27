@@ -6,6 +6,7 @@ import jasper.config.Props;
 import jasper.domain.Ref;
 import jasper.plugin.Cache;
 import jasper.repository.RefRepository;
+import jasper.service.dto.RefDto;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -15,6 +16,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -175,5 +177,110 @@ public class FileCacheTest {
 		ref.setPlugin("_plugin/cache", Cache.builder().id(id).build());
 		for (var tag : tags) ref.addTag(tag);
 		return ref;
+	}
+
+	RefDto sftpRemote(String mode) {
+		var remote = new RefDto();
+		remote.setUrl("https://example.com");
+		remote.setTags(List.of("+plugin/origin", "+plugin/origin/pull", "+plugin/origin/tunnel"));
+		var plugins = new ObjectMapper().createObjectNode();
+		plugins.putObject("+plugin/origin/tunnel").put("sftp", mode);
+		remote.setPlugins(plugins);
+		return remote;
+	}
+
+	@Test
+	void testSftpStreamModeStreamsWithoutStoring() throws IOException {
+		var remote = sftpRemote("stream");
+		fileCache.replicator = mock(Replicator.class);
+		when(fileCache.configs.getRemote("")).thenReturn(remote);
+		when(fileCache.replicator.sftpStream("cache:abc", remote)).thenReturn(new ByteArrayInputStream("remote".getBytes(UTF_8)));
+		when(storage.exists("", "cache", "abc")).thenReturn(true);
+
+		try (var is = fileCache.fetch("cache:abc", "")) {
+			assertThat(new String(is.readAllBytes(), UTF_8)).isEqualTo("remote");
+		}
+		verify(storage, never()).stream(anyString(), anyString(), anyString());
+		verify(storage, never()).storeAt(anyString(), anyString(), anyString(), any(InputStream.class));
+	}
+
+	@Test
+	void testSftpStreamModeFallsBackToLocalCache() throws IOException {
+		var remote = sftpRemote("stream");
+		fileCache.replicator = mock(Replicator.class);
+		when(fileCache.configs.getRemote("")).thenReturn(remote);
+		when(storage.exists("", "cache", "abc")).thenReturn(true);
+		when(storage.stream("", "cache", "abc")).thenReturn(new ByteArrayInputStream("local".getBytes(UTF_8)));
+
+		try (var is = fileCache.fetch("cache:abc", "")) {
+			assertThat(new String(is.readAllBytes(), UTF_8)).isEqualTo("local");
+		}
+		verify(fileCache.replicator).sftpStream("cache:abc", remote);
+	}
+
+	@Test
+	void testSftpCacheModeUsesLocalCache() throws IOException {
+		fileCache.replicator = mock(Replicator.class);
+		when(fileCache.configs.getRemote("")).thenReturn(sftpRemote("cache"));
+		when(storage.exists("", "cache", "abc")).thenReturn(true);
+		when(storage.stream("", "cache", "abc")).thenReturn(new ByteArrayInputStream("local".getBytes(UTF_8)));
+
+		try (var is = fileCache.fetch("cache:abc", "")) {
+			assertThat(new String(is.readAllBytes(), UTF_8)).isEqualTo("local");
+		}
+		verify(fileCache.replicator, never()).sftpStream(anyString(), any());
+	}
+
+	@Test
+	void testSftpStreamModeSkipsErroredRemote() throws IOException {
+		var remote = sftpRemote("stream");
+		remote.setTags(List.of("+plugin/origin", "+plugin/origin/pull", "+plugin/origin/tunnel", "+plugin/error"));
+		fileCache.replicator = mock(Replicator.class);
+		when(fileCache.configs.getRemote("")).thenReturn(remote);
+		when(storage.exists("", "cache", "abc")).thenReturn(true);
+		when(storage.stream("", "cache", "abc")).thenReturn(new ByteArrayInputStream("local".getBytes(UTF_8)));
+
+		try (var is = fileCache.fetch("cache:abc", "")) {
+			assertThat(new String(is.readAllBytes(), UTF_8)).isEqualTo("local");
+		}
+		verify(fileCache.replicator, never()).sftpStream(anyString(), any());
+	}
+
+	@Test
+	void testRefreshClosesStream() throws IOException {
+		var remote = sftpRemote("stream");
+		fileCache.replicator = mock(Replicator.class);
+		when(fileCache.configs.getRemote("")).thenReturn(remote);
+		var closed = new boolean[]{ false };
+		when(fileCache.replicator.sftpStream("cache:abc", remote)).thenAnswer(i -> new ByteArrayInputStream(new byte[0]) {
+			@Override
+			public void close() {
+				closed[0] = true;
+			}
+		});
+
+		fileCache.refresh("cache:abc", "");
+		assertThat(closed[0]).isTrue();
+	}
+
+	@Test
+	void testSftpStreamModeAlreadySmallThumbnail() throws IOException {
+		var remote = sftpRemote("stream");
+		fileCache.replicator = mock(Replicator.class);
+		fileCache.images = mock(Images.class);
+		when(fileCache.configs.getRemote("")).thenReturn(remote);
+		when(fileCache.replicator.sftpStream("cache:abc", remote)).thenAnswer(i -> new ByteArrayInputStream("small".getBytes(UTF_8)));
+		when(fileCache.images.thumbnail(any(InputStream.class))).thenReturn(new Images.AlreadySmall());
+
+		try (var is = fileCache.fetchThumbnail("cache:abc", "")) {
+			assertThat(new String(is.readAllBytes(), UTF_8)).isEqualTo("small");
+		}
+		verify(storage, never()).stream(anyString(), anyString(), anyString());
+	}
+
+	@Test
+	void testPushAcceptsTrailingDash() throws IOException {
+		fileCache.push("cache:abc-", "", new ByteArrayInputStream(new byte[0]));
+		verify(storage).storeAt(eq(""), eq("cache"), eq("abc-"), any(InputStream.class));
 	}
 }

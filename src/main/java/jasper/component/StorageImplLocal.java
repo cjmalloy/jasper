@@ -19,6 +19,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.FileSystem;
+import java.nio.file.FileSystemException;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -39,6 +40,19 @@ public class StorageImplLocal implements Storage {
 
 	@Autowired
 	Props props;
+
+	private final String root;
+
+	public StorageImplLocal() {
+		this(null);
+	}
+
+	/**
+	 * Local storage in the given folder instead of the storage folder.
+	 */
+	StorageImplLocal(String root) {
+		this.root = root;
+	}
 
 	@Timed(value = "jasper.storage", histogram = true)
 	public byte[] get(String origin, String namespace, String id) {
@@ -175,8 +189,27 @@ public class StorageImplLocal implements Storage {
 		var path = path(origin, namespace, id);
 		if (path.toFile().exists()) throw new AlreadyExistsException();
 		Files.createDirectories(path.getParent());
-		try (var fos = new FileOutputStream(path.toFile())) {
-			StreamUtils.copy(is, fos);
+		// Write to a sibling temp file and publish atomically so a failed
+		// or concurrent write never leaves a partial file at the final path
+		var tmp = Files.createTempFile(path.getParent(), "." + id + ".", ".tmp");
+		try {
+			try (var fos = Files.newOutputStream(tmp)) {
+				StreamUtils.copy(is, fos);
+			}
+			try {
+				Files.createLink(path, tmp);
+			} catch (FileAlreadyExistsException e) {
+				throw new AlreadyExistsException();
+			} catch (UnsupportedOperationException | FileSystemException e) {
+				// Hard links not supported, fall back to a non-replacing move
+				try {
+					Files.move(tmp, path);
+				} catch (FileAlreadyExistsException ex) {
+					throw new AlreadyExistsException();
+				}
+			}
+		} finally {
+			Files.deleteIfExists(tmp);
 		}
 	}
 
@@ -221,18 +254,22 @@ public class StorageImplLocal implements Storage {
 		}
 	}
 
+	String root() {
+		return root != null ? root : props.getStorage();
+	}
+
 	Path tenants() {
-		return Paths.get(props.getStorage());
+		return Paths.get(root());
 	}
 
 	Path dir(String origin, String namespace) {
 		sanitize(origin, namespace);
-		return Paths.get(props.getStorage(), originTenant(origin), namespace);
+		return Paths.get(root(), originTenant(origin), namespace);
 	}
 
 	Path path(String origin, String namespace, String id) {
 		sanitize(origin, namespace, id);
-		return Paths.get(props.getStorage(), originTenant(origin), namespace, id);
+		return Paths.get(root(), originTenant(origin), namespace, id);
 	}
 
 	private class ZippedLocal implements Zipped {

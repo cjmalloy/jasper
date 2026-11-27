@@ -6,6 +6,7 @@ import jasper.domain.Ref;
 import jasper.errors.NotFoundException;
 import jasper.errors.ScrapeProtocolException;
 import jasper.plugin.Cache;
+import jasper.plugin.Tunnel.SftpMode;
 import jasper.repository.RefRepository;
 import jasper.repository.filter.RefFilter;
 import org.slf4j.Logger;
@@ -31,6 +32,7 @@ import static jasper.domain.proj.HasTags.hasMatchingTag;
 import static jasper.plugin.Cache.bannedOrBroken;
 import static jasper.plugin.Cache.getCache;
 import static jasper.plugin.Pull.getPull;
+import static jasper.plugin.Tunnel.getTunnel;
 import static jasper.util.Logging.getMessage;
 import static org.apache.commons.io.IOUtils.closeQuietly;
 import static org.apache.commons.lang3.StringUtils.isBlank;
@@ -60,6 +62,9 @@ public class FileCache {
 	@Autowired
 	Tagger tagger;
 
+	@Autowired
+	Replicator replicator;
+
 	@Timed(value = "jasper.cache")
 	@Bulkhead(name = "recycler")
 	public void clearDeleted(String origin) {
@@ -83,13 +88,13 @@ public class FileCache {
 		if (thumbnail) {
 			fetchThumbnail(url, origin);
 		} else {
-			fetch(url, origin, true);
+			closeQuietly(fetch(url, origin, true));
 		}
 	}
 
 	@Timed(value = "jasper.cache", histogram = true)
 	public void refresh(String url, String origin) {
-		fetch(url, origin, true);
+		closeQuietly(fetch(url, origin, true));
 	}
 
 	private boolean exists(String url, String origin) {
@@ -125,6 +130,13 @@ public class FileCache {
 		tagger.debug(existing, "File cache fetch (refresh: " + refresh + ")");
 		var existingCache = getCache(existing);
 		if (bannedOrBroken(existingCache, refresh)) return null;
+		if (url.startsWith("cache:")) {
+			var remote = configs.getRemote(origin);
+			if (remote != null && !hasMatchingTag(remote, "+plugin/error") && hasMatchingTag(remote, "+plugin/origin/tunnel") && getTunnel(remote).getSftp() == SftpMode.STREAM) {
+				var stream = replicator.sftpStream(url, remote);
+				if (stream != null) return stream;
+			}
+		}
 		if (!refresh && existingCache != null && !existingCache.isNoStore() && storage.exists(origin, CACHE, existingCache.getId())) {
 			return storage.stream(origin, CACHE, existingCache.getId());
 		}
@@ -232,7 +244,8 @@ public class FileCache {
 					// Set this as a thumbnail to disable future attempts
 					if (fullSize != null) fullSize.setThumbnail(true);
 					tagger.plugin(url, origin, "_plugin/cache", fullSize, "-_plugin/delta/cache");
-					return storage.stream(origin, CACHE, id);
+					// May not be stored locally in SFTP stream mode
+					return fetch(url, origin);
 				}
 				case Images.Unsupported u -> {
 					// Blank id disables future attempts until the user manually refreshes
@@ -305,7 +318,7 @@ public class FileCache {
 	public void push(String url, String origin, InputStream in) throws IOException {
 		if (!url.startsWith("cache:")) throw new NotFoundException("URL is not cacheable");
 		var id = url.substring("cache:".length());
-		if (id.matches(".*\\W")) throw new NotFoundException("URL is not cacheable");
+		if (!id.matches("[\\w-]+")) throw new NotFoundException("URL is not cacheable");
 		storage.storeAt(origin, CACHE, id, in);
 	}
 
@@ -313,7 +326,7 @@ public class FileCache {
 	public void push(String url, String origin, byte[] data) throws IOException {
 		if (!url.startsWith("cache:")) throw new NotFoundException("URL is not cacheable");
 		var id = url.substring("cache:".length());
-		if (id.matches(".*\\W")) throw new NotFoundException("URL is not cacheable");
+		if (!id.matches("[\\w-]+")) throw new NotFoundException("URL is not cacheable");
 		if (storage.exists(origin, CACHE, id)) {
 			storage.overwrite(origin, CACHE, id, data);
 		} else {
