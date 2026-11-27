@@ -2,9 +2,12 @@ package jasper.repository;
 
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
+import jasper.domain.RefId;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Repository;
 
+import java.time.Instant;
 import java.util.List;
 
 @Repository
@@ -12,7 +15,10 @@ import java.util.List;
 public class RefRepositoryImplSqlite implements RefRepositoryCustom {
 
 	@PersistenceContext
-	private EntityManager em;
+	EntityManager em;
+
+	@Autowired
+	RefRepository refRepository;
 
 	@Override
 	public List<String> findAllPluginTagsInResponses(String url, String origin) {
@@ -71,5 +77,20 @@ public class RefRepositoryImplSqlite implements RefRepositoryCustom {
 			.setParameter("url", url)
 			.setParameter("origin", origin)
 			.getResultList();
+	}
+
+	@Override
+	public List<RefId> findAllResponseIdsWithTag(String url, String origin, String tag) {
+		return refRepository.findAllResponseIdsWithTag(url, origin, tag);
+	}
+
+	@Override
+	public int updateObsolete(String url, String rootOrigin, boolean pinned) {
+		return refRepository.updateObsolete(url, rootOrigin, pinned);
+	}
+
+	@Override
+	public boolean higherRankExists(String url, String origin, String rootOrigin, boolean pinned, int rank, Instant modified) {
+		return refRepository.higherRankExists(url, rootOrigin, pinned, rank, modified);
 	}
 }

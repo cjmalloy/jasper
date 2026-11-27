@@ -232,29 +232,6 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 			AND (:origin = '' OR r.origin = :origin OR r.origin LIKE concat(:origin, '.%'))""")
 	List<RefId> findAllResponseIdsWithTag(String url, String origin, String tag);
 
-	/**
-	 * Archive mode version of {@link #findAllResponseIdsWithTag}: older versions of a user URL are skipped.
-	 */
-	@Query("""
-		SELECT new jasper.domain.RefId(r.url, r.origin) FROM Ref r
-		WHERE r.url != :url
-			AND jsonb_exists(r.sources, :url) = true
-			AND jsonb_exists(COALESCE(jsonb_object_field(r.metadata, 'expandedTags'), r.tags), :tag) = true
-			AND (r.url IN ('tag:/user', 'tag:/+user', 'tag:/_user')
-				OR r.url LIKE 'tag:/user/%' OR r.url LIKE 'tag:/user?%'
-				OR r.url LIKE 'tag:/+user/%' OR r.url LIKE 'tag:/+user?%'
-				OR r.url LIKE 'tag:/\\_user/%' ESCAPE '\\' OR r.url LIKE 'tag:/\\_user?%' ESCAPE '\\'
-				OR COALESCE(jsonb_object_field_text(r.metadata, 'obsolete'), 'false') != 'true')
-			AND NOT EXISTS (SELECT 1 FROM Ref n WHERE n.url = r.url AND n.origin = r.origin AND n.modified > r.modified)
-			AND (:origin = '' OR r.origin = :origin OR r.origin LIKE concat(:origin, '.%'))""")
-	List<RefId> findAllLatestResponseIdsWithTag(String url, String origin, String tag);
-
-	default List<RefId> findAllResponseIdsWithTag(String url, String origin, String tag, boolean archive) {
-		return archive
-			? findAllLatestResponseIdsWithTag(url, origin, tag)
-			: findAllResponseIdsWithTag(url, origin, tag);
-	}
-
 	@Query("""
 		SELECT r.url FROM Ref r
 		WHERE r.url != :url
@@ -363,45 +340,6 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 	int updateObsolete(String url, String rootOrigin, boolean pinned);
 
 	/**
-	 * Archive mode version of {@link #updateObsolete(String, String, boolean)}.
-	 * Only the latest version in each origin is ranked, older versions are always obsolete.
-	 * PostgreSQL only.
-	 */
-	@Modifying
-	@Transactional
-	@Query(nativeQuery = true, value = """
-		WITH latest AS (
-			SELECT DISTINCT ON (l.origin) l.origin, l.modified, CASE WHEN :pinned = true AND jsonb_exists(COALESCE(l.metadata->'expandedTags', l.tags, CAST('[]' AS jsonb)), 'plugin/pinned')
-				THEN CASE WHEN l.origin = :rootOrigin THEN 2 ELSE 1 END ELSE 0 END AS rank
-			FROM ref l
-			WHERE l.url = :url
-				AND (:rootOrigin = '' OR l.origin = :rootOrigin OR l.origin LIKE concat(:rootOrigin, '.%'))
-			ORDER BY l.origin, l.modified DESC)
-		UPDATE ref r
-		SET metadata = jsonb_set(
-			COALESCE(r.metadata, CAST('{}' AS jsonb)),
-			'{obsolete}',
-			to_jsonb(EXISTS (
-				SELECT 1 FROM latest l
-				CROSS JOIN LATERAL (SELECT CASE WHEN :pinned = true AND jsonb_exists(COALESCE(r.metadata->'expandedTags', r.tags, CAST('[]' AS jsonb)), 'plugin/pinned')
-				THEN CASE WHEN r.origin = :rootOrigin THEN 2 ELSE 1 END ELSE 0 END AS rank) rr
-				WHERE (l.origin = r.origin AND l.modified > r.modified)
-					OR l.rank > rr.rank
-					OR (l.rank = rr.rank AND l.modified > r.modified))),
-			true)
-		WHERE r.url = :url
-			AND (:rootOrigin = '' OR r.origin = :rootOrigin OR r.origin LIKE concat(:rootOrigin, '.%'))
-		""")
-	int updateLatestObsolete(String url, String rootOrigin, boolean pinned);
-
-	@Transactional
-	default int updateObsolete(String url, String rootOrigin, boolean pinned, boolean archive) {
-		return archive
-			? updateLatestObsolete(url, rootOrigin, pinned)
-			: updateObsolete(url, rootOrigin, pinned);
-	}
-
-	/**
 	 * Check if a higher ranked version of a Ref exists.
 	 * @see #updateObsolete(String, String, boolean)
 	 */
@@ -415,33 +353,6 @@ public interface RefRepository extends JpaRepository<Ref, RefId>, JpaSpecificati
 						THEN CASE WHEN r.origin = :rootOrigin THEN 2 ELSE 1 END ELSE 0 END) = :rank
 					AND r.modified > :modified))""")
 	boolean higherRankExists(String url, String rootOrigin, boolean pinned, int rank, Instant modified);
-
-	/**
-	 * Archive mode version of {@link #higherRankExists(String, String, boolean, int, Instant)}.
-	 * Also true if a newer version exists in the same origin.
-	 * PostgreSQL only.
-	 * @see #updateLatestObsolete(String, String, boolean)
-	 */
-	@Query(nativeQuery = true, value = """
-		SELECT EXISTS (
-			SELECT 1 FROM (
-				SELECT DISTINCT ON (l.origin) l.origin, l.modified, CASE WHEN :pinned = true AND jsonb_exists(COALESCE(l.metadata->'expandedTags', l.tags, CAST('[]' AS jsonb)), 'plugin/pinned')
-				THEN CASE WHEN l.origin = :rootOrigin THEN 2 ELSE 1 END ELSE 0 END AS rank
-				FROM ref l
-				WHERE l.url = :url
-					AND (:rootOrigin = '' OR l.origin = :rootOrigin OR l.origin LIKE concat(:rootOrigin, '.%'))
-				ORDER BY l.origin, l.modified DESC) l
-			WHERE (l.origin = :origin AND l.modified > :modified)
-				OR l.rank > :rank
-				OR (l.rank = :rank AND l.modified > :modified))
-		""")
-	boolean higherRankLatestExists(String url, String origin, String rootOrigin, boolean pinned, int rank, Instant modified);
-
-	default boolean higherRankExists(String url, String origin, String rootOrigin, boolean pinned, int rank, Instant modified, boolean archive) {
-		return archive
-			? higherRankLatestExists(url, origin, rootOrigin, pinned, rank, modified)
-			: higherRankExists(url, rootOrigin, pinned, rank, modified);
-	}
 
 	@Modifying(clearAutomatically = true, flushAutomatically = true)
 	@Transactional

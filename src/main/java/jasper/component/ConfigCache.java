@@ -17,6 +17,7 @@ import jasper.plugin.config.Index;
 import jasper.repository.PluginRepository;
 import jasper.repository.RefRepository;
 import jasper.repository.TemplateRepository;
+import jasper.repository.TemplateRepositoryCustom;
 import jasper.repository.UserRepository;
 import jasper.repository.filter.RefFilter;
 import jasper.util.Archive;
@@ -81,6 +82,9 @@ public class ConfigCache {
 
 	@Autowired
 	TemplateRepository templateRepository;
+
+	@Autowired
+	TemplateRepositoryCustom templateRepositoryCustom;
 
 	@Autowired
 	IngestTemplate ingestTemplate;
@@ -451,7 +455,7 @@ public class ConfigCache {
 
 	@Cacheable(value = "template-schemas-cache", key = "#tag + #origin")
 	public List<TemplateDto> getSchemas(String tag, String origin) {
-		return templateRepository.findAllForTagAndOriginWithSchema(tag, origin, archive)
+		return templateRepositoryCustom.findAllForTagAndOriginWithSchema(tag, origin)
 			.stream()
 			// In archive mode a blank version is a tombstone
 			.filter(t -> !archive || !Archive.isBlank(t))
@@ -461,7 +465,7 @@ public class ConfigCache {
 
 	@Cacheable(value = "template-defaults-cache", key = "#tag + #origin")
 	public List<TemplateDto> getDefaults(String tag, String origin) {
-		return templateRepository.findAllForTagAndOriginWithDefaults(tag, origin, archive)
+		return templateRepositoryCustom.findAllForTagAndOriginWithDefaults(tag, origin)
 			.stream()
 			// In archive mode a blank version is a tombstone
 			.filter(t -> !archive || !Archive.isBlank(t))

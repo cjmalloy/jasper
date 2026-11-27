@@ -86,7 +86,7 @@ public class Meta {
 				.stream()
 				.map(tag -> new UserUrlResponse(
 					tag,
-					refRepository.findAllResponseIdsWithTag(ref.getUrl(), rootOrigin, tag, archive)
+					refRepositoryCustom.findAllResponseIdsWithTag(ref.getUrl(), rootOrigin, tag)
 						.stream()
 						.filter(id -> id.getOrigin().equals(rootOrigin))
 						.map(id -> qualifiedUserUrl(id.getUrl(), id.getOrigin()))
@@ -164,7 +164,7 @@ public class Meta {
 	 * Sources past {@link #SYNC_SOURCES} are updated by the cascade.
 	 */
 	private void reaction(String rootOrigin, Ref ref) {
-		if (archive) refRepository.updateObsolete(ref.getUrl(), rootOrigin, pinned(rootOrigin), true);
+		if (archive) refRepositoryCustom.updateObsolete(ref.getUrl(), rootOrigin, pinned(rootOrigin));
 		if (noMetadata) return;
 		var timestamp = timestamp(now());
 		var sources = (ref.getSources() == null ? List.<String>of() : ref.getSources())
@@ -223,7 +223,7 @@ public class Meta {
 		ref.getMetadata().setIgnored(original != null && original.isIgnored());
 		ref.getMetadata().setObsolete(obsolete(rootOrigin, ref));
 		if (ref.getMetadata().isObsolete()) return;
-		refRepository.updateObsolete(ref.getUrl(), rootOrigin, pinned(rootOrigin), archive);
+		refRepositoryCustom.updateObsolete(ref.getUrl(), rootOrigin, pinned(rootOrigin));
 		if (noMetadata) return;
 		var sources = (ref.getSources() == null ? List.<String>of() : ref.getSources())
 			.stream()
@@ -351,7 +351,7 @@ public class Meta {
 		var cascade = false;
 		var wasVisible = existing != null && (existing.getMetadata() == null || !existing.getMetadata().isObsolete());
 		var shadowed = refRepository.exists(isUrl(ref.getUrl()).and(isNotObsolete()).and(isUnderOrigin(rootOrigin)).and(not(isOrigin(ref.getOrigin()))));
-		refRepository.updateObsolete(ref.getUrl(), rootOrigin, pinned(rootOrigin), archive);
+		refRepositoryCustom.updateObsolete(ref.getUrl(), rootOrigin, pinned(rootOrigin));
 		var obsolete = obsolete(rootOrigin, ref);
 		if (ref.getMetadata() != null) ref.getMetadata().setObsolete(obsolete);
 		if (noMetadata) return;
@@ -544,7 +544,7 @@ logger.error("{} Error updating source metadata for ({}) {}", rootOrigin, ref.ge
 	 * Check if a higher ranked version of a Ref exists, or a newer version in the same origin.
 	 */
 	private boolean obsolete(String rootOrigin, Ref ref) {
-		return refRepository.higherRankExists(ref.getUrl(), ref.getOrigin(), rootOrigin, pinned(rootOrigin), rank(rootOrigin, ref), ref.getModified(), archive);
+		return refRepositoryCustom.higherRankExists(ref.getUrl(), ref.getOrigin(), rootOrigin, pinned(rootOrigin), rank(rootOrigin, ref), ref.getModified());
 	}
 
 	/**

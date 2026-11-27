@@ -16,7 +16,7 @@ import static jasper.util.Archive.isBlank;
 @Repository
 @Profile("archive & !sqlite")
 @Transactional
-public class BackfillRepositoryImplArchive implements BackfillRepository {
+public class BackfillRepositoryImplPostgresArchive implements BackfillRepository {
 
 	/**
 	 * Archive mode version of {@link BackfillRepositoryImplPostgres#BACKFILL_METADATA}.

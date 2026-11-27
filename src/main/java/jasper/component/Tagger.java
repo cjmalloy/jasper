@@ -8,10 +8,10 @@ import jasper.errors.AlreadyExistsException;
 import jasper.errors.InvalidPluginException;
 import jasper.errors.ModifiedException;
 import jasper.repository.RefRepository;
+import jasper.repository.RefRepositoryCustom;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
@@ -43,11 +43,11 @@ public class Tagger {
 	@Autowired
 	ConfigCache configs;
 
-	@Value("#{environment.matchesProfiles('archive')}")
-	boolean archive;
-
 	@Autowired
 	RefRepository refRepository;
+
+	@Autowired
+	RefRepositoryCustom refRepositoryCustom;
 
 	@Autowired
 	Ingest ingest;
@@ -451,7 +451,7 @@ public class Tagger {
 	public void removeAllResponses(String url, String origin, String tag) {
 		var remote = configs.getRemote(origin);
 		if (remote != null) origin = remote.getOrigin();
-		for (var res : refRepository.findAllResponseIdsWithTag(url, origin, tag, archive)) {
+		for (var res : refRepositoryCustom.findAllResponseIdsWithTag(url, origin, tag)) {
 			// Never write to sub-origins
 			if (!res.getOrigin().equals(origin)) continue;
 			internalTag(res.getUrl(), origin, "-" + tag);

@@ -71,33 +71,6 @@ public interface TemplateRepository extends JpaRepository<Template, TagId>, Qual
 		ORDER BY tag_levels(t.tag) ASC""")
 	List<Template> findAllForTagAndOriginWithSchema(String tag, String origin);
 
-	/**
-	 * Archive mode version of {@link #findAllForTagAndOriginWithSchema(String, String)}.
-	 * Only the latest version of each template is considered. PostgreSQL only.
-	 */
-	@Query(nativeQuery = true, value = """
-		SELECT t.* FROM (
-			SELECT DISTINCT ON (l.tag) l.* FROM template l
-			WHERE l.origin = :origin
-				AND (l.tag = ''
-					OR l.tag = :tag
-					OR (:tag LIKE '+%' AND concat('+', l.tag) = :tag)
-					OR (:tag LIKE '\\_%' ESCAPE '\\' AND concat('_', l.tag) = :tag)
-					OR strpos(:tag, concat(l.tag, '/')) = 1
-					OR (:tag LIKE '\\_%' ESCAPE '\\' AND strpos(:tag, concat(l.tag, '/')) = 2)
-					OR (:tag LIKE '+%' AND strpos(:tag, concat(l.tag, '/')) = 2))
-			ORDER BY l.tag, l.modified DESC) t
-		WHERE t.schema IS NOT NULL
-			AND COALESCE(t.config->>'disabled', '') != 'true'
-		ORDER BY CASE WHEN t.tag = '' THEN 0 ELSE length(t.tag) - length(replace(t.tag, '/', '')) + 1 END ASC""")
-	List<Template> findAllLatestForTagAndOriginWithSchema(String tag, String origin);
-
-	default List<Template> findAllForTagAndOriginWithSchema(String tag, String origin, boolean archive) {
-		return archive
-			? findAllLatestForTagAndOriginWithSchema(tag, origin)
-			: findAllForTagAndOriginWithSchema(tag, origin);
-	}
-
 	@Query("""
 		FROM Template AS t
 		WHERE t.origin = :origin
@@ -112,33 +85,6 @@ public interface TemplateRepository extends JpaRepository<Template, TagId>, Qual
 				OR (:tag LIKE '+%' AND locate(concat(t.tag, '/'), :tag) = 2))
 		ORDER BY tag_levels(t.tag) ASC""")
 	List<Template> findAllForTagAndOriginWithDefaults(String tag, String origin);
-
-	/**
-	 * Archive mode version of {@link #findAllForTagAndOriginWithDefaults(String, String)}.
-	 * Only the latest version of each template is considered. PostgreSQL only.
-	 */
-	@Query(nativeQuery = true, value = """
-		SELECT t.* FROM (
-			SELECT DISTINCT ON (l.tag) l.* FROM template l
-			WHERE l.origin = :origin
-				AND (l.tag = ''
-					OR l.tag = :tag
-					OR (:tag LIKE '+%' AND concat('+', l.tag) = :tag)
-					OR (:tag LIKE '\\_%' ESCAPE '\\' AND concat('_', l.tag) = :tag)
-					OR strpos(:tag, concat(l.tag, '/')) = 1
-					OR (:tag LIKE '\\_%' ESCAPE '\\' AND strpos(:tag, concat(l.tag, '/')) = 2)
-					OR (:tag LIKE '+%' AND strpos(:tag, concat(l.tag, '/')) = 2))
-			ORDER BY l.tag, l.modified DESC) t
-		WHERE t.defaults IS NOT NULL
-			AND COALESCE(t.config->>'disabled', '') != 'true'
-		ORDER BY CASE WHEN t.tag = '' THEN 0 ELSE length(t.tag) - length(replace(t.tag, '/', '')) + 1 END ASC""")
-	List<Template> findAllLatestForTagAndOriginWithDefaults(String tag, String origin);
-
-	default List<Template> findAllForTagAndOriginWithDefaults(String tag, String origin, boolean archive) {
-		return archive
-			? findAllLatestForTagAndOriginWithDefaults(tag, origin)
-			: findAllForTagAndOriginWithDefaults(tag, origin);
-	}
 
 	/**
 	 * Find the latest version if it is not disabled. In archive mode multiple versions may exist.
